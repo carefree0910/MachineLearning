@@ -21,12 +21,11 @@ def main(read_data, lr=0.1, num=50, dimension=2, scale=5, period=2, repeat=20):
             y.append(1)
 
     rs = "failed"
-    w = b = 0
+    w = [random() for _ in range(dimension)]
+    b = random()
+
     for i in range(repeat):
-        if not i:
-            w, b, dimension, flag = gradient_decent(x, y, lr=lr, ceiling=period)
-        else:
-            w, b, dimension, flag = gradient_decent(x, y, w=w, b=b, lr=lr, ceiling=period)
+        w, b, dimension, flag = gradient_decent(x, y, w=w, b=b, lr=lr, ceiling=period)
 
         if dimension == 2:
             w1, w2 = w
@@ -45,6 +44,6 @@ def main(read_data, lr=0.1, num=50, dimension=2, scale=5, period=2, repeat=20):
     print(rs)
     print("w: {}; b: {}".format(w, b))
     for i in range(len(x)):
-        print("org: {}; predict: {}".format(y[i], dot(w, x[i]) + b))
+        print("org: {}; predict: {}".format(y[i], predict(dot(w, x[i]) + b)))
 
 main(read_data=True, period=200, repeat=50, lr=0.05)
