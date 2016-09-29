@@ -14,9 +14,9 @@ pre_configured_sigma = {
 }
 
 MU = None
-SIGMA = None
+SIGMA = pre_configured_sigma
 
-GAP = 10 ** -2
-EPSILON = 10 ** -7
+GAP = 10 ** -1
+EPSILON = 10 ** -6
 
 BORDER_SCALE = 2
