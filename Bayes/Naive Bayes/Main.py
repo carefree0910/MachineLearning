@@ -29,6 +29,6 @@ def main():
 
     func = estimate(x, y, category)
 
-    draw_result(x, y, category, func, draw_border=True, show_result=True)
+    draw_result(x, y, category, func, draw_border=DRAW_BORDER, show_result=SHOW_RESULT)
 
 main()
