@@ -25,7 +25,7 @@ def main():
     per = 1 / scale
     pre_configured_possibilities = [[per * i for i in range(-4 * scale, 5 * scale)],
                                     [per * i for i in range(-4 * scale, 5 * scale)]]
-    func = estimate(x, y, category, not_continuous=pre_configured_possibilities)"""
+    func = estimate(x, y, category, discrete=pre_configured_possibilities)"""
 
     func = estimate(x, y, category)
 
