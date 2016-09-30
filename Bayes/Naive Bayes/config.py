@@ -1,35 +1,24 @@
-MULTIVARIATE_NORMAL = False
-USE_SCIPY_NORM = False
-
-if MULTIVARIATE_NORMAL:
-    pre_configured_sigma = {
-        0: [
-            [1, 0],
-            [0, 1]
-        ],
-        1: [
-            [1, 0],
-            [0, 1]
-        ],
-        2: [
-            [1, 0],
-            [0, 1]
-        ],
-    }
-else:
-    pre_configured_sigma = {
-        0: [1, 1],
-        1: [1, 1],
-        2: [1, 1],
-    }
+pre_configured_sigma = {
+    0: [
+        [1, 0],
+        [0, 1]
+    ],
+    1: [
+        [1, 0],
+        [0, 1]
+    ],
+    2: [
+        [1, 0],
+        [0, 1]
+    ],
+}
 
 MU = None
-SIGMA = None
+SIGMA = pre_configured_sigma
 
-GAP = 5 * 10 ** -3
-EPSILON = 10 ** -5
+GAP = 10 ** -2
+EPSILON = 10 ** -4
 
-DRAW_BORDER = True
+DRAW_BORDER = False
 SHOW_RESULT = True
-
 BORDER_SCALE = 2
