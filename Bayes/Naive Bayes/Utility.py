@@ -11,7 +11,6 @@ def data_cleaning(line):
 
 def get_data():
     categories = None
-    line_len = 0
 
     x = []
     with open("Data/data.txt", "r") as file:
@@ -26,13 +25,13 @@ def get_data():
             tmp_x = []
             if categories is None:
                 line_len = len(line)
-                categories = [{ "flag": 1, line[i]: 0 } for i in range(line_len)]
-            for i in range(line_len):
-                if line[i] in categories[i]:
-                    tmp_x.append(categories[i][line[i]])
+                categories = [{ "flag": 1, _l: 0 } for _l in line]
+            for i, _l in enumerate(line):
+                if _l in categories[i]:
+                    tmp_x.append(categories[i][_l])
                 else:
                     tmp_x.append(categories[i]["flag"])
-                    categories[i][line[i]] = categories[i]["flag"]
+                    categories[i][_l] = categories[i]["flag"]
                     categories[i]["flag"] += 1
 
             x.append(tmp_x)
@@ -46,8 +45,9 @@ def get_data():
     for xx, yy in xy_zip:
         category[yy].append(xx)
 
-    n_possibilities = [categories[i]["flag"] if WHETHER_DISCRETE[i] else PRE_CONFIGURED_FUNCTION[i]
-                       for i in range(line_len) if i != TAR_IDX]
+    n_possibilities = [_c["flag"] if WHETHER_DISCRETE[i] else PRE_CONFIGURED_FUNCTION[i]
+                       for i, _c in enumerate(categories) if i != TAR_IDX]
+
     y_data = (xy_zip, category, n_possibilities)
 
     return x, y_data
