@@ -48,7 +48,6 @@ def get_data():
 
     n_possibilities = [categories[i]["flag"] if WHETHER_DISCRETE[i] else PRE_CONFIGURED_FUNCTION[i]
                        for i in range(line_len) if i != TAR_IDX]
-
     y_data = (xy_zip, category, n_possibilities)
 
     return x, y_data
