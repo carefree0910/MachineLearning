@@ -33,7 +33,7 @@ def estimate(x, xy_zip, category, lb=1, func=None, discrete_data=None):
     """
     :param x:               input matrix     :  x = (x1, ..., xn)                       (xi is a vector)
     :param xy_zip:          list             :  list(zip(x, y))
-           y:               target vector    :  y = (ω1, ..., ωn)                       (ωi = 1, ..., m)(i=1, ..., n)
+           y:               target vector    :  y = (ω1, ..., ωn)                       (ωi = 1, ..., m)(i = 1, ..., n)
     :param category:        list             :  [ [x that belongs to ωi] ]              (len(category) = m)
     :param lb:              lambda           :  lambda = 1 -> Laplace Smoothing
     :param func:            function         :  None or func(x, tar_category) = p(x|tar_category)
