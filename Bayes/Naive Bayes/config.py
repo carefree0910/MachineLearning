@@ -7,8 +7,7 @@ WHETHER_DISCRETE = [False] + [True] * 15
 # Please reference to 'gaussian_maximum_likelihood' in NaiveBayes.py for details
 PRE_CONFIGURED_FUNCTION = [None] * 16
 
-MU = [None] * 16
-SIGMA = [None] * 16
+MU, SIGMA = [None] * 16, [None] * 16
 
 DRAW_RESULT = True
 SHOW_RESULT = True
