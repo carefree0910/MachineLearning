@@ -1,114 +1,89 @@
-import scipy.stats as stat
+from math import pi, exp
 
 from config import *
-from CFunc.CFunc import *
+
+sqrt_pi = pi ** 0.5
 
 
-def gaussian_maximum_likelihood(x, category, p_category,
-                                mu=None, sigma=None, multivariate_normal=True, use_scipy_norm=False):
-    dim = len(x[0])
-
-    if multivariate_normal:
-        if mu is None:
-            mu = {c: [] for c in category}
-            for c, lst in mu.items():
-                for i in range(dim):
-                    lst.append(sum([xx[i] for xx in category[c]]) / len(category[c]))
-        if sigma is None:
-            sigma = {c: [] for c in category}
-            for c, lst in sigma.items():
-                for i in range(dim):
-                    lst.append([0] * dim)
-                    lst[i] = sum([xx[i] ** 2 for xx in category[c]]) / len(category[c]) - mu[c][i] ** 2
-
-        def func(input_x, tar_category):
-            return p_category[tar_category] * stat.multivariate_normal(doc=False)(
-                mu[tar_category], sigma[tar_category]
-            ).pdf(input_x)
-    else:
-        if mu is None:
-            mu = {c: [] for c in category}
-            for c, lst in mu.items():
-                for i in range(dim):
-                    lst.append(sum([xx[i] for xx in category[c]]) / len(category[c]))
-        if sigma is None:
-            sigma = {c: [] for c in category}
-            for c, lst in sigma.items():
-                for i in range(dim):
-                    lst.append(sum([xx[i] ** 2 for xx in category[c]]) / len(category[c]) - mu[c][i] ** 2)
-
-        def func(input_x, tar_category):
-            rs = p_category[tar_category]
-            for i in range(dim):
-                if use_scipy_norm:
-                    rs *= stat.norm(mu[tar_category][i], sigma[tar_category][i]).pdf(input_x[i])
-                else:
-                    rs *= gaussian(input_x[i], mu[tar_category][i], sigma[tar_category][i])
-            return rs
-
-    return func
+def gaussian(x, mu, sigma):
+    return exp(-(x - mu) ** 2 / (2 * sigma ** 2)) / (sqrt_pi * sigma)
 
 
-def estimate(x, y, category, lb=1, func=None, discrete=None):
+def gaussian_maximum_likelihood(category, n_category, dim, n_dim, mu=None, sigma=None):
+
+    if mu is None:
+        mu = [0 for _ in range(n_category)]
+        for c in range(n_category):
+            mu[c] = sum([_x[dim] for _x in category[c]]) / len(category[c])
+
+    if sigma is None:
+        sigma = [0 for _ in range(n_category)]
+        for c in range(n_category):
+            sigma[c] = sum([(_x[dim] - mu[c]) ** 2 for _x in category[c]]) / (len(category[c]) - 1)
+
+    def func(_c):
+        def sub(_x):
+            return gaussian(_x, mu[_c], sigma[_c])
+        return sub
+
+    return [func(_c=c) for c in range(n_dim)]
+
+
+def estimate(x, xy_zip, category, lb=1, func=None, discrete_data=None):
     """
-    :param x:               input vector     :  x = (x1, ..., xn)
-    :param y:               dictionary       :  { x: ωi }                                 (ωi = 1, ..., m)
-    :param category:        dictionary       :  { ωi: [x] }                               (len(category) = m)
+    :param x:               input matrix     :  x = (x1, ..., xn)                       (xi is a vector)
+    :param xy_zip:          list             :  list(zip(x, y))
+           y:               target vector    :  y = (ω1, ..., ωn)                       (ωi = 1, ..., m)(i=1, ..., n)
+    :param category:        list             :  [ [x that belongs to ωi] ]              (len(category) = m)
     :param lb:              lambda           :  lambda = 1 -> Laplace Smoothing
     :param func:            function         :  None or func(x, tar_category) = p(x|tar_category)
-    :param discrete:  whether the distribution is continuous or not.
-                            if its value is not None, it should be a list: [ n_possibility ]
+    :param discrete_data:   list             :  If ωi is discrete, discrete_data[i] = n_possibilities
+                                                else, discrete_data[i] = None or pre_configured_function
     :return:                function         :  func(x, tar_category) = p(x|tar_category)
     """
 
     n_category = len(category)
+    n_dim = len(discrete_data)
 
     # Prior probability
-    p_category = {}
-    for key, value in category.items():
-        p_category[key] = (len(value) + lb) / (len(x) + lb * n_category)
+    p_category = [0 for _ in range(n_category)]
+    for w, x_lst in enumerate(category):
+        p_category[w] = (len(x_lst) + lb) / (len(x) + lb * n_category)
 
     if func is None:
-        if discrete is None:
-            func = gaussian_maximum_likelihood(x, category, p_category, MU, SIGMA, MULTIVARIATE_NORMAL, USE_SCIPY_NORM)
-        else:
-            data = []
-            for dim in range(len(discrete)):
-                new_category = {c: {p: 0 for p in discrete[dim]} for c in category}
-                for key, value in y.items():
-                    new_category[value][key[dim]] += 1
-                data.append({
-                    c: {p:
-                            (new_category[c][p] + lb) / (len(category[c]) + lb * len(discrete[dim]))
-                        for p in discrete[dim]
-                        } for c in new_category
-                })
+        data = [None for _ in range(n_dim)]
+        for dim, n_possibilities in enumerate(discrete_data):
+            if not isinstance(n_possibilities, int):
+                if n_possibilities is None:
+                    data[dim] = gaussian_maximum_likelihood(category, n_category, dim, n_dim, MU[dim], SIGMA[dim])
+                else:
+                    data[dim] = n_possibilities(category, n_category, dim, n_dim)
+            else:
+                new_category = [[0 for _ in range(n_possibilities)] for _ in range(n_category)]
+                for xx, yy in xy_zip:
+                    new_category[yy][xx[dim]] += 1
+                data[dim] = [[
+                     (new_category[c][p] + lb) / (len(category[c]) + lb * n_possibilities)
+                     for p in range(n_possibilities)] for c in range(n_category)
+                ]
 
-            def func(input_x, tar_category):
-                rs = 1
-                for d, xx in enumerate(input_x):
-                    rs *= data[d][tar_category][xx]
-                return rs * p_category[tar_category]
+        def func(input_x, tar_category):
+            rs = 1
+            for d, _x in enumerate(input_x):
+                if discrete_data[d] is None:
+                    rs *= data[d][tar_category](_x)
+                else:
+                    rs *= data[d][tar_category][_x]
+            return rs * p_category[tar_category]
 
     return func
 
 
 def predict(x, func, categories):
-    m_arg = 0
-    possibilities = []
+    m_arg, m_possibility = 0, 0
     for i, category in enumerate(categories):
         p = func(x, category)
-        possibilities.append(p)
-        if p > possibilities[m_arg]:
-            m_arg = i
+        if p > m_possibility:
+            m_arg, m_possibility = i, p
 
     return m_arg
-
-
-def draw_border_core_process(ii, jj, func, categories):
-    tmp_x = (ii, jj)
-    for ik, k in enumerate(categories):
-        for il in range(ik + 1, len(categories)):
-            if abs(func(tmp_x, k) - func(tmp_x, categories[il])) < EPSILON:
-                return True
-    return False

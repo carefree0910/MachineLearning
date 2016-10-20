@@ -1,35 +1,17 @@
-MULTIVARIATE_NORMAL = False
-USE_SCIPY_NORM = False
+SKIP_FIRST = True
+TAR_IDX = 16
 
-if MULTIVARIATE_NORMAL:
-    pre_configured_sigma = {
-        0: [
-            [1, 0],
-            [0, 1]
-        ],
-        1: [
-            [1, 0],
-            [0, 1]
-        ],
-        2: [
-            [1, 0],
-            [0, 1]
-        ],
-    }
-else:
-    pre_configured_sigma = {
-        0: [1, 1],
-        1: [1, 1],
-        2: [1, 1],
-    }
+WHETHER_DISCRETE = [False] + [True] * 15
 
-MU = None
-SIGMA = None
+# If not None, it should be func(category, n_category, dim, n_dim) which returns a list of functions
+# Please reference to 'gaussian_maximum_likelihood' in NaiveBayes.py for details
+PRE_CONFIGURED_FUNCTION = [None] * 16
 
-GAP = 5 * 10 ** -3
-EPSILON = 10 ** -5
+MU = [None] * 16
+SIGMA = [None] * 16
 
-DRAW_BORDER = True
+DRAW_RESULT = True
 SHOW_RESULT = True
 
-BORDER_SCALE = 2
+ESTIMATE_MODEL = True
+GET_TIME = True
