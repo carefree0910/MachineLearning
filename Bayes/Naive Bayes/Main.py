@@ -14,8 +14,6 @@ def main():
     func = estimate(x, xy_zip, category, discrete_data=n_possibilities)
     learning_time = time.time() - learning_time
 
-    # draw_result(x, y, category, func, draw_border=DRAW_BORDER, show_result=SHOW_RESULT)
-
     estimation_time = time.time()
     if ESTIMATE_MODEL:
         rs = 0
