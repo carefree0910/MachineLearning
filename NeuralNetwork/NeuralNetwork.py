@@ -77,7 +77,7 @@ class Layer:
 
     # Core
 
-    def activate(self, x, w, predict=False):
+    def activate(self, x, w, bias=None, predict=False):
         raise NotImplementedError("Please implement activation function for {}".format(self.name))
 
     def derivative(self, x):
@@ -121,7 +121,7 @@ class SubLayer(Layer):
     def root(self, value):
         self._root = value
 
-    def activate(self, x, w, predict=False):
+    def activate(self, x, w, bias=None, predict=False):
         raise NotImplementedError("Please implement activation function for a SubLayer")
 
     def derivative(self, x):
@@ -135,8 +135,10 @@ class SubLayer(Layer):
 
 class Tanh(Layer):
 
-    def activate(self, x, w, predict=False):
-        return np.tanh(x.dot(w))
+    def activate(self, x, w, bias=None, predict=False):
+        if bias is None:
+            return np.tanh(x.dot(w))
+        return np.tanh(x.dot(w) + bias)
 
     def derivative(self, x):
         return 1 - x ** 2
@@ -147,8 +149,10 @@ class Tanh(Layer):
 
 class Sigmoid(Layer):
 
-    def activate(self, x, w, predict=False):
-        return 1 / (1 + np.exp(-x.dot(w)))
+    def activate(self, x, w, bias=None, predict=False):
+        if bias is None:
+            return 1 / (1 + np.exp(-x.dot(w)))
+        return 1 / (1 + np.exp(-x.dot(w) - bias))
 
     def derivative(self, x):
         return x * (1 - x)
@@ -159,8 +163,8 @@ class Sigmoid(Layer):
 
 class ELU(Layer):
 
-    def activate(self, x, w, predict=False):
-        _rs = x.dot(w)
+    def activate(self, x, w, bias=None, predict=False):
+        _rs = x.dot(w) if bias is None else x.dot(w) + bias
         _rs0 = _rs < 0
         _rs[_rs0] = np.exp(_rs[_rs0]) - 1
         return _rs
@@ -176,15 +180,13 @@ class ELU(Layer):
 
 class ReLU(Layer):
 
-    def activate(self, x, w, predict=False):
-        _rs = x.dot(w)
-        _rs[_rs < 0] = 0
-        return _rs
+    def activate(self, x, w, bias=None, predict=False):
+        if bias is None:
+            return np.maximum(0, x.dot(w))
+        return np.maximum(0, x.dot(w) + bias)
 
     def derivative(self, x):
-        _rs, _arg0 = np.zeros(x.shape), x < 0
-        _rs[_arg0], _rs[~_arg0] = 0, 1
-        return _rs
+        return x > 0
 
     def __str__(self):
         return "ReLU"
@@ -192,8 +194,10 @@ class ReLU(Layer):
 
 class Softplus(Layer):
 
-    def activate(self, x, w, predict=False):
-        return np.log(1 + np.exp(x.dot(w)))
+    def activate(self, x, w, bias=None, predict=False):
+        if bias is None:
+            return np.log(1 + np.exp(x.dot(w)))
+        return np.log(1 + np.exp(x.dot(w) + bias))
 
     def derivative(self, x):
         return 1 / (1 + 1 / (np.exp(x) - 1))
@@ -204,8 +208,10 @@ class Softplus(Layer):
 
 class Softmax(Layer):
 
-    def activate(self, x, w, predict=False):
-        return Layer.safe_exp(x.dot(w))
+    def activate(self, x, w, bias=None, predict=False):
+        if bias is None:
+            return Layer.safe_exp(x.dot(w))
+        return Layer.safe_exp(x.dot(w) + bias)
 
     def derivative(self, x):
         return x * (1 - x)
@@ -214,33 +220,43 @@ class Softmax(Layer):
         return "Softmax"
 
 
+class Identical(Layer):
+
+    def activate(self, x, w, bias=None, predict=False):
+        if bias is None:
+            return x.dot(w)
+        return x.dot(w) + bias
+
+    def derivative(self, x):
+        return 1
+
+    def __str__(self):
+        return "Identical"
+
+
 # Special Layer
 
 class Dropout(SubLayer):
 
-    def __init__(self, shape, parent, prob=0.2):
+    def __init__(self, shape, parent, prob=0.5):
 
         if prob < 0 or prob >= 1:
             raise BuildLayerError("Probability of Dropout should be a positive float smaller than 1")
 
         SubLayer.__init__(self, shape, parent)
         self._prob = prob
-        self._diag = None
+        self._div_prob = 1 / (1 - self._prob)
 
-    def activate(self, x, w, predict=False):
+    def activate(self, x, w, bias=None, predict=False):
         if not predict:
-            _rand_diag = np.random.random(x.shape[1])
-            _dropout = _rand_diag < self._prob
-            _rand_diag[_dropout], _rand_diag[~_dropout] = 0, 1
-            self._diag = np.diag(_rand_diag)
+            _rand_diag = np.random.random(x.shape[1]) >= self._prob
+            _diag = np.diag(_rand_diag) * self._div_prob
         else:
-            self._diag = np.eye(x.shape[1]) * (1 - self._prob)
-        return x.dot(self._diag)
+            _diag = np.eye(x.shape[1])
+        return x.dot(_diag)
 
     def derivative(self, x):
-        if self._diag is None:
-            raise BuildNetworkError("Dropout encountered fatal error.")
-        return x.dot(self._diag)
+        return self._div_prob
 
     def __str__(self):
         return "Dropout"
@@ -267,7 +283,7 @@ class CostLayer(SubLayer):
         self._cost_function_name = cost_function
         self._cost_function = self._available_cost_functions[cost_function]
 
-    def activate(self, x, w, predict=False):
+    def activate(self, x, w, bias=None, predict=False):
         return x
 
     def derivative(self, x):
@@ -279,13 +295,17 @@ class CostLayer(SubLayer):
     def bp_first(self, y, y_pred):
         if self._root.name == "Sigmoid" and self.cost_function == "Cross Entropy":
             return y * (1 - y_pred) - (1 - y) * y_pred
+        if self.cost_function == "Log Likelihood":
+            return -self._cost_function(y, y_pred) / 4
         return -self._cost_function(y, y_pred) * self._root.derivative(y_pred)
 
     @property
-    def cost_function(self, apply=False):
-        if not apply:
-            return self._cost_function_name
-        return self._cost_function
+    def calculate(self):
+        return lambda y, y_pred: self._cost_function(y, y_pred, False)
+
+    @property
+    def cost_function(self):
+        return self._cost_function_name
 
     @cost_function.setter
     def cost_function(self, value):
@@ -307,7 +327,7 @@ class CostLayer(SubLayer):
             return -y + y_pred
         assert_string = "y or y_pred should be np.ndarray in cost function"
         assert isinstance(y, np.ndarray) or isinstance(y_pred, np.ndarray), assert_string
-        return 0.5 * np.sum((y - y_pred) ** 2)
+        return 0.5 * np.average((y - y_pred) ** 2)
 
     @staticmethod
     def _cross_entropy(y, y_pred, diff=True):
@@ -315,18 +335,17 @@ class CostLayer(SubLayer):
             return -y / y_pred + (1 - y) / (1 - y_pred)
         assert_string = "y or y_pred should be np.ndarray in cost function"
         assert isinstance(y, np.ndarray) or isinstance(y_pred, np.ndarray), assert_string
-        return np.sum(-y * np.log(y_pred) - (1 - y) * np.log(1 - y_pred))
+        return np.average(-y * np.log(y_pred) - (1 - y) * np.log(1 - y_pred))
 
     @classmethod
     def _log_likelihood(cls, y, y_pred, diff=True):
         if cls._batch_range is None:
             cls._batch_range = np.arange(len(y_pred))
         y_arg_max = np.argmax(y, axis=1)
-        exp_y_pred = Layer.safe_exp(y_pred)
         if diff:
-            exp_y_pred[cls._batch_range, y_arg_max] -= 1
-            return exp_y_pred
-        return np.sum(-np.log(exp_y_pred[cls._batch_range, y_arg_max]))
+            y_pred[cls._batch_range, y_arg_max] -= 1
+            return y_pred
+        return np.sum(-np.log(Layer.safe_exp(y_pred)[:, y_arg_max])) / len(y)
 
 
 # Neural Network
@@ -335,18 +354,30 @@ class NN:
 
     def __init__(self):
         self._layers, self._weights, self._bias = [], [], []
+        self._layer_names, self._layer_shapes = [], []
+        self._data_size = 0
+
         self._whether_apply_bias = False
         self._current_dimension = 0
+        self._cost_layer = "Undefined"
 
         self._logs = []
         self._metrics, self._metric_names = [], []
 
+        self._x, self._y = None, None
         self._x_min, self._x_max = 0, 0
         self._y_min, self._y_max = 0, 0
+
+        # Sets & Dictionaries
 
         self._available_metrics = {
             "acc": NN._acc, "_acc": NN._acc,
             "f1": NN._f1_score, "_f1_score": NN._f1_score
+        }
+        self._available_root_layers = {
+            "Tanh": Tanh, "Sigmoid": Sigmoid,
+            "ELU": ELU, "ReLU": ReLU, "Softplus": Softplus,
+            "Softmax": Softmax
         }
         self._available_sub_layers = {
             "Dropout", "MSE", "Cross Entropy", "Log Likelihood"
@@ -359,7 +390,9 @@ class NN:
         }
 
     def initialize(self):
-        self._layers, self._weights = [], []
+        self._layers, self._weights, self._bias = [], [], []
+        self._layer_names, self._layer_shapes = [], []
+        self._whether_apply_bias = False
         self._current_dimension = 0
 
         self._logs = []
@@ -371,6 +404,22 @@ class NN:
             "-".join([str(_layer.shape[1]) for _layer in self._layers]) +
             " at {}".format(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
         )
+
+    @property
+    def layer_names(self):
+        return [layer.name for layer in self._layers]
+
+    @layer_names.setter
+    def layer_names(self, value):
+        self._layer_names = value
+
+    @property
+    def layer_shapes(self):
+        return [layer.shape for layer in self._layers]
+
+    @layer_shapes.setter
+    def layer_shapes(self, value):
+        self._layer_shapes = value
 
     # Metrics
 
@@ -391,9 +440,28 @@ class NN:
 
     # Utils
 
+    def _feed_data(self, x, y):
+        if len(x) != len(y):
+            raise BuildNetworkError("Data fed to network should be identical in length, x: {} and y: {} found".format(
+                len(x), len(y)
+            ))
+        if x is None:
+            if self._x is None:
+                raise BuildNetworkError("Please provide input matrix")
+            x = self._x
+        if y is None:
+            if self._y is None:
+                raise BuildNetworkError("Please provide input matrix")
+            y = self._y
+        self._x, self._y = x, y
+        self._x_min, self._x_max = np.min(x), np.max(x)
+        self._y_min, self._y_max = np.min(y), np.max(y)
+        self._data_size = len(x)
+        return x, y
+
     def _add_weight(self, shape):
         self._weights.append(2 * np.random.random(shape) - 1)
-        self._bias.append(2 * np.random.random(shape[1]) - 1)
+        self._bias.append(np.zeros((1, shape[1])))
 
     def _add_layer(self, layer, *args):
         _parent = self._layers[-1]
@@ -431,7 +499,7 @@ class NN:
             self.parent = _parent
             self._layers.append(layer)
             self._weights.append(np.eye(_current))
-            self._bias.append(np.zeros(_current))
+            self._bias.append(np.zeros((1, _current)))
             self._current_dimension = _next
             return
         self._layers.append(layer)
@@ -443,23 +511,18 @@ class NN:
         _last_layer_root = _last_layer.root
         if not isinstance(_last_layer, CostLayer):
             if _last_layer_root.name == "Sigmoid":
-                self.add("Cross Entropy")
+                self._cost_layer = "Cross Entropy"
             elif _last_layer_root.name == "Softmax":
-                self.add("Log Likelihood")
+                self._cost_layer = "Log Likelihood"
             else:
-                self.add("MSE")
-
-    def _apply_bias(self, activations, idx):
-        if self._whether_apply_bias:
-            activations[-1] += self._bias[idx]
+                self._cost_layer = "MSE"
+            self.add(self._cost_layer)
 
     def _get_activations(self, x, predict=False):
-        _activations = [self._layers[0].activate(x, self._weights[0])]
-        self._apply_bias(_activations, 0)
+        _activations = [self._layers[0].activate(x, self._weights[0], self._bias[0], predict)]
         for i, layer in enumerate(self._layers[1:]):
-            _activations.append(layer.activate(_activations[-1], self._weights[i + 1], predict))
-            if not layer.is_last_root:
-                self._apply_bias(_activations, i + 1)
+            _activations.append(layer.activate(
+                _activations[-1], self._weights[i + 1], self._bias[i + 1], predict))
         return _activations
 
     def _get_prediction(self, x):
@@ -474,14 +537,19 @@ class NN:
         for i, metric in enumerate(self._metrics):
             self._logs[i].append(metric(y, y_pred))
 
-    def _print_metric_logs(self):
+    def _print_metric_logs(self, x, y, show_loss):
         print()
         print("-" * 30)
         for i, name in enumerate(self._metric_names):
             print("{:<16s}: {:12.8}".format(name, self._logs[i][-1]))
+        if show_loss:
+            print("{:<16s}: {:12.8}".format("Loss", self._layers[-1].calculate(y, self.predict(x)) / self._data_size))
         print("-" * 30)
 
     # API
+
+    def feed(self, x, y):
+        self._feed_data(x, y)
 
     def add(self, layer, *args):
         if isinstance(layer, str):
@@ -521,49 +589,62 @@ class NN:
                 else:
                     raise LayerError("Invalid Layer provided (invalid shape '{}' found)".format(layer.shape))
 
-    def build(self, units):
-        try:
-            units = np.array(units).flatten().astype(np.int)
-        except ValueError as err:
-            raise BuildLayerError(err)
-        if len(units) < 2:
-            raise BuildLayerError("At least 2 layers are needed")
-        _input_shape = (units[0], units[1])
-        self.initialize()
-        self.add(Sigmoid(_input_shape))
-        for unit_num in units[2:]:
-            self.add(Sigmoid((unit_num, )))
-        self.add("Dropout")
-        self.add("Cross Entropy")
+    def build(self, units="build"):
+        if isinstance(units, str):
+            if units == "build":
+                for name, shape in zip(self._layer_names, self._layer_shapes):
+                    try:
+                        self.add(self._available_root_layers[name](shape))
+                    except KeyError:
+                        self.add(name)
+                self._add_cost_layer()
+            elif units == "build from load":
+                self.add(self._cost_layer)
+            else:
+                raise NotImplementedError("Invalid param '{}' provided to 'build' method".format(units))
+        else:
+            try:
+                units = np.array(units).flatten().astype(np.int)
+            except ValueError as err:
+                raise BuildLayerError(err)
+            if len(units) < 2:
+                raise BuildLayerError("At least 2 layers are needed")
+            _input_shape = (units[0], units[1])
+            self.initialize()
+            self.add(Sigmoid(_input_shape))
+            for unit_num in units[2:]:
+                self.add(Sigmoid((unit_num, )))
+            self._add_cost_layer()
 
-    def preview(self):
+    def preview(self, add_cost=True):
         if not self._layers:
             rs = "None"
         else:
-            self._add_cost_layer()
+            if add_cost:
+                self._add_cost_layer()
             rs = (
                 "Input  :  {:<10s} - {}\n".format("Dimension", self._layers[0].shape[0]) +
                 "\n".join(["Layer  :  {:<10s} - {}".format(
                     _layer.name, _layer.shape[1]
                 ) for _layer in self._layers[:-1]]) +
-                "\nCost   :  {:<10s}\n".format(self._layers[-1].name)
+                "\nCost   :  {:<10s}\n".format(self._cost_layer)
             )
         print("=" * 30 + "\n" + "Structure\n" + "-" * 30 + "\n" + rs + "\n" + "-" * 30 + "\n")
 
     @staticmethod
     def split_data(x, y, train_only, training_scale=TRAINING_SCALE, cv_scale=CV_SCALE):
-        shuffle_suffix = np.random.permutation(len(x))
-        x, y = x[shuffle_suffix], y[shuffle_suffix]
-        if not train_only:
+        if train_only:
+            train_len = len(x)
+            x_train, y_train = np.array(x[:train_len]), np.array(y[:train_len])
+            x_cv, y_cv, x_test, y_test = x_train, y_train, x_train, y_train
+        else:
+            shuffle_suffix = np.random.permutation(len(x))
+            x, y = x[shuffle_suffix], y[shuffle_suffix]
             train_len = int(len(x) * training_scale)
             cv_len = train_len + int(len(x) * cv_scale)
             x_train, y_train = np.array(x[:train_len]), np.array(y[:train_len])
             x_cv, y_cv = np.array(x[train_len:cv_len]), np.array(y[train_len:cv_len])
             x_test, y_test = np.array(x[cv_len:]), np.array(y[cv_len:])
-        else:
-            train_len = len(x)
-            x_train, y_train = np.array(x[:train_len]), np.array(y[:train_len])
-            x_cv, y_cv, x_test, y_test = x_train, y_train, x_train, y_train
 
         if BOOST_LESS_SAMPLES:
             if y_train.shape[1] != 2:
@@ -584,10 +665,14 @@ class NN:
         return (x_train, x_cv, x_test), (y_train, y_cv, y_test)
 
     def fit(self,
-            x, y, lr=LEARNING_RATE, epoch=EPOCH, batch_size=BATCH_SIZE, apply_bias=False,
+            x=None, y=None,
+            lr=LEARNING_RATE, lb=0.01, apply_bias=True,
+            epoch=EPOCH, batch_size=BATCH_SIZE,
             train_only=TRAIN_ONLY, record_period=RECORD_PERIOD,
-            metrics=None, do_log=True, print_log=False, debug=False,
+            metrics=None, do_log=True, print_log=False, show_loss=False, debug=False,
             visualize=False, visualize_setting=None):
+
+        x, y = self._feed_data(x, y)
 
         if not self._layers:
             raise BuildNetworkError("Please provide layers before fitting data")
@@ -599,13 +684,9 @@ class NN:
 
         (x_train, x_cv, x_test), (y_train, y_cv, y_test) = NN.split_data(x, y, train_only)
         train_len = len(x_train)
+        do_random_batch = train_len >= batch_size
         train_repeat = int(train_len / batch_size) + 1
-
-        layer_width = len(self._layers)
-        self._whether_apply_bias = apply_bias
-        bias_rate = 1 / batch_size if batch_size > 256 else 1 / 256
-        bias_lr = bias_rate * lr
-        self._bias = [bias * bias_rate for bias in self._bias]
+        self._feed_data(x_train, y_train)
 
         self._metrics = ["acc"] if metrics is None else metrics
         for i, metric in enumerate(self._metrics):
@@ -617,8 +698,10 @@ class NN:
 
         self._logs = [[] for _ in range(len(self._metrics))]
 
-        self._x_min, self._x_max = np.min(x), np.max(x)
-        self._y_min, self._y_max = np.min(y), np.max(y)
+        layer_width = len(self._layers)
+        self._whether_apply_bias = apply_bias
+
+        regularization_param = 1 - lb * lr / self._data_size
 
         bar = ProgressBar(min_value=0, max_value=max(1, epoch // record_period))
         bar.start()
@@ -626,8 +709,11 @@ class NN:
         for counter in range(epoch):
             for _ in range(train_repeat):
 
-                batch = np.random.randint(train_len, size=batch_size)
-                x_batch, y_batch = x_train[batch], y_train[batch]
+                if do_random_batch:
+                    batch = np.random.randint(train_len, size=batch_size)
+                    x_batch, y_batch = x_train[batch], y_train[batch]
+                else:
+                    x_batch, y_batch = x_train, y_train
 
                 _activations = self._get_activations(x_batch)
 
@@ -638,13 +724,14 @@ class NN:
                 for i in range(layer_width - 1, 0, -1):
                     if not isinstance(self._layers[i], SubLayer):
                         _delta = _deltas[layer_width - i - 1]
+                        self._weights[i] *= regularization_param
                         self._weights[i] += _activations[i - 1].T.dot(_delta) * lr
                         if apply_bias:
-                            self._bias[i] += np.sum(_delta, axis=0) * bias_lr
+                            self._bias[i] += np.sum(_delta, axis=0, keepdims=True) * lr
                 _delta = _deltas[-1]
                 self._weights[0] += x_batch.T.dot(_delta) * lr
                 if apply_bias:
-                    self._bias[0] += np.sum(_delta, axis=0) * bias_lr
+                    self._bias[0] += np.sum(_delta, axis=0, keepdims=True) * lr
 
                 if debug:
                     pass
@@ -654,12 +741,12 @@ class NN:
 
             if (counter + 1) % record_period == 0:
                 if do_log and print_log:
-                    self._print_metric_logs()
-                if visualize and x.shape[1] == y.shape[1] == 2:
+                    self._print_metric_logs(x_cv, y_cv, show_loss)
+                if visualize:
                     if visualize_setting is None:
-                        self.do_visualization()
+                        self.do_visualization(x_cv, y_cv)
                     else:
-                        self.do_visualization(*visualize_setting)
+                        self.do_visualization(x_cv, y_cv, *visualize_setting)
                 bar.update(counter // record_period + 1)
 
         if do_log:
@@ -670,7 +757,7 @@ class NN:
     def save(self, path=None, name=None, overwrite=True):
 
         path = "Models" if path is None else path
-        name = "NN_Model" if name is None else name
+        name = "Model.nn" if name is None else name
         if not os.path.exists(path):
             os.mkdir(path)
         slash = "\\" if platform.system() == "Windows" else "/"
@@ -688,7 +775,10 @@ class NN:
             pickle.dump({
                 "_logs": self._logs,
                 "_metric_names": self._metric_names,
-                "_layers": self._layers,
+                "_layers": self._layers[:-1],
+                "_layer_names": self.layer_names,
+                "_layer_shapes": self.layer_shapes,
+                "_cost_layer": self._layers[-1].name,
                 "_weights": self._weights,
                 "_next_dimension": self._current_dimension
             }, file)
@@ -700,6 +790,7 @@ class NN:
                 _dic = pickle.load(file)
                 for key, value in _dic.items():
                     setattr(self, key, value)
+                self.build("build from load")
                 for i in range(len(self._metric_names) - 1, -1, -1):
                     name = self._metric_names[i]
                     if name not in self._available_metrics:
@@ -708,7 +799,7 @@ class NN:
                         self._metrics.insert(0, self._available_metrics[name])
                 return _dic
         except Exception as err:
-            raise BuildNetworkError("Failed to load Network ({}), structure initialized.".format(err))
+            raise BuildNetworkError("Failed to load Network ({}), structure initialized".format(err))
 
     def predict(self, x):
         x = np.array(x)
@@ -725,24 +816,57 @@ class NN:
         return np.argmax([self._get_prediction(x)], axis=2).T
 
     def evaluate(self, x, y, metrics=None):
-        metrics = self._metrics if metrics is None else metrics
+        if metrics is None:
+            metrics = self._metrics
+        else:
+            for i in range(len(metrics) - 1, -1, -1):
+                metric = metrics[i]
+                if isinstance(metric, str):
+                    if metric not in self._available_metrics:
+                        metrics.pop(i)
+                    else:
+                        metrics[i] = self._available_metrics[metric]
         logs, y_pred = [], self._get_prediction(x)
         for metric in metrics:
             logs.append(metric(y, y_pred))
         return logs
 
-    def do_visualization(self, plot_scale=2, plot_precision=10 ** -2):
-        xf = np.linspace(self._x_min * plot_scale, self._x_max * plot_scale, 1 / plot_precision)
-        yf = np.linspace(self._x_min * plot_scale, self._x_max * plot_scale, 1 / plot_precision)
-        input_xs = np.dstack(np.meshgrid(xf, yf)).reshape((len(xf) * len(yf), 2))
-        output_ys = self.predict(input_xs)[range(len(input_xs)), 0].reshape((len(xf), len(yf)))
+    def do_visualization(self, x=None, y=None, plot_scale=2, plot_precision=10 ** -2):
+
+        x = self._x if x is None else x
+        y = self._y if y is None else y
+
+        plot_num = int(1 / plot_precision)
+
+        xf = np.linspace(self._x_min * plot_scale, self._x_max * plot_scale, plot_num)
+        yf = np.linspace(self._x_min * plot_scale, self._x_max * plot_scale, plot_num)
+        input_x, input_y = np.meshgrid(xf, yf)
+        input_xs = np.c_[input_x.ravel(), input_y.ravel()]
+
+        if self._x.shape[1] != 2:
+            output_ys_2d = np.argmax(self.predict(np.c_[
+                input_xs, self._x[:, 2:][0]
+            ]), axis=1).reshape((len(xf), len(yf)))
+            output_ys_3d = self.predict(np.c_[
+                input_xs, self._x[:, 2:][0]
+            ])[:, 0].reshape((len(xf), len(yf)))
+        else:
+            output_ys_2d = np.argmax(self.predict(input_xs), axis=1).reshape((len(xf), len(yf)))
+            output_ys_3d = self.predict(input_xs)[:, 0].reshape((len(xf), len(yf)))
+
         xf, yf = np.meshgrid(xf, yf, sparse=True)
 
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-
-        ax.plot_surface(xf, yf, output_ys, cmap=cm.coolwarm,)
-        ax.set_xlabel("x")
-        ax.set_ylabel("y")
-        ax.set_zlabel("z")
+        plt.contourf(input_x, input_y, output_ys_2d, cmap=cm.Spectral)
+        plt.scatter(x[:, 0], x[:, 1], c=np.argmax(y, axis=1), s=40, cmap=cm.Spectral)
+        plt.axis("off")
         plt.show()
+
+        if self._y.shape[1] == 2:
+            fig = plt.figure()
+            ax = fig.add_subplot(111, projection='3d')
+
+            ax.plot_surface(xf, yf, output_ys_3d, cmap=cm.coolwarm,)
+            ax.set_xlabel("x")
+            ax.set_ylabel("y")
+            ax.set_zlabel("z")
+            plt.show()

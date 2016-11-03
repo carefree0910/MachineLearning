@@ -1,6 +1,8 @@
 from Util import *
 from NeuralNetwork import *
 
+np.random.seed(142857)  # for reproducibility
+
 
 def main():
 
@@ -23,38 +25,48 @@ def main():
         return tp / (tp + fn)
 
     nn = NN()
-    save = False
+    lb = 0.001
+    save = True
     load = False
     debug = False
-    apply_bias = False
+    apply_bias = True
     whether_gen_xor = False
-    xor_scale = 10 ** -1
+    whether_gen_spin = True
+    spin_n_classes = CLASSES_NUM
+    custom_data_scale = 10 ** -1
     visualize = True
+    data_path = None
+    # data_path = "Data/Training Set/data.txt"
 
     if whether_gen_xor:
-        gen_xor(10 ** 4, xor_scale)
-    x, y = get_and_cache_data()
+        gen_xor(10 ** 2, custom_data_scale, data_path)
+    if whether_gen_spin:
+        gen_spin(10 ** 2, spin_n_classes, data_path)
+    x, y = get_and_cache_data(data_path)
 
     train_clock = time.time()
 
     if not load:
 
-        # nn.add(Sigmoid((x.shape[1], y.shape[1])))
+        # nn.add(Softmax((x.shape[1], y.shape[1])))
 
         # nn.build([x.shape[1], y.shape[1]])
 
-        nn.add(Sigmoid((x.shape[1], 6)))
-        nn.add(Sigmoid((6, )))
-        nn.add(Sigmoid((y.shape[1], )))
-        # nn.add("Dropout")
+        nn.add(ReLU((x.shape[1], 48)))
+        nn.add(Softmax((y.shape[1], )))
 
-        # nn.build([x.shape[1], 6, 6, y.shape[1]])
+        # nn.layer_names = ["Tanh", "Softmax"]
+        # nn.layer_shapes = [(x.shape[1], 48), (y.shape[1], )]
+        # nn.build()
+
+        # nn.build([x.shape[1], 48, y.shape[1]])
 
         nn.preview()
 
         (acc_log, f1_log, precision_log, recall_log) = (
-            nn.fit(x, y, metrics=["acc", "f1", precision, recall],
-                   apply_bias=apply_bias, print_log=True, debug=debug, visualize=visualize))
+            nn.fit(x, y, lb=lb, apply_bias=apply_bias,
+                   metrics=["acc", "f1", precision, recall],
+                   print_log=True, debug=debug, visualize=visualize))
         (test_fb, test_acc, test_precision, test_recall) = (
             f1_log.pop(), acc_log.pop(), precision_log.pop(), recall_log.pop())
 
@@ -93,9 +105,19 @@ def main():
 
     else:
 
-        nn.load("Models/NN_Model")
+        nn.load("Models/Model.nn")
+        nn.feed(x, y)
         nn.preview()
-        print(nn.evaluate(x, y))
+        nn.do_visualization()
+
+        f1, acc, _precision, _recall = nn.evaluate(x, y, metrics=["f1", "acc", precision, recall])
+        log += "Test set Accuracy  : {:12.6} %".format(100 * acc) + "\n"
+        log += "Test set F1 Score  : {:12.6}".format(f1) + "\n"
+        log += "Test set Precision : {:12.6}".format(_precision) + "\n"
+        log += "Test set Recall    : {:12.6}".format(_recall)
+
+        print("=" * 30 + "\n" + "Results\n" + "-" * 30)
+        print(log)
 
 if __name__ == '__main__':
     main()
