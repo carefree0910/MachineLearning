@@ -26,6 +26,8 @@ def main():
 
     nn = NN()
     lb = 0.001
+    save = True # Set True to save trained model
+    load = True # Set True to load from pre-trained model
     visualize = True
     data_path = "Data/Training Set/data.txt"
 
@@ -33,57 +35,78 @@ def main():
 
     train_clock = time.time()
     
-    # nn.add(Softmax((x.shape[1], y.shape[1])))
+    if not load:
+    
+        # nn.add(Softmax((x.shape[1], y.shape[1])))
 
-    # nn.build([x.shape[1], y.shape[1]])
+        # nn.build([x.shape[1], y.shape[1]])
 
-    nn.add(ReLU((x.shape[1], 6)))
-    nn.add(Softmax((y.shape[1], )))
+        nn.add(ReLU((x.shape[1], 6)))
+        nn.add(Softmax((y.shape[1], )))
 
-    # nn.layer_names = ["Tanh", "Sigmoid"]
-    # nn.layer_shapes = [(x.shape[1], 2), (y.shape[1], )]
-    # nn.build()
+        # nn.layer_names = ["Tanh", "Sigmoid"]
+        # nn.layer_shapes = [(x.shape[1], 2), (y.shape[1], )]
+        # nn.build()
 
-    # nn.build([x.shape[1], 6, 6, y.shape[1]])
+        # nn.build([x.shape[1], 6, 6, y.shape[1]])
 
-    nn.preview()
+        nn.preview()
 
-    (acc_log, f1_log, precision_log, recall_log) = (
-        nn.fit(x, y, lb=lb,
-               metrics=["acc", "f1", precision, recall],
-               print_log=True, visualize=visualize))
-    (test_fb, test_acc, test_precision, test_recall) = (
-        f1_log.pop(), acc_log.pop(), precision_log.pop(), recall_log.pop())
+        (acc_log, f1_log, precision_log, recall_log) = (
+            nn.fit(x, y, lb=lb, epoch=400, record_period=40,
+                   metrics=["acc", "f1", precision, recall],
+                   print_log=True, visualize=visualize))
+        (test_fb, test_acc, test_precision, test_recall) = (
+            f1_log.pop(), acc_log.pop(), precision_log.pop(), recall_log.pop())
+            
+        if save:
+            nn.save()
 
-    train_clock = time.time() - train_clock
+        train_clock = time.time() - train_clock
 
-    draw_clock = time.time()
-    xs = np.arange(len(f1_log)) + 1
-    plt.figure()
-    plt.plot(xs, acc_log, label="accuracy")
-    plt.plot(xs, f1_log, c="g", label="f1 score")
-    plt.plot(xs, precision_log, c="r", label="precision")
-    plt.plot(xs, recall_log, c="y", label="recall")
-    plt.title("Boosted: {}".format(BOOST_LESS_SAMPLES))
-    draw_clock = time.time() - draw_clock
-    if SHOW_FIGURE:
-        plt.legend()
-        plt.show()
+        draw_clock = time.time()
+        xs = np.arange(len(f1_log)) + 1
+        plt.figure()
+        plt.plot(xs, acc_log, label="accuracy")
+        plt.plot(xs, f1_log, c="g", label="f1 score")
+        plt.plot(xs, precision_log, c="r", label="precision")
+        plt.plot(xs, recall_log, c="y", label="recall")
+        plt.title("Boosted: {}".format(BOOST_LESS_SAMPLES))
+        draw_clock = time.time() - draw_clock
+        if SHOW_FIGURE:
+            plt.legend()
+            plt.show()
 
-    log += "CV set Accuracy    : {:12.6} %".format(100 * acc_log[-1]) + "\n"
-    log += "CV set F1 Score    : {:12.6}".format(f1_log[-1]) + "\n"
-    log += "CV set Precision   : {:12.6}".format(precision_log[-1]) + "\n"
-    log += "CV set Recall      : {:12.6}".format(recall_log[-1]) + "\n"
-    log += "Test set Accuracy  : {:12.6} %".format(100 * test_acc) + "\n"
-    log += "Test set F1 Score  : {:12.6}".format(test_fb) + "\n"
-    log += "Test set Precision : {:12.6}".format(test_precision) + "\n"
-    log += "Test set Recall    : {:12.6}".format(test_recall) + "\n"
-    log += "Training time      : {:12.6} s".format(train_clock) + "\n"
-    log += "Drawing time       : {:12.6} s".format(draw_clock) + "\n"
+        log += "CV set Accuracy    : {:12.6} %".format(100 * acc_log[-1]) + "\n"
+        log += "CV set F1 Score    : {:12.6}".format(f1_log[-1]) + "\n"
+        log += "CV set Precision   : {:12.6}".format(precision_log[-1]) + "\n"
+        log += "CV set Recall      : {:12.6}".format(recall_log[-1]) + "\n"
+        log += "Test set Accuracy  : {:12.6} %".format(100 * test_acc) + "\n"
+        log += "Test set F1 Score  : {:12.6}".format(test_fb) + "\n"
+        log += "Test set Precision : {:12.6}".format(test_precision) + "\n"
+        log += "Test set Recall    : {:12.6}".format(test_recall) + "\n"
+        log += "Training time      : {:12.6} s".format(train_clock) + "\n"
+        log += "Drawing time       : {:12.6} s".format(draw_clock) + "\n"
 
-    print()
-    print("=" * 30 + "\n" + "Results\n" + "-" * 30)
-    print(log)
+        print()
+        print("=" * 30 + "\n" + "Results\n" + "-" * 30)
+        print(log)
+        
+    else:
+        
+        nn.load("Models/Model.nn")
+        nn.feed(x, y)
+        nn.preview()
+        nn.do_visualization()
+
+        f1, acc, _precision, _recall = nn.evaluate(x, y, metrics=["f1", "acc", precision, recall])
+        log += "Test set Accuracy  : {:12.6} %".format(100 * acc) + "\n"
+        log += "Test set F1 Score  : {:12.6}".format(f1) + "\n"
+        log += "Test set Precision : {:12.6}".format(_precision) + "\n"
+        log += "Test set Recall    : {:12.6}".format(_recall)
+
+        print("=" * 30 + "\n" + "Results\n" + "-" * 30)
+        print(log)
 
 if __name__ == '__main__':
     main()

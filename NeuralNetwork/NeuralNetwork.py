@@ -98,8 +98,6 @@ class Layer:
     def __str__(self):
         raise NotImplementedError("Please provide a name for your layer")
 
-    __repr__ = __str__
-
 
 class SubLayer(Layer):
 
@@ -109,6 +107,7 @@ class SubLayer(Layer):
         self.parent = parent
         parent.child = self
         self._root = None
+        self.description = ""
 
     @property
     def root(self):
@@ -146,6 +145,8 @@ class Tanh(Layer):
     def __str__(self):
         return "Tanh"
 
+    __repr__ = __str__
+
 
 class Sigmoid(Layer):
 
@@ -159,6 +160,8 @@ class Sigmoid(Layer):
 
     def __str__(self):
         return "Sigmoid"
+
+    __repr__ = __str__
 
 
 class ELU(Layer):
@@ -177,6 +180,8 @@ class ELU(Layer):
     def __str__(self):
         return "ELU"
 
+    __repr__ = __str__
+
 
 class ReLU(Layer):
 
@@ -190,6 +195,8 @@ class ReLU(Layer):
 
     def __str__(self):
         return "ReLU"
+
+    __repr__ = __str__
 
 
 class Softplus(Layer):
@@ -205,6 +212,8 @@ class Softplus(Layer):
     def __str__(self):
         return "Softplus"
 
+    __repr__ = __str__
+
 
 class Softmax(Layer):
 
@@ -218,6 +227,8 @@ class Softmax(Layer):
 
     def __str__(self):
         return "Softmax"
+
+    __repr__ = __str__
 
 
 class Identical(Layer):
@@ -233,6 +244,8 @@ class Identical(Layer):
     def __str__(self):
         return "Identical"
 
+    __repr__ = __str__
+
 
 # Special Layer
 
@@ -246,6 +259,7 @@ class Dropout(SubLayer):
         SubLayer.__init__(self, shape, parent)
         self._prob = prob
         self._div_prob = 1 / (1 - self._prob)
+        self.description = "(Drop prob: {})".format(prob)
 
     def activate(self, x, w, bias=None, predict=False):
         if not predict:
@@ -260,6 +274,8 @@ class Dropout(SubLayer):
 
     def __str__(self):
         return "Dropout"
+
+    __repr__ = __str__
 
 
 # Cost Layer
@@ -288,9 +304,6 @@ class CostLayer(SubLayer):
 
     def derivative(self, x):
         raise LayerError("derivative function should not be called in CostLayer")
-
-    def __str__(self):
-        return self._cost_function_name
 
     def bp_first(self, y, y_pred):
         if self._root.name == "Sigmoid" and self.cost_function == "Cross Entropy":
@@ -347,6 +360,11 @@ class CostLayer(SubLayer):
             return y_pred
         return np.sum(-np.log(Layer.safe_exp(y_pred)[:, y_arg_max])) / len(y)
 
+    def __str__(self):
+        return self._cost_function_name
+
+    __repr__ = __str__
+
 
 # Neural Network
 
@@ -354,7 +372,7 @@ class NN:
 
     def __init__(self):
         self._layers, self._weights, self._bias = [], [], []
-        self._layer_names, self._layer_shapes = [], []
+        self._layer_names, self._layer_shapes, self._layer_params = [], [], []
         self._data_size = 0
 
         self._whether_apply_bias = False
@@ -377,7 +395,8 @@ class NN:
         self._available_root_layers = {
             "Tanh": Tanh, "Sigmoid": Sigmoid,
             "ELU": ELU, "ReLU": ReLU, "Softplus": Softplus,
-            "Softmax": Softmax
+            "Softmax": Softmax,
+            "Identical": Identical
         }
         self._available_sub_layers = {
             "Dropout", "MSE", "Cross Entropy", "Log Likelihood"
@@ -388,10 +407,13 @@ class NN:
         self._available_special_layers = {
             "Dropout": Dropout
         }
+        self._special_layer_default_params = {
+            "Dropout": 0.5
+        }
 
     def initialize(self):
         self._layers, self._weights, self._bias = [], [], []
-        self._layer_names, self._layer_shapes = [], []
+        self._layer_names, self._layer_shapes, self._layer_params = [], [], []
         self._whether_apply_bias = False
         self._current_dimension = 0
 
@@ -420,6 +442,14 @@ class NN:
     @layer_shapes.setter
     def layer_shapes(self, value):
         self._layer_shapes = value
+
+    @property
+    def layer_params(self):
+        return self._layer_params
+
+    @layer_params.setter
+    def layer_params(self, value):
+        self.layer_params = value
 
     # Metrics
 
@@ -465,6 +495,7 @@ class NN:
 
     def _add_layer(self, layer, *args):
         _parent = self._layers[-1]
+        special_param = None
         if isinstance(_parent, CostLayer):
             raise BuildLayerError("Adding layer after CostLayer is not permitted")
         if isinstance(layer, str):
@@ -478,12 +509,14 @@ class NN:
                     if layer == "Dropout":
                         try:
                             prob = float(args[0])
+                            special_param = prob
                             layer = Dropout((_current, _next), _parent, prob)
                         except ValueError as err:
                             raise BuildLayerError("Invalid parameter for Dropout: '{}'".format(err))
                         except BuildLayerError as err:
                             raise BuildLayerError("Invalid parameter for Dropout: {}".format(err))
                 else:
+                    special_param = self._special_layer_default_params[layer]
                     layer = self._available_special_layers[layer]((_current, _next), _parent)
         else:
             _current, _next = args
@@ -501,10 +534,11 @@ class NN:
             self._weights.append(np.eye(_current))
             self._bias.append(np.zeros((1, _current)))
             self._current_dimension = _next
-            return
-        self._layers.append(layer)
-        self._add_weight((_current, _next))
-        self._current_dimension = _next
+        else:
+            self._layers.append(layer)
+            self._add_weight((_current, _next))
+            self._current_dimension = _next
+        self._update_layer_information(special_param)
 
     def _add_cost_layer(self):
         _last_layer = self._layers[-1]
@@ -517,6 +551,12 @@ class NN:
             else:
                 self._cost_layer = "MSE"
             self.add(self._cost_layer)
+
+    def _update_layer_information(self, *args):
+        if len(args) == 1:
+            self._layer_params.append(*args)
+        else:
+            self._layer_params.append(args)
 
     def _get_activations(self, x, predict=False):
         _activations = [self._layers[0].activate(x, self._weights[0], self._bias[0], predict)]
@@ -558,11 +598,14 @@ class NN:
             if not isinstance(layer, Layer):
                 raise BuildLayerError("Invalid Layer provided (should be subclass of Layer)")
             if not self._layers:
+                if isinstance(layer, SubLayer):
+                    raise BuildLayerError("Invalid Layer provided (first layer should not be subclass of SubLayer)")
                 if len(layer.shape) != 2:
                     raise BuildLayerError("Invalid input Layer provided (shape should be {}, {} found)".format(
                         2, len(layer.shape)
                     ))
                 self._layers, self._current_dimension = [layer], layer.shape[1]
+                self._update_layer_information(None)
                 self._add_weight(layer.shape)
             else:
                 if len(layer.shape) > 2:
@@ -592,14 +635,12 @@ class NN:
     def build(self, units="build"):
         if isinstance(units, str):
             if units == "build":
-                for name, shape in zip(self._layer_names, self._layer_shapes):
+                for name, shape, param in zip(self._layer_names, self._layer_shapes, self._layer_params):
                     try:
                         self.add(self._available_root_layers[name](shape))
                     except KeyError:
-                        self.add(name)
+                        self.add(name, param)
                 self._add_cost_layer()
-            elif units == "build from load":
-                self.add(self._cost_layer)
             else:
                 raise NotImplementedError("Invalid param '{}' provided to 'build' method".format(units))
         else:
@@ -626,6 +667,8 @@ class NN:
                 "Input  :  {:<10s} - {}\n".format("Dimension", self._layers[0].shape[0]) +
                 "\n".join(["Layer  :  {:<10s} - {}".format(
                     _layer.name, _layer.shape[1]
+                ) if _layer.name not in self._available_sub_layers else "Layer  :  {:<10s} - {} {}".format(
+                    _layer.name, _layer.shape[1], _layer.description
                 ) for _layer in self._layers[:-1]]) +
                 "\nCost   :  {:<10s}\n".format(self._cost_layer)
             )
@@ -775,9 +818,9 @@ class NN:
             pickle.dump({
                 "_logs": self._logs,
                 "_metric_names": self._metric_names,
-                "_layers": self._layers[:-1],
                 "_layer_names": self.layer_names,
                 "_layer_shapes": self.layer_shapes,
+                "_layer_params": self._layer_params,
                 "_cost_layer": self._layers[-1].name,
                 "_weights": self._weights,
                 "_next_dimension": self._current_dimension
@@ -790,7 +833,7 @@ class NN:
                 _dic = pickle.load(file)
                 for key, value in _dic.items():
                     setattr(self, key, value)
-                self.build("build from load")
+                self.build()
                 for i in range(len(self._metric_names) - 1, -1, -1):
                     name = self._metric_names[i]
                     if name not in self._available_metrics:

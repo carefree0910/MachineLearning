@@ -29,7 +29,6 @@ def main():
     save = True
     load = False
     debug = False
-    apply_bias = True
     whether_gen_xor = False
     whether_gen_spin = True
     spin_n_classes = CLASSES_NUM
@@ -64,7 +63,7 @@ def main():
         nn.preview()
 
         (acc_log, f1_log, precision_log, recall_log) = (
-            nn.fit(x, y, lb=lb, apply_bias=apply_bias,
+            nn.fit(x, y, lb=lb,
                    metrics=["acc", "f1", precision, recall],
                    print_log=True, debug=debug, visualize=visualize))
         (test_fb, test_acc, test_precision, test_recall) = (
