@@ -4,28 +4,28 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
-div_pi = 1 / 2 * math.pi
-
 sigma = 1
 lb = 0.1
 
+mu = np.array([[(1, 1), (-1, -1), (2, 2)]])
+
+alpha = np.array([6, 6, 1])
+b = -8
+
 
 def gaussian_kernel(x):
-    return div_pi * np.exp(-np.sum(np.array(x) ** 2, axis=2) * 0.5 / sigma ** 2)
+    return np.exp(-np.sum(np.array(x - mu) ** 2, axis=2) * 0.5 / sigma ** 2)
 
 
 def main():
 
     x = np.array([[(-1, -1), (1, 1), (2, 2), (1, -1), (-1, 1), (-2, 2)]])
     y = np.array([-1, -1, -1, 1, 1, 1])
-    # x = np.array([[(-1, -1), (1, 1), (1, -1), (-1, 1)]])
-    # y = np.array([-1, -1, 1, 1])
-
-    x_matrix = (x - x.reshape((x.shape[1], 1, 2))).reshape((x.shape[1], x.shape[1], 2))
-    c = np.linalg.solve(gaussian_kernel(x_matrix) + lb * np.array(np.eye(len(y))), y)
+    # x = np.array([[(0, 1), (1, 1), (0, 0), (1, 0)]])
+    # y = np.array([-1, 1, 1, -1])
 
     def f(_x):
-        return np.sum(c * gaussian_kernel(_x - x), axis=1)
+        return np.sum(alpha * gaussian_kernel(_x), axis=1) + b
 
     plot_scale = 2
     plot_num = 100
