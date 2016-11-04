@@ -16,8 +16,6 @@ def main():
 
     x = np.array([[(-1, -1), (1, 1), (2, 2), (1, -1), (-1, 1), (-2, 2)]])
     y = np.array([[0, 0, 1], [0, 0, 1], [0, 1, 0], [1, 0, 0], [1, 0, 0], [0, 1, 0]])
-    # x = np.array([[(-1, -1), (1, 1), (1, -1), (-1, 1)]])
-    # y = np.array([-1, -1, 1, 1])
 
     x_matrix = (x - x.reshape((x.shape[1], 1, 2))).reshape((x.shape[1], x.shape[1], 2))
     c = np.linalg.solve(gaussian_kernel(x_matrix) + lb * np.array(np.eye(len(y))), y)
