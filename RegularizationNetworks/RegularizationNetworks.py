@@ -4,14 +4,12 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
-div_pi = 1 / 2 * math.pi
-
 sigma = 1
 lb = 0.1
 
 
 def gaussian_kernel(x):
-    return div_pi * np.exp(-np.sum(np.array(x) ** 2, axis=2) * 0.5 / sigma ** 2)
+    return np.exp(-np.sum(np.array(x) ** 2, axis=2) * 0.5 / sigma ** 2)
 
 
 def main():
