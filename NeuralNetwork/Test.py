@@ -1,5 +1,3 @@
-# encoding: utf8
-
 from Util import *
 from NeuralNetwork import *
 
