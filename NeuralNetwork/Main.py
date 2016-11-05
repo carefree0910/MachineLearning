@@ -1,3 +1,5 @@
+# encoding: utf8
+
 from Util import *
 from NeuralNetwork import *
 
@@ -25,23 +27,31 @@ def main():
         return tp / (tp + fn)
 
     nn = NN()
-    lb = 0.001
     save = True
     load = False
     debug = False
+    show_loss = True
+    train_only = True
     whether_gen_xor = False
     whether_gen_spin = True
-    spin_n_classes = CLASSES_NUM
+    spin_n_classes = 7
     custom_data_scale = 10 ** -1
     visualize = True
+    show_figure = True
     data_path = None
     # data_path = "Data/Training Set/data.txt"
+
+    lr = 0.001
+    lb = 0.001
+    epoch = 2000
+    record_period = 200
+    optimizer = "Momentum"
 
     if whether_gen_xor:
         gen_xor(10 ** 2, custom_data_scale, data_path)
     if whether_gen_spin:
         gen_spin(10 ** 2, spin_n_classes, data_path)
-    x, y = get_and_cache_data(data_path)
+    x, y = get_and_cache_data(data_path, spin_n_classes)
 
     train_clock = time.time()
 
@@ -62,12 +72,17 @@ def main():
 
         nn.preview()
 
-        (acc_log, f1_log, precision_log, recall_log) = (
-            nn.fit(x, y, lb=lb,
+        logs = (
+            nn.fit(x, y, optimizer=optimizer, lr=lr, lb=lb, epoch=epoch, record_period=record_period,
                    metrics=["acc", "f1", precision, recall],
+                   show_loss=show_loss, train_only=train_only,
                    print_log=True, debug=debug, visualize=visualize))
-        (test_fb, test_acc, test_precision, test_recall) = (
+        acc_log, f1_log, precision_log, recall_log, loss_log = logs
+
+        test_fb, test_acc, test_precision, test_recall = (
             f1_log.pop(), acc_log.pop(), precision_log.pop(), recall_log.pop())
+        if show_loss:
+            loss_log.pop()
 
         if save:
             nn.save()
@@ -78,14 +93,19 @@ def main():
         xs = np.arange(len(f1_log)) + 1
         plt.figure()
         plt.plot(xs, acc_log, label="accuracy")
-        plt.plot(xs, f1_log, c="g", label="f1 score")
-        plt.plot(xs, precision_log, c="r", label="precision")
+        plt.plot(xs, f1_log, c="c", label="f1 score")
+        plt.plot(xs, precision_log, c="g", label="precision")
         plt.plot(xs, recall_log, c="y", label="recall")
         plt.title("Boosted: {}".format(BOOST_LESS_SAMPLES))
         draw_clock = time.time() - draw_clock
-        if SHOW_FIGURE:
+        if show_figure:
             plt.legend()
             plt.show()
+            if show_loss:
+                plt.figure()
+                plt.plot(xs, loss_log, c="r", label="loss")
+                plt.legend()
+                plt.show()
 
         log += "CV set Accuracy    : {:12.6} %".format(100 * acc_log[-1]) + "\n"
         log += "CV set F1 Score    : {:12.6}".format(f1_log[-1]) + "\n"

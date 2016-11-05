@@ -1,3 +1,5 @@
+# encoding: utf8
+
 from Util import *
 from NeuralNetwork import *
 
@@ -25,11 +27,10 @@ def main():
         return tp / (tp + fn)
 
     nn = NN()
-    lb = 0.001
-    save = True # Set True to save trained model
-    load = True # Set True to load from pre-trained model
+    save = True  # Set True to save trained model
+    load = False  # Set True to load from pre-trained model
     visualize = True
-    data_path = "Data/Training Set/data.txt"
+    data_path = "Data/Homework/data.txt"
 
     x, y = get_and_cache_data(data_path)
 
@@ -52,12 +53,15 @@ def main():
 
         nn.preview()
 
-        (acc_log, f1_log, precision_log, recall_log) = (
-            nn.fit(x, y, lb=lb, epoch=400, record_period=40,
+        logs = (
+            nn.fit(x, y, optimizer="Momentum", epoch=40, record_period=8,
                    metrics=["acc", "f1", precision, recall],
-                   print_log=True, visualize=visualize))
-        (test_fb, test_acc, test_precision, test_recall) = (
+                   print_log=True, show_loss=True, train_only=True, visualize=visualize))
+        acc_log, f1_log, precision_log, recall_log, loss_log = logs
+
+        test_fb, test_acc, test_precision, test_recall = (
             f1_log.pop(), acc_log.pop(), precision_log.pop(), recall_log.pop())
+        loss_log.pop()
             
         if save:
             nn.save()
@@ -68,14 +72,17 @@ def main():
         xs = np.arange(len(f1_log)) + 1
         plt.figure()
         plt.plot(xs, acc_log, label="accuracy")
-        plt.plot(xs, f1_log, c="g", label="f1 score")
-        plt.plot(xs, precision_log, c="r", label="precision")
+        plt.plot(xs, f1_log, c="c", label="f1 score")
+        plt.plot(xs, precision_log, c="g", label="precision")
         plt.plot(xs, recall_log, c="y", label="recall")
         plt.title("Boosted: {}".format(BOOST_LESS_SAMPLES))
         draw_clock = time.time() - draw_clock
-        if SHOW_FIGURE:
-            plt.legend()
-            plt.show()
+        plt.legend()
+        plt.show()
+        plt.figure()
+        plt.plot(xs, loss_log, c="r", label="loss")
+        plt.legend()
+        plt.show()
 
         log += "CV set Accuracy    : {:12.6} %".format(100 * acc_log[-1]) + "\n"
         log += "CV set F1 Score    : {:12.6}".format(f1_log[-1]) + "\n"

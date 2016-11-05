@@ -39,7 +39,7 @@ def data_cleaning(line):
     return list(map(lambda c: c.strip(), line.split(",")))
 
 
-def get_data(path=None):
+def get_data(path=None, n_classes=CLASSES_NUM):
     path = "Data/data.txt" if path is None else path
     categories = None
 
@@ -83,7 +83,7 @@ def get_data(path=None):
 
             x.append(tmp_x)
 
-    classes_num = categories[TAR_IDX]["flag"] if CLASSES_NUM is None else CLASSES_NUM
+    classes_num = categories[TAR_IDX]["flag"] if n_classes is None else n_classes
     expand_sum = sum(EXPAND_NUM_LST[:TAR_IDX])
     expand_seq = np.array(EXPAND_NUM_LST[:TAR_IDX]) > 0
     assert isinstance(expand_seq, np.ndarray), "Never mind. You'll never see this error"
@@ -95,12 +95,12 @@ def get_data(path=None):
     return np.array(x), y
 
 
-def get_and_cache_data(path=None):
+def get_and_cache_data(path=None, n_classes=CLASSES_NUM):
     clear_cache(path)
     _data = get_cache(path)
 
     if _data is None:
-        x, y = get_data(path)
+        x, y = get_data(path, n_classes)
         do_cache(path, (x, y))
     else:
         x, y = _data

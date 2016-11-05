@@ -1,11 +1,11 @@
+# encoding: utf8
+
 # ==============================
 # Basic Config
 
 TAR_IDX = 2
 CLEAR_CACHE = True
 SKIP_FIRST = False
-
-SHOW_FIGURE = True
 
 
 # ==============================
@@ -20,7 +20,6 @@ BOOST_LESS_SAMPLES = False
 
 # Main Params
 DATA_CLEANED = True
-TRAIN_ONLY = True
 
 CLASSES_NUM = 2
 WHETHER_NUMERICAL = [True] * 16 + [False] * 3
@@ -31,9 +30,3 @@ EXPAND_NUM_LST = [0] * 9 + [
 
 TRAINING_SCALE = 0.7
 CV_SCALE = 0.15
-
-EPOCH = 8000
-BATCH_SIZE = 512
-LEARNING_RATE = 10 ** -2
-
-RECORD_PERIOD = 400

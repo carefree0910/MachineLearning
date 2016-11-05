@@ -1,369 +1,19 @@
+# encoding: utf8
+
 import os
 import time
+import math
 import pickle
 import platform
-import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
 from config import *
+from Layers import *
 from Util import ProgressBar
 
 np.random.seed(142857)  # for reproducibility
-
-
-# Errors
-
-class LayerError(Exception):
-    pass
-
-
-class BuildLayerError(Exception):
-    pass
-
-
-class BuildNetworkError(Exception):
-    pass
-
-
-# Abstract Layers
-
-class Layer:
-
-    def __init__(self, shape):
-        """
-        :param shape: shape[0] = units of previous layer
-                      shape[1] = units of current layer (self)
-        """
-        self._shape = shape
-        self.parent = None
-        self.child = None
-        self.is_last_root = False
-        self._last_sub_layer = None
-
-    @property
-    def name(self):
-        return str(self)
-
-    @property
-    def shape(self):
-        return self._shape
-
-    @shape.setter
-    def shape(self, value):
-        self._shape = value
-
-    @property
-    def root(self):
-        return self
-
-    @root.setter
-    def root(self, value):
-        raise BuildLayerError("Setting Layer's root is not permitted")
-
-    @property
-    def last_sub_layer(self):
-        _child = self.child
-        if not _child:
-            return None
-        while _child.child:
-            _child = _child.child
-        return _child
-
-    @last_sub_layer.setter
-    def last_sub_layer(self, value):
-            self._last_sub_layer = value
-
-    # Core
-
-    def activate(self, x, w, bias=None, predict=False):
-        raise NotImplementedError("Please implement activation function for {}".format(self.name))
-
-    def derivative(self, x):
-        raise NotImplementedError("Please implement derivative function for {}".format(self.name))
-
-    def bp(self, x, w, prev_delta):
-        if isinstance(self._last_sub_layer, CostLayer):
-            return prev_delta.dot(w.T)
-        return prev_delta.dot(w.T) * self.derivative(x)
-
-    # Util
-
-    @staticmethod
-    def safe_exp(y):
-        exp_y = np.exp(y - np.max(y, axis=1, keepdims=True))
-        return exp_y / np.sum(exp_y, axis=1, keepdims=True)
-
-    def __str__(self):
-        raise NotImplementedError("Please provide a name for your layer")
-
-
-class SubLayer(Layer):
-
-    def __init__(self, shape, parent):
-
-        Layer.__init__(self, shape)
-        self.parent = parent
-        parent.child = self
-        self._root = None
-        self.description = ""
-
-    @property
-    def root(self):
-        _parent = self.parent
-        while _parent.parent:
-            _parent = _parent.parent
-        return _parent
-
-    @root.setter
-    def root(self, value):
-        self._root = value
-
-    def activate(self, x, w, bias=None, predict=False):
-        raise NotImplementedError("Please implement activation function for a SubLayer")
-
-    def derivative(self, x):
-        raise NotImplementedError("Please implement derivative function for a SubLayer")
-
-    def __str__(self):
-        raise NotImplementedError("Please provide a name for your layer")
-
-
-# Activation Layers
-
-class Tanh(Layer):
-
-    def activate(self, x, w, bias=None, predict=False):
-        if bias is None:
-            return np.tanh(x.dot(w))
-        return np.tanh(x.dot(w) + bias)
-
-    def derivative(self, x):
-        return 1 - x ** 2
-
-    def __str__(self):
-        return "Tanh"
-
-    __repr__ = __str__
-
-
-class Sigmoid(Layer):
-
-    def activate(self, x, w, bias=None, predict=False):
-        if bias is None:
-            return 1 / (1 + np.exp(-x.dot(w)))
-        return 1 / (1 + np.exp(-x.dot(w) - bias))
-
-    def derivative(self, x):
-        return x * (1 - x)
-
-    def __str__(self):
-        return "Sigmoid"
-
-    __repr__ = __str__
-
-
-class ELU(Layer):
-
-    def activate(self, x, w, bias=None, predict=False):
-        _rs = x.dot(w) if bias is None else x.dot(w) + bias
-        _rs0 = _rs < 0
-        _rs[_rs0] = np.exp(_rs[_rs0]) - 1
-        return _rs
-
-    def derivative(self, x):
-        _rs, _arg0 = np.zeros(x.shape), x < 0
-        _rs[_arg0], _rs[~_arg0] = x[_arg0] + 1, 1
-        return _rs
-
-    def __str__(self):
-        return "ELU"
-
-    __repr__ = __str__
-
-
-class ReLU(Layer):
-
-    def activate(self, x, w, bias=None, predict=False):
-        if bias is None:
-            return np.maximum(0, x.dot(w))
-        return np.maximum(0, x.dot(w) + bias)
-
-    def derivative(self, x):
-        return x > 0
-
-    def __str__(self):
-        return "ReLU"
-
-    __repr__ = __str__
-
-
-class Softplus(Layer):
-
-    def activate(self, x, w, bias=None, predict=False):
-        if bias is None:
-            return np.log(1 + np.exp(x.dot(w)))
-        return np.log(1 + np.exp(x.dot(w) + bias))
-
-    def derivative(self, x):
-        return 1 / (1 + 1 / (np.exp(x) - 1))
-
-    def __str__(self):
-        return "Softplus"
-
-    __repr__ = __str__
-
-
-class Softmax(Layer):
-
-    def activate(self, x, w, bias=None, predict=False):
-        if bias is None:
-            return Layer.safe_exp(x.dot(w))
-        return Layer.safe_exp(x.dot(w) + bias)
-
-    def derivative(self, x):
-        return x * (1 - x)
-
-    def __str__(self):
-        return "Softmax"
-
-    __repr__ = __str__
-
-
-class Identical(Layer):
-
-    def activate(self, x, w, bias=None, predict=False):
-        if bias is None:
-            return x.dot(w)
-        return x.dot(w) + bias
-
-    def derivative(self, x):
-        return 1
-
-    def __str__(self):
-        return "Identical"
-
-    __repr__ = __str__
-
-
-# Special Layer
-
-class Dropout(SubLayer):
-
-    def __init__(self, shape, parent, prob=0.5):
-
-        if prob < 0 or prob >= 1:
-            raise BuildLayerError("Probability of Dropout should be a positive float smaller than 1")
-
-        SubLayer.__init__(self, shape, parent)
-        self._prob = prob
-        self._div_prob = 1 / (1 - self._prob)
-        self.description = "(Drop prob: {})".format(prob)
-
-    def activate(self, x, w, bias=None, predict=False):
-        if not predict:
-            _rand_diag = np.random.random(x.shape[1]) >= self._prob
-            _diag = np.diag(_rand_diag) * self._div_prob
-        else:
-            _diag = np.eye(x.shape[1])
-        return x.dot(_diag)
-
-    def derivative(self, x):
-        return self._div_prob
-
-    def __str__(self):
-        return "Dropout"
-
-    __repr__ = __str__
-
-
-# Cost Layer
-
-class CostLayer(SubLayer):
-
-    # Optimization
-    _batch_range = None
-
-    def __init__(self, shape, parent, cost_function="MSE"):
-
-        SubLayer.__init__(self, shape, parent)
-        self._available_cost_functions = {
-            "MSE": CostLayer._mse,
-            "Cross Entropy": CostLayer._cross_entropy,
-            "Log Likelihood": CostLayer._log_likelihood
-        }
-
-        if cost_function not in self._available_cost_functions:
-            raise LayerError("Cost function '{}' not implemented".format(cost_function))
-        self._cost_function_name = cost_function
-        self._cost_function = self._available_cost_functions[cost_function]
-
-    def activate(self, x, w, bias=None, predict=False):
-        return x
-
-    def derivative(self, x):
-        raise LayerError("derivative function should not be called in CostLayer")
-
-    def bp_first(self, y, y_pred):
-        if self._root.name == "Sigmoid" and self.cost_function == "Cross Entropy":
-            return y * (1 - y_pred) - (1 - y) * y_pred
-        if self.cost_function == "Log Likelihood":
-            return -self._cost_function(y, y_pred) / 4
-        return -self._cost_function(y, y_pred) * self._root.derivative(y_pred)
-
-    @property
-    def calculate(self):
-        return lambda y, y_pred: self._cost_function(y, y_pred, False)
-
-    @property
-    def cost_function(self):
-        return self._cost_function_name
-
-    @cost_function.setter
-    def cost_function(self, value):
-        if value not in self._available_cost_functions:
-            raise LayerError("'{}' is not implemented".format(value))
-        self._cost_function_name = value
-        self._cost_function = self._available_cost_functions[value]
-
-    def set_cost_function_derivative(self, func, name=None):
-        name = "Custom Cost Function" if name is None else name
-        self._cost_function_name = name
-        self._cost_function = func
-
-    # Cost Functions
-
-    @staticmethod
-    def _mse(y, y_pred, diff=True):
-        if diff:
-            return -y + y_pred
-        assert_string = "y or y_pred should be np.ndarray in cost function"
-        assert isinstance(y, np.ndarray) or isinstance(y_pred, np.ndarray), assert_string
-        return 0.5 * np.average((y - y_pred) ** 2)
-
-    @staticmethod
-    def _cross_entropy(y, y_pred, diff=True):
-        if diff:
-            return -y / y_pred + (1 - y) / (1 - y_pred)
-        assert_string = "y or y_pred should be np.ndarray in cost function"
-        assert isinstance(y, np.ndarray) or isinstance(y_pred, np.ndarray), assert_string
-        return np.average(-y * np.log(y_pred) - (1 - y) * np.log(1 - y_pred))
-
-    @classmethod
-    def _log_likelihood(cls, y, y_pred, diff=True):
-        if cls._batch_range is None:
-            cls._batch_range = np.arange(len(y_pred))
-        y_arg_max = np.argmax(y, axis=1)
-        if diff:
-            y_pred[cls._batch_range, y_arg_max] -= 1
-            return y_pred
-        return np.sum(-np.log(Layer.safe_exp(y_pred)[:, y_arg_max])) / len(y)
-
-    def __str__(self):
-        return self._cost_function_name
-
-    __repr__ = __str__
 
 
 # Neural Network
@@ -373,6 +23,8 @@ class NN:
     def __init__(self):
         self._layers, self._weights, self._bias = [], [], []
         self._layer_names, self._layer_shapes, self._layer_params = [], [], []
+        self._lr, self._epoch, self._regularization_param = 0, 0, 0
+        self._optimizer, self._optimizer_name, self._optimizer_params = None, "", []
         self._data_size = 0
 
         self._whether_apply_bias = False
@@ -407,6 +59,12 @@ class NN:
         self._available_special_layers = {
             "Dropout": Dropout
         }
+        self._available_optimizers = {
+            "SGD": self._sgd,
+            "Adam": self._adam,
+            "Momentum": self._momentum,
+            "RMSProp": self._rmsprop,
+        }
         self._special_layer_default_params = {
             "Dropout": 0.5
         }
@@ -414,11 +72,22 @@ class NN:
     def initialize(self):
         self._layers, self._weights, self._bias = [], [], []
         self._layer_names, self._layer_shapes, self._layer_params = [], [], []
+        self._lr, self._epoch, self._regularization_param = 0, 0, 0
+        self._optimizer, self._optimizer_params = None, []
+        self._data_size = 0
+
         self._whether_apply_bias = False
         self._current_dimension = 0
+        self._cost_layer = "Undefined"
 
         self._logs = []
         self._metrics, self._metric_names = [], []
+
+        self._x, self._y = None, None
+        self._x_min, self._x_max = 0, 0
+        self._y_min, self._y_max = 0, 0
+
+    # Property
 
     @property
     def name(self):
@@ -451,22 +120,16 @@ class NN:
     def layer_params(self, value):
         self.layer_params = value
 
-    # Metrics
+    @property
+    def optimizer(self):
+        return self._optimizer_name
 
-    @staticmethod
-    def _acc(y, y_pred):
-        y_arg, y_pred_arg = np.argmax(y, axis=1), np.argmax(y_pred, axis=1)
-        return np.sum(y_arg == y_pred_arg) / len(y_arg)
-
-    @staticmethod
-    def _f1_score(y, y_pred):
-        y_true, y_pred = np.argmax(y, axis=1), np.argmax(y_pred, axis=1)
-        tp = np.sum(y_true * y_pred)
-        if tp == 0:
-            return .0
-        fp = np.sum((1 - y_true) * y_pred)
-        fn = np.sum(y_true * (1 - y_pred))
-        return 2 * tp / (2 * tp + fn + fp)
+    @optimizer.setter
+    def optimizer(self, value):
+        try:
+            self._optimizer, self._optimizer_name = self._available_optimizers[value], value
+        except KeyError:
+            raise BuildNetworkError("Invalid Optimizer '{}' provided".format(value))
 
     # Utils
 
@@ -572,10 +235,12 @@ class NN:
         y_pred = self._get_prediction(x)
         return NN._acc(y, y_pred)
 
-    def _append_log(self, x, y):
+    def _append_log(self, x, y, get_loss=True):
         y_pred = self._get_prediction(x)
         for i, metric in enumerate(self._metrics):
             self._logs[i].append(metric(y, y_pred))
+        if get_loss:
+            self._logs[-1].append(self._layers[-1].calculate(y, self.predict(x)) / self._data_size)
 
     def _print_metric_logs(self, x, y, show_loss):
         print()
@@ -585,6 +250,113 @@ class NN:
         if show_loss:
             print("{:<16s}: {:12.8}".format("Loss", self._layers[-1].calculate(y, self.predict(x)) / self._data_size))
         print("-" * 30)
+
+    # Metrics
+
+    @staticmethod
+    def _acc(y, y_pred):
+        y_arg, y_pred_arg = np.argmax(y, axis=1), np.argmax(y_pred, axis=1)
+        return np.sum(y_arg == y_pred_arg) / len(y_arg)
+
+    @staticmethod
+    def _f1_score(y, y_pred):
+        y_true, y_pred = np.argmax(y, axis=1), np.argmax(y_pred, axis=1)
+        tp = np.sum(y_true * y_pred)
+        if tp == 0:
+            return .0
+        fp = np.sum((1 - y_true) * y_pred)
+        fn = np.sum(y_true * (1 - y_pred))
+        return 2 * tp / (2 * tp + fn + fp)
+
+    # Optimizers
+
+    def _init_optimizer(self):
+        name = self._optimizer_name
+        if name == "SGD":
+            return
+        if name == "Adam":
+            self._optimizer_params = [
+                [np.zeros(weight.shape) for weight in self._weights],
+                [np.zeros(weight.shape) for weight in self._weights],
+                [np.zeros(bias.shape) for bias in self._bias],
+                [np.zeros(bias.shape) for bias in self._bias],
+                0.9, 0.999, 10 ** -8
+            ]
+        elif name == "AdaGrad":
+            self._optimizer_params = [
+                [np.zeros(weight.shape) for weight in self._weights],
+                [np.zeros(bias.shape) for bias in self._bias],
+                10 ** -8
+            ]
+        elif name == "AdaDelta":
+            self._optimizer_params = [
+                [np.zeros(weight.shape) for weight in self._weights],
+                [np.zeros(weight.shape) for weight in self._weights],
+                [np.zeros(bias.shape) for bias in self._bias],
+                [np.zeros(bias.shape) for bias in self._bias],
+                0.9, 10 ** -8, -1
+            ]
+        elif name == "Momentum":
+            self._optimizer_params = [
+                [np.zeros(weight.shape) for weight in self._weights],
+                [np.zeros(bias.shape) for bias in self._bias],
+                0.5, 0.499 / math.log(self._epoch + 1), 0,
+            ]
+        elif name == "RMSProp":
+            self._optimizer_params = [
+                [np.zeros(weight.shape) for weight in self._weights],
+                [np.zeros(bias.shape) for bias in self._bias],
+                0.9, 10 ** -8
+            ]
+
+    def _update_optimizer(self, name):
+        if name == "Momentum":
+            self._optimizer_params[2] = 0.5 + self._optimizer_params[3] * math.log(1 + self._optimizer_params[4])
+            self._optimizer_params[4] += 1
+        elif name == "AdaDelta":
+            self._optimizer_params[6] += 1
+
+    def _sgd(self, i, _activation, _delta):
+        self._weights[i] *= self._regularization_param
+        self._weights[i] += self._lr * _activation.T.dot(_delta)
+        if self._whether_apply_bias:
+            self._bias[i] += np.sum(_delta, axis=0, keepdims=True) * self._lr
+
+    def _adam(self, i, _activation, _delta):
+        self._weights[i] *= self._regularization_param
+        dx = _activation.T.dot(_delta)
+        beta1, beta2, eps = self._optimizer_params[4:]
+        self._optimizer_params[0][i] = self._optimizer_params[0][i] * beta1 + (1 - beta1) * dx
+        self._optimizer_params[1][i] = self._optimizer_params[1][i] * beta2 + (1 - beta2) * (dx ** 2)
+        self._weights[i] += self._lr * self._optimizer_params[0][i] / (np.sqrt(self._optimizer_params[1][i] + eps))
+        if self._whether_apply_bias:
+            db = np.sum(_delta, axis=0, keepdims=True)
+            self._optimizer_params[2][i] = self._optimizer_params[2][i] * beta1 + (1 - beta1) * db
+            self._optimizer_params[3][i] = self._optimizer_params[3][i] * beta2 + (1 - beta2) * (db ** 2)
+            self._bias[i] += self._lr * self._optimizer_params[2][i] / (np.sqrt(self._optimizer_params[3][i] + eps))
+
+    def _momentum(self, i, _activation, _delta):
+        self._weights[i] *= self._regularization_param
+        velocity, momentum = self._optimizer_params[0], self._optimizer_params[2]
+        dw = self._lr * _activation.T.dot(_delta)
+        velocity[i] = momentum * velocity[i] + dw
+        self._weights[i] += dw + velocity[i]
+        if self._whether_apply_bias:
+            velocity = self._optimizer_params[1]
+            v_prev = velocity[i]
+            velocity[i] = momentum * velocity[i] + self._lr * np.sum(_delta, axis=0, keepdims=True)
+            self._bias[i] += -momentum * v_prev + (1 + momentum) * velocity[i]
+
+    def _rmsprop(self, i, _activation, _delta):
+        self._weights[i] *= self._regularization_param
+        dw = _activation.T.dot(_delta)
+        decay_rate, eps = self._optimizer_params[2:]
+        self._optimizer_params[0][i] = self._optimizer_params[0][i] * decay_rate + (1 - decay_rate) * dw ** 2
+        self._weights[i] += self._lr * dw / (np.sqrt(self._optimizer_params[0][i] + eps))
+        if self._whether_apply_bias:
+            db = np.sum(_delta, axis=0, keepdims=True)
+            self._optimizer_params[1][i] = self._optimizer_params[1][i] * decay_rate + (1 - decay_rate) * db ** 2
+            self._bias[i] += self._lr * db / (np.sqrt(self._optimizer_params[1][i] + eps))
 
     # API
 
@@ -654,7 +426,7 @@ class NN:
             self.initialize()
             self.add(Sigmoid(_input_shape))
             for unit_num in units[2:]:
-                self.add(Sigmoid((unit_num, )))
+                self.add(Sigmoid((unit_num,)))
             self._add_cost_layer()
 
     def preview(self, add_cost=True):
@@ -708,14 +480,24 @@ class NN:
         return (x_train, x_cv, x_test), (y_train, y_cv, y_test)
 
     def fit(self,
-            x=None, y=None,
-            lr=LEARNING_RATE, lb=0.01, apply_bias=True,
-            epoch=EPOCH, batch_size=BATCH_SIZE,
-            train_only=TRAIN_ONLY, record_period=RECORD_PERIOD,
-            metrics=None, do_log=True, print_log=False, show_loss=False, debug=False,
+            x=None, y=None, optimizer=None, batch_size=512, record_period=1,
+            lr=0.01, lb=0.01, epoch=20, apply_bias=True,
+            show_loss=False, train_only=False,
+            metrics=None, do_log=True, print_log=False, debug=False,
             visualize=False, visualize_setting=None):
 
         x, y = self._feed_data(x, y)
+        self._lr, self._epoch = lr, epoch
+        if self._optimizer is None:
+            if optimizer is None:
+                self._optimizer = self._rmsprop
+                self._optimizer_name = "RMSProp"
+            elif optimizer not in self._available_optimizers:
+                raise BuildNetworkError("Invalid Optimizer '{}' found".format(optimizer))
+            else:
+                self._optimizer = self._available_optimizers[optimizer]
+                self._optimizer_name = optimizer
+        self._init_optimizer()
 
         if not self._layers:
             raise BuildNetworkError("Please provide layers before fitting data")
@@ -727,8 +509,10 @@ class NN:
 
         (x_train, x_cv, x_test), (y_train, y_cv, y_test) = NN.split_data(x, y, train_only)
         train_len = len(x_train)
+        batch_size = min(batch_size, train_len)
         do_random_batch = train_len >= batch_size
         train_repeat = int(train_len / batch_size) + 1
+        self._regularization_param = 1 - lb * lr / batch_size
         self._feed_data(x_train, y_train)
 
         self._metrics = ["acc"] if metrics is None else metrics
@@ -739,17 +523,16 @@ class NN:
                 self._metrics[i] = self._available_metrics[metric]
         self._metric_names = [str(_m).split()[1].split(".")[-1] for _m in self._metrics]
 
-        self._logs = [[] for _ in range(len(self._metrics))]
+        self._logs = [[] for _ in range(len(self._metrics) + 1)]
 
         layer_width = len(self._layers)
         self._whether_apply_bias = apply_bias
-
-        regularization_param = 1 - lb * lr / self._data_size
 
         bar = ProgressBar(min_value=0, max_value=max(1, epoch // record_period))
         bar.start()
 
         for counter in range(epoch):
+            self._update_optimizer(optimizer)
             for _ in range(train_repeat):
 
                 if do_random_batch:
@@ -766,21 +549,14 @@ class NN:
 
                 for i in range(layer_width - 1, 0, -1):
                     if not isinstance(self._layers[i], SubLayer):
-                        _delta = _deltas[layer_width - i - 1]
-                        self._weights[i] *= regularization_param
-                        self._weights[i] += _activations[i - 1].T.dot(_delta) * lr
-                        if apply_bias:
-                            self._bias[i] += np.sum(_delta, axis=0, keepdims=True) * lr
-                _delta = _deltas[-1]
-                self._weights[0] += x_batch.T.dot(_delta) * lr
-                if apply_bias:
-                    self._bias[0] += np.sum(_delta, axis=0, keepdims=True) * lr
+                        self._optimizer(i, _activations[i - 1], _deltas[layer_width - i - 1])
+                self._optimizer(0, x_batch, _deltas[-1])
 
                 if debug:
                     pass
 
             if do_log:
-                self._append_log(x_cv, y_cv)
+                self._append_log(x_cv, y_cv, get_loss=show_loss)
 
             if (counter + 1) % record_period == 0:
                 if do_log and print_log:
@@ -793,7 +569,7 @@ class NN:
                 bar.update(counter // record_period + 1)
 
         if do_log:
-            self._append_log(x_test, y_test)
+            self._append_log(x_test, y_test, get_loss=show_loss)
 
         return self._logs
 
@@ -823,6 +599,8 @@ class NN:
                 "_layer_params": self._layer_params,
                 "_cost_layer": self._layers[-1].name,
                 "_weights": self._weights,
+                "_bias": self._bias,
+                "_optimizer_name": self._optimizer_name,
                 "_next_dimension": self._current_dimension
             }, file)
 
@@ -887,12 +665,10 @@ class NN:
         input_xs = np.c_[input_x.ravel(), input_y.ravel()]
 
         if self._x.shape[1] != 2:
-            output_ys_2d = np.argmax(self.predict(np.c_[
-                input_xs, self._x[:, 2:][0]
-            ]), axis=1).reshape((len(xf), len(yf)))
-            output_ys_3d = self.predict(np.c_[
-                input_xs, self._x[:, 2:][0]
-            ])[:, 0].reshape((len(xf), len(yf)))
+            output_ys_2d = np.argmax(
+                self.predict(np.c_[input_xs, self._x[:, 2:][0]]), axis=1).reshape((len(xf), len(yf)))
+            output_ys_3d = self.predict(
+                np.c_[input_xs, self._x[:, 2:][0]])[:, 0].reshape((len(xf), len(yf)))
         else:
             output_ys_2d = np.argmax(self.predict(input_xs), axis=1).reshape((len(xf), len(yf)))
             output_ys_3d = self.predict(input_xs)[:, 0].reshape((len(xf), len(yf)))
@@ -908,8 +684,12 @@ class NN:
             fig = plt.figure()
             ax = fig.add_subplot(111, projection='3d')
 
-            ax.plot_surface(xf, yf, output_ys_3d, cmap=cm.coolwarm,)
+            ax.plot_surface(xf, yf, output_ys_3d, cmap=cm.coolwarm, )
             ax.set_xlabel("x")
             ax.set_ylabel("y")
             ax.set_zlabel("z")
             plt.show()
+
+    @staticmethod
+    def fuck_pycharm_warning():
+        print(Axes3D.acorr)
