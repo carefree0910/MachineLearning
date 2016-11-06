@@ -4,6 +4,8 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
+# I don't like RBF...
+
 sigma = 1
 lb = 0.1
 
@@ -25,7 +27,7 @@ def main():
     # y = np.array([-1, 1, 1, -1])
 
     def f(_x):
-        return np.sum(alpha * gaussian_kernel(_x), axis=1) + b
+        return np.dot(gaussian_kernel(_x), alpha.T) + b
 
     plot_scale = 2
     plot_num = 100
