@@ -4,11 +4,14 @@ import numpy as np
 from abc import ABCMeta, abstractmethod
 
 from Errors import *
+from Util import Timing
 
 
 # Abstract Layers
 
 class Layer(metaclass=ABCMeta):
+
+    LayerTiming = Timing()
 
     def __init__(self, shape):
         """
@@ -20,6 +23,11 @@ class Layer(metaclass=ABCMeta):
         self.child = None
         self.is_last_root = False
         self._last_sub_layer = None
+
+    @classmethod
+    def feed_timing(cls, timing):
+        if isinstance(timing, Timing):
+            cls.LayerTiming = timing
 
     @property
     def name(self):
@@ -56,6 +64,7 @@ class Layer(metaclass=ABCMeta):
 
     # Core
 
+    @LayerTiming.timeit(level=1, prefix="[Core] ")
     def activate(self, x, w, bias=None, predict=False):
         if bias is None:
             return self._activate(x.dot(w), predict)
@@ -69,6 +78,7 @@ class Layer(metaclass=ABCMeta):
     def derivative(self, x):
         raise NotImplementedError("Please implement derivative function for {}".format(self.name))
 
+    @LayerTiming.timeit(level=1, prefix="[Core] ")
     def bp(self, x, w, prev_delta):
         if isinstance(self._last_sub_layer, CostLayer):
             return prev_delta.dot(w.T)
@@ -77,9 +87,9 @@ class Layer(metaclass=ABCMeta):
     # Util
 
     @staticmethod
+    @LayerTiming.timeit(level=2, prefix="[Core Util] ")
     def safe_exp(y):
-        exp_y = np.exp(y - np.max(y, axis=1, keepdims=True))
-        return exp_y / np.sum(exp_y, axis=1, keepdims=True)
+        return np.exp(y - np.max(y, axis=1, keepdims=True))
 
     @abstractmethod
     def __str__(self):
@@ -189,7 +199,8 @@ class Softplus(Layer):
 class Softmax(Layer):
 
     def _activate(self, x, predict):
-        return Layer.safe_exp(x)
+        exp_y = Layer.safe_exp(x)
+        return exp_y / np.sum(exp_y, axis=1, keepdims=True)
 
     def derivative(self, x):
         return x * (1 - x)
@@ -319,6 +330,7 @@ class CostLayer(SubLayer):
             cls._batch_range = np.arange(len(y_pred))
         y_arg_max = np.argmax(y, axis=1)
         if diff:
+            y_pred = y_pred.copy()
             y_pred[cls._batch_range, y_arg_max] -= 1
             return y_pred
         return np.sum(-np.log(y_pred[range(len(y_pred)), y_arg_max])) / len(y)

@@ -29,17 +29,21 @@ def main():
     save = True
     load = False
     debug = False
-    show_loss = False
+    show_loss = True
     train_only = False
     visualize = False
-    show_figure = False
+    show_figure = True
+    draw_network = False
 
     lr = 0.01
-    lb = 0.01
+    lb = 0.001
     epoch = 20
     record_period = 1
     optimizer = "RMSProp"
     nn.optimizer = optimizer
+
+    timing = Timing(enabled=True)
+    timing_level = 4
 
     import pickle
     import gzip
@@ -59,8 +63,8 @@ def main():
 
         # nn.build([x.shape[1], y.shape[1]])
 
-        nn.add(ReLU((x.shape[1], 100)))
-        nn.add(Softmax((y.shape[1],)))
+        nn.add(ReLU((x.shape[1], 24)))
+        nn.add(Softmax((y.shape[1], )))
 
         # nn.layer_names = ["Tanh", "Softmax"]
         # nn.layer_shapes = [(x.shape[1], 48), (y.shape[1], )]
@@ -69,12 +73,14 @@ def main():
         # nn.build([x.shape[1], 48, y.shape[1]])
 
         nn.preview()
+        nn.feed_timing(timing)
 
         logs = (
             nn.fit(x, y, lr=lr, lb=lb, epoch=epoch, record_period=record_period,
                    metrics=["acc", "f1", precision, recall],
                    show_loss=show_loss, train_only=train_only,
-                   print_log=True, debug=debug, visualize=visualize))
+                   do_log=True, print_log=False, debug=debug,
+                   visualize=visualize, draw_img_network=draw_network, img_shape=(28, 28)))
         acc_log, f1_log, precision_log, recall_log, loss_log = logs
 
         test_fb, test_acc, test_precision, test_recall = (
@@ -138,7 +144,7 @@ def main():
         print("=" * 30 + "\n" + "Results\n" + "-" * 30)
         print(log)
 
-    _ = input("Press any key to exit...")
+    show_timing_log(timing, timing_level)
 
 
 if __name__ == '__main__':

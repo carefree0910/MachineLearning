@@ -1,6 +1,9 @@
+# encoding: utf8
+
 import os
 import sys
 import time
+import wrapt
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
@@ -39,7 +42,7 @@ def data_cleaning(line):
     return list(map(lambda c: c.strip(), line.split(",")))
 
 
-def get_data(path=None, n_classes=CLASSES_NUM):
+def get_data(path=None):
     path = "Data/data.txt" if path is None else path
     categories = None
 
@@ -83,11 +86,11 @@ def get_data(path=None, n_classes=CLASSES_NUM):
 
             x.append(tmp_x)
 
-    classes_num = categories[TAR_IDX]["flag"] if n_classes is None else n_classes
+    classes_num = categories[TAR_IDX]["flag"] if CLASSES_NUM is None else CLASSES_NUM
     expand_sum = sum(EXPAND_NUM_LST[:TAR_IDX])
     expand_seq = np.array(EXPAND_NUM_LST[:TAR_IDX]) > 0
     assert isinstance(expand_seq, np.ndarray), "Never mind. You'll never see this error"
-    expand_num = np.sum(expand_seq)
+    expand_num = int(np.sum(expand_seq))
     expand_total = expand_sum - expand_num
     y = np.array([xx.pop(TAR_IDX + expand_total) for xx in x])
     y = np.array([[0 if i != yy else 1 for i in range(classes_num)] for yy in y])
@@ -95,17 +98,39 @@ def get_data(path=None, n_classes=CLASSES_NUM):
     return np.array(x), y
 
 
-def get_and_cache_data(path=None, n_classes=CLASSES_NUM):
+def get_and_cache_data(path=None):
     clear_cache(path)
     _data = get_cache(path)
 
     if _data is None:
-        x, y = get_data(path, n_classes)
+        x, y = get_data(path)
         do_cache(path, (x, y))
     else:
         x, y = _data
 
     return x, y
+
+
+def get_line_info(weight, weight_min, weight_max, weight_average, max_thickness=5):
+    mask = weight >= weight_average
+    min_avg_gap = (weight_average - weight_min)
+    max_avg_gap = (weight_max - weight_average)
+    weight -= weight_average
+    max_mask = mask / max_avg_gap
+    min_mask = ~mask / min_avg_gap
+    weight *= max_mask + min_mask
+    colors = np.array([
+        [(130 - 125 * n, 125, 130 + 125 * n) for n in line] for line in weight
+    ])
+    thicknesses = np.array([
+        [int((max_thickness - 1) * abs(n)) + 1 for n in line] for line in weight
+    ])
+    max_thickness = int(max_thickness)
+    if max_thickness <= 1:
+        max_thickness = 2
+    if np.sum(thicknesses == max_thickness) == thicknesses.shape[0] * thicknesses.shape[1]:
+        thicknesses = np.ones(thicknesses.shape, dtype=np.uint8)
+    return colors, thicknesses
 
 
 def get_graphs_from_logs():
@@ -149,16 +174,6 @@ def gen_xor(size, scale, path=None):
             file.write("\n".join([",".join(_x) + ",{}".format(i % 2) for _x in x]) + "\n")
 
 
-def gen_random(size, scale, path=None):
-    size, path = init_size_and_path(size, path)
-    quarter_size = int(size / 4)
-    with open(path, "w") as file:
-        xs = (2 * np.random.rand(size, 2) - 1) * scale
-        xs = list(map(lambda v: (str(v[0]), str(v[1])), xs))
-        ans = np.random.randint(2, size=quarter_size * 4)
-        file.write("\n".join([",".join(x) + ",{}".format(y) for x, y in zip(xs, ans)]) + "\n")
-
-
 def gen_spin(size, n_classes=2, path=None):
     size, path = init_size_and_path(size, path)
     dimension = 2
@@ -171,14 +186,25 @@ def gen_spin(size, n_classes=2, path=None):
             np.linspace(j * (n_classes + 1), (j + 1) * (n_classes + 1), size) +
             np.array(np.random.random(size=size)) * 0.2)
         xs[ix] = np.c_[r * np.sin(t), r * np.cos(t)]
-        ys[ix] = j
+        ys[ix] = j % CLASSES_NUM
 
     with open(path, "w") as file:
         xs = list(map(lambda v: (str(v[0]), str(v[1])), xs))
         file.write("\n".join([",".join(x) + ",{}".format(y) for x, y in zip(xs, ys)]) + "\n")
 
 
+def gen_random(size, scale, n_classes=2, path=None):
+    size, path = init_size_and_path(size, path)
+    quarter_size = int(size / 4)
+    with open(path, "w") as file:
+        xs = (2 * np.random.rand(size, 2) - 1) * scale
+        xs = list(map(lambda v: (str(v[0]), str(v[1])), xs))
+        ans = np.random.randint(n_classes, size=quarter_size * 4)
+        file.write("\n".join([",".join(x) + ",{}".format(y) for x, y in zip(xs, ans)]) + "\n")
+
+
 class ProgressBar:
+
     def __init__(self, min_value=None, max_value=None, width=30):
         self._min, self._max = min_value, max_value
         self._task_length = int(max_value - min_value) if (
@@ -262,6 +288,62 @@ class ProgressBar:
         self._started = True
         self._flush()
 
+
+class Timing:
+
+    _timings = {}
+    _enabled = False
+
+    def __init__(self, enabled=False):
+        Timing._enabled = enabled
+
+    @staticmethod
+    def timeit(level=0, prefix="[Private Method] "):
+        @wrapt.decorator
+        def wrapper(func, instance, args, kwargs):
+            if not Timing._enabled:
+                return func(*args, **kwargs)
+            if instance is not None:
+                instance_name = "{:>18s}".format(str(instance))
+            else:
+                instance_name = " " * 18
+            _prefix = "{:>26s}".format(prefix)
+            func_name = "{:>28}".format(func.__name__)
+            name = instance_name + _prefix + func_name
+            _t = time.time()
+            rs = func(*args, **kwargs)
+            _t = time.time() - _t
+            try:
+                Timing._timings[name]["timing"] += _t
+                Timing._timings[name]["call_time"] += 1
+            except KeyError:
+                Timing._timings[name] = {
+                    "level": level,
+                    "timing": _t,
+                    "call_time": 1
+                }
+            return rs
+        return wrapper
+
+    @property
+    def timings(self):
+        return self._timings
+
+
+def show_timing_log(timing, level):
+    if not isinstance(timing, Timing):
+        return
+    print()
+    print("=" * 110 + "\n" + "Timing log\n" + "-" * 110)
+    if not timing.timings:
+        print("None")
+    else:
+        for key in sorted(timing.timings.keys()):
+            timing_info = timing.timings[key]
+            if level >= timing_info["level"]:
+                print("{:<42s} :  {:12.7} s (Call Time: {:6d})".format(
+                    key, timing_info["timing"], timing_info["call_time"]))
+    print("-" * 110)
 
 if __name__ == '__main__':
     gen_spin(100)
