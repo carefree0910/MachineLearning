@@ -33,7 +33,7 @@ def main():
     train_only = False
     visualize = False
     show_figure = True
-    draw_network = False
+    draw_network = True
 
     lr = 0.01
     lb = 0.001

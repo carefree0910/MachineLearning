@@ -120,7 +120,7 @@ def get_line_info(weight, weight_min, weight_max, weight_average, max_thickness=
     min_mask = ~mask / min_avg_gap
     weight *= max_mask + min_mask
     colors = np.array([
-        [(130 - 125 * n, 125, 130 + 125 * n) for n in line] for line in weight
+        [(130 - 125 * n, 130, 130 + 125 * n) for n in line] for line in weight
     ])
     thicknesses = np.array([
         [int((max_thickness - 1) * abs(n)) + 1 for n in line] for line in weight

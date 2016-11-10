@@ -977,9 +977,11 @@ class NN:
             _graph_group = []
             for ac in activation:
                 ac = ac.reshape((img_width, img_height))
-                _graph_group.append(np.array([
-                    [(130 - 125 * n, 100, 130 + 125 * n) for n in line] for line in ac
-                ]))
+                ac -= np.average(ac)
+                data = np.zeros((img_width, img_height, 3), np.uint8)
+                mask = ac >= 0.25
+                data[mask], data[~mask] = [0, 130, 255], [255, 130, 0]
+                _graph_group.append(data)
             _graphs.append(_graph_group)
 
         img = np.zeros((height, width, 3), np.uint8)
