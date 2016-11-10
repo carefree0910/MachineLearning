@@ -1,5 +1,5 @@
 # MachineLearning
 
-A machine learning package mainly for educational use.
+A Python ML package mainly for educational use.
 
 Implemented with numpy
