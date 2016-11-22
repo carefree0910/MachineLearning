@@ -298,7 +298,7 @@ class Timing:
         Timing._enabled = enabled
 
     @staticmethod
-    def timeit(level=0, prefix="[Private Method] "):
+    def timeit(level=0, name=None, cls_name=None, prefix="[Private Method] "):
         @wrapt.decorator
         def wrapper(func, instance, args, kwargs):
             if not Timing._enabled:
@@ -306,23 +306,24 @@ class Timing:
             if instance is not None:
                 instance_name = "{:>18s}".format(str(instance))
             else:
-                instance_name = " " * 18
+                instance_name = " " * 18 if cls_name is None else "{:>18s}".format(cls_name)
             _prefix = "{:>26s}".format(prefix)
-            func_name = "{:>28}".format(func.__name__)
-            name = instance_name + _prefix + func_name
+            func_name = "{:>28}".format(func.__name__ if name is None else name)
+            _name = instance_name + _prefix + func_name
             _t = time.time()
             rs = func(*args, **kwargs)
             _t = time.time() - _t
             try:
-                Timing._timings[name]["timing"] += _t
-                Timing._timings[name]["call_time"] += 1
+                Timing._timings[_name]["timing"] += _t
+                Timing._timings[_name]["call_time"] += 1
             except KeyError:
-                Timing._timings[name] = {
+                Timing._timings[_name] = {
                     "level": level,
                     "timing": _t,
                     "call_time": 1
                 }
             return rs
+
         return wrapper
 
     @property

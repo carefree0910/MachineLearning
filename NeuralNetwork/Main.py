@@ -1,7 +1,7 @@
 # encoding: utf8
 
 from Util import *
-from NeuralNetwork import *
+from Networks import *
 
 np.random.seed(142857)  # for reproducibility
 
@@ -27,7 +27,7 @@ def main():
         return tp / (tp + fn)
 
     nn = NN()
-    save = False
+    save = True
     load = False
     debug = False
     show_loss = True
@@ -39,23 +39,27 @@ def main():
     custom_data_scale = 10 ** 0
     visualize = False
     draw_network = False
-    draw_detailed_network = True
+    draw_detailed_network = False
     weight_average = None
+    draw_weights = False
     show_figure = True
     print_log = False
     do_log = True
     data_path = None
     # data_path = "Data/Training Set/data.txt"
 
-    lr = 0.001
+    lr = 0.01
     lb = 0.001
     epoch = 1000
     batch_size = 512
-    record_period = 1
-    optimizer = "CF0910"
+    record_period = 100
+    optimizer = "Adam"
+    # w_optimizer, b_optimizer = "Adam", "Adam"
+    w_optimizer, b_optimizer = None, None
 
     timing = Timing(enabled=True)
-    timing_level = 4
+    timing_level = 1
+    nn.feed_timing(timing)
 
     if whether_gen_xor:
         gen_xor(10 ** 2, custom_data_scale, data_path)
@@ -71,8 +75,11 @@ def main():
 
         # nn.build([x.shape[1], y.shape[1]])
 
-        nn.add(ReLU((x.shape[1], 24)))
-        nn.add(ReLU((24, )))
+        # nn.add(Sigmoid((x.shape[1], 24)))
+        nn.add("Sigmoid", (x.shape[1], 24))
+        nn.add("Sigmoid", (24, ))
+        nn.add("Normalize")
+        nn.add("Sigmoid", (24, ))
         nn.add(Softmax((y.shape[1], )))
 
         # nn.layer_names = ["Tanh", "Softmax"]
@@ -82,16 +89,15 @@ def main():
         # nn.build([x.shape[1], 48, y.shape[1]])
 
         nn.preview()
-        nn.feed_timing(timing)
 
         logs = (
-            nn.fit(x, y, optimizer=optimizer, lr=lr, lb=lb,
+            nn.fit(x, y, optimizer=optimizer, w_optimizer=w_optimizer, b_optimizer=b_optimizer, lr=lr, lb=lb,
                    epoch=epoch, record_period=record_period, batch_size=batch_size,
                    metrics=["acc", "f1", precision, recall], apply_bias=apply_bias,
                    show_loss=show_loss, train_only=train_only,
                    do_log=do_log, print_log=print_log, debug=debug, visualize=visualize,
                    draw_network=draw_network, draw_detailed_network=draw_detailed_network,
-                   weight_average=weight_average))
+                   draw_weights=draw_weights, weight_average=weight_average))
 
         acc_log, f1_log, precision_log, recall_log, loss_log = logs
         nn.do_visualization()
@@ -139,7 +145,7 @@ def main():
         nn.load("Models/Model.nn")
         nn.preview()
         nn.feed(x, y)
-        nn.fit(epoch=450, draw_detailed_network=True, train_only=True)
+        nn.fit(epoch=200, draw_detailed_network=True, train_only=True)
         nn.do_visualization()
         if save:
             nn.save()
