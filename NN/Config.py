@@ -1,5 +1,3 @@
-# encoding: utf8
-
 # ==============================
 # Basic Config
 

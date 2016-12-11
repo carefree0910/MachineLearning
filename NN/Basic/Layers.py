@@ -1,10 +1,8 @@
-# encoding: utf8
-
 from Errors import *
-from Optimizers import *
+from Basic.Optimizers import *
 from Util import Timing
 
-# from CFunc.core import *
+from Basic.CFunc.core import *
 
 
 # Abstract Layers
@@ -105,11 +103,11 @@ class Layer(metaclass=ABCMeta):
 
     @abstractmethod
     def _activate(self, x, predict):
-        raise NotImplementedError("Please implement activation function for " + self.name)
+        pass
 
     @abstractmethod
     def _derivative(self, y, delta=None):
-        raise NotImplementedError("Please implement derivative function for " + self.name)
+        pass
 
     # Util
 
@@ -175,10 +173,16 @@ class ConvLayer(Layer):
         self._shape = shape
         self.n_channels, height, width = shape[0]
         self.n_filters, filter_height, filter_width = shape[1]
-        if (width + 2 * self._padding - filter_width) % self._stride != 0:
-            raise BuildLayerError("Weight width does not work")
-        if (height + 2 * self._padding - filter_height) % self._stride != 0:
-            raise BuildLayerError("Weight height does not work")
+        full_height, full_width = width + 2 * self._padding, height + 2 * self._padding
+        if (
+            (full_height - filter_height) % self._stride != 0 or
+            (full_width - filter_width) % self._stride != 0
+        ):
+            raise BuildLayerError(
+                "Weight shape does not work, "
+                "shape: {} - stride: {} - padding: {} not compatible with {}".format(
+                    self._shape[1][1:], self._stride, self._padding, (height, width)
+                ))
         self.out_h = int((height + 2 * self._padding - filter_height) / self._stride) + 1
         self.out_w = int((width + 2 * self._padding - filter_width) / self._stride) + 1
 
@@ -225,10 +229,16 @@ class ConvPoolLayer(ConvLayer):
         self.n_channels, height, width = shape[0]
         pool_height, pool_width = shape[1]
         self.n_filters = self.n_channels
-        if (width + 2 * self._padding - pool_width) % self._stride != 0:
-            raise BuildLayerError("Pool width does not work")
-        if (height + 2 * self._padding - pool_height) % self._stride != 0:
-            raise BuildLayerError("Pool height does not work")
+        full_height, full_width = width + 2 * self._padding, height + 2 * self._padding
+        if (
+            (full_height - pool_height) % self._stride != 0 or
+            (full_width - pool_width) % self._stride != 0
+        ):
+            raise BuildLayerError(
+                "Pool shape does not work, "
+                "shape: {} - stride: {} - padding: {} not compatible with {}".format(
+                    self._shape[1], self._stride, self._padding, (height, width)
+                ))
         self.out_h = int((height - pool_height) / self._stride) + 1
         self.out_w = int((width - pool_width) / self._stride) + 1
 
@@ -298,25 +308,19 @@ class ConvMeta(type):
             else:
                 delta = __derivative(self, y) * prev_delta
 
-            dw = delta.transpose(1, 0, 2, 3).reshape(n_filters, -1).dot(self.x_col_cache.T).reshape(self.w_cache.shape)
+            dw = delta.transpose(1, 0, 2, 3).reshape(n_filters, -1).dot(
+                self.x_col_cache.T).reshape(self.w_cache.shape)
             db = np.sum(delta, axis=(0, 2, 3))
 
-            # dx_padded = bp_core(n, n_channels, n_filters,
-            #                     height, width, self.out_h, self.out_w, filter_height, filter_width, p, sd,
-            #                     self.inner_weight, delta)
+            n_filters, _, filter_height, filter_width = self.w_cache.shape
+            _, _, out_h, out_w = delta.shape
 
-            dx_padded = np.zeros((n, n_channels, height + 2 * p, width + 2 * p))
-            for i in range(n):
-                for f in range(n_filters):
-                    for j in range(self.out_h):
-                        for k in range(self.out_w):
-                            # noinspection PyTypeChecker
-                            dx_padded[i, :, j * sd:filter_height + j * sd, k * sd:filter_width + k * sd] += (
-                                self.w_cache[f] * delta[i, f, j, k])
+            dx_cols = self.w_cache.reshape(n_filters, -1).T.dot(delta.transpose(1, 0, 2, 3).reshape(n_filters, -1))
+            dx_cols.shape = (n_channels, filter_height, filter_width, n, out_h, out_w)
+            dx = col2im_6d_cython(
+                dx_cols, n, n_channels, height, width, filter_height, filter_width, self._padding, self._stride)
 
-            if p > 0:
-                return dx_padded[:, :, p:-p, p:-p], dw, db
-            return dx_padded, dw, db
+            return dx, dw, db
 
         def activate(self, x, w, bias=None, predict=False):
             return self.LayerTiming.timeit(level=1, name="activate", cls_name=name, prefix="[Core] ")(
@@ -528,9 +532,9 @@ class MaxPool(ConvPoolLayer):
         if method == "reshape":
             x_reshaped_cache = self._pool_cache["x_reshaped"]
             dx_reshaped = np.zeros_like(x_reshaped_cache)
-            out_newaxis = y[:, :, :, np.newaxis, :, np.newaxis]
+            out_newaxis = y[:, :, :, None, :, None]
             mask = (x_reshaped_cache == out_newaxis)
-            dout_newaxis = delta[:, :, :, np.newaxis, :, np.newaxis]
+            dout_newaxis = delta[:, :, :, None, :, None]
             dout_broadcast, _ = np.broadcast_arrays(dout_newaxis, dx_reshaped)
             dx_reshaped[mask] = dout_broadcast[mask]
             # noinspection PyTypeChecker
@@ -579,7 +583,7 @@ class Dropout(SubLayer):
 
 class Normalize(SubLayer):
 
-    def __init__(self, parent, shape, lr=0.01, eps=1e-8, momentum=0.9, optimizers=None):
+    def __init__(self, parent, shape, lr=0.001, eps=1e-8, momentum=0.9, optimizers=None):
         SubLayer.__init__(self, parent, shape)
         self.sample_mean, self.sample_var = None, None
         self.running_mean, self.running_var = None, None
@@ -676,6 +680,7 @@ class CostLayer(SubLayer):
         SubLayer.__init__(self, parent, shape)
         self._available_cost_functions = {
             "MSE": CostLayer._mse,
+            "SVM": CostLayer._svm,
             "Cross Entropy": CostLayer._cross_entropy,
             "Log Likelihood": CostLayer._log_likelihood
         }
@@ -729,6 +734,22 @@ class CostLayer(SubLayer):
         return 0.5 * np.average((y - y_pred) ** 2)
 
     @staticmethod
+    def _svm(y, y_pred, diff=True):
+        n, y = y_pred.shape[0], np.argmax(y, axis=1)
+        correct_class_scores = y_pred[np.arange(n), y]
+        margins = np.maximum(0, y_pred - correct_class_scores[:, None] + 1.0)
+        margins[np.arange(n), y] = 0
+        loss = np.sum(margins) / n
+        num_pos = np.sum(margins > 0, axis=1)
+        if not diff:
+            return loss
+        dx = np.zeros_like(y_pred)
+        dx[margins > 0] = 1
+        dx[np.arange(n), y] -= num_pos
+        dx /= n
+        return dx
+
+    @staticmethod
     def _cross_entropy(y, y_pred, diff=True):
         if diff:
             return -y / y_pred + (1 - y) / (1 - y_pred)
@@ -737,7 +758,7 @@ class CostLayer(SubLayer):
         return np.average(-y * np.log(y_pred) - (1 - y) * np.log(1 - y_pred))
 
     @classmethod
-    def _log_likelihood(cls, y, y_pred, diff=True):
+    def _log_likelihood(cls, y, y_pred, diff=True, eps=1e-8):
         if cls._batch_range is None:
             cls._batch_range = np.arange(len(y_pred))
         y_arg_max = np.argmax(y, axis=1)
@@ -745,11 +766,11 @@ class CostLayer(SubLayer):
             y_pred = y_pred.copy()
             y_pred[cls._batch_range, y_arg_max] -= 1
             return y_pred
-        return np.sum(-np.log(y_pred[range(len(y_pred)), y_arg_max])) / len(y)
+        return np.sum(-np.log(y_pred[range(len(y_pred)), y_arg_max] + eps)) / len(y)
 
     def __str__(self):
         return self._cost_function_name
-    
+
     
 # Factory
 
@@ -768,10 +789,10 @@ class LayerFactory:
     }
     available_sub_layers = {
         "Dropout", "Normalize", "ConvNorm", "ConvDrop",
-        "MSE", "Cross Entropy", "Log Likelihood"
+        "MSE", "SVM", "Cross Entropy", "Log Likelihood"
     }
     available_cost_functions = {
-        "MSE", "Cross Entropy", "Log Likelihood"
+        "MSE", "SVM", "Cross Entropy", "Log Likelihood"
     }
     available_special_layers = {
         "Dropout": Dropout,
@@ -783,7 +804,7 @@ class LayerFactory:
         "Dropout": (0.5, ),
         "Normalize": (0.01, 1e-8, 0.9),
         "ConvDrop": (0.5, ),
-        "ConvNorm": (0.01, 1e-8, 0.9)
+        "ConvNorm": (0.001, 1e-8, 0.9)
     }
 
     def handle_str_main_layers(self, name, *args, **kwargs):

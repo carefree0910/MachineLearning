@@ -1,5 +1,3 @@
-# encoding: utf8
-
 import numpy as np
 from abc import ABCMeta, abstractmethod
 
@@ -43,9 +41,8 @@ class Optimizers(metaclass=ABCMeta):
     def _update(self):
         raise NotImplementedError("Please implement an 'update' method for your optimizer")
 
-    @abstractmethod
     def __str__(self):
-        raise NotImplementedError("Please provide a name for your optimizer")
+        return self.__class__.__name__
 
     def __repr__(self):
         return str(self)
@@ -58,9 +55,6 @@ class SGD(Optimizers):
 
     def _update(self):
         pass
-
-    def __str__(self):
-        return "SGD"
 
 
 class Momentum(Optimizers):
@@ -110,9 +104,6 @@ class Momentum(Optimizers):
         if self._momentum < self._ceiling:
             self._momentum += self._step
 
-    def __str__(self):
-        return "Momentum"
-
 
 class NAG(Momentum):
 
@@ -121,9 +112,6 @@ class NAG(Momentum):
         velocity = self._cache
         velocity[i] = self._momentum * velocity[i] + dw
         return self._momentum * velocity[i] + dw
-
-    def __str__(self):
-        return "NAG"
 
 
 class Adam(Optimizers):
@@ -146,9 +134,6 @@ class Adam(Optimizers):
     def _update(self):
         pass
 
-    def __str__(self):
-        return "Adam"
-
 
 class RMSProp(Optimizers):
 
@@ -162,9 +147,6 @@ class RMSProp(Optimizers):
 
     def _update(self):
         pass
-
-    def __str__(self):
-        return "RMSProp"
 
 
 # Factory

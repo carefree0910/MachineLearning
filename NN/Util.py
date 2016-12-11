@@ -1,14 +1,13 @@
-# encoding: utf8
-
 import os
 import sys
 import time
 import wrapt
 import pickle
 import numpy as np
+from math import sqrt, ceil
 import matplotlib.pyplot as plt
 
-from config import *
+from Config import *
 
 
 def get_cache_path(path):
@@ -108,7 +107,7 @@ def get_and_cache_data(path=None):
     else:
         x, y = _data
 
-    return x, y
+    return np.array(x, dtype=np.float32), np.array(y, dtype=np.float32)
 
 
 def get_line_info(weight, weight_min, weight_max, weight_average, max_thickness=5):
@@ -120,11 +119,11 @@ def get_line_info(weight, weight_min, weight_max, weight_average, max_thickness=
     min_mask = ~mask / min_avg_gap
     weight *= max_mask + min_mask
     colors = np.array([
-        [(130 - 125 * n, 130, 130 + 125 * n) for n in line] for line in weight
-    ])
+                          [(130 - 125 * n, 130, 130 + 125 * n) for n in line] for line in weight
+                          ])
     thicknesses = np.array([
-        [int((max_thickness - 1) * abs(n)) + 1 for n in line] for line in weight
-    ])
+                               [int((max_thickness - 1) * abs(n)) + 1 for n in line] for line in weight
+                               ])
     max_thickness = int(max_thickness)
     if max_thickness <= 1:
         max_thickness = 2
@@ -203,61 +202,117 @@ def gen_random(size, scale, n_classes=2, path=None):
         file.write("\n".join([",".join(x) + ",{}".format(y) for x, y in zip(xs, ans)]) + "\n")
 
 
-class ProgressBar:
+def show_img(img, title, normalize=True):
+    if normalize:
+        img_max, img_min = np.max(img), np.min(img)
+        img = 255.0 * (img - img_min) / (img_max - img_min)
+    plt.figure()
+    plt.title(title)
+    plt.imshow(img.astype('uint8'), cmap=plt.cm.gray)
+    plt.gca().axis('off')
+    plt.show()
 
-    def __init__(self, min_value=None, max_value=None, width=30):
+
+def show_batch_img(batch_img, title, normalize=True):
+    _n, height, width = batch_img.shape
+    a = int(ceil(sqrt(_n)))
+    g = np.ones((a * height + a, a * width + a), batch_img.dtype)
+    g *= np.min(batch_img)
+    _i = 0
+    for y in range(a):
+        for x in range(a):
+            if _i < _n:
+                g[y * height + y:(y + 1) * height + y, x * width + x:(x + 1) * width + x] = batch_img[_i, :, :]
+                _i += 1
+    max_g = g.max()
+    min_g = g.min()
+    g = (g - min_g) / (max_g - min_g)
+    show_img(g, title, normalize)
+
+
+def trans_img(img, shape=None):
+    if shape is not None:
+        img = img.reshape(shape)
+    if img.shape[0] == 1:
+        return img.reshape(img.shape[1:])
+    return img.transpose(1, 2, 0)
+
+
+class ProgressBar:
+    def __init__(self, min_value=None, max_value=None, min_refresh_period=0.5, width=30, name=""):
         self._min, self._max = min_value, max_value
         self._task_length = int(max_value - min_value) if (
             min_value is not None and max_value is not None
         ) else None
         self._counter = min_value
+        self._min_period = min_refresh_period
         self._bar_width = int(width)
+        self._bar_name = " " if not name else " # {:^12s} # ".format(name)
         self._terminated = False
         self._started = False
+        self._ended = False
+        self._current = 0
         self._clock = 0
         self._cost = 0
 
     def _flush(self):
-
+        if self._ended:
+            return False
         if not self._started:
             print("Progress bar not started yet.")
-        elif self._terminated:
-            sys.stdout.write(
-                "\r" + "## ({:d} : {:d} -> {:d}) Task Finished. Time cost: {:8.6}; Average: {:8.6}".format(
-                    self._task_length, self._min, self._max, self._cost, self._cost / self._task_length
-                ) + " ##        "
-            )
-        else:
-
+            return False
+        if self._terminated:
             self._cost = time.time() - self._clock
-            if self._counter > self._min:
-                tmp_hour = int(self._cost / 3600)
-                tmp_min = int(self._cost / 60)
-                tmp_sec = self._cost % 60
-                tmp_avg = self._cost / (self._counter - self._min)
-                tmp_avg_hour = int(tmp_avg / 3600)
-                tmp_avg_min = int(tmp_avg / 60)
-                tmp_avg_sec = tmp_avg % 60
-            else:
-                tmp_hour = 0
-                tmp_min = 0
-                tmp_sec = 0
-                tmp_avg_hour = 0
-                tmp_avg_min = 0
-                tmp_avg_sec = 0
-
-            passed = int(self._counter * self._bar_width / self._max)
-            sys.stdout.write("\r" + "## [" + "-" * passed + " " * (self._bar_width - passed) + "] : {} / {}".format(
-                self._counter, self._max
-            ) + " ##   Time Cost: {:3d} h {:4d} min {:8.6} s; Average: {:3d} h {:4d} min {:8.6} s ".format(
-                tmp_hour, tmp_min, tmp_sec, tmp_avg_hour, tmp_avg_min, tmp_avg_sec
-            ) if self._counter != self._min else "##  Progress bar initialized  ##")
-
+            tmp_hour = int(self._cost / 3600)
+            tmp_min = int((self._cost - tmp_hour * 3600) / 60)
+            tmp_sec = self._cost % 60
+            tmp_avg = self._cost / (self._counter - self._min)
+            tmp_avg_hour = int(tmp_avg / 3600)
+            tmp_avg_min = int((tmp_avg - tmp_avg_hour * 3600) / 60)
+            tmp_avg_sec = tmp_avg % 60
+            sys.stdout.write(
+                "\r" + "##{}({:d} : {:d} -> {:d}) Task Finished. "
+                       "Time Cost: {:3d} h {:3d} min {:6.4} s; Average: {:3d} h {:3d} min {:6.4} s ".format(
+                    self._bar_name, self._task_length, self._min, self._max,
+                    tmp_hour, tmp_min, tmp_sec, tmp_avg_hour, tmp_avg_min, tmp_avg_sec
+                ) + " ##\n"
+            )
             sys.stdout.flush()
-
-            if self._counter >= self._max:
-                self._terminated = True
-                self._flush()
+            self._ended = True
+            return True
+        if self._counter >= self._max:
+            self._terminated = True
+            return self._flush()
+        if self._counter != self._min and time.time() - self._current <= self._min_period:
+            return False
+        self._current = time.time()
+        self._cost = time.time() - self._clock
+        if self._counter > self._min:
+            tmp_hour = int(self._cost / 3600)
+            tmp_min = int((self._cost - tmp_hour * 3600) / 60)
+            tmp_sec = self._cost % 60
+            tmp_avg = self._cost / (self._counter - self._min)
+            tmp_avg_hour = int(tmp_avg / 3600)
+            tmp_avg_min = int((tmp_avg - tmp_avg_hour * 3600) / 60)
+            tmp_avg_sec = tmp_avg % 60
+        else:
+            print()
+            tmp_hour = 0
+            tmp_min = 0
+            tmp_sec = 0
+            tmp_avg_hour = 0
+            tmp_avg_min = 0
+            tmp_avg_sec = 0
+        passed = int(self._counter * self._bar_width / self._max)
+        sys.stdout.write("\r" + "##{}[".format(
+            self._bar_name
+        ) + "-" * passed + " " * (self._bar_width - passed) + "] : {} / {}".format(
+            self._counter, self._max
+        ) + " ##  Time Cost: {:3d} h {:3d} min {:6.4} s; Average: {:3d} h {:3d} min {:6.4} s ".format(
+            tmp_hour, tmp_min, tmp_sec, tmp_avg_hour, tmp_avg_min, tmp_avg_sec
+        ) if self._counter != self._min else "##{}Progress bar initialized  ##".format(self._bar_name))
+        sys.stdout.flush()
+        return True
 
     def set_min(self, min_val):
         if self._max is not None:
@@ -275,22 +330,23 @@ class ProgressBar:
             self._task_length = max_val - self._min
         self._max = max_val
 
-    def update(self, new_value):
+    def update(self, new_value=None):
+        if new_value is None:
+            new_value = self._counter + 1
         if new_value != self._min:
             self._counter = self._max if new_value >= self._max else int(new_value)
-            self._flush()
+            return self._flush()
 
     def start(self):
         if self._task_length is None:
             print("Error: Progress bar not initialized properly.")
             return
-        self._clock = time.time()
+        self._current = self._clock = time.time()
         self._started = True
         self._flush()
 
 
 class Timing:
-
     _timings = {}
     _enabled = False
 
@@ -330,21 +386,19 @@ class Timing:
     def timings(self):
         return self._timings
 
+    def show_timing_log(self, level):
+        print()
+        print("=" * 110 + "\n" + "Timing log\n" + "-" * 110)
+        if not self.timings:
+            print("None")
+        else:
+            for key in sorted(self.timings.keys()):
+                timing_info = self.timings[key]
+                if level >= timing_info["level"]:
+                    print("{:<42s} :  {:12.7} s (Call Time: {:6d})".format(
+                        key, timing_info["timing"], timing_info["call_time"]))
+        print("-" * 110)
 
-def show_timing_log(timing, level):
-    if not isinstance(timing, Timing):
-        return
-    print()
-    print("=" * 110 + "\n" + "Timing log\n" + "-" * 110)
-    if not timing.timings:
-        print("None")
-    else:
-        for key in sorted(timing.timings.keys()):
-            timing_info = timing.timings[key]
-            if level >= timing_info["level"]:
-                print("{:<42s} :  {:12.7} s (Call Time: {:6d})".format(
-                    key, timing_info["timing"], timing_info["call_time"]))
-    print("-" * 110)
 
 if __name__ == '__main__':
     gen_spin(100)

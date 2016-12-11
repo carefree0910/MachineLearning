@@ -1,6 +1,3 @@
-# encoding: utf8
-
-
 class LayerError(Exception):
     pass
 
