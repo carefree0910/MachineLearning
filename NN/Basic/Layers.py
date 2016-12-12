@@ -2,7 +2,11 @@ from Errors import *
 from Basic.Optimizers import *
 from Util import Timing
 
-from Basic.CFunc.core import *
+try:
+    from Basic.CFunc.core import col2im_6d_cython
+except ImportError:
+    print("Cython codes are not compiled, naive cnn bp algorithm will be used.")
+    col2im_6d_cython = None
 
 
 # Abstract Layers
@@ -257,7 +261,6 @@ class ConvPoolLayer(ConvLayer):
         return self._derivative(y, w, prev_delta)
 
 
-# noinspection PyUnusedLocal,PyProtectedMember
 class ConvMeta(type):
 
     def __new__(mcs, *args, **kwargs):
@@ -315,11 +318,20 @@ class ConvMeta(type):
             n_filters, _, filter_height, filter_width = self.w_cache.shape
             _, _, out_h, out_w = delta.shape
 
-            dx_cols = self.w_cache.reshape(n_filters, -1).T.dot(delta.transpose(1, 0, 2, 3).reshape(n_filters, -1))
-            dx_cols.shape = (n_channels, filter_height, filter_width, n, out_h, out_w)
-            dx = col2im_6d_cython(
-                dx_cols, n, n_channels, height, width, filter_height, filter_width, self._padding, self._stride)
-
+            if col2im_6d_cython is not None:
+                dx_cols = self.w_cache.reshape(n_filters, -1).T.dot(delta.transpose(1, 0, 2, 3).reshape(n_filters, -1))
+                dx_cols.shape = (n_channels, filter_height, filter_width, n, out_h, out_w)
+                dx = col2im_6d_cython(
+                    dx_cols, n, n_channels, height, width, filter_height, filter_width, self._padding, self._stride)
+            else:
+                dx_padded = np.zeros((n, n_channels, height + 2 * p, width + 2 * p))
+                for i in range(n):
+                    for f in range(n_filters):
+                        for j in range(self.out_h):
+                            for k in range(self.out_w):
+                                dx_padded[i, :, j * sd:filter_height + j * sd, k * sd:filter_width + k * sd] += (
+                                    self.w_cache[f] * delta[i, f, j, k])
+                dx = dx_padded[:, :, p:-p, p:-p] if p > 0 else dx_padded
             return dx, dw, db
 
         def activate(self, x, w, bias=None, predict=False):
@@ -337,7 +349,6 @@ class ConvMeta(type):
         return type(name, bases, attr)
 
 
-# noinspection PyUnusedLocal,PyProtectedMember
 class ConvSubMeta(type):
 
     def __new__(mcs, *args, **kwargs):
@@ -364,7 +375,6 @@ class ConvSubMeta(type):
             n, n_channels, height, width = delta.shape
             delta_new = delta.transpose(0, 2, 3, 1).reshape(-1, n_channels)
             dx = sub_layer._derivative(self, None, delta_new)
-            # noinspection PyUnresolvedReferences
             return dx.reshape(n, height, width, n_channels).transpose(0, 3, 1, 2)
 
         def activate(self, x, w, bias=None, predict=False):
@@ -537,7 +547,6 @@ class MaxPool(ConvPoolLayer):
             dout_newaxis = delta[:, :, :, None, :, None]
             dout_broadcast, _ = np.broadcast_arrays(dout_newaxis, dx_reshaped)
             dx_reshaped[mask] = dout_broadcast[mask]
-            # noinspection PyTypeChecker
             dx_reshaped /= np.sum(mask, axis=(3, 5), keepdims=True)
             dx = dx_reshaped.reshape(self.x_cache.shape)
         elif method == "original":
@@ -550,7 +559,6 @@ class MaxPool(ConvPoolLayer):
                     for k in range(self.out_h):
                         for l in range(self.out_w):
                             window = self.x_cache[i, j, k*sd:pool_height+k*sd, l*sd:pool_width+l*sd]
-                            # noinspection PyTypeChecker
                             dx[i, j, k*sd:pool_height+k*sd, l*sd:pool_width+l*sd] = (
                                 window == np.max(window)) * delta[i, j, k, l]
         else:
