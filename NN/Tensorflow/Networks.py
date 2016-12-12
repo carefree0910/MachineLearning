@@ -126,14 +126,6 @@ class NN:
         self._layer_names = value
 
     @property
-    def layer_shapes(self):
-        return [layer.shape for layer in self._layers]
-
-    @layer_shapes.setter
-    def layer_shapes(self, value):
-        self._layer_shapes = value
-
-    @property
     def layer_special_params(self):
         return [layer.get_special_params(self._sess) for layer in self._layers]
 
@@ -278,6 +270,8 @@ class NN:
     @NNTiming.timeit(level=4)
     def _update_layer_information(self, layer):
         self._layer_params.append(layer.params)
+        if len(self._layer_params) > 1 and not layer.is_sub_layer:
+            self._layer_params[-1] = ((self._layer_params[-1][0][1], ), *self._layer_params[-1][1:])
 
     # ========================
     # TODO: Optimize This Part
@@ -446,9 +440,9 @@ class NN:
             self._train_step = self._optimizer.minimize(self._cost)
             sess.run(tf.global_variables_initializer())
         else:
-            _var_cache = set(tf.all_variables())
+            _var_cache = set(tf.global_variables())
             self._train_step = self._optimizer.minimize(self._cost)
-            sess.run(tf.initialize_variables(set(tf.all_variables()) - _var_cache))
+            sess.run(tf.variables_initializer(set(tf.global_variables()) - _var_cache))
 
     # API
 
@@ -494,7 +488,6 @@ class NN:
                             self._current_dimension, _current
                         ))
                     self._add_layer(layer, _current, _next)
-
                 elif len(layer.shape) == 1:
                     _next = layer.shape[0]
                     layer.shape = (self._current_dimension, _next)
@@ -507,7 +500,7 @@ class NN:
         if isinstance(units, str):
             if units == "load":
                 for name, param in zip(self._layer_names, self._layer_params):
-                    self._add_layer(name, *param)
+                    self.add(name, *param)
             else:
                 raise NotImplementedError("Invalid param '{}' provided to 'build' method".format(units))
         else:

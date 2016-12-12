@@ -147,6 +147,10 @@ class ConvLayer(Layer):
 class ConvPoolLayer(ConvLayer):
     LayerTiming = Timing()
 
+    @property
+    def params(self):
+        return (self._shape[0], self._shape[1][1:]), self._stride, self._padding
+
     def feed_shape(self, shape):
         shape = (shape[0], (shape[0][0], *shape[1]))
         ConvLayer.feed_shape(self, shape)
