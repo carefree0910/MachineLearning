@@ -118,10 +118,10 @@ class ConvLayer(Layer):
         self._shape = shape
         self.n_channels, height, width = shape[0]
         self.n_filters, filter_height, filter_width = shape[1]
-        full_height, full_width = width + 2 * self._padding, height + 2 * self._padding
+        full_height, full_width = height + 2 * self._padding, width + 2 * self._padding
         if (
-                            (full_height - filter_height) % self._stride != 0 or
-                            (full_width - filter_width) % self._stride != 0
+            (full_height - filter_height) % self._stride != 0 or
+            (full_width - filter_width) % self._stride != 0
         ):
             raise BuildLayerError(
                 "({}) Weight shape does not work, "
