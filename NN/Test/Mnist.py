@@ -24,28 +24,15 @@ def main():
 
     import pickle
 
-    with open("Data/mini_mnist.dat", "rb") as file:
+    with open("../Data/mini_mnist.dat", "rb") as file:
         x, y = pickle.load(file)
 
-    x = x.reshape(len(x), 1, 28, 28)
-    # x = x.reshape(len(x), -1)
-
-    draw = True
+    # x = x.reshape(len(x), 1, 28, 28)
+    x = x.reshape(len(x), -1)
 
     if not load:
 
-        nn.add("ConvTanh", (x.shape[1:], (16, 3, 3)))
-        nn.add("ConvTanh", ((16, 3, 3), ))
-        nn.add("MaxPool", ((2, 2), ), 2)
-        nn.add("ConvNorm")
-        nn.add("ConvELU", ((32, 3, 3), ))
-        nn.add("ConvELU", ((32, 3, 3), ))
-        nn.add("MaxPool", ((2, 2), ), 2)
-        nn.add("ConvNorm", momentum=0.8)
-
-        # nn.add("ReLU", (x.shape[1], 400))
-        nn.add("ReLU", (400, ))
-        # nn.add("Normalize")
+        nn.add("ReLU", (x.shape[1], 400))
         nn.add("CrossEntropy", (y.shape[1], ))
 
         nn.optimizer = "Adam"
@@ -59,9 +46,6 @@ def main():
                do_log=True, verbose=verbose, visualize=visualize)
         if save:
             nn.save()
-        if draw:
-            nn.draw_conv_series(x[:3])
-            nn.draw_conv_weights()
         nn.draw_results()
 
     else:
@@ -72,9 +56,7 @@ def main():
         nn.fit(epoch=5, lr=lr, lb=lb, verbose=verbose)
         if visualize:
             nn.visualize_2d()
-        if draw:
-            nn.draw_conv_series(x[6:9])
-        # nn.draw_results()
+        nn.draw_results()
 
         acc = nn.evaluate(x, y)[0]
         log += "Whole set Accuracy  : {:12.6} %".format(100 * acc) + "\n"
@@ -84,7 +66,6 @@ def main():
         print(log)
 
     timing.show_timing_log(timing_level)
-
 
 if __name__ == '__main__':
     main()

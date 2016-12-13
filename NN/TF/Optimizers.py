@@ -2,6 +2,8 @@ import tensorflow as tf
 
 from Util import Timing
 
+# TODO: Customize Optimizer
+
 
 class Optimizers:
 
@@ -44,6 +46,13 @@ class Momentum(Optimizers):
         self._opt = tf.train.MomentumOptimizer(self._lr, momentum)
 
 
+class NAG(Optimizers):
+
+    def __init__(self, lr=1e-3, momentum=0.8):
+        Optimizers.__init__(self, lr)
+        self._opt = tf.train.MomentumOptimizer(self._lr, momentum, use_nesterov=True)
+
+
 class AdaDelta(Optimizers):
 
     def __init__(self, lr=1e-3, rho=0.95, eps=1e-8):
@@ -77,7 +86,8 @@ class RMSProp(Optimizers):
 class OptFactory:
 
     available_optimizers = {
-        "SGD": SGD, "Momentum": Momentum, "AdaDelta": AdaDelta, "AdaGrad": AdaGrad,
+        "SGD": SGD, "Momentum": Momentum, "NAG": NAG,
+        "AdaDelta": AdaDelta, "AdaGrad": AdaGrad,
         "Adam": Adam, "RMSProp": RMSProp
     }
 

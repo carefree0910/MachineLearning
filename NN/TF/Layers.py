@@ -2,7 +2,7 @@ import numpy as np
 from abc import ABCMeta, abstractmethod
 
 from Errors import *
-from Tensorflow.Optimizers import *
+from TF.Optimizers import *
 from Util import Timing
 
 
@@ -30,6 +30,10 @@ class Layer(metaclass=ABCMeta):
     @property
     def name(self):
         return str(self)
+
+    @property
+    def root(self):
+        return self
 
     @property
     def shape(self):
@@ -80,6 +84,13 @@ class SubLayer(Layer):
         Layer.__init__(self, shape)
         self.parent = parent
         self.description = ""
+
+    @property
+    def root(self):
+        _root = self.parent
+        while _root.parent:
+            _root = _root.parent
+        return _root
 
     @abstractmethod
     def get_params(self):
@@ -178,7 +189,7 @@ class ConvMeta(type):
             return tf.nn.conv2d(x, w, strides=[self._stride] * 4, padding='VALID')
 
         def _activate(self, x, w, bias, predict):
-            res = self._conv(x, w) + bias
+            res = self._conv(x, w) + bias if bias is not None else self._conv(x, w)
             return layer._activate(self, res, predict)
 
         def activate(self, x, w, bias=None, predict=False):
@@ -244,7 +255,7 @@ class Tanh(Layer):
 
 class Sigmoid(Layer):
     def _activate(self, x, predict):
-        return 1 / (1 + tf.exp(-x))
+        return tf.nn.sigmoid(x)
 
 
 class ELU(Layer):
@@ -254,17 +265,22 @@ class ELU(Layer):
 
 class ReLU(Layer):
     def _activate(self, x, predict):
-        return tf.maximum(x, 0)
+        return tf.nn.relu(x)
 
 
 class Softplus(Layer):
     def _activate(self, x, predict):
-        return tf.log(1 + tf.exp(x))
+        return tf.nn.softplus(x)
 
 
 class Identical(Layer):
     def _activate(self, x, predict):
         return x
+
+
+class CF0910(Layer):
+    def _activate(self, x, predict):
+        return tf.minimum(tf.maximum(x, 0), 6)
 
 
 # Convolution Layers
@@ -290,6 +306,10 @@ class ConvSoftplus(ConvLayer, Softplus, metaclass=ConvLayerMeta):
 
 
 class ConvIdentical(ConvLayer, Identical, metaclass=ConvLayerMeta):
+    pass
+
+
+class ConvCF0910(ConvLayer, Identical, metaclass=ConvLayerMeta):
     pass
 
 
@@ -406,6 +426,7 @@ class LayerFactory:
         "Tanh": Tanh, "Sigmoid": Sigmoid,
         "ELU": ELU, "ReLU": ReLU, "Softplus": Softplus,
         "Identical": Identical,
+        "CF0910": CF0910,
 
         # Cost Layers
         "CrossEntropy": CrossEntropy, "MSE": MSE,
@@ -414,6 +435,7 @@ class LayerFactory:
         "ConvTanh": ConvTanh, "ConvSigmoid": ConvSigmoid,
         "ConvELU": ConvELU, "ConvReLU": ConvReLU, "ConvSoftplus": ConvSoftplus,
         "ConvIdentical": ConvIdentical,
+        "ConvCF0910": ConvCF0910,
         "MaxPool": MaxPool
     }
     available_special_layers = {

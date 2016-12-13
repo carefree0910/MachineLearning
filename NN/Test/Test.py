@@ -52,24 +52,14 @@ def main():
     nn.feed_timing(timing)
 
     if whether_gen_xor:
-        gen_xor(10 ** 2, custom_data_scale, data_path)
+        DataUtil.gen_xor(10 ** 2, custom_data_scale, data_path)
     elif whether_gen_spin:
-        gen_spin(10 ** 2, 7, data_path)
+        DataUtil.gen_spin(10 ** 2, 7, data_path)
     elif whether_gen_random:
-        gen_random(10 ** 2, custom_data_scale, CLASSES_NUM)
-    x, y = get_and_cache_data(data_path)
+        DataUtil.gen_random(10 ** 2, custom_data_scale, DataUtil.CLASSES_NUM)
+    x, y = DataUtil.get_and_cache_data(data_path)
 
     if not load:
-
-        # nn.build([x.shape[1], y.shape[1]])
-
-        # nn.add("ReLU", (x.shape[1], 24))
-        # nn.add("ReLU", (24, ))
-        # nn.add("SoftCE", (y.shape[1], ))
-
-        # nn.layer_names = ["Tanh", "Softmax"]
-        # nn.layer_shapes = [(x.shape[1], 48), (y.shape[1], )]
-        # nn.build()
 
         nn.build([x.shape[1], 24, 24, y.shape[1]])
 

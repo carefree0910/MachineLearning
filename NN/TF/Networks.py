@@ -8,12 +8,11 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
-from Config import *
-from Tensorflow.Layers import *
-from Tensorflow.Optimizers import *
-from Util import ProgressBar, get_line_info, trans_img, show_img, show_batch_img
+from TF.Layers import *
+from TF.Optimizers import *
+from Util import ProgressBar, VisUtil, Util
 
-# TODO: Visualization (Tensor Board) ; Apply Bias
+# TODO: Visualization (Tensor Board)
 
 np.random.seed(142857)  # for reproducibility
 
@@ -27,17 +26,21 @@ class NNVerbose:
     DEBUG = 5
 
 
+class NNConfig:
+    BOOST_LESS_SAMPLES = False
+    TRAINING_SCALE = 5 / 6
+
+
 # Neural Network
 
 class NN:
-
     NNTiming = Timing()
 
     def __init__(self):
         self._layers = []
-        self._layer_names, self._layer_shapes, self._layer_params = [], [], []
-        self._lr = self._regularization_param = 0
-        self._w_std = self._b_init = 0.1
+        self._layer_names, self._layer_params = [], []
+        self._lr = 0
+        self._w_stds, self._b_inits = [], []
         self._optimizer = None
         self._data_size = 0
         self.verbose = 0
@@ -50,6 +53,7 @@ class NN:
 
         self._x = self._y = None
         self._x_min = self._x_max = self._y_min = self._y_max = 0
+        self._transferred_flags = {"train": False, "test": False}
 
         self._tfx = self._tfy = None
         self._tf_weights, self._tf_bias = [], []
@@ -71,9 +75,9 @@ class NN:
     @NNTiming.timeit(level=4, prefix="[Initialize] ")
     def initialize(self):
         self._layers = []
-        self._layer_names, self._layer_shapes, self._layer_params = [], [], []
-        self._lr = self._regularization_param = 0
-        self._w_std = self._b_init = 0.1
+        self._layer_names, self._layer_params = [], []
+        self._lr = 0
+        self._w_stds, self._b_inits = [], []
         self._optimizer = None
         self._data_size = 0
         self.verbose = 0
@@ -86,6 +90,7 @@ class NN:
 
         self._x = self._y = None
         self._x_min = self._x_max = self._y_min = self._y_max = 0
+        self._transferred_flags = {"train": False, "test": False}
 
         self._tfx = self._tfy = None
         self._tf_weights, self._tf_bias = [], []
@@ -175,7 +180,9 @@ class NN:
                 raise BuildNetworkError("Please provide input matrix")
             x = self._x
         else:
-            x = NN._transfer_x(x)
+            if not self._transferred_flags["train"]:
+                x = NN._transfer_x(x)
+                self._transferred_flags["train"] = True
         if y is None:
             if self._y is None:
                 raise BuildNetworkError("Please provide input matrix")
@@ -192,12 +199,12 @@ class NN:
 
     @NNTiming.timeit(level=4, prefix="[Private StaticMethod] ")
     def _get_w(self, shape):
-        initial = tf.truncated_normal(shape, stddev=self._w_std)
+        initial = tf.truncated_normal(shape, stddev=self._w_stds[-1])
         return tf.Variable(initial, name="w")
 
     @NNTiming.timeit(level=4, prefix="[Private StaticMethod] ")
     def _get_b(self, shape):
-        initial = tf.constant(self._b_init, shape=shape)
+        initial = tf.constant(self._b_inits[-1], shape=shape)
         return tf.Variable(initial, name="b")
 
     @NNTiming.timeit(level=4)
@@ -222,7 +229,7 @@ class NN:
         if not self._layers and isinstance(layer, str):
             _layer = self._layer_factory.handle_str_main_layers(layer, *args, **kwargs)
             if _layer:
-                self.add(_layer)
+                self.add(_layer, pop_last_init=True)
                 return
         _parent = self._layers[-1]
         if isinstance(_parent, CostLayer):
@@ -232,7 +239,7 @@ class NN:
                 layer, _parent, self._current_dimension, *args, **kwargs
             )
             if shape is None:
-                self.add(layer)
+                self.add(layer, pop_last_init=True)
                 return
             _current, _next = shape
         else:
@@ -271,10 +278,7 @@ class NN:
     def _update_layer_information(self, layer):
         self._layer_params.append(layer.params)
         if len(self._layer_params) > 1 and not layer.is_sub_layer:
-            self._layer_params[-1] = ((self._layer_params[-1][0][1], ), *self._layer_params[-1][1:])
-
-    # ========================
-    # TODO: Optimize This Part
+            self._layer_params[-1] = ((self._layer_params[-1][0][1],), *self._layer_params[-1][1:])
 
     @NNTiming.timeit(level=2)
     def _get_prediction(self, x, name=None, batch_size=1e6, verbose=None, out_of_sess=False):
@@ -286,7 +290,7 @@ class NN:
         if single_batch >= len(x):
             if not out_of_sess:
                 return self._y_pred.eval(feed_dict={self._tfx: x})
-            return self._get_pred(x)
+            return self._get_rs(x)
         epoch = int(len(x) / single_batch)
         if not len(x) % single_batch:
             epoch += 1
@@ -297,7 +301,7 @@ class NN:
         if not out_of_sess:
             rs = [self._y_pred.eval(feed_dict={self._tfx: x[:single_batch]})]
         else:
-            rs = [self._get_pred(x[:single_batch])]
+            rs = [self._get_rs(x[:single_batch])]
         count = single_batch
         if verbose >= NNVerbose.METRICS:
             sub_bar.update()
@@ -305,16 +309,19 @@ class NN:
             count += single_batch
             if count >= len(x):
                 if not out_of_sess:
-                    rs.append(self._y_pred.eval(feed_dict={self._tfx: x[count-single_batch:]}))
+                    rs.append(self._y_pred.eval(feed_dict={self._tfx: x[count - single_batch:]}))
                 else:
-                    rs.append(self._get_pred(x[count-single_batch:]))
+                    rs.append(self._get_rs(x[count - single_batch:]))
             else:
                 if not out_of_sess:
-                    rs.append(self._y_pred.eval(feed_dict={self._tfx: x[count-single_batch:count]}))
+                    rs.append(self._y_pred.eval(feed_dict={self._tfx: x[count - single_batch:count]}))
                 else:
-                    rs.append(self._get_pred(x[count-single_batch:count]))
+                    rs.append(self._get_rs(x[count - single_batch:count]))
             if verbose >= NNVerbose.METRICS:
                 sub_bar.update()
+        if out_of_sess:
+            with self._sess.as_default():
+                rs = [_rs.eval() for _rs in rs]
         return np.vstack(rs)
 
     @NNTiming.timeit(level=4)
@@ -329,17 +336,10 @@ class NN:
         return _activations
 
     @NNTiming.timeit(level=1)
-    def _get_loss(self, x, y=None, predict=False):
-        if y is None:
-            predict = True
-        _cache = self._layers[0].activate(x, self._tf_weights[0], self._tf_bias[0], predict)
-        for i, layer in enumerate(self._layers[1:]):
-            if i == len(self._layers) - 2:
-                if y is None:
-                    return tf.matmul(_cache, self._tf_weights[-1]) + self._tf_bias[-1]
-                predict = y
-            _cache = layer.activate(_cache, self._tf_weights[i + 1], self._tf_bias[i + 1], predict)
-        return _cache
+    def _get_l2_loss(self, lb):
+        if lb <= 0:
+            return 0
+        return lb * tf.reduce_sum([tf.nn.l2_loss(_w) for _w in self._tf_weights])
 
     @NNTiming.timeit(level=1)
     def _get_acts(self, x):
@@ -347,7 +347,10 @@ class NN:
             _activations = [self._layers[0].activate(x, self._tf_weights[0], self._tf_bias[0], True)]
             for i, layer in enumerate(self._layers[1:]):
                 if i == len(self._layers) - 2:
-                    _activations.append(tf.matmul(_activations[-1], self._tf_weights[-1]) + self._tf_bias[-1])
+                    if self._tf_bias[-1] is not None:
+                        _activations.append(tf.matmul(_activations[-1], self._tf_weights[-1]) + self._tf_bias[-1])
+                    else:
+                        _activations.append(tf.matmul(_activations[-1], self._tf_weights[-1]))
                 else:
                     _activations.append(layer.activate(
                         _activations[-1], self._tf_weights[i + 1], self._tf_bias[i + 1], True))
@@ -355,9 +358,19 @@ class NN:
         return _activations
 
     @NNTiming.timeit(level=1)
-    def _get_pred(self, x):
-        with self._sess.as_default():
-            return self._get_loss(x).eval()
+    def _get_rs(self, x, y=None, predict=False):
+        if y is None:
+            predict = True
+        _cache = self._layers[0].activate(x, self._tf_weights[0], self._tf_bias[0], predict)
+        for i, layer in enumerate(self._layers[1:]):
+            if i == len(self._layers) - 2:
+                if y is None:
+                    if self._tf_bias[-1] is not None:
+                        return tf.matmul(_cache, self._tf_weights[-1]) + self._tf_bias[-1]
+                    return tf.matmul(_cache, self._tf_weights[-1])
+                predict = y
+            _cache = layer.activate(_cache, self._tf_weights[i + 1], self._tf_bias[i + 1], predict)
+        return _cache
 
     @NNTiming.timeit(level=3)
     def _append_log(self, x, y, name, get_loss=True, out_of_sess=False):
@@ -370,12 +383,6 @@ class NN:
             else:
                 with self._sess.as_default():
                     self._logs[name][-1].append(self._layers[-1].calculate(y, y_pred).eval())
-
-    @NNTiming.timeit(level=2)
-    def _eval_log(self):
-        pass
-
-    # ========================
 
     @NNTiming.timeit(level=3)
     def _print_metric_logs(self, show_loss, data_type):
@@ -452,6 +459,11 @@ class NN:
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def add(self, layer, *args, **kwargs):
+        self._w_stds.append(Util.get_and_pop(kwargs, "std", 0.1))
+        self._b_inits.append(Util.get_and_pop(kwargs, "init", 0.1))
+        if Util.get_and_pop(kwargs, "pop_last_init", False):
+            self._w_stds.pop()
+            self._b_inits.pop()
         if isinstance(layer, str):
             # noinspection PyTypeChecker
             self._add_layer(layer, *args, **kwargs)
@@ -514,7 +526,7 @@ class NN:
             self.initialize()
             self.add(Sigmoid(_input_shape))
             for unit_num in units[2:]:
-                self.add(Sigmoid((unit_num, )))
+                self.add(Sigmoid((unit_num,)))
             self.add(CrossEntropy((units[-1],)))
         self._init_layers()
 
@@ -530,46 +542,50 @@ class NN:
             rs = (
                 "Input  :  {:<10s} - {}\n".format("Dimension", self._layers[0].shape[0]) +
                 "\n".join([
-                    "Layer  :  {:<10s} - {} {}".format(
-                        _layer.name, _layer.shape[1], _layer.description
-                    ) if isinstance(_layer, SubLayer) else
-                    "Layer  :  {:<10s} - {:<14s} - strides: {:2d} - padding: {:2d} - out: {}".format(
-                        _layer.name, str(_layer.shape[1]), _layer.stride, _layer.padding,
-                        (_layer.n_filters, _layer.out_h, _layer.out_w)
-                    ) if isinstance(_layer, ConvLayer) else "Layer  :  {:<10s} - {}".format(
-                        _layer.name, _layer.shape[1]
-                    ) for _layer in self._layers[:-1]
-                ]) + "\nCost   :  {:<10s}".format(_cost_layer.name)
+                              "Layer  :  {:<10s} - {} {}".format(
+                                  _layer.name, _layer.shape[1], _layer.description
+                              ) if isinstance(_layer, SubLayer) else
+                              "Layer  :  {:<10s} - {:<14s} - strides: {:2d} - padding: {:2d} - out: {}".format(
+                                  _layer.name, str(_layer.shape[1]), _layer.stride, _layer.padding,
+                                  (_layer.n_filters, _layer.out_h, _layer.out_w)
+                              ) if isinstance(_layer, ConvLayer) else "Layer  :  {:<10s} - {}".format(
+                                  _layer.name, _layer.shape[1]
+                              ) for _layer in self._layers[:-1]
+                              ]) + "\nCost   :  {:<10s}".format(_cost_layer.name)
             )
-        print("=" * 30 + "\n" + "Structure\n" + "-" * 30 + "\n" + rs + "\n" + "-" * 30 + "\n")
+        print("=" * 30 + "\n" + "Structure\n" + "-" * 30 + "\n" + rs + "\n" + "-" * 30)
+        print("Initial Values\n" + "-" * 30)
+        print("\n".join(["({:^16s}) w_std: {:8.6} ; b_init: {:8.6}".format(
+            _batch[0].name, *_batch[1:]) for _batch in zip(
+            self._layers, self._w_stds, self._b_inits) if not isinstance(
+            _batch[0], SubLayer) and not isinstance(_batch[0], ConvPoolLayer)]))
+        print("-" * 30)
 
-    @staticmethod
     @NNTiming.timeit(level=4, prefix="[API] ")
-    def split_data(x, y, x_cv, y_cv, x_test, y_test,
-                   train_only, training_scale=TRAINING_SCALE, cv_scale=CV_SCALE):
+    def split_data(self, x, y, x_test, y_test,
+                   train_only, training_scale=NNConfig.TRAINING_SCALE):
         if train_only:
-            if x_cv is not None and y_cv is not None:
-                x, y = np.vstack((x, NN._transfer_x(np.array(x_cv)))), np.vstack((y, y_cv))
             if x_test is not None and y_test is not None:
-                x, y = np.vstack((x, NN._transfer_x(np.array(x_test)))), np.vstack((y, y_test))
+                if not self._transferred_flags["test"]:
+                    x, y = np.vstack((x, NN._transfer_x(np.array(x_test)))), np.vstack((y, y_test))
+                    self._transferred_flags["test"] = True
             x_train, y_train = np.array(x), np.array(y)
-            x_cv, y_cv, x_test, y_test = x_train, y_train, x_train, y_train
+            x_test, y_test = x_train, y_train
         else:
             shuffle_suffix = np.random.permutation(len(x))
             x, y = x[shuffle_suffix], y[shuffle_suffix]
-            if (x_cv is None or y_cv is None) and (x_test is None or y_test is None):
+            if x_test is None or y_test is None:
                 train_len = int(len(x) * training_scale)
-                cv_len = train_len + int(len(x) * cv_scale)
                 x_train, y_train = np.array(x[:train_len]), np.array(y[:train_len])
-                x_cv, y_cv = np.array(x[train_len:cv_len]), np.array(y[train_len:cv_len])
-                x_test, y_test = np.array(x[cv_len:]), np.array(y[cv_len:])
-            elif x_cv is None or y_cv is None or x_test is None or y_test is None:
-                raise BuildNetworkError("Please provide cv sets and test sets if you want to split data on your own")
+                x_test, y_test = np.array(x[train_len:]), np.array(y[train_len:])
+            elif x_test is None or y_test is None:
+                raise BuildNetworkError("Please provide test sets if you want to split data on your own")
             else:
                 x_train, y_train = np.array(x), np.array(y)
-                x_cv, y_cv = NN._transfer_x(np.array(x_cv)), np.array(y_cv)
-                x_test, y_test = NN._transfer_x(np.array(x_test)), np.array(y_test)
-        if BOOST_LESS_SAMPLES:
+                if not self._transferred_flags["test"]:
+                    x_test, y_test = NN._transfer_x(np.array(x_test)), np.array(y_test)
+                    self._transferred_flags["test"] = True
+        if NNConfig.BOOST_LESS_SAMPLES:
             if y_train.shape[1] != 2:
                 raise BuildNetworkError("It is not permitted to boost less samples in multiple classification")
             y_train_arg = np.argmax(y_train, axis=1)
@@ -584,19 +600,19 @@ class NN:
             y_train = np.vstack((y_train[y1], y_train[y0][boost_suffix]))
             shuffle_suffix = np.random.permutation(len(x_train))
             x_train, y_train = x_train[shuffle_suffix], y_train[shuffle_suffix]
-        return (x_train, x_cv, x_test), (y_train, y_cv, y_test)
+        return (x_train, x_test), (y_train, y_test)
 
     @NNTiming.timeit(level=1, prefix="[API] ")
     def fit(self,
-            x=None, y=None, x_cv=None, y_cv=None, x_test=None, y_test=None,
-            lr=0.01, lb=0.01, epoch=20, w_std=0.1, b_init=0.1, weight_scale=1,
+            x=None, y=None, x_test=None, y_test=None,
+            lr=0.01, lb=0.01, epoch=20, weight_scale=1, apply_bias=True,
             batch_size=512, record_period=1, train_only=False, optimizer=None,
             show_loss=True, metrics=None, do_log=True, verbose=None,
             visualize=False, visualize_setting=None,
             draw_detailed_network=False, weight_average=None):
 
         x, y = self._feed_data(x, y)
-        self._lr, self._w_std, self._b_init = lr, w_std, b_init
+        self._lr = lr
         self._init_optimizer(optimizer)
         print("Optimizer: ", self._optimizer.name)
         print("-" * 30)
@@ -608,13 +624,11 @@ class NN:
             raise BuildNetworkError("Output layer's shape should be {}, {} found".format(
                 self._current_dimension, y.shape[1]))
 
-        (x_train, x_cv, x_test), (y_train, y_cv, y_test) = NN.split_data(
-            x, y, x_cv, y_cv, x_test, y_test, train_only)
+        (x_train, x_test), (y_train, y_test) = self.split_data(x, y, x_test, y_test, train_only)
         train_len = len(x_train)
         batch_size = min(batch_size, train_len)
         do_random_batch = train_len >= batch_size
         train_repeat = int(train_len / batch_size) + 1
-        self._regularization_param = 1 - lb * lr / batch_size
         self._feed_data(x_train, y_train)
 
         self._tfx = tf.placeholder(tf.float32, shape=[None, *x.shape[1:]])
@@ -629,8 +643,8 @@ class NN:
         self._metric_names = [_m.__name__ for _m in self._metrics]
 
         self._logs = {
-            name: [[] for _ in range(len(self._metrics) + 1)] for name in ("train", "cv", "test")
-        }
+            name: [[] for _ in range(len(self._metrics) + 1)] for name in ("train", "test")
+            }
         if verbose is not None:
             self.verbose = verbose
 
@@ -642,12 +656,14 @@ class NN:
         with self._sess.as_default() as sess:
 
             # Session
-            self._cost = self._get_loss(self._tfx, self._tfy)
-            self._y_pred = self._get_loss(self._tfx)
+            self._cost = self._get_rs(self._tfx, self._tfy) + self._get_l2_loss(lb)
+            self._y_pred = self._get_rs(self._tfx)
             self._activations = self._get_activations(self._tfx)
             self._init_train_step(sess)
             for weight in self._tf_weights:
                 weight *= weight_scale
+            if not apply_bias:
+                self._tf_bias = [None] * len(self._tf_bias)
 
             # Log
             # merge_op = tf.merge_all_summaries()
@@ -674,34 +690,31 @@ class NN:
                     if self.verbose >= NNVerbose.EPOCH:
                         if sub_bar.update() and self.verbose >= NNVerbose.METRICS_DETAIL:
                             self._append_log(x, y, "train", get_loss=show_loss)
-                            self._append_log(x_cv, y_cv, "cv", get_loss=show_loss)
+                            self._append_log(x_test, y_test, "test", get_loss=show_loss)
                             self._print_metric_logs(show_loss, "train")
-                            self._print_metric_logs(show_loss, "cv")
+                            self._print_metric_logs(show_loss, "test")
                 if self.verbose >= NNVerbose.EPOCH:
                     sub_bar.update()
 
                 if (counter + 1) % record_period == 0:
                     if do_log:
                         self._append_log(x, y, "train", get_loss=show_loss)
-                        self._append_log(x_cv, y_cv, "cv", get_loss=show_loss)
+                        self._append_log(x_test, y_test, "test", get_loss=show_loss)
                         if self.verbose >= NNVerbose.METRICS:
                             self._print_metric_logs(show_loss, "train")
-                            self._print_metric_logs(show_loss, "cv")
+                            self._print_metric_logs(show_loss, "test")
                     if visualize:
                         if visualize_setting is None:
-                            self.visualize_2d(x_cv, y_cv)
+                            self.visualize_2d(x_test, y_test)
                         else:
-                            self.visualize_2d(x_cv, y_cv, *visualize_setting)
-                    if x_cv.shape[1] == 2:
+                            self.visualize_2d(x_test, y_test, *visualize_setting)
+                    if x_test.shape[1] == 2:
                         if draw_detailed_network:
                             img = self.draw_detailed_network(weight_average=weight_average)
                     if self.verbose >= NNVerbose.EPOCH:
                         bar.update(counter // record_period + 1)
                         sub_bar = ProgressBar(min_value=0, max_value=train_repeat * record_period - 1, name="Iteration")
 
-        self._eval_log()
-        if do_log:
-            self._append_log(x_test, y_test, "test", get_loss=show_loss, out_of_sess=True)
         if img is not None:
             cv2.waitKey(0)
             cv2.destroyAllWindows()
@@ -899,9 +912,9 @@ class NN:
         color_max = [np.max(weight) for weight in color_weights]
         color_average = [np.average(weight) for weight in color_weights] if weight_average is None else weight_average
         for weight, weight_min, weight_max, weight_average in zip(
-            color_weights, color_min, color_max, color_average
+                color_weights, color_min, color_max, color_average
         ):
-            line_info = get_line_info(weight, weight_min, weight_max, weight_average)
+            line_info = VisUtil.get_line_info(weight, weight_min, weight_max, weight_average)
             colors.append(line_info[0])
             thicknesses.append(line_info[1])
 
@@ -911,7 +924,7 @@ class NN:
                     cv2.circle(img, (x, y), radius, (20, 215, 20), int(radius / 2))
                 else:
                     graph = _graphs[i - 1][j]
-                    img[y-half_plot_num:y+half_plot_num, x-half_plot_num:x+half_plot_num] = graph
+                    img[y - half_plot_num:y + half_plot_num, x - half_plot_num:x + half_plot_num] = graph
             if i > 0:
                 cv2.putText(img, self._layers[i - 1].name, (12, y - 36), cv2.LINE_AA, 0.6, (255, 255, 255), 2)
 
@@ -924,7 +937,7 @@ class NN:
                 for k, new_x in enumerate(axis1[i + 1]):
                     if whether_sub_layer and j != k:
                         continue
-                    cv2.line(img, (x, y+half_plot_num), (new_x, new_y-half_plot_num),
+                    cv2.line(img, (x, y + half_plot_num), (new_x, new_y - half_plot_num),
                              colors[i][j][k], thicknesses[i][j][k])
 
         cv2.imshow("Neural Network", img)
@@ -940,8 +953,6 @@ class NN:
             plt.figure()
             plt.title("Metric Type: {}".format(name))
             for key, log in sorted(metrics_log.items()):
-                if key == "test":
-                    continue
                 xs = np.arange(len(log[i])) + 1
                 plt.plot(xs, log[i], label="Data Type: {}".format(key))
             plt.legend(loc=4)
@@ -951,8 +962,6 @@ class NN:
         plt.figure()
         plt.title("Loss")
         for key, loss in sorted(loss_log.items()):
-            if key == "test":
-                continue
             xs = np.arange(len(loss)) + 1
             plt.plot(xs, loss, label="Data Type: {}".format(key))
         plt.legend()
@@ -965,16 +974,16 @@ class NN:
                 if len(weight.shape) != 4:
                     continue
                 for j, _w in enumerate(weight.transpose(2, 3, 0, 1)):
-                    show_batch_img(_w, "{} {} filter {}".format(name, i+1, j+1))
+                    VisUtil.show_batch_img(_w, "{} {} filter {}".format(name, i + 1, j + 1))
 
     def draw_conv_series(self, x, shape=None):
         x = np.array(x)
         for xx in x:
-            show_img(trans_img(xx, shape), "Original")
+            VisUtil.show_img(VisUtil.trans_img(xx, shape), "Original")
             for i, (layer, ac) in enumerate(zip(
                     self._layers, self._get_acts(np.array([xx.transpose(1, 2, 0)], dtype=np.float32)))):
                 if len(ac.shape) == 4:
-                    show_batch_img(ac[0].transpose(2, 0, 1), "Layer {} ({})".format(i + 1, layer.name))
+                    VisUtil.show_batch_img(ac[0].transpose(2, 0, 1), "Layer {} ({})".format(i + 1, layer.name))
                 else:
                     ac = ac[0]
                     length = sqrt(np.prod(ac.shape))
@@ -983,7 +992,7 @@ class NN:
                     (height, width) = xx.shape[1:] if shape is None else shape[1:]
                     sqrt_shape = sqrt(height * width)
                     oh, ow = int(length * height / sqrt_shape), int(length * width / sqrt_shape)
-                    show_img(ac[:oh*ow].reshape(oh, ow), "Layer {} ({})".format(i + 1, layer.name))
+                    VisUtil.show_img(ac[:oh * ow].reshape(oh, ow), "Layer {} ({})".format(i + 1, layer.name))
 
     @staticmethod
     def fuck_pycharm_warning():

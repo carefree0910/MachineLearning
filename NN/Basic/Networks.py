@@ -8,10 +8,9 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
-from Config import *
 from Basic.Layers import *
 from Basic.Optimizers import OptFactory
-from Util import ProgressBar, get_line_info, trans_img, show_img
+from Util import ProgressBar, VisUtil
 
 np.random.seed(142857)  # for reproducibility
 
@@ -23,6 +22,11 @@ class NNVerbose:
     METRICS_DETAIL = 3
     DETAIL = 4
     DEBUG = 5
+
+
+class NNConfig:
+    BOOST_LESS_SAMPLES = False
+    TRAINING_SCALE = 5 / 6
 
 
 # Neural Network
@@ -474,32 +478,27 @@ class NN:
             )
         print("=" * 30 + "\n" + "Structure\n" + "-" * 30 + "\n" + rs + "\n" + "-" * 30 + "\n")
 
-    @staticmethod
     @NNTiming.timeit(level=4, prefix="[API] ")
-    def split_data(x, y, x_cv, y_cv, x_test, y_test,
-                   train_only, training_scale=TRAINING_SCALE, cv_scale=CV_SCALE):
+    def split_data(self, x, y, x_test, y_test,
+                   train_only, training_scale=NNConfig.TRAINING_SCALE):
         if train_only:
-            if x_cv is not None and y_cv is not None:
-                x, y = np.vstack((x, x_cv)), np.vstack((y, y_cv))
             if x_test is not None and y_test is not None:
                 x, y = np.vstack((x, x_test)), np.vstack((y, y_test))
             x_train, y_train = np.array(x), np.array(y)
-            x_cv, y_cv, x_test, y_test = x_train, y_train, x_train, y_train
+            x_test, y_test = x_train, y_train
         else:
             shuffle_suffix = np.random.permutation(len(x))
             x, y = x[shuffle_suffix], y[shuffle_suffix]
-            if (x_cv is None or y_cv is None) and (x_test is None or y_test is None):
+            if x_test is None or y_test is None:
                 train_len = int(len(x) * training_scale)
-                cv_len = train_len + int(len(x) * cv_scale)
                 x_train, y_train = np.array(x[:train_len]), np.array(y[:train_len])
-                x_cv, y_cv = np.array(x[train_len:cv_len]), np.array(y[train_len:cv_len])
-                x_test, y_test = np.array(x[cv_len:]), np.array(y[cv_len:])
-            elif x_cv is None or y_cv is None or x_test is None or y_test is None:
-                raise BuildNetworkError("Please provide cv sets and test sets if you want to split data on your own")
+                x_test, y_test = np.array(x[train_len:]), np.array(y[train_len:])
+            elif x_test is None or y_test is None:
+                raise BuildNetworkError("Please provide test sets if you want to split data on your own")
             else:
                 x_train, y_train = np.array(x), np.array(y)
-                x_cv, y_cv, x_test, y_test = np.array(x_cv), np.array(y_cv), np.array(x_test), np.array(y_test)
-        if BOOST_LESS_SAMPLES:
+                x_test, y_test = np.array(x_test), np.array(y_test)
+        if NNConfig.BOOST_LESS_SAMPLES:
             if y_train.shape[1] != 2:
                 raise BuildNetworkError("It is not permitted to boost less samples in multiple classification")
             y_train_arg = np.argmax(y_train, axis=1)
@@ -514,11 +513,11 @@ class NN:
             y_train = np.vstack((y_train[y1], y_train[y0][boost_suffix]))
             shuffle_suffix = np.random.permutation(len(x_train))
             x_train, y_train = x_train[shuffle_suffix], y_train[shuffle_suffix]
-        return (x_train, x_cv, x_test), (y_train, y_cv, y_test)
+        return (x_train, x_test), (y_train, y_test)
 
     @NNTiming.timeit(level=1, prefix="[API] ")
     def fit(self,
-            x=None, y=None, x_cv=None, y_cv=None, x_test=None, y_test=None,
+            x=None, y=None, x_test=None, y_test=None,
             batch_size=512, record_period=1, train_only=False,
             optimizer=None, w_optimizer=None, b_optimizer=None,
             lr=0.01, lb=0.01, epoch=20, weight_scale=1, apply_bias=True,
@@ -562,8 +561,8 @@ class NN:
             raise BuildNetworkError("Output layer's shape should be {}, {} found".format(
                 self._current_dimension, y.shape[1]))
 
-        (x_train, x_cv, x_test), (y_train, y_cv, y_test) = NN.split_data(
-            x, y, x_cv, y_cv, x_test, y_test, train_only)
+        (x_train, x_test), (y_train, y_test) = self.split_data(
+            x, y, x_test, y_test, train_only)
         train_len = len(x_train)
         batch_size = min(batch_size, train_len)
         do_random_batch = train_len >= batch_size
@@ -646,7 +645,7 @@ class NN:
                 if self.verbose >= NNVerbose.EPOCH:
                     if sub_bar.update() and self.verbose >= NNVerbose.METRICS_DETAIL:
                         self._append_log(x, y, "train", get_loss=show_loss)
-                        self._append_log(x_cv, y_cv, "cv", get_loss=show_loss)
+                        self._append_log(x_test, y_test, "cv", get_loss=show_loss)
                         self._print_metric_logs(show_loss, "train")
                         self._print_metric_logs(show_loss, "cv")
 
@@ -654,17 +653,17 @@ class NN:
                 sub_bar.update()
             if do_log:
                 self._append_log(x, y, "train", get_loss=show_loss)
-                self._append_log(x_cv, y_cv, "cv", get_loss=show_loss)
+                self._append_log(x_test, y_test, "cv", get_loss=show_loss)
             if (counter + 1) % record_period == 0:
                 if do_log and self.verbose >= NNVerbose.METRICS:
                     self._print_metric_logs(show_loss, "train")
                     self._print_metric_logs(show_loss, "cv")
                 if visualize:
                     if visualize_setting is None:
-                        self.do_visualization(x_cv, y_cv)
+                        self.do_visualization(x_test, y_test)
                     else:
-                        self.do_visualization(x_cv, y_cv, *visualize_setting)
-                if x_cv.shape[1] == 2:
+                        self.do_visualization(x_test, y_test, *visualize_setting)
+                if x_test.shape[1] == 2:
                     if draw_network:
                         img = self.draw_network(weight_average=weight_average, activations=_activations)
                     if draw_detailed_network:
@@ -852,7 +851,7 @@ class NN:
         for weight, weight_min, weight_max, weight_average in zip(
             color_weights, color_min, color_max, color_average
         ):
-            line_info = get_line_info(weight, weight_min, weight_max, weight_average)
+            line_info = VisUtil.get_line_info(weight, weight_min, weight_max, weight_average)
             colors.append(line_info[0])
             thicknesses.append(line_info[1])
 
@@ -941,7 +940,7 @@ class NN:
         for weight, weight_min, weight_max, weight_average in zip(
             color_weights, color_min, color_max, color_average
         ):
-            line_info = get_line_info(weight, weight_min, weight_max, weight_average)
+            line_info = VisUtil.get_line_info(weight, weight_min, weight_max, weight_average)
             colors.append(line_info[0])
             thicknesses.append(line_info[1])
 
@@ -1022,7 +1021,7 @@ class NN:
         for weight, weight_min, weight_max, weight_average in zip(
             color_weights, color_min, color_max, color_average
         ):
-            line_info = get_line_info(weight, weight_min, weight_max, weight_average)
+            line_info = VisUtil.get_line_info(weight, weight_min, weight_max, weight_average)
             colors.append(line_info[0])
             thicknesses.append(line_info[1])
 
@@ -1081,11 +1080,11 @@ class NN:
                 return
             for j, _w in enumerate(weight):
                 for k, _ww in enumerate(_w):
-                    show_img(_ww, "{} {} filter {} channel {}".format(name, i+1, j+1, k+1))
+                    VisUtil.show_img(_ww, "{} {} filter {} channel {}".format(name, i+1, j+1, k+1))
 
     def draw_conv_series(self, x, shape=None):
         for xx in x:
-            show_img(trans_img(xx, shape), "Original")
+            VisUtil.show_img(VisUtil.trans_img(xx, shape), "Original")
             activations = self._get_activations(np.array([xx]), predict=True)
             for i, (layer, ac) in enumerate(zip(self._layers, activations)):
                 if len(ac.shape) == 4:
@@ -1105,7 +1104,7 @@ class NN:
                         max_g = g.max()
                         min_g = g.min()
                         g = (g - min_g) / (max_g - min_g)
-                        show_img(g, "Layer {} ({})".format(i + 1, layer.name))
+                        VisUtil.show_img(g, "Layer {} ({})".format(i + 1, layer.name))
                 else:
                     ac = ac[0]
                     length = sqrt(np.prod(ac.shape))
@@ -1114,7 +1113,7 @@ class NN:
                     (height, width) = xx.shape[1:] if shape is None else shape[1:]
                     sqrt_shape = sqrt(height * width)
                     oh, ow = int(length * height / sqrt_shape), int(length * width / sqrt_shape)
-                    show_img(ac[:oh*ow].reshape(oh, ow), "Layer {} ({})".format(i + 1, layer.name))
+                    VisUtil.show_img(ac[:oh*ow].reshape(oh, ow), "Layer {} ({})".format(i + 1, layer.name))
 
     @staticmethod
     def fuck_pycharm_warning():
