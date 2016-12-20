@@ -1,4 +1,4 @@
-from Dev.Networks import *
+from TF.Networks import *
 
 np.random.seed(142857)  # for reproducibility
 
