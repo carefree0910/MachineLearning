@@ -1,5 +1,4 @@
 import numpy as np
-from math import ceil
 from abc import ABCMeta, abstractmethod
 
 from Errors import *
@@ -47,10 +46,6 @@ class Layer(metaclass=ABCMeta):
     @property
     def params(self):
         return self._shape,
-
-    @property
-    def info(self):
-        return "Layer  :  {:<10s} - {}".format(self.name, self.shape[1])
 
     def get_special_params(self, sess):
         pass
@@ -105,10 +100,6 @@ class SubLayer(Layer):
     def params(self):
         return self.get_params()
 
-    @property
-    def info(self):
-        return "Layer  :  {:<10s} - {} {}".format(self.name, self.shape[1], self.description)
-
     def _activate(self, x, predict):
         raise NotImplementedError("Please implement activation function for " + self.name)
 
@@ -116,7 +107,7 @@ class SubLayer(Layer):
 class ConvLayer(Layer):
     LayerTiming = Timing()
 
-    def __init__(self, shape, stride=1, padding="SAME", parent=None):
+    def __init__(self, shape, stride=1, padding=0, parent=None):
         """
         :param shape:    shape[0] = shape of previous layer           c x h x w
                          shape[1] = shape of current layer's weight   f x c x h x w
@@ -127,16 +118,7 @@ class ConvLayer(Layer):
             _parent = parent.root if parent.is_sub_layer else parent
             shape, stride, padding = _parent.shape, _parent.stride, _parent.padding
         Layer.__init__(self, shape)
-        self._stride = stride
-        if isinstance(padding, str):
-            if padding.upper() == "VALID":
-                self._padding = 0
-                self._pad_flag = "VALID"
-            else:
-                self._padding = self._pad_flag = "SAME"
-        else:
-            self._padding = int(padding)
-            self._pad_flag = "VALID"
+        self._stride, self._padding = stride, padding
         self.parent = parent
         if len(shape) == 1:
             self.n_channels, self.n_filters, self.out_h, self.out_w = None, None, None, None
@@ -147,12 +129,18 @@ class ConvLayer(Layer):
         self._shape = shape
         self.n_channels, height, width = shape[0]
         self.n_filters, filter_height, filter_width = shape[1]
-        if self._pad_flag == "VALID":
-            self.out_h = ceil((height - filter_height + 1) / self._stride)
-            self.out_w = ceil((width - filter_width + 1) / self._stride)
-        else:
-            self.out_h = ceil(height / self._stride)
-            self.out_w = ceil(width / self._stride)
+        full_height, full_width = height + 2 * self._padding, width + 2 * self._padding
+        if (
+            (full_height - filter_height) % self._stride != 0 or
+            (full_width - filter_width) % self._stride != 0
+        ):
+            raise BuildLayerError(
+                "({}) Weight shape does not work, "
+                "shape: {} - stride: {} - padding: {} not compatible with {}".format(
+                    self.name, self._shape[1][1:], self._stride, self._padding, (height, width)
+                ))
+        self.out_h = int((full_height - filter_height) / self._stride) + 1
+        self.out_w = int((full_width - filter_width) / self._stride) + 1
 
     @property
     def params(self):
@@ -165,18 +153,6 @@ class ConvLayer(Layer):
     @property
     def padding(self):
         return self._padding
-
-    @property
-    def pad_flag(self):
-        return self._pad_flag
-
-    @property
-    def info(self):
-        return "Layer  :  {:<10s} - {:<14s} - strides: {:2d} - padding: {:6s}{} - out: {}".format(
-            self.name, str(self.shape[1]), self.stride, self.pad_flag,
-            " " * 5 if self.pad_flag == "SAME" else " ({:2d})".format(self.padding),
-            (self.n_filters, self.out_h, self.out_w)
-        )
 
 
 class ConvPoolLayer(ConvLayer):
@@ -192,13 +168,9 @@ class ConvPoolLayer(ConvLayer):
 
     @LayerTiming.timeit(level=1, prefix="[Core] ")
     def activate(self, x, w, bias=None, predict=False):
-        pool_height, pool_width = self._shape[1][1:]
-        if self._pad_flag == "VALID" and self._padding > 0:
-            _pad = [self._padding] * 2
-            x = tf.pad(x, [[0, 0], _pad, _pad, [0, 0]], "CONSTANT")
-        return self._activate(None)(
-            x, ksize=[1, pool_height, pool_width, 1],
-            strides=[1, self._stride, self._stride, 1], padding=self._pad_flag)
+        _pad = [self._padding] * 2
+        x = tf.pad(x, [[0, 0], _pad, _pad, [0, 0]], "CONSTANT")
+        return self._activate(x, w, bias, predict)
 
     def _activate(self, x, *args):
         raise NotImplementedError("Please implement activation function for " + self.name)
@@ -210,20 +182,19 @@ class ConvMeta(type):
         name, bases, attr = args[:3]
         conv_layer, layer = bases
 
-        def __init__(self, shape, stride=1, padding="SAME"):
+        def __init__(self, shape, stride=1, padding=0):
             conv_layer.__init__(self, shape, stride, padding)
 
         def _conv(self, x, w):
-            return tf.nn.conv2d(x, w, strides=[self._stride] * 4, padding=self._pad_flag)
+            return tf.nn.conv2d(x, w, strides=[self._stride] * 4, padding='VALID')
 
         def _activate(self, x, w, bias, predict):
             res = self._conv(x, w) + bias if bias is not None else self._conv(x, w)
             return layer._activate(self, res, predict)
 
         def activate(self, x, w, bias=None, predict=False):
-            if self._pad_flag == "VALID" and self._padding > 0:
-                _pad = [self._padding] * 2
-                x = tf.pad(x, [[0, 0], _pad, _pad, [0, 0]], "CONSTANT")
+            _pad = [self._padding] * 2
+            x = tf.pad(x, [[0, 0], _pad, _pad, [0, 0]], "CONSTANT")
             return self.LayerTiming.timeit(level=1, name="activate", cls_name=name, prefix="[Core] ")(
                 _activate)(self, x, w, bias, predict)
 
@@ -346,12 +317,10 @@ class ConvCF0910(ConvLayer, Identical, metaclass=ConvLayerMeta):
 
 class MaxPool(ConvPoolLayer):
     def _activate(self, x, *args):
-        return tf.nn.max_pool
-
-
-class AvgPool(ConvPoolLayer):
-    def _activate(self, x, *args):
-        return tf.nn.avg_pool
+        pool_height, pool_width = self._shape[1][1:]
+        return tf.nn.max_pool(
+            x, ksize=[1, pool_height, pool_width, 1],
+            strides=[1, self._stride, self._stride, 1], padding="VALID")
 
 
 # Special Layers
@@ -431,10 +400,6 @@ class CostLayer(Layer):
     def __init__(self, shape):
         Layer.__init__(self, shape)
 
-    @property
-    def info(self):
-        return "Cost   :  {:<10s}".format(self.name)
-
     def _activate(self, x, y):
         pass
 
@@ -471,7 +436,7 @@ class LayerFactory:
         "ConvELU": ConvELU, "ConvReLU": ConvReLU, "ConvSoftplus": ConvSoftplus,
         "ConvIdentical": ConvIdentical,
         "ConvCF0910": ConvCF0910,
-        "MaxPool": MaxPool, "AvgPool": AvgPool
+        "MaxPool": MaxPool
     }
     available_special_layers = {
         "Dropout": Dropout,

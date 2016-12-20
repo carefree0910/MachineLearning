@@ -24,7 +24,7 @@ def main():
         fn = np.sum(y_true * (1 - y_pred))
         return tp / (tp + fn)
 
-    nn = NN()
+    nn = NNDist()
     save = False
     load = False
     do_log = True

@@ -1,4 +1,4 @@
-from NN import *
+from Dev.Networks import *
 
 np.random.seed(142857)  # for reproducibility
 
@@ -16,7 +16,7 @@ def main():
 
     lr = 0.001
     lb = 0.001
-    epoch = 10
+    epoch = 50
     record_period = 1
 
     timing = Timing(enabled=True)
@@ -24,15 +24,40 @@ def main():
 
     import pickle
 
-    with open("../Data/mnist.dat", "rb") as file:
+    with open("../Data/cifar10.dat", "rb") as file:
         x, y = pickle.load(file)
 
-    # x = x.reshape(len(x), 1, 28, 28)
-    x = x.reshape(len(x), -1)
+    x = x.reshape(len(x), 3, 32, 32)
+    # x = x.reshape(len(x), -1)
 
     if not load:
 
-        nn.add("ReLU", (x.shape[1], 400))
+        def add_layers(_nn):
+            _nn.add("Pipe", 3)
+            _nn.add_pipe_layer(0, "ConvReLU", ((32, 1, 3),))
+            _nn.add_pipe_layer(0, "ConvReLU", ((32, 3, 1),))
+            _nn.add_pipe_layer(1, "ConvReLU", ((32, 2, 3),))
+            _nn.add_pipe_layer(1, "ConvReLU", ((32, 3, 2),))
+            _nn.add_pipe_layer(2, "ConvReLU", ((32, 1, 1),))
+            _nn.add_pipe_layer(2, "Pipe", 2)
+            _pipe = _nn.get_current_pipe(2)
+            _pipe.add_pipe_layer(0, "ConvReLU", ((16, 1, 3),))
+            _pipe.add_pipe_layer(1, "ConvReLU", ((16, 3, 1),))
+
+        nn.add("ConvReLU", (x.shape[1:], (32, 3, 3)))
+        nn.add("ConvReLU", ((32, 3, 3),))
+        nn.add("MaxPool", ((3, 3),), 2)
+        nn.add("ConvNorm")
+        add_layers(nn)
+        nn.add("MaxPool", ((3, 3),), 2)
+        nn.add("ConvNorm")
+        add_layers(nn)
+        nn.add("AvgPool", ((3, 3),), 2)
+        nn.add("ConvNorm")
+        add_layers(nn)
+        nn.add("ReLU", (512,))
+        nn.add("ReLU", (64,))
+        nn.add("Normalize")
         nn.add("CrossEntropy", (y.shape[1], ))
 
         nn.optimizer = "Adam"
@@ -46,6 +71,7 @@ def main():
                do_log=True, verbose=verbose, visualize=visualize)
         if save:
             nn.save()
+        nn.draw_conv_series(x[:3], (3, 32, 32))
         nn.draw_results()
 
     else:

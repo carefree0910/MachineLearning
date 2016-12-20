@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
 from TF.Layers import *
-from TF.Optimizers import *
 from Util import ProgressBar, VisUtil, Util
 
 # TODO: Visualization (Tensor Board)
@@ -33,7 +32,7 @@ class NNConfig:
 
 # Neural Network
 
-class NN:
+class NNBase:
     NNTiming = Timing()
 
     def __init__(self):
@@ -62,14 +61,247 @@ class NN:
         self._loaded = False
         self._train_step = None
 
-        self._sess = tf.Session()
-
         self._layer_factory = LayerFactory()
+
+    def __getitem__(self, item):
+        if isinstance(item, int):
+            if item < 0 or item >= len(self._layers):
+                return
+            bias = self._tf_bias[item]
+            return {
+                "name": self._layers[item].name,
+                "weight": self._tf_weights[item],
+                "bias": bias
+            }
+        if isinstance(item, str):
+            return getattr(self, "_" + item)
+        return
+
+    def __str__(self):
+        return "Neural Network"
+
+    __repr__ = __str__
+
+    @NNTiming.timeit(level=4, prefix="[API] ")
+    def feed_timing(self, timing):
+        if isinstance(timing, Timing):
+            self.NNTiming = timing
+            for layer in self._layers:
+                layer.feed_timing(timing)
+
+    @property
+    def name(self):
+        return (
+            "-".join([str(_layer.shape[1]) for _layer in self._layers]) +
+            " at {}".format(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
+        )
+
+    @NNTiming.timeit(level=4, prefix="[Private StaticMethod] ")
+    def _get_w(self, shape):
+        initial = tf.truncated_normal(shape, stddev=self._w_stds[-1])
+        return tf.Variable(initial, name="w")
+
+    @NNTiming.timeit(level=4, prefix="[Private StaticMethod] ")
+    def _get_b(self, shape):
+        initial = tf.constant(self._b_inits[-1], shape=shape)
+        return tf.Variable(initial, name="b")
+
+    @NNTiming.timeit(level=4)
+    def _add_weight(self, shape, conv_channel=None, fc_shape=None):
+        if fc_shape is not None:
+            w_shape = (fc_shape, shape[1])
+            b_shape = shape[1],
+        elif conv_channel is not None:
+            if len(shape[1]) <= 2:
+                w_shape = shape[1][0], shape[1][1], conv_channel, conv_channel
+            else:
+                w_shape = (shape[1][1], shape[1][2], conv_channel, shape[1][0])
+            b_shape = shape[1][0],
+        else:
+            w_shape = shape
+            b_shape = shape[1],
+        self._tf_weights.append(self._get_w(w_shape))
+        self._tf_bias.append(self._get_b(b_shape))
+
+    @NNTiming.timeit(level=4)
+    def _add_param_placeholder(self):
+        self._tf_weights.append(tf.constant([.0]))
+        self._tf_bias.append(tf.constant([.0]))
+
+    @NNTiming.timeit(level=4)
+    def _add_layer(self, layer, *args, **kwargs):
+        if not self._layers and isinstance(layer, str):
+            _layer = self._layer_factory.handle_str_main_layers(layer, *args, **kwargs)
+            if _layer:
+                self.add(_layer, pop_last_init=True)
+                return
+        _parent = self._layers[-1]
+        if isinstance(_parent, CostLayer):
+            raise BuildLayerError("Adding layer after CostLayer is not permitted")
+        if isinstance(_parent, NNPipe):
+            self._current_dimension = _parent.shape
+        if isinstance(layer, str):
+            if layer.lower() == "pipe":
+                self._layers.append(NNPipe(args[0]))
+                self._add_param_placeholder()
+                return
+            layer, shape = self._layer_factory.get_layer_by_name(
+                layer, _parent, self._current_dimension, *args, **kwargs
+            )
+            if shape is None:
+                self.add(layer, pop_last_init=True)
+                return
+            _current, _next = shape
+        else:
+            _current, _next = args
+        if isinstance(layer, SubLayer):
+            if not isinstance(layer, CostLayer) and _current != _parent.shape[1]:
+                raise BuildLayerError("Output shape should be identical with input shape "
+                                      "if chosen SubLayer is not a CostLayer")
+            layer.is_sub_layer = True
+            self.parent = _parent
+            self._layers.append(layer)
+            if not isinstance(layer, ConvLayer):
+                self._tf_weights.append(tf.Variable(np.eye(_current)))
+                self._tf_bias.append(tf.zeros([1, _current]))
+            else:
+                self._add_param_placeholder()
+            self._current_dimension = _next
+        else:
+            fc_shape, conv_channel, last_layer = None, None, self._layers[-1]
+            if NNBase._is_conv(last_layer):
+                if NNBase._is_conv(layer):
+                    conv_channel = last_layer.n_filters
+                    _current = (conv_channel, last_layer.out_h, last_layer.out_w)
+                    layer.feed_shape((_current, _next))
+                else:
+                    layer.is_fc = True
+                    last_layer.is_fc_base = True
+                    fc_shape = last_layer.out_h * last_layer.out_w * last_layer.n_filters
+            self._layers.append(layer)
+            self._add_weight((_current, _next), conv_channel, fc_shape)
+            self._current_dimension = _next
+        self._update_layer_information(layer)
+
+    @NNTiming.timeit(level=4)
+    def _update_layer_information(self, layer):
+        self._layer_params.append(layer.params)
+        if len(self._layer_params) > 1 and not layer.is_sub_layer:
+            self._layer_params[-1] = ((self._layer_params[-1][0][1],), *self._layer_params[-1][1:])
+
+    @staticmethod
+    @NNTiming.timeit(level=4)
+    def _is_conv(layer):
+        return isinstance(layer, ConvLayer) or isinstance(layer, NNPipe)
+
+    @NNTiming.timeit(level=1, prefix="[API] ")
+    def get_rs(self, x, y=None, predict=False, pipe=False):
+        if y is None:
+            predict = True
+        _cache = self._layers[0].activate(x, self._tf_weights[0], self._tf_bias[0], predict)
+        for i, layer in enumerate(self._layers[1:]):
+            if i == len(self._layers) - 2:
+                if y is None:
+                    if not pipe:
+                        if self._tf_bias[-1] is not None:
+                            return tf.matmul(_cache, self._tf_weights[-1]) + self._tf_bias[-1]
+                        return tf.matmul(_cache, self._tf_weights[-1])
+                    else:
+                        if not isinstance(layer, NNPipe):
+                            return layer.activate(_cache, self._tf_weights[i + 1], self._tf_bias[i + 1], predict)
+                        return layer.get_rs(_cache)
+                predict = y
+            if not isinstance(layer, NNPipe):
+                _cache = layer.activate(_cache, self._tf_weights[i + 1], self._tf_bias[i + 1], predict)
+            else:
+                _cache = layer.get_rs(_cache)
+        return _cache
+
+    @NNTiming.timeit(level=4, prefix="[API] ")
+    def add(self, layer, *args, **kwargs):
+        self._w_stds.append(Util.get_and_pop(kwargs, "std", 0.1))
+        self._b_inits.append(Util.get_and_pop(kwargs, "init", 0.1))
+        if Util.get_and_pop(kwargs, "pop_last_init", False):
+            self._w_stds.pop()
+            self._b_inits.pop()
+        if isinstance(layer, str):
+            # noinspection PyTypeChecker
+            self._add_layer(layer, *args, **kwargs)
+        else:
+            if not isinstance(layer, Layer):
+                raise BuildLayerError("Invalid Layer provided (should be subclass of Layer)")
+            if not self._layers:
+                if isinstance(layer, SubLayer):
+                    raise BuildLayerError("Invalid Layer provided (first layer should not be subclass of SubLayer)")
+                if len(layer.shape) != 2:
+                    raise BuildLayerError("Invalid input Layer provided (shape should be {}, {} found)".format(
+                        2, len(layer.shape)
+                    ))
+                self._layers, self._current_dimension = [layer], layer.shape[1]
+                self._update_layer_information(layer)
+                if isinstance(layer, ConvLayer):
+                    self._add_weight(layer.shape, layer.n_channels)
+                else:
+                    self._add_weight(layer.shape)
+            else:
+                if len(layer.shape) > 2:
+                    raise BuildLayerError("Invalid Layer provided (shape should be {}, {} found)".format(
+                        2, len(layer.shape)
+                    ))
+                if len(layer.shape) == 2:
+                    _current, _next = layer.shape
+                    if isinstance(layer, SubLayer):
+                        if _next != self._current_dimension:
+                            raise BuildLayerError("Invalid SubLayer provided (shape[1] should be {}, {} found)".format(
+                                self._current_dimension, _next
+                            ))
+                    elif not isinstance(layer, ConvLayer) and _current != self._current_dimension:
+                        raise BuildLayerError("Invalid Layer provided (shape[0] should be {}, {} found)".format(
+                            self._current_dimension, _current
+                        ))
+                    self._add_layer(layer, _current, _next)
+                elif len(layer.shape) == 1:
+                    _next = layer.shape[0]
+                    layer.shape = (self._current_dimension, _next)
+                    self._add_layer(layer, self._current_dimension, _next)
+                else:
+                    raise LayerError("Invalid Layer provided (invalid shape '{}' found)".format(layer.shape))
+
+    @NNTiming.timeit(level=4, prefix="[API] ")
+    def preview(self, verbose=0):
+        if not self._layers:
+            rs = "None"
+        else:
+            rs = (
+                "Input  :  {:<10s} - {}\n".format("Dimension", self._layers[0].shape[0]) +
+                "\n".join([_layer.info for _layer in self._layers]))
+        print("=" * 30 + "\n" + "Structure\n" + "-" * 30 + "\n" + rs)
+        if verbose >= 1:
+            print("Initial Values\n" + "-" * 30)
+            print("\n".join(["({:^16s}) w_std: {:8.6} ; b_init: {:8.6}".format(
+                _batch[0].name, *_batch[1:]) if not isinstance(_batch[0], NNPipe) else "({:^16s}) ({:^3d})".format(
+                "Pipe", len(_batch[0]["nn_lst"])
+            ) for _batch in zip(self._layers, self._w_stds, self._b_inits) if not isinstance(
+                _batch[0], SubLayer) and not isinstance(_batch[0], ConvPoolLayer)]))
+        if verbose >= 2:
+            for _layer in self._layers:
+                if isinstance(_layer, NNPipe):
+                    _layer.preview()
+        print("-" * 30)
+
+
+class NNDist(NNBase):
+    NNTiming = Timing()
+
+    def __init__(self):
+        NNBase.__init__(self)
+
+        self._sess = tf.Session()
         self._optimizer_factory = OptFactory()
 
         self._available_metrics = {
-            "acc": NN._acc, "_acc": NN._acc,
-            "f1": NN._f1_score, "_f1_score": NN._f1_score
+            "acc": NNDist._acc, "_acc": NNDist._acc,
+            "f1": NNDist._f1_score, "_f1_score": NNDist._f1_score
         }
 
     @NNTiming.timeit(level=4, prefix="[Initialize] ")
@@ -101,26 +333,7 @@ class NN:
 
         self._sess = tf.Session()
 
-    @NNTiming.timeit(level=4, prefix="[API] ")
-    def feed_timing(self, timing):
-        if isinstance(timing, Timing):
-            self.NNTiming = timing
-            for layer in self._layers:
-                layer.feed_timing(timing)
-
-    def __str__(self):
-        return "Neural Network"
-
-    __repr__ = __str__
-
     # Property
-
-    @property
-    def name(self):
-        return (
-            "-".join([str(_layer.shape[1]) for _layer in self._layers]) +
-            " at {}".format(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
-        )
 
     @property
     def layer_names(self):
@@ -150,20 +363,6 @@ class NN:
 
     # Utils
 
-    def __getitem__(self, item):
-        if isinstance(item, int):
-            if item < 0 or item >= len(self._layers):
-                return
-            bias = self._tf_bias[item]
-            return {
-                "name": self._layers[item].name,
-                "weight": self._tf_weights[item],
-                "bias": bias
-            }
-        if isinstance(item, str):
-            return getattr(self, "_" + item)
-        return
-
     @staticmethod
     @NNTiming.timeit(level=4, prefix="[Private StaticMethod] ")
     def _transfer_x(x):
@@ -181,7 +380,7 @@ class NN:
             x = self._x
         else:
             if not self._transferred_flags["train"]:
-                x = NN._transfer_x(x)
+                x = NNDist._transfer_x(x)
                 self._transferred_flags["train"] = True
         if y is None:
             if self._y is None:
@@ -197,89 +396,6 @@ class NN:
         self._data_size = len(x)
         return x, y
 
-    @NNTiming.timeit(level=4, prefix="[Private StaticMethod] ")
-    def _get_w(self, shape):
-        initial = tf.truncated_normal(shape, stddev=self._w_stds[-1])
-        return tf.Variable(initial, name="w")
-
-    @NNTiming.timeit(level=4, prefix="[Private StaticMethod] ")
-    def _get_b(self, shape):
-        initial = tf.constant(self._b_inits[-1], shape=shape)
-        return tf.Variable(initial, name="b")
-
-    @NNTiming.timeit(level=4)
-    def _add_weight(self, shape, conv_channel=None, fc_shape=None):
-        if fc_shape is not None:
-            w_shape = (fc_shape, shape[1])
-            b_shape = shape[1],
-        elif conv_channel is not None:
-            if len(shape[1]) <= 2:
-                w_shape = shape[1][0], shape[1][1], conv_channel, conv_channel
-            else:
-                w_shape = (shape[1][1], shape[1][2], conv_channel, shape[1][0])
-            b_shape = shape[1][0],
-        else:
-            w_shape = shape
-            b_shape = shape[1],
-        self._tf_weights.append(self._get_w(w_shape))
-        self._tf_bias.append(self._get_b(b_shape))
-
-    @NNTiming.timeit(level=4)
-    def _add_layer(self, layer, *args, **kwargs):
-        if not self._layers and isinstance(layer, str):
-            _layer = self._layer_factory.handle_str_main_layers(layer, *args, **kwargs)
-            if _layer:
-                self.add(_layer, pop_last_init=True)
-                return
-        _parent = self._layers[-1]
-        if isinstance(_parent, CostLayer):
-            raise BuildLayerError("Adding layer after CostLayer is not permitted")
-        if isinstance(layer, str):
-            layer, shape = self._layer_factory.get_layer_by_name(
-                layer, _parent, self._current_dimension, *args, **kwargs
-            )
-            if shape is None:
-                self.add(layer, pop_last_init=True)
-                return
-            _current, _next = shape
-        else:
-            _current, _next = args
-        if isinstance(layer, SubLayer):
-            if not isinstance(layer, CostLayer) and _current != _parent.shape[1]:
-                raise BuildLayerError("Output shape should be identical with input shape "
-                                      "if chosen SubLayer is not a CostLayer")
-            layer.is_sub_layer = True
-            self.parent = _parent
-            self._layers.append(layer)
-            if not isinstance(layer, ConvLayer):
-                self._tf_weights.append(tf.Variable(np.eye(_current)))
-                self._tf_bias.append(tf.zeros([1, _current]))
-            else:
-                self._tf_weights.append(tf.constant([.0]))
-                self._tf_bias.append(tf.constant([.0]))
-            self._current_dimension = _next
-        else:
-            fc_shape, conv_channel, last_layer = None, None, self._layers[-1]
-            if isinstance(last_layer, ConvLayer):
-                if isinstance(layer, ConvLayer):
-                    conv_channel = last_layer.n_filters
-                    _current = (conv_channel, last_layer.out_h, last_layer.out_w)
-                    layer.feed_shape((_current, _next))
-                else:
-                    layer.is_fc = True
-                    last_layer.is_fc_base = True
-                    fc_shape = last_layer.out_h * last_layer.out_w * last_layer.n_filters
-            self._layers.append(layer)
-            self._add_weight((_current, _next), conv_channel, fc_shape)
-            self._current_dimension = _next
-        self._update_layer_information(layer)
-
-    @NNTiming.timeit(level=4)
-    def _update_layer_information(self, layer):
-        self._layer_params.append(layer.params)
-        if len(self._layer_params) > 1 and not layer.is_sub_layer:
-            self._layer_params[-1] = ((self._layer_params[-1][0][1],), *self._layer_params[-1][1:])
-
     @NNTiming.timeit(level=2)
     def _get_prediction(self, x, name=None, batch_size=1e6, verbose=None, out_of_sess=False):
         if verbose is None:
@@ -290,7 +406,7 @@ class NN:
         if single_batch >= len(x):
             if not out_of_sess:
                 return self._y_pred.eval(feed_dict={self._tfx: x})
-            return self._get_rs(x)
+            return self.get_rs(x)
         epoch = int(len(x) / single_batch)
         if not len(x) % single_batch:
             epoch += 1
@@ -301,7 +417,7 @@ class NN:
         if not out_of_sess:
             rs = [self._y_pred.eval(feed_dict={self._tfx: x[:single_batch]})]
         else:
-            rs = [self._get_rs(x[:single_batch])]
+            rs = [self.get_rs(x[:single_batch])]
         count = single_batch
         if verbose >= NNVerbose.METRICS:
             sub_bar.update()
@@ -311,12 +427,12 @@ class NN:
                 if not out_of_sess:
                     rs.append(self._y_pred.eval(feed_dict={self._tfx: x[count - single_batch:]}))
                 else:
-                    rs.append(self._get_rs(x[count - single_batch:]))
+                    rs.append(self.get_rs(x[count - single_batch:]))
             else:
                 if not out_of_sess:
                     rs.append(self._y_pred.eval(feed_dict={self._tfx: x[count - single_batch:count]}))
                 else:
-                    rs.append(self._get_rs(x[count - single_batch:count]))
+                    rs.append(self.get_rs(x[count - single_batch:count]))
             if verbose >= NNVerbose.METRICS:
                 sub_bar.update()
         if out_of_sess:
@@ -329,48 +445,30 @@ class NN:
         _activations = [self._layers[0].activate(x, self._tf_weights[0], self._tf_bias[0], True)]
         for i, layer in enumerate(self._layers[1:]):
             if i == len(self._layers) - 2:
-                _activations.append(tf.matmul(_activations[-1], self._tf_weights[-1]) + self._tf_bias[-1])
+                if self._tf_bias[-1] is not None:
+                    _activations.append(tf.matmul(_activations[-1], self._tf_weights[-1]) + self._tf_bias[-1])
+                else:
+                    _activations.append(tf.matmul(_activations[-1], self._tf_weights[-1]))
             else:
-                _activations.append(layer.activate(
-                    _activations[-1], self._tf_weights[i + 1], self._tf_bias[i + 1], True))
+                if not isinstance(layer, NNPipe):
+                    _activations.append(layer.activate(
+                        _activations[-1], self._tf_weights[i + 1], self._tf_bias[i + 1], True))
+                else:
+                    _activations.append(layer.get_rs(_activations[-1]))
         return _activations
 
     @NNTiming.timeit(level=1)
     def _get_l2_loss(self, lb):
         if lb <= 0:
             return 0
-        return lb * tf.reduce_sum([tf.nn.l2_loss(_w) for _w in self._tf_weights])
+        return lb * tf.reduce_sum([tf.nn.l2_loss(_w) for i, _w in enumerate(self._tf_weights)
+                                   if not isinstance(self._layers[i], SubLayer)])
 
     @NNTiming.timeit(level=1)
     def _get_acts(self, x):
         with self._sess.as_default():
-            _activations = [self._layers[0].activate(x, self._tf_weights[0], self._tf_bias[0], True)]
-            for i, layer in enumerate(self._layers[1:]):
-                if i == len(self._layers) - 2:
-                    if self._tf_bias[-1] is not None:
-                        _activations.append(tf.matmul(_activations[-1], self._tf_weights[-1]) + self._tf_bias[-1])
-                    else:
-                        _activations.append(tf.matmul(_activations[-1], self._tf_weights[-1]))
-                else:
-                    _activations.append(layer.activate(
-                        _activations[-1], self._tf_weights[i + 1], self._tf_bias[i + 1], True))
-            _activations = [_ac.eval() for _ac in _activations]
+            _activations = [_ac.eval() for _ac in self._get_activations(x)]
         return _activations
-
-    @NNTiming.timeit(level=1)
-    def _get_rs(self, x, y=None, predict=False):
-        if y is None:
-            predict = True
-        _cache = self._layers[0].activate(x, self._tf_weights[0], self._tf_bias[0], predict)
-        for i, layer in enumerate(self._layers[1:]):
-            if i == len(self._layers) - 2:
-                if y is None:
-                    if self._tf_bias[-1] is not None:
-                        return tf.matmul(_cache, self._tf_weights[-1]) + self._tf_bias[-1]
-                    return tf.matmul(_cache, self._tf_weights[-1])
-                predict = y
-            _cache = layer.activate(_cache, self._tf_weights[i + 1], self._tf_bias[i + 1], predict)
-        return _cache
 
     @NNTiming.timeit(level=3)
     def _append_log(self, x, y, name, get_loss=True, out_of_sess=False):
@@ -454,58 +552,26 @@ class NN:
     # API
 
     @NNTiming.timeit(level=4, prefix="[API] ")
+    def get_current_pipe(self, idx):
+        _last_layer = self._layers[-1]
+        if not isinstance(_last_layer, NNPipe):
+            return
+        return _last_layer["nn_lst"][idx]
+
+    @NNTiming.timeit(level=4, prefix="[API] ")
     def feed(self, x, y):
         self._feed_data(x, y)
 
     @NNTiming.timeit(level=4, prefix="[API] ")
-    def add(self, layer, *args, **kwargs):
-        self._w_stds.append(Util.get_and_pop(kwargs, "std", 0.1))
-        self._b_inits.append(Util.get_and_pop(kwargs, "init", 0.1))
-        if Util.get_and_pop(kwargs, "pop_last_init", False):
-            self._w_stds.pop()
-            self._b_inits.pop()
-        if isinstance(layer, str):
-            # noinspection PyTypeChecker
-            self._add_layer(layer, *args, **kwargs)
-        else:
-            if not isinstance(layer, Layer):
-                raise BuildLayerError("Invalid Layer provided (should be subclass of Layer)")
-            if not self._layers:
-                if isinstance(layer, SubLayer):
-                    raise BuildLayerError("Invalid Layer provided (first layer should not be subclass of SubLayer)")
-                if len(layer.shape) != 2:
-                    raise BuildLayerError("Invalid input Layer provided (shape should be {}, {} found)".format(
-                        2, len(layer.shape)
-                    ))
-                self._layers, self._current_dimension = [layer], layer.shape[1]
-                self._update_layer_information(layer)
-                if isinstance(layer, ConvLayer):
-                    self._add_weight(layer.shape, layer.n_channels)
-                else:
-                    self._add_weight(layer.shape)
-            else:
-                if len(layer.shape) > 2:
-                    raise BuildLayerError("Invalid Layer provided (shape should be {}, {} found)".format(
-                        2, len(layer.shape)
-                    ))
-                if len(layer.shape) == 2:
-                    _current, _next = layer.shape
-                    if isinstance(layer, SubLayer):
-                        if _next != self._current_dimension:
-                            raise BuildLayerError("Invalid SubLayer provided (shape[1] should be {}, {} found)".format(
-                                self._current_dimension, _next
-                            ))
-                    elif not isinstance(layer, ConvLayer) and _current != self._current_dimension:
-                        raise BuildLayerError("Invalid Layer provided (shape[0] should be {}, {} found)".format(
-                            self._current_dimension, _current
-                        ))
-                    self._add_layer(layer, _current, _next)
-                elif len(layer.shape) == 1:
-                    _next = layer.shape[0]
-                    layer.shape = (self._current_dimension, _next)
-                    self._add_layer(layer, self._current_dimension, _next)
-                else:
-                    raise LayerError("Invalid Layer provided (invalid shape '{}' found)".format(layer.shape))
+    def add_pipe_layer(self, idx, layer, shape, *args, **kwargs):
+        _last_layer = self._layers[-1]
+        _last_parent = self._layers[-2]
+        if not isinstance(_last_layer, NNPipe):
+            raise BuildLayerError("Adding pipe layers to a non-NNPipe object is not allowed")
+        if not _last_layer.initialized[idx] and len(shape) == 1:
+            _dim = (_last_parent.n_filters, _last_parent.out_h, _last_parent.out_w)
+            shape = (_dim, shape[0])
+        _last_layer.add(idx, layer, shape, *args, **kwargs)
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def build(self, units="load"):
@@ -531,43 +597,12 @@ class NN:
         self._init_layers()
 
     @NNTiming.timeit(level=4, prefix="[API] ")
-    def preview(self):
-        if not self._layers:
-            rs = "None"
-        else:
-            _cost_layer = self._layers[-1]
-            if not isinstance(_cost_layer, CostLayer):
-                print("Cost Layer not added, failed to preview the structure")
-                return
-            rs = (
-                "Input  :  {:<10s} - {}\n".format("Dimension", self._layers[0].shape[0]) +
-                "\n".join([
-                              "Layer  :  {:<10s} - {} {}".format(
-                                  _layer.name, _layer.shape[1], _layer.description
-                              ) if isinstance(_layer, SubLayer) else
-                              "Layer  :  {:<10s} - {:<14s} - strides: {:2d} - padding: {:2d} - out: {}".format(
-                                  _layer.name, str(_layer.shape[1]), _layer.stride, _layer.padding,
-                                  (_layer.n_filters, _layer.out_h, _layer.out_w)
-                              ) if isinstance(_layer, ConvLayer) else "Layer  :  {:<10s} - {}".format(
-                                  _layer.name, _layer.shape[1]
-                              ) for _layer in self._layers[:-1]
-                              ]) + "\nCost   :  {:<10s}".format(_cost_layer.name)
-            )
-        print("=" * 30 + "\n" + "Structure\n" + "-" * 30 + "\n" + rs + "\n" + "-" * 30)
-        print("Initial Values\n" + "-" * 30)
-        print("\n".join(["({:^16s}) w_std: {:8.6} ; b_init: {:8.6}".format(
-            _batch[0].name, *_batch[1:]) for _batch in zip(
-            self._layers, self._w_stds, self._b_inits) if not isinstance(
-            _batch[0], SubLayer) and not isinstance(_batch[0], ConvPoolLayer)]))
-        print("-" * 30)
-
-    @NNTiming.timeit(level=4, prefix="[API] ")
     def split_data(self, x, y, x_test, y_test,
                    train_only, training_scale=NNConfig.TRAINING_SCALE):
         if train_only:
             if x_test is not None and y_test is not None:
                 if not self._transferred_flags["test"]:
-                    x, y = np.vstack((x, NN._transfer_x(np.array(x_test)))), np.vstack((y, y_test))
+                    x, y = np.vstack((x, NNDist._transfer_x(np.array(x_test)))), np.vstack((y, y_test))
                     self._transferred_flags["test"] = True
             x_train, y_train = np.array(x), np.array(y)
             x_test, y_test = x_train, y_train
@@ -583,7 +618,7 @@ class NN:
             else:
                 x_train, y_train = np.array(x), np.array(y)
                 if not self._transferred_flags["test"]:
-                    x_test, y_test = NN._transfer_x(np.array(x_test)), np.array(y_test)
+                    x_test, y_test = NNDist._transfer_x(np.array(x_test)), np.array(y_test)
                     self._transferred_flags["test"] = True
         if NNConfig.BOOST_LESS_SAMPLES:
             if y_train.shape[1] != 2:
@@ -656,8 +691,8 @@ class NN:
         with self._sess.as_default() as sess:
 
             # Session
-            self._cost = self._get_rs(self._tfx, self._tfy) + self._get_l2_loss(lb)
-            self._y_pred = self._get_rs(self._tfx)
+            self._cost = self.get_rs(self._tfx, self._tfy) + self._get_l2_loss(lb)
+            self._y_pred = self.get_rs(self._tfx)
             self._activations = self._get_activations(self._tfx)
             self._init_train_step(sess)
             for weight in self._tf_weights:
@@ -797,19 +832,19 @@ class NN:
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def predict(self, x):
-        x = NN._transfer_x(np.array(x))
+        x = NNDist._transfer_x(np.array(x))
         return self._get_prediction(x, out_of_sess=True)
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def predict_classes(self, x, flatten=True):
-        x = NN._transfer_x(np.array(x))
+        x = NNDist._transfer_x(np.array(x))
         if flatten:
             return np.argmax(self._get_prediction(x, out_of_sess=True), axis=1)
         return np.argmax([self._get_prediction(x, out_of_sess=True)], axis=2).T
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def evaluate(self, x, y, metrics=None):
-        x = NN._transfer_x(np.array(x))
+        x = NNDist._transfer_x(np.array(x))
         if metrics is None:
             metrics = self._metrics
         else:
@@ -997,3 +1032,71 @@ class NN:
     @staticmethod
     def fuck_pycharm_warning():
         print(Axes3D.acorr)
+
+
+class NNPipe:
+    NNTiming = Timing()
+
+    def __init__(self, num):
+        self._nn_lst = [NNBase() for _ in range(num)]
+        self._initialized = [False] * num
+
+    def __getitem__(self, item):
+        if isinstance(item, str):
+            return getattr(self, "_" + item)
+        return
+
+    @property
+    def name(self):
+        return "NNPipe"
+
+    @property
+    def n_filters(self):
+        return sum([_nn["current_dimension"][0] for _nn in self._nn_lst])
+
+    @property
+    def out_h(self):
+        return self._nn_lst[0]["layers"][-1].out_h
+
+    @property
+    def out_w(self):
+        return self._nn_lst[0]["layers"][-1].out_w
+
+    @property
+    def shape(self):
+        return self.n_filters, self.out_h, self.out_w
+
+    @property
+    def info(self):
+        return "Pipe ({:^3d})".format(len(self._nn_lst)) + " " * 65 + "- out: {}".format(
+            self.shape)
+
+    @property
+    def initialized(self):
+        return self._initialized
+
+    @NNTiming.timeit(level=4, prefix="[API] ")
+    def preview(self):
+        print("=" * 90)
+        print("Pipe Structure")
+        for i, _nn in enumerate(self._nn_lst):
+            print("-" * 60 + "\n" + str(i) + "\n" + "-" * 60)
+            _nn.preview()
+
+    @NNTiming.timeit(level=4, prefix="[API] ")
+    def feed_timing(self, timing):
+        self.NNTiming = timing
+
+    @NNTiming.timeit(level=4, prefix="[API] ")
+    def add(self, idx, layer, shape, *args, **kwargs):
+        self._nn_lst[idx].add(layer, shape, *args, **kwargs)
+        self._initialized[idx] = True
+
+    @NNTiming.timeit(level=1, prefix="[API] ")
+    def get_rs(self, x):
+        return tf.concat(3, [_nn.get_rs(x, pipe=True) for _nn in self._nn_lst])
+
+    def __str__(self):
+        return "NNPipe"
+
+    __repr__ = __str__

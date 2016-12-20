@@ -6,7 +6,7 @@ np.random.seed(142857)  # for reproducibility
 def main():
     log = ""
 
-    nn = NN()
+    nn = NNDist()
     save = True
     load = False
     show_loss = True
@@ -27,7 +27,7 @@ def main():
 
     import pickle
 
-    with open("../Data/mini_cifar10.dat", "rb") as file:
+    with open("../Data/cifar10.dat", "rb") as file:
         x, y = pickle.load(file)
 
     draw = True
@@ -35,19 +35,23 @@ def main():
 
     if not load:
 
-        nn.add("ConvReLU", (x.shape[1:], (32, 3, 1)))
-        nn.add("ConvReLU", ((32, 1, 3), ))
-        nn.add("ConvReLU", ((32, 3, 3), ))
-        nn.add("MaxPool", ((2, 2),), 2)
+        nn.add("ConvReLU", (x.shape[1:], (32, 3, 3)))
+        nn.add("ConvReLU", ((32, 3, 3),))
+        nn.add("MaxPool", ((3, 3),), 2)
         nn.add("ConvNorm")
         nn.add("ConvDrop")
-        nn.add("ConvReLU", ((64, 1, 3), ))
-        nn.add("ConvReLU", ((64, 3, 1), ))
-        nn.add("ConvReLU", ((64, 3, 3), ))
-        nn.add("MaxPool", ((2, 2),), 2)
+        nn.add("ConvReLU", ((64, 3, 3),), std=0.01)
+        nn.add("ConvReLU", ((64, 3, 3),), std=0.01)
+        nn.add("AvgPool", ((3, 3),), 2)
         nn.add("ConvNorm")
         nn.add("ConvDrop")
-        nn.add("ReLU", (400, ))
+        nn.add("ConvReLU", ((32, 3, 3),))
+        nn.add("ConvReLU", ((32, 3, 3),))
+        nn.add("AvgPool", ((3, 3),), 2)
+        nn.add("ReLU", (512, ))
+        nn.add("ReLU", (64, ))
+        nn.add("Normalize")
+        nn.add("Dropout")
         nn.add("CrossEntropy", (y.shape[1], ))
 
         nn.preview()
