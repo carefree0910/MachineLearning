@@ -27,7 +27,7 @@ def main():
 
     import pickle
 
-    with open("../Data/cifar10.dat", "rb") as file:
+    with open("../Data/mini_cifar10.dat", "rb") as file:
         x, y = pickle.load(file)
 
     draw = True
