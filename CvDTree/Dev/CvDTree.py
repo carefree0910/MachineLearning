@@ -40,7 +40,6 @@ class Counter:
 
 
 class Cluster:
-
     def __init__(self, data, labels, sample_weights=None, base=2):
         self._data = np.array(data).T
         self._labels = np.array(labels)
