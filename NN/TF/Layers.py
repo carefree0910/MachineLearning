@@ -338,7 +338,7 @@ class ConvIdentical(ConvLayer, Identical, metaclass=ConvLayerMeta):
     pass
 
 
-class ConvCF0910(ConvLayer, Identical, metaclass=ConvLayerMeta):
+class ConvCF0910(ConvLayer, CF0910, metaclass=ConvLayerMeta):
     pass
 
 
