@@ -14,7 +14,6 @@ from sklearn.tree import DecisionTreeClassifier
 # Util
 
 class Cluster:
-
     def __init__(self, data, labels, base=2):
         self._data = np.array(data).T
         self._counters = Counter(labels)
