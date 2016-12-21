@@ -406,7 +406,8 @@ class NNDist(NNBase):
         if single_batch >= len(x):
             if not out_of_sess:
                 return self._y_pred.eval(feed_dict={self._tfx: x})
-            return self.get_rs(x)
+            with self._sess.as_default():
+                return self.get_rs(x).eval(feed_dict={self._tfx: x})
         epoch = int(len(x) / single_batch)
         if not len(x) % single_batch:
             epoch += 1
