@@ -16,7 +16,6 @@ from sklearn.tree import DecisionTreeClassifier
 # Util
 
 class Counter:
-
     def __init__(self, arr, sample_weights=None):
         if sample_weights is None:
             self._counter = Count(arr)
