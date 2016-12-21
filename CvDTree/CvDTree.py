@@ -2,7 +2,6 @@ import time
 import math
 import numpy as np
 from collections import Counter
-import pprint
 
 from sklearn.tree import DecisionTreeClassifier
 
