@@ -57,7 +57,6 @@ class CvDNode:
         self.parent = parent
         self.is_root = is_root
         self.prev_feat = prev_feat
-        self.weight = 0
         self.leafs = {}
 
     @property
@@ -114,7 +113,6 @@ class CvDNode:
         _parent = self
         while _parent is not None:
             _parent.leafs[self.key] = self
-            _parent.weight += 1
             _parent = _parent.parent
 
     def fit(self, data, labels, eps=1e-8):
@@ -139,15 +137,12 @@ class CvDNode:
     def prune(self):
         if self.category is None:
             self.category = self.get_class()
-        dw = self.weight - 1
-        self.weight = 1
         _pop_lst = [key for key in self.leafs]
         _parent = self
         while _parent is not None:
             for _k in _pop_lst:
                 _parent.leafs.pop(_k)
             _parent.leafs[self.key] = self
-            _parent.weight -= dw
             _parent = _parent.parent
         self.children = {}
 
