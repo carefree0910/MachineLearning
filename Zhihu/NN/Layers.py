@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 from abc import ABCMeta, abstractmethod
 
-from Models.Zhihu.NN.Errors import *
+from Zhihu.NN.Errors import *
 
 
 class Layer(metaclass=ABCMeta):

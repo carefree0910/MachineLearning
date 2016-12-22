@@ -1,6 +1,6 @@
-from Models.Zhihu.NN.Util import *
-from Models.Zhihu.NN.one.Network import *
-from Models.Zhihu.NN.Layers import *
+from Zhihu.NN.Util import *
+from Zhihu.NN.one.Network import *
+from Zhihu.NN.Layers import *
 
 np.random.seed(142857)  # for reproducibility
 

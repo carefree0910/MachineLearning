@@ -1,6 +1,6 @@
-from Models.Zhihu.NN.Layers import *
-from Models.Zhihu.NN.Optimizers import *
-from Models.Zhihu.NN.Util import Timing, Util, ProgressBar
+from Zhihu.NN.Layers import *
+from Zhihu.NN.Optimizers import *
+from Zhihu.NN.Util import Timing, Util, ProgressBar
 
 np.random.seed(142857)  # for reproducibility
 
