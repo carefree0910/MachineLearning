@@ -109,9 +109,7 @@ class NNDist(NNBase):
     @NNTiming.timeit(level=4, prefix="[API] ")
     def predict_classes(self, x, flatten=True):
         x = np.array(x)
-        if flatten:
-            return np.argmax(self._get_prediction(x, out_of_sess=True), axis=1)
-        return np.argmax([self._get_prediction(x, out_of_sess=True)], axis=2).T
+        return np.argmax(self._get_prediction(x, out_of_sess=True), axis=1)
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def evaluate(self, x, y):
