@@ -1,5 +1,6 @@
 from Models.Zhihu.NN.Util import *
 from Models.Zhihu.NN.one.Network import *
+from Models.Zhihu.NN.Layers import *
 
 np.random.seed(142857)  # for reproducibility
 
@@ -15,12 +16,11 @@ def main():
 
     x, y = DataUtil.gen_xor(10 ** 2, 1)
 
-    # nn.build([x.shape[1], 24, 24, y.shape[1]])
-    nn.add("ReLU", (x.shape[1], 24))
-    nn.add("CrossEntropy")
+    nn.add(ReLU((x.shape[1], 24)))
+    nn.add(CrossEntropy((y.shape[1],)))
 
-    nn.fit(x, y, train_only=True, epoch=epoch, record_period=epoch)
-    print("Acc: {:8.6}".format(nn.evaluate(x, y)[0]))
+    nn.fit(x, y, epoch=epoch)
+    nn.evaluate(x, y)
 
     timing.show_timing_log(timing_level)
 
