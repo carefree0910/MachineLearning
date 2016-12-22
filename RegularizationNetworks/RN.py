@@ -1,4 +1,4 @@
-from Util import *
+from RegularizationNetworks.Util import *
 
 sigma = 1
 lb = 0.1

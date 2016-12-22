@@ -1,10 +1,9 @@
 import time
-import numpy as np
-from math import pi, exp, log
+from math import log
 import matplotlib.pyplot as plt
 from copy import deepcopy
 
-from NaiveBayes import MergedNB
+from Bayes.NaiveBayes.NaiveBayes import *
 
 try:
     from mpl_toolkits.mplot3d import Axes3D
