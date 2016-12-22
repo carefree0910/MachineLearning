@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="a4743ded-d384-4ad3-a479-12cfa6f90f49" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Zhihu/NN/one/Network.py" afterPath="$PROJECT_DIR$/Zhihu/NN/one/Network.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Zhihu/NN/Layers.py" afterPath="$PROJECT_DIR$/Zhihu/NN/Layers.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -13,7 +13,7 @@
   </component>
   <component name="CoverageDataManager">
     <SUITE FILE_PATH="coverage/MachineLearning$AdaBoost.coverage" NAME="AdaBoost Coverage Results" MODIFIED="1482384714301" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/AdaBoost" />
-    <SUITE FILE_PATH="coverage/MachineLearning$Test.coverage" NAME="Test Coverage Results" MODIFIED="1482393756197" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Zhihu/NN/one" />
+    <SUITE FILE_PATH="coverage/MachineLearning$Test.coverage" NAME="Test Coverage Results" MODIFIED="1482397157995" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Zhihu/NN/one" />
     <SUITE FILE_PATH="coverage/MachineLearning$Main.coverage" NAME="Main Coverage Results" MODIFIED="1482384662852" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Bayes/NaiveBayes" />
     <SUITE FILE_PATH="coverage/MachineLearning$RN.coverage" NAME="RN Coverage Results" MODIFIED="1482384432304" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/RegularizationNetworks" />
     <SUITE FILE_PATH="coverage/MachineLearning$CvDTree.coverage" NAME="CvDTree Coverage Results" MODIFIED="1482384485627" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/CvDTree" />
@@ -37,7 +37,7 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="Network.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="Network.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Zhihu/NN/one/Network.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="640">
@@ -66,6 +66,45 @@
           </provider>
         </entry>
       </file>
+      <file leaf-file-name="Layers.py" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/Zhihu/NN/Layers.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="542">
+              <caret line="67" column="0" lean-forward="true" selection-start-line="67" selection-start-column="0" selection-end-line="67" selection-end-column="0" />
+              <folding>
+                <element signature="e#152#484#0" expanded="false" />
+                <element signature="e#187#205#0" expanded="false" />
+                <element signature="e#271#410#0" expanded="false" />
+                <element signature="e#477#481#0" expanded="false" />
+                <element signature="e#528#586#0" expanded="false" />
+                <element signature="e#569#586#0" expanded="false" />
+                <element signature="e#615#679#0" expanded="false" />
+                <element signature="e#656#679#0" expanded="false" />
+                <element signature="e#704#764#0" expanded="false" />
+                <element signature="e#745#764#0" expanded="false" />
+                <element signature="e#790#851#0" expanded="false" />
+                <element signature="e#831#851#0" expanded="false" />
+                <element signature="e#881#946#0" expanded="false" />
+                <element signature="e#922#946#0" expanded="false" />
+                <element signature="e#977#1026#0" expanded="false" />
+                <element signature="e#1018#1026#0" expanded="false" />
+                <element signature="e#1054#1136#0" expanded="false" />
+                <element signature="e#1095#1133#0" expanded="false" />
+                <element signature="e#1264#1315#0" expanded="false" />
+                <element signature="e#1353#1456#0" expanded="false" />
+                <element signature="e#1388#1456#0" expanded="false" />
+                <element signature="e#1485#1562#0" expanded="false" />
+                <element signature="e#1520#1559#0" expanded="false" />
+                <element signature="e#1597#2518#0" expanded="false" />
+                <element signature="e#1621#1882#0" expanded="false" />
+                <element signature="e#1953#2173#0" expanded="false" />
+                <element signature="e#2239#2518#0" expanded="false" />
+                <element signature="e#2274#2384#0" expanded="false" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
     </leaf>
   </component>
   <component name="Git.Settings">
@@ -75,7 +114,6 @@
     <option name="CHANGED_PATHS">
       <list>
         <option value="$PROJECT_DIR$/Zhihu/NN/one/Test.py" />
-        <option value="$PROJECT_DIR$/Zhihu/NN/Layers.py" />
         <option value="$PROJECT_DIR$/Zhihu/NN/Optimizers.py" />
         <option value="$PROJECT_DIR$/Zhihu/NN/two/Network.py" />
         <option value="$PROJECT_DIR$/Zhihu/NN/two/Test.py" />
@@ -86,6 +124,7 @@
         <option value="$PROJECT_DIR$/Bayes/NaiveBayes/Main.py" />
         <option value="$PROJECT_DIR$/AdaBoost/AdaBoost.py" />
         <option value="$PROJECT_DIR$/Zhihu/NN/one/Network.py" />
+        <option value="$PROJECT_DIR$/Zhihu/NN/Layers.py" />
       </list>
     </option>
   </component>
@@ -144,6 +183,28 @@
             </PATH_ELEMENT>
             <PATH_ELEMENT>
               <option name="myItemId" value="NN" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="MachineLearning" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="MachineLearning" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="Zhihu" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="NN" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="two" />
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
           </PATH>
@@ -491,16 +552,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/Zhihu/NN/two/Network.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="40">
-          <caret line="0" column="5" lean-forward="false" selection-start-line="0" selection-start-column="5" selection-end-line="0" selection-end-column="5" />
-          <caret line="1" column="5" lean-forward="false" selection-start-line="1" selection-start-column="5" selection-end-line="1" selection-end-column="5" />
-          <caret line="2" column="5" lean-forward="false" selection-start-line="2" selection-start-column="5" selection-end-line="2" selection-end-column="5" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/Zhihu/NN/two/Test.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="20">
@@ -782,46 +833,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/Zhihu/NN/Layers.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="660">
-          <caret line="70" column="0" lean-forward="true" selection-start-line="70" selection-start-column="0" selection-end-line="70" selection-end-column="0" />
-          <folding>
-            <element signature="e#152#484#0" expanded="false" />
-            <element signature="e#187#205#0" expanded="false" />
-            <element signature="e#271#410#0" expanded="false" />
-            <element signature="e#477#481#0" expanded="false" />
-            <element signature="e#528#586#0" expanded="false" />
-            <element signature="e#569#586#0" expanded="false" />
-            <element signature="e#615#679#0" expanded="false" />
-            <element signature="e#656#679#0" expanded="false" />
-            <element signature="e#704#764#0" expanded="false" />
-            <element signature="e#745#764#0" expanded="false" />
-            <element signature="e#790#851#0" expanded="false" />
-            <element signature="e#831#851#0" expanded="false" />
-            <element signature="e#881#946#0" expanded="false" />
-            <element signature="e#922#946#0" expanded="false" />
-            <element signature="e#977#1026#0" expanded="false" />
-            <element signature="e#1018#1026#0" expanded="false" />
-            <element signature="e#1054#1136#0" expanded="false" />
-            <element signature="e#1095#1133#0" expanded="false" />
-            <element signature="e#1179#1383#0" expanded="false" />
-            <element signature="e#1214#1241#0" expanded="false" />
-            <element signature="e#1282#1286#0" expanded="false" />
-            <element signature="e#1332#1383#0" expanded="false" />
-            <element signature="e#1421#1524#0" expanded="false" />
-            <element signature="e#1456#1524#0" expanded="false" />
-            <element signature="e#1553#1630#0" expanded="false" />
-            <element signature="e#1588#1627#0" expanded="false" />
-            <element signature="e#1665#2586#0" expanded="false" />
-            <element signature="e#1689#1950#0" expanded="false" />
-            <element signature="e#2021#2241#0" expanded="false" />
-            <element signature="e#2307#2586#0" expanded="false" />
-            <element signature="e#2342#2452#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/Zhihu/NN/one/Test.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="160">
@@ -863,6 +874,161 @@
             <element signature="e#2632#2732#0" expanded="false" />
             <element signature="e#2849#3467#0" expanded="false" />
             <element signature="e#3718#3861#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Zhihu/NN/two/Network.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="340">
+          <caret line="604" column="0" lean-forward="true" selection-start-line="604" selection-start-column="0" selection-end-line="604" selection-end-column="0" />
+          <folding>
+            <element signature="e#186#276#0" expanded="false" />
+            <element signature="e#299#352#0" expanded="false" />
+            <element signature="e#391#6259#0" expanded="false" />
+            <element signature="e#444#1228#0" expanded="false" />
+            <element signature="e#1271#1669#0" expanded="false" />
+            <element signature="e#1309#1575#0" expanded="false" />
+            <element signature="e#1432#1575#0" expanded="false" />
+            <element signature="e#1702#1725#0" expanded="false" />
+            <element signature="e#1841#1987#0" expanded="false" />
+            <element signature="e#1884#1987#0" expanded="false" />
+            <element signature="e#2090#2197#0" expanded="false" />
+            <element signature="e#2300#2399#0" expanded="false" />
+            <element signature="e#2473#2621#0" expanded="false" />
+            <element signature="e#2711#3585#0" expanded="false" />
+            <element signature="e#2771#2945#0" expanded="false" />
+            <element signature="e#2886#2945#0" expanded="false" />
+            <element signature="e#3154#3417#0" expanded="false" />
+            <element signature="e#3323#3381#0" expanded="false" />
+            <element signature="e#3702#4504#0" expanded="false" />
+            <element signature="e#3901#4482#0" expanded="false" />
+            <element signature="e#3948#4382#0" expanded="false" />
+            <element signature="e#3982#4354#0" expanded="false" />
+            <element signature="e#4019#4218#0" expanded="false" />
+            <element signature="e#4604#6259#0" expanded="false" />
+            <element signature="e#4803#4853#0" expanded="false" />
+            <element signature="e#4901#4981#0" expanded="false" />
+            <element signature="e#5008#6259#0" expanded="false" />
+            <element signature="e#5184#5514#0" expanded="false" />
+            <element signature="e#5230#5388#0" expanded="false" />
+            <element signature="e#5549#6259#0" expanded="false" />
+            <element signature="e#5594#5746#0" expanded="false" />
+            <element signature="e#5809#5898#0" expanded="false" />
+            <element signature="e#5963#6127#0" expanded="false" />
+            <element signature="e#6288#23850#0" expanded="false" />
+            <element signature="e#6341#6610#0" expanded="false" />
+            <element signature="e#6480#6610#0" expanded="false" />
+            <element signature="e#6700#7473#0" expanded="false" />
+            <element signature="e#7540#7585#0" expanded="false" />
+            <element signature="e#7653#7678#0" expanded="false" />
+            <element signature="e#7738#7809#0" expanded="false" />
+            <element signature="e#7895#8031#0" expanded="false" />
+            <element signature="e#7956#8031#0" expanded="false" />
+            <element signature="e#8080#8107#0" expanded="false" />
+            <element signature="e#8171#8194#0" expanded="false" />
+            <element signature="e#8279#9082#0" expanded="false" />
+            <element signature="e#8305#8419#0" expanded="false" />
+            <element signature="e#8446#8542#0" expanded="false" />
+            <element signature="e#8577#8691#0" expanded="false" />
+            <element signature="e#8733#8885#0" expanded="false" />
+            <element signature="e#9216#11022#0" expanded="false" />
+            <element signature="e#9438#9635#0" expanded="false" />
+            <element signature="e#10270#10879#0" expanded="false" />
+            <element signature="e#10340#10548#0" expanded="false" />
+            <element signature="e#10583#10801#0" expanded="false" />
+            <element signature="e#10916#10993#0" expanded="false" />
+            <element signature="e#11097#11746#0" expanded="false" />
+            <element signature="e#11252#11718#0" expanded="false" />
+            <element signature="e#11299#11556#0" expanded="false" />
+            <element signature="e#11591#11718#0" expanded="false" />
+            <element signature="e#11818#11946#0" expanded="false" />
+            <element signature="e#12014#12147#0" expanded="false" />
+            <element signature="e#12260#12733#0" expanded="false" />
+            <element signature="e#12466#12733#0" expanded="false" />
+            <element signature="e#12610#12733#0" expanded="false" />
+            <element signature="e#12829#13197#0" expanded="false" />
+            <element signature="e#12927#13031#0" expanded="false" />
+            <element signature="e#13066#13173#0" expanded="false" />
+            <element signature="e#13329#13452#0" expanded="false" />
+            <element signature="e#13574#13846#0" expanded="false" />
+            <element signature="e#13945#14719#0" expanded="false" />
+            <element signature="e#13979#14360#0" expanded="false" />
+            <element signature="e#14094#14360#0" expanded="false" />
+            <element signature="e#14412#14528#0" expanded="false" />
+            <element signature="e#14797#15169#0" expanded="false" />
+            <element signature="e#14830#14941#0" expanded="false" />
+            <element signature="e#14968#15163#0" expanded="false" />
+            <element signature="e#15257#15278#0" expanded="false" />
+            <element signature="e#15363#15827#0" expanded="false" />
+            <element signature="e#16003#18073#0" expanded="false" />
+            <element signature="e#16030#16366#0" expanded="false" />
+            <element signature="e#16092#16264#0" expanded="false" />
+            <element signature="e#16152#16264#0" expanded="false" />
+            <element signature="e#16393#17189#0" expanded="false" />
+            <element signature="e#16561#16767#0" expanded="false" />
+            <element signature="e#16959#17189#0" expanded="false" />
+            <element signature="e#17079#17189#0" expanded="false" />
+            <element signature="e#17242#18021#0" expanded="false" />
+            <element signature="e#17599#17654#0" expanded="false" />
+            <element signature="e#18427#22697#0" expanded="false" />
+            <element signature="e#18767#18898#0" expanded="false" />
+            <element signature="e#19502#19747#0" expanded="false" />
+            <element signature="e#19546#19747#0" expanded="false" />
+            <element signature="e#19837#19944#0" expanded="false" />
+            <element signature="e#20236#22670#0" expanded="false" />
+            <element signature="e#20825#22670#0" expanded="false" />
+            <element signature="e#20997#21886#0" expanded="false" />
+            <element signature="e#21041#21162#0" expanded="false" />
+            <element signature="e#21509#21886#0" expanded="false" />
+            <element signature="e#21603#21886#0" expanded="false" />
+            <element signature="e#22052#22670#0" expanded="false" />
+            <element signature="e#22087#22428#0" expanded="false" />
+            <element signature="e#22314#22428#0" expanded="false" />
+            <element signature="e#22509#22670#0" expanded="false" />
+            <element signature="e#22780#22852#0" expanded="false" />
+            <element signature="e#22957#23152#0" expanded="false" />
+            <element signature="e#23253#23850#0" expanded="false" />
+            <element signature="e#23359#23676#0" expanded="false" />
+            <element signature="e#23417#23676#0" expanded="false" />
+            <element signature="e#23501#23676#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Zhihu/NN/Layers.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="542">
+          <caret line="67" column="0" lean-forward="true" selection-start-line="67" selection-start-column="0" selection-end-line="67" selection-end-column="0" />
+          <folding>
+            <element signature="e#152#484#0" expanded="false" />
+            <element signature="e#187#205#0" expanded="false" />
+            <element signature="e#271#410#0" expanded="false" />
+            <element signature="e#477#481#0" expanded="false" />
+            <element signature="e#528#586#0" expanded="false" />
+            <element signature="e#569#586#0" expanded="false" />
+            <element signature="e#615#679#0" expanded="false" />
+            <element signature="e#656#679#0" expanded="false" />
+            <element signature="e#704#764#0" expanded="false" />
+            <element signature="e#745#764#0" expanded="false" />
+            <element signature="e#790#851#0" expanded="false" />
+            <element signature="e#831#851#0" expanded="false" />
+            <element signature="e#881#946#0" expanded="false" />
+            <element signature="e#922#946#0" expanded="false" />
+            <element signature="e#977#1026#0" expanded="false" />
+            <element signature="e#1018#1026#0" expanded="false" />
+            <element signature="e#1054#1136#0" expanded="false" />
+            <element signature="e#1095#1133#0" expanded="false" />
+            <element signature="e#1264#1315#0" expanded="false" />
+            <element signature="e#1353#1456#0" expanded="false" />
+            <element signature="e#1388#1456#0" expanded="false" />
+            <element signature="e#1485#1562#0" expanded="false" />
+            <element signature="e#1520#1559#0" expanded="false" />
+            <element signature="e#1597#2518#0" expanded="false" />
+            <element signature="e#1621#1882#0" expanded="false" />
+            <element signature="e#1953#2173#0" expanded="false" />
+            <element signature="e#2239#2518#0" expanded="false" />
+            <element signature="e#2274#2384#0" expanded="false" />
           </folding>
         </state>
       </provider>

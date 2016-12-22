@@ -59,9 +59,6 @@ class CF0910(Layer):
 # Cost Layers
 
 class CostLayer(Layer):
-    def __init__(self, shape):
-        Layer.__init__(self, shape)
-
     def _activate(self, x, y):
         pass
 
