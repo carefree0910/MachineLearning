@@ -89,22 +89,16 @@ class NNDist(NNBase):
         with self._sess.as_default():
             return self.get_rs(x).eval(feed_dict={self._tfx: x})
 
-    @NNTiming.timeit(level=4)
-    def _get_l2_loss(self, lb):
-        if lb <= 0:
-            return 0
-        return lb * tf.reduce_sum([tf.nn.l2_loss(_w) for i, _w in enumerate(self._tf_weights)])
-
     # API
 
     @NNTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x=None, y=None, lr=0.001, lb=0.001, epoch=10):
+    def fit(self, x=None, y=None, lr=0.001, epoch=10):
         self._optimizer = Adam(lr)
         self._tfx = tf.placeholder(tf.float32, shape=[None, *x.shape[1:]])
         self._tfy = tf.placeholder(tf.float32, shape=[None, y.shape[1]])
         with self._sess.as_default() as sess:
             # Define session
-            self._cost = self.get_rs(self._tfx, self._tfy) + self._get_l2_loss(lb)
+            self._cost = self.get_rs(self._tfx, self._tfy)
             self._y_pred = self.get_rs(self._tfx)
             self._train_step = self._optimizer.minimize(self._cost)
             sess.run(tf.global_variables_initializer())
