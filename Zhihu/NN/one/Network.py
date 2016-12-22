@@ -1,6 +1,6 @@
 from Zhihu.NN.Layers import *
 from Zhihu.NN.Optimizers import *
-from Zhihu.NN.Util import Timing, Util
+from Zhihu.NN.Util import Timing
 
 np.random.seed(142857)  # for reproducibility
 
@@ -12,27 +12,14 @@ class NNBase:
 
     def __init__(self):
         self._layers = []
-        self._layer_names, self._layer_params = [], []
         self._lr = 0
-        self._w_stds, self._b_inits = [], []
         self._optimizer = None
-        self._data_size = 0
-        self.verbose = 0
-
         self._current_dimension = 0
-
-        self._logs = {}
-        self._timings = {}
-        self._metrics, self._metric_names = [], []
-
-        self._x = self._y = None
-        self._x_min = self._x_max = self._y_min = self._y_max = 0
 
         self._tfx = self._tfy = None
         self._tf_weights, self._tf_bias = [], []
         self._cost = self._y_pred = self._activations = None
 
-        self._loaded = False
         self._train_step = None
 
     def __str__(self):
@@ -49,12 +36,12 @@ class NNBase:
 
     @NNTiming.timeit(level=4, prefix="[Private StaticMethod] ")
     def _get_w(self, shape):
-        initial = tf.truncated_normal(shape, stddev=self._w_stds[-1])
+        initial = tf.truncated_normal(shape, stddev=0.1)
         return tf.Variable(initial, name="w")
 
     @NNTiming.timeit(level=4, prefix="[Private StaticMethod] ")
     def _get_b(self, shape):
-        initial = tf.constant(self._b_inits[-1], shape=shape)
+        initial = tf.constant(0.1, shape=shape)
         return tf.Variable(initial, name="b")
 
     @NNTiming.timeit(level=4)
@@ -63,13 +50,6 @@ class NNBase:
         b_shape = shape[1],
         self._tf_weights.append(self._get_w(w_shape))
         self._tf_bias.append(self._get_b(b_shape))
-
-    @NNTiming.timeit(level=4)
-    def _add_layer(self, layer, *args):
-        _current, _next = args
-        self._layers.append(layer)
-        self._add_weight((_current, _next))
-        self._current_dimension = _next
 
     @NNTiming.timeit(level=1, prefix="[API] ")
     def get_rs(self, x, y=None, predict=False, pipe=False):
@@ -90,16 +70,15 @@ class NNBase:
         return _cache
 
     @NNTiming.timeit(level=4, prefix="[API] ")
-    def add(self, layer, **kwargs):
-        self._w_stds.append(Util.get_and_pop(kwargs, "std", 0.1))
-        self._b_inits.append(Util.get_and_pop(kwargs, "init", 0.1))
+    def add(self, layer):
         if not self._layers:
             self._layers, self._current_dimension = [layer], layer.shape[1]
             self._add_weight(layer.shape)
         else:
             _next = layer.shape[0]
-            layer.shape = (self._current_dimension, _next)
-            self._add_layer(layer, self._current_dimension, _next)
+            self._layers.append(layer)
+            self._add_weight((self._current_dimension, _next))
+            self._current_dimension = _next
 
 
 class NNDist(NNBase):
@@ -107,29 +86,9 @@ class NNDist(NNBase):
 
     def __init__(self):
         NNBase.__init__(self)
-
         self._sess = tf.Session()
-        self._optimizer_factory = OptFactory()
-
-    # Property
-
-    @property
-    def optimizer(self):
-        return self._optimizer.name
-
-    @optimizer.setter
-    def optimizer(self, value):
-        self._optimizer = value
 
     # Utils
-
-    @NNTiming.timeit(level=4)
-    def _feed_data(self, x, y):
-        self._x, self._y = x, y
-        self._x_min, self._x_max = np.min(x), np.max(x)
-        self._y_min, self._y_max = np.min(y), np.max(y)
-        self._data_size = len(x)
-        return x, y
 
     @NNTiming.timeit(level=2)
     def _get_prediction(self, x, out_of_sess=False):
@@ -155,46 +114,13 @@ class NNDist(NNBase):
             return 0
         return lb * tf.reduce_sum([tf.nn.l2_loss(_w) for i, _w in enumerate(self._tf_weights)])
 
-    # Init
-
-    @NNTiming.timeit(level=4)
-    def _init_optimizer(self, optimizer=None):
-        if optimizer is None:
-            if isinstance(self._optimizer, str):
-                optimizer = self._optimizer
-            else:
-                if self._optimizer is None:
-                    self._optimizer = Adam(self._lr)
-                if isinstance(self._optimizer, Optimizers):
-                    return
-                raise BuildNetworkError("Invalid optimizer '{}' provided".format(self._optimizer))
-        if isinstance(optimizer, str):
-            self._optimizer = self._optimizer_factory.get_optimizer_by_name(
-                optimizer, self.NNTiming, self._lr)
-        elif isinstance(optimizer, Optimizers):
-            self._optimizer = optimizer
-        else:
-            raise BuildNetworkError("Invalid optimizer '{}' provided".format(optimizer))
-
-    @NNTiming.timeit(level=4)
-    def _init_train_step(self, sess):
-        if not self._loaded:
-            self._train_step = self._optimizer.minimize(self._cost)
-            sess.run(tf.global_variables_initializer())
-        else:
-            _var_cache = set(tf.global_variables())
-            self._train_step = self._optimizer.minimize(self._cost)
-            sess.run(tf.variables_initializer(set(tf.global_variables()) - _var_cache))
-
     # API
 
     @NNTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x=None, y=None, lr=0.001, lb=0.001, epoch=10,
-            batch_size=512, optimizer=None):
+    def fit(self, x=None, y=None, lr=0.001, lb=0.001, epoch=10, batch_size=512):
 
-        x, y = self._feed_data(x, y)
         self._lr = lr
-        self._init_optimizer(optimizer)
+        self._optimizer = Adam(self._lr)
         print("Optimizer: ", self._optimizer.name)
         print("-" * 30)
 
@@ -219,7 +145,8 @@ class NNDist(NNBase):
             self._cost = self.get_rs(self._tfx, self._tfy) + self._get_l2_loss(lb)
             self._y_pred = self.get_rs(self._tfx)
             self._activations = self._get_activations(self._tfx)
-            self._init_train_step(sess)
+            self._train_step = self._optimizer.minimize(self._cost)
+            sess.run(tf.global_variables_initializer())
 
             for counter in range(epoch):
                 for _i in range(train_repeat):
@@ -230,13 +157,6 @@ class NNDist(NNBase):
                         x_batch, y_batch = x, y
 
                     self._train_step.run(feed_dict={self._tfx: x_batch, self._tfy: y_batch})
-
-        return self._logs
-
-    @NNTiming.timeit(level=4, prefix="[API] ")
-    def predict(self, x):
-        x = np.array(x)
-        return self._get_prediction(x, out_of_sess=True)
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def predict_classes(self, x, flatten=True):
