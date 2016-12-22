@@ -107,7 +107,7 @@ class NNDist(NNBase):
                 self._train_step.run(feed_dict={self._tfx: x, self._tfy: y})
 
     @NNTiming.timeit(level=4, prefix="[API] ")
-    def predict_classes(self, x, flatten=True):
+    def predict_classes(self, x):
         x = np.array(x)
         return np.argmax(self._get_prediction(x, out_of_sess=True), axis=1)
 
