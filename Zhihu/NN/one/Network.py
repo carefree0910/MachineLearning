@@ -83,9 +83,7 @@ class NNDist(NNBase):
     # Utils
 
     @NNTiming.timeit(level=2)
-    def _get_prediction(self, x, out_of_sess=False):
-        if not out_of_sess:
-            return self._y_pred.eval(feed_dict={self._tfx: x})
+    def _get_prediction(self, x):
         with self._sess.as_default():
             return self.get_rs(x).eval(feed_dict={self._tfx: x})
 
@@ -94,7 +92,7 @@ class NNDist(NNBase):
     @NNTiming.timeit(level=1, prefix="[API] ")
     def fit(self, x=None, y=None, lr=0.001, epoch=10):
         self._optimizer = Adam(lr)
-        self._tfx = tf.placeholder(tf.float32, shape=[None, *x.shape[1:]])
+        self._tfx = tf.placeholder(tf.float32, shape=[None, x.shape[1]])
         self._tfy = tf.placeholder(tf.float32, shape=[None, y.shape[1]])
         with self._sess.as_default() as sess:
             # Define session
@@ -107,11 +105,9 @@ class NNDist(NNBase):
                 self._train_step.run(feed_dict={self._tfx: x, self._tfy: y})
 
     @NNTiming.timeit(level=4, prefix="[API] ")
-    def predict_classes(self, x, flatten=True):
+    def predict_classes(self, x):
         x = np.array(x)
-        if flatten:
-            return np.argmax(self._get_prediction(x, out_of_sess=True), axis=1)
-        return np.argmax([self._get_prediction(x, out_of_sess=True)], axis=2).T
+        return np.argmax(self._get_prediction(x), axis=1)
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def evaluate(self, x, y):

@@ -13,7 +13,7 @@
   </component>
   <component name="CoverageDataManager">
     <SUITE FILE_PATH="coverage/MachineLearning$AdaBoost.coverage" NAME="AdaBoost Coverage Results" MODIFIED="1482384714301" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/AdaBoost" />
-    <SUITE FILE_PATH="coverage/MachineLearning$Test.coverage" NAME="Test Coverage Results" MODIFIED="1482393003658" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Zhihu/NN/one" />
+    <SUITE FILE_PATH="coverage/MachineLearning$Test.coverage" NAME="Test Coverage Results" MODIFIED="1482393756197" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Zhihu/NN/one" />
     <SUITE FILE_PATH="coverage/MachineLearning$Main.coverage" NAME="Main Coverage Results" MODIFIED="1482384662852" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Bayes/NaiveBayes" />
     <SUITE FILE_PATH="coverage/MachineLearning$RN.coverage" NAME="RN Coverage Results" MODIFIED="1482384432304" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/RegularizationNetworks" />
     <SUITE FILE_PATH="coverage/MachineLearning$CvDTree.coverage" NAME="CvDTree Coverage Results" MODIFIED="1482384485627" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/CvDTree" />
@@ -41,7 +41,7 @@
         <entry file="file://$PROJECT_DIR$/Zhihu/NN/one/Network.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="600">
-              <caret line="120" column="0" lean-forward="true" selection-start-line="120" selection-start-column="0" selection-end-line="120" selection-end-column="0" />
+              <caret line="116" column="0" lean-forward="true" selection-start-line="116" selection-start-column="0" selection-end-line="116" selection-end-column="0" />
               <folding>
                 <element signature="e#182#2408#0" expanded="false" />
                 <element signature="e#235#480#0" expanded="false" />
@@ -58,10 +58,10 @@
                 <element signature="e#2108#2213#0" expanded="false" />
                 <element signature="e#2240#2408#0" expanded="false" />
                 <element signature="e#2490#2545#0" expanded="false" />
-                <element signature="e#2651#2842#0" expanded="false" />
-                <element signature="e#2959#3579#0" expanded="false" />
-                <element signature="e#3684#3879#0" expanded="false" />
-                <element signature="e#3966#4109#0" expanded="false" />
+                <element signature="e#2632#2732#0" expanded="false" />
+                <element signature="e#2849#3467#0" expanded="false" />
+                <element signature="e#3558#3631#0" expanded="false" />
+                <element signature="e#3718#3861#0" expanded="false" />
               </folding>
             </state>
           </provider>
@@ -833,10 +833,18 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/NN/TF/Playground.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="380">
+          <caret line="19" column="18" lean-forward="false" selection-start-line="19" selection-start-column="18" selection-end-line="19" selection-end-column="18" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/Zhihu/NN/one/Network.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="600">
-          <caret line="120" column="0" lean-forward="true" selection-start-line="120" selection-start-column="0" selection-end-line="120" selection-end-column="0" />
+          <caret line="116" column="0" lean-forward="true" selection-start-line="116" selection-start-column="0" selection-end-line="116" selection-end-column="0" />
           <folding>
             <element signature="e#182#2408#0" expanded="false" />
             <element signature="e#235#480#0" expanded="false" />
@@ -853,10 +861,10 @@
             <element signature="e#2108#2213#0" expanded="false" />
             <element signature="e#2240#2408#0" expanded="false" />
             <element signature="e#2490#2545#0" expanded="false" />
-            <element signature="e#2651#2842#0" expanded="false" />
-            <element signature="e#2959#3579#0" expanded="false" />
-            <element signature="e#3684#3879#0" expanded="false" />
-            <element signature="e#3966#4109#0" expanded="false" />
+            <element signature="e#2632#2732#0" expanded="false" />
+            <element signature="e#2849#3467#0" expanded="false" />
+            <element signature="e#3558#3631#0" expanded="false" />
+            <element signature="e#3718#3861#0" expanded="false" />
           </folding>
         </state>
       </provider>
