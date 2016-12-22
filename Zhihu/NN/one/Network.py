@@ -5,11 +5,6 @@ from Zhihu.NN.Util import Timing, Util
 np.random.seed(142857)  # for reproducibility
 
 
-class NNConfig:
-    BOOST_LESS_SAMPLES = False
-    TRAINING_SCALE = 5 / 6
-
-
 # Neural Network
 
 class NNBase:
