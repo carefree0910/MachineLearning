@@ -94,7 +94,7 @@ class NNDist(NNBase):
     @NNTiming.timeit(level=1, prefix="[API] ")
     def fit(self, x=None, y=None, lr=0.001, epoch=10):
         self._optimizer = Adam(lr)
-        self._tfx = tf.placeholder(tf.float32, shape=[None, *x.shape[1:]])
+        self._tfx = tf.placeholder(tf.float32, shape=[None, x.shape[1]])
         self._tfy = tf.placeholder(tf.float32, shape=[None, y.shape[1]])
         with self._sess.as_default() as sess:
             # Define session
