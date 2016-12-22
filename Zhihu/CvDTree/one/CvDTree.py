@@ -200,8 +200,9 @@ class CvDBase:
         if self.depth <= 2:
             return
         _tmp_nodes = [node for node in self.nodes if not node.is_root and not node.category]
-        _old = np.array([sum([leaf.ent * len(leaf.labels) for leaf in node.leafs.values()]) + alpha * len(node.leafs)
-                         for node in _tmp_nodes])
+        _old = np.array([sum(
+            [leaf.ent * len(leaf.labels) for leaf in node.leafs.values()]
+        ) + alpha * len(node.leafs) for node in _tmp_nodes])
         _new = np.array([node.ent * len(node.labels) + alpha for node in _tmp_nodes])
         _mask = (_old - _new) > 0
         arg = np.argmax(_mask)
