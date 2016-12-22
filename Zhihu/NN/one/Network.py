@@ -17,7 +17,7 @@ class NNBase:
 
         self._tfx = self._tfy = None
         self._tf_weights, self._tf_bias = [], []
-        self._cost = self._y_pred = self._activations = None
+        self._cost = self._y_pred = None
 
         self._train_step = None
 
