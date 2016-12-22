@@ -90,17 +90,6 @@ class NNDist(NNBase):
             return self.get_rs(x).eval(feed_dict={self._tfx: x})
 
     @NNTiming.timeit(level=4)
-    def _get_activations(self, x):
-        _activations = [self._layers[0].activate(x, self._tf_weights[0], self._tf_bias[0], True)]
-        for i, layer in enumerate(self._layers[1:]):
-            if i == len(self._layers) - 2:
-                _activations.append(tf.matmul(_activations[-1], self._tf_weights[-1]) + self._tf_bias[-1])
-            else:
-                _activations.append(layer.activate(
-                    _activations[-1], self._tf_weights[i + 1], self._tf_bias[i + 1], True))
-        return _activations
-
-    @NNTiming.timeit(level=4)
     def _get_l2_loss(self, lb):
         if lb <= 0:
             return 0
@@ -109,34 +98,19 @@ class NNDist(NNBase):
     # API
 
     @NNTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x=None, y=None, lr=0.001, lb=0.001, epoch=10, batch_size=512):
+    def fit(self, x=None, y=None, lr=0.001, lb=0.001, epoch=10):
         self._optimizer = Adam(lr)
-        train_len = len(x)
-        batch_size = min(batch_size, train_len)
-        do_random_batch = train_len >= batch_size
-        train_repeat = int(train_len / batch_size) + 1
-
         self._tfx = tf.placeholder(tf.float32, shape=[None, *x.shape[1:]])
         self._tfy = tf.placeholder(tf.float32, shape=[None, y.shape[1]])
-
         with self._sess.as_default() as sess:
-
-            # Session
+            # Define session
             self._cost = self.get_rs(self._tfx, self._tfy) + self._get_l2_loss(lb)
             self._y_pred = self.get_rs(self._tfx)
-            self._activations = self._get_activations(self._tfx)
             self._train_step = self._optimizer.minimize(self._cost)
             sess.run(tf.global_variables_initializer())
-
+            # Train
             for counter in range(epoch):
-                for _i in range(train_repeat):
-                    if do_random_batch:
-                        batch = np.random.choice(train_len, batch_size)
-                        x_batch, y_batch = x[batch], y[batch]
-                    else:
-                        x_batch, y_batch = x, y
-
-                    self._train_step.run(feed_dict={self._tfx: x_batch, self._tfy: y_batch})
+                self._train_step.run(feed_dict={self._tfx: x, self._tfy: y})
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def predict_classes(self, x, flatten=True):
