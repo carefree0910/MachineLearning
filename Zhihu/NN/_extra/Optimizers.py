@@ -1,7 +1,7 @@
 import numpy as np
 from abc import ABCMeta, abstractmethod
 
-from NN.Util import Timing
+from Zhihu.NN.Util import Timing
 
 
 class Optimizers(metaclass=ABCMeta):
@@ -152,7 +152,6 @@ class RMSProp(Optimizers):
 # Factory
 
 class OptFactory:
-
     available_optimizers = {
         "SGD": SGD, "Momentum": Momentum, "NAG": NAG, "Adam": Adam, "RMSProp": RMSProp
     }

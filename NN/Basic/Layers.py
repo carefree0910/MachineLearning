@@ -1,9 +1,9 @@
-from Errors import *
-from Basic.Optimizers import *
-from Util import Timing
+from NN.Errors import *
+from NN.Basic.Optimizers import *
+from NN.Util import Timing
 
 try:
-    from Basic.CFunc.core import col2im_6d_cython
+    from NN.Basic.CFunc.core import col2im_6d_cython
 except ImportError:
     print("Cython codes are not compiled, naive cnn bp algorithm will be used.")
     col2im_6d_cython = None

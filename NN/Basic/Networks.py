@@ -8,9 +8,9 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
-from Basic.Layers import *
-from Basic.Optimizers import OptFactory
-from Util import ProgressBar, VisUtil
+from NN.Basic.Layers import *
+from NN.Basic.Optimizers import OptFactory
+from NN.Util import ProgressBar, VisUtil
 
 np.random.seed(142857)  # for reproducibility
 
@@ -518,7 +518,7 @@ class NN:
     @NNTiming.timeit(level=1, prefix="[API] ")
     def fit(self,
             x=None, y=None, x_test=None, y_test=None,
-            batch_size=512, record_period=1, train_only=False,
+            batch_size=512, record_period=1, train_only=True,
             optimizer=None, w_optimizer=None, b_optimizer=None,
             lr=0.01, lb=0.01, epoch=20, weight_scale=1, apply_bias=True,
             show_loss=True, metrics=None, do_log=True, verbose=None,
@@ -660,9 +660,9 @@ class NN:
                     self._print_metric_logs(show_loss, "cv")
                 if visualize:
                     if visualize_setting is None:
-                        self.do_visualization(x_test, y_test)
+                        self.visualize_2d(x_test, y_test)
                     else:
-                        self.do_visualization(x_test, y_test, *visualize_setting)
+                        self.visualize_2d(x_test, y_test, *visualize_setting)
                 if x_test.shape[1] == 2:
                     if draw_network:
                         img = self.draw_network(weight_average=weight_average, activations=_activations)
@@ -673,8 +673,6 @@ class NN:
                 if self.verbose >= NNVerbose.EPOCH:
                     bar.update(counter // record_period + 1)
                     sub_bar = ProgressBar(min_value=0, max_value=train_repeat * record_period - 1, name="Iteration")
-
-            self.save(overwrite=False)
 
         if do_log:
             self._append_log(x_test, y_test, "test", get_loss=show_loss)
@@ -787,7 +785,7 @@ class NN:
         return logs
 
     @NNTiming.timeit(level=5, prefix="[API] ")
-    def do_visualization(self, x=None, y=None, plot_scale=2, plot_precision=0.01):
+    def visualize_2d(self, x=None, y=None, plot_scale=2, plot_precision=0.01):
 
         x = self._x if x is None else x
         y = self._y if y is None else y
