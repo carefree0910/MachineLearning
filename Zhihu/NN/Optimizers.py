@@ -1,8 +1,6 @@
 import tensorflow as tf
 
-from Util import Timing
-
-# TODO: Customize Optimizer
+from Models.Zhihu.NN.Util import Timing
 
 
 class Optimizers:
