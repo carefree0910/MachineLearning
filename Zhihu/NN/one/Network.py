@@ -12,7 +12,6 @@ class NNBase:
 
     def __init__(self):
         self._layers = []
-        self._lr = 0
         self._optimizer = None
         self._current_dimension = 0
 
@@ -53,16 +52,13 @@ class NNBase:
 
     @NNTiming.timeit(level=1, prefix="[API] ")
     def get_rs(self, x, y=None):
-        predict = True if y is None else False
-        _cache = self._layers[0].activate(x, self._tf_weights[0], self._tf_bias[0], predict)
+        _cache = self._layers[0].activate(x, self._tf_weights[0], self._tf_bias[0])
         for i, layer in enumerate(self._layers[1:]):
             if i == len(self._layers) - 2:
                 if y is None:
-                    if self._tf_bias[-1] is not None:
-                        return tf.matmul(_cache, self._tf_weights[-1]) + self._tf_bias[-1]
-                    return tf.matmul(_cache, self._tf_weights[-1])
-                predict = y
-            _cache = layer.activate(_cache, self._tf_weights[i + 1], self._tf_bias[i + 1], predict)
+                    return tf.matmul(_cache, self._tf_weights[-1]) + self._tf_bias[-1]
+                return layer.activate(_cache, self._tf_weights[i + 1], self._tf_bias[i + 1], y)
+            _cache = layer.activate(_cache, self._tf_weights[i + 1], self._tf_bias[i + 1])
         return _cache
 
     @NNTiming.timeit(level=4, prefix="[API] ")
@@ -114,19 +110,7 @@ class NNDist(NNBase):
 
     @NNTiming.timeit(level=1, prefix="[API] ")
     def fit(self, x=None, y=None, lr=0.001, lb=0.001, epoch=10, batch_size=512):
-
-        self._lr = lr
-        self._optimizer = Adam(self._lr)
-        print("Optimizer: ", self._optimizer.name)
-        print("-" * 30)
-
-        if not self._layers:
-            raise BuildNetworkError("Please provide layers before fitting data")
-
-        if y.shape[1] != self._current_dimension:
-            raise BuildNetworkError("Output layer's shape should be {}, {} found".format(
-                self._current_dimension, y.shape[1]))
-
+        self._optimizer = Adam(lr)
         train_len = len(x)
         batch_size = min(batch_size, train_len)
         do_random_batch = train_len >= batch_size
