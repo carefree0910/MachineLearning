@@ -143,7 +143,7 @@ class CostLayer(Layer):
     # Optimization
     _batch_range = None
 
-    def __init__(self, parent, shape, cost_function="LogLikelihood"):
+    def __init__(self, parent, shape, cost_function="Log Likelihood"):
 
         Layer.__init__(self, shape)
         self._parent = parent

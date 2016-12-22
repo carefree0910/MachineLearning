@@ -13,7 +13,7 @@
   </component>
   <component name="CoverageDataManager">
     <SUITE FILE_PATH="coverage/MachineLearning$AdaBoost.coverage" NAME="AdaBoost Coverage Results" MODIFIED="1482384714301" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/AdaBoost" />
-    <SUITE FILE_PATH="coverage/MachineLearning$Test.coverage" NAME="Test Coverage Results" MODIFIED="1482425899410" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Zhihu/NN/_extra/one" />
+    <SUITE FILE_PATH="coverage/MachineLearning$Test.coverage" NAME="Test Coverage Results" MODIFIED="1482427998513" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Zhihu/NN/_extra/one" />
     <SUITE FILE_PATH="coverage/MachineLearning$Main.coverage" NAME="Main Coverage Results" MODIFIED="1482384662852" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Bayes/NaiveBayes" />
     <SUITE FILE_PATH="coverage/MachineLearning$RN.coverage" NAME="RN Coverage Results" MODIFIED="1482384432304" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/RegularizationNetworks" />
     <SUITE FILE_PATH="coverage/MachineLearning$CvDTree.coverage" NAME="CvDTree Coverage Results" MODIFIED="1482384485627" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/CvDTree" />
@@ -38,8 +38,8 @@
       <file leaf-file-name="Layers.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/Zhihu/NN/_extra/Layers.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="400">
-              <caret line="112" column="0" lean-forward="true" selection-start-line="112" selection-start-column="0" selection-end-line="112" selection-end-column="0" />
+            <state relative-caret-position="742">
+              <caret line="244" column="0" lean-forward="true" selection-start-line="244" selection-start-column="0" selection-end-line="244" selection-end-column="0" />
               <folding>
                 <element signature="e#161#1874#0" expanded="false" />
                 <element signature="e#224#440#0" expanded="false" />
@@ -77,25 +77,25 @@
                 <element signature="e#3034#3233#0" expanded="false" />
                 <element signature="e#3075#3160#0" expanded="false" />
                 <element signature="e#3212#3230#0" expanded="false" />
-                <element signature="e#3275#5812#0" expanded="false" />
-                <element signature="e#3394#3929#0" expanded="false" />
-                <element signature="e#3493#3650#0" expanded="false" />
-                <element signature="e#3976#3984#0" expanded="false" />
-                <element signature="e#4036#4109#0" expanded="false" />
-                <element signature="e#4154#4472#0" expanded="false" />
-                <element signature="e#4525#4556#0" expanded="false" />
-                <element signature="e#4642#4898#0" expanded="false" />
-                <element signature="e#4972#5317#0" expanded="false" />
-                <element signature="e#5406#5745#0" expanded="false" />
-                <element signature="e#5559#5660#0" expanded="false" />
-                <element signature="e#5778#5809#0" expanded="false" />
-                <element signature="e#5847#7009#0" expanded="false" />
-                <element signature="e#5871#6035#0" expanded="false" />
-                <element signature="e#6063#6175#0" expanded="false" />
-                <element signature="e#6207#6263#0" expanded="false" />
-                <element signature="e#6334#6644#0" expanded="false" />
-                <element signature="e#6388#6624#0" expanded="false" />
-                <element signature="e#6737#7009#0" expanded="false" />
+                <element signature="e#3275#5813#0" expanded="false" />
+                <element signature="e#3395#3930#0" expanded="false" />
+                <element signature="e#3494#3651#0" expanded="false" />
+                <element signature="e#3977#3985#0" expanded="false" />
+                <element signature="e#4037#4110#0" expanded="false" />
+                <element signature="e#4155#4473#0" expanded="false" />
+                <element signature="e#4526#4557#0" expanded="false" />
+                <element signature="e#4643#4899#0" expanded="false" />
+                <element signature="e#4973#5318#0" expanded="false" />
+                <element signature="e#5407#5746#0" expanded="false" />
+                <element signature="e#5560#5661#0" expanded="false" />
+                <element signature="e#5779#5810#0" expanded="false" />
+                <element signature="e#5848#7010#0" expanded="false" />
+                <element signature="e#5872#6036#0" expanded="false" />
+                <element signature="e#6064#6176#0" expanded="false" />
+                <element signature="e#6208#6264#0" expanded="false" />
+                <element signature="e#6335#6645#0" expanded="false" />
+                <element signature="e#6389#6625#0" expanded="false" />
+                <element signature="e#6738#7010#0" expanded="false" />
               </folding>
             </state>
           </provider>
@@ -1688,8 +1688,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/Zhihu/NN/_extra/Layers.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="400">
-          <caret line="112" column="0" lean-forward="true" selection-start-line="112" selection-start-column="0" selection-end-line="112" selection-end-column="0" />
+        <state relative-caret-position="742">
+          <caret line="244" column="0" lean-forward="true" selection-start-line="244" selection-start-column="0" selection-end-line="244" selection-end-column="0" />
           <folding>
             <element signature="e#161#1874#0" expanded="false" />
             <element signature="e#224#440#0" expanded="false" />
@@ -1727,25 +1727,25 @@
             <element signature="e#3034#3233#0" expanded="false" />
             <element signature="e#3075#3160#0" expanded="false" />
             <element signature="e#3212#3230#0" expanded="false" />
-            <element signature="e#3275#5812#0" expanded="false" />
-            <element signature="e#3394#3929#0" expanded="false" />
-            <element signature="e#3493#3650#0" expanded="false" />
-            <element signature="e#3976#3984#0" expanded="false" />
-            <element signature="e#4036#4109#0" expanded="false" />
-            <element signature="e#4154#4472#0" expanded="false" />
-            <element signature="e#4525#4556#0" expanded="false" />
-            <element signature="e#4642#4898#0" expanded="false" />
-            <element signature="e#4972#5317#0" expanded="false" />
-            <element signature="e#5406#5745#0" expanded="false" />
-            <element signature="e#5559#5660#0" expanded="false" />
-            <element signature="e#5778#5809#0" expanded="false" />
-            <element signature="e#5847#7009#0" expanded="false" />
-            <element signature="e#5871#6035#0" expanded="false" />
-            <element signature="e#6063#6175#0" expanded="false" />
-            <element signature="e#6207#6263#0" expanded="false" />
-            <element signature="e#6334#6644#0" expanded="false" />
-            <element signature="e#6388#6624#0" expanded="false" />
-            <element signature="e#6737#7009#0" expanded="false" />
+            <element signature="e#3275#5813#0" expanded="false" />
+            <element signature="e#3395#3930#0" expanded="false" />
+            <element signature="e#3494#3651#0" expanded="false" />
+            <element signature="e#3977#3985#0" expanded="false" />
+            <element signature="e#4037#4110#0" expanded="false" />
+            <element signature="e#4155#4473#0" expanded="false" />
+            <element signature="e#4526#4557#0" expanded="false" />
+            <element signature="e#4643#4899#0" expanded="false" />
+            <element signature="e#4973#5318#0" expanded="false" />
+            <element signature="e#5407#5746#0" expanded="false" />
+            <element signature="e#5560#5661#0" expanded="false" />
+            <element signature="e#5779#5810#0" expanded="false" />
+            <element signature="e#5848#7010#0" expanded="false" />
+            <element signature="e#5872#6036#0" expanded="false" />
+            <element signature="e#6064#6176#0" expanded="false" />
+            <element signature="e#6208#6264#0" expanded="false" />
+            <element signature="e#6335#6645#0" expanded="false" />
+            <element signature="e#6389#6625#0" expanded="false" />
+            <element signature="e#6738#7010#0" expanded="false" />
           </folding>
         </state>
       </provider>
