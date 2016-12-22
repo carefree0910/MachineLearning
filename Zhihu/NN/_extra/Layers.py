@@ -16,11 +16,6 @@ class Layer(metaclass=ABCMeta):
         self._shape = shape
         self.parent = None
         self.child = None
-        self.is_fc = False
-        self.is_fc_base = False
-        self.is_last_root = False
-        self.is_sub_layer = False
-        self._last_sub_layer = None
 
     def feed_timing(self, timing):
         if isinstance(timing, Timing):
@@ -37,39 +32,6 @@ class Layer(metaclass=ABCMeta):
     @shape.setter
     def shape(self, value):
         self._shape = value
-
-    @property
-    def params(self):
-        return self._shape,
-
-    @property
-    def special_params(self):
-        return
-
-    def set_special_params(self, dic):
-        for key, value in dic.items():
-            setattr(self, key, value)
-
-    @property
-    def root(self):
-        return self
-
-    @root.setter
-    def root(self, value):
-        raise BuildLayerError("Setting Layer's root is not permitted")
-
-    @property
-    def last_sub_layer(self):
-        _child = self.child
-        if not _child:
-            return None
-        while _child.child:
-            _child = _child.child
-        return _child
-
-    @last_sub_layer.setter
-    def last_sub_layer(self, value):
-        self._last_sub_layer = value
 
     # Core
 
@@ -190,7 +152,6 @@ class CostLayer(Layer):
         self._parent = parent
         self._available_cost_functions = {
             "MSE": CostLayer._mse,
-            "SVM": CostLayer._svm,
             "Cross Entropy": CostLayer._cross_entropy,
             "Log Likelihood": CostLayer._log_likelihood
         }
@@ -214,24 +175,8 @@ class CostLayer(Layer):
         return -self._cost_function(y, y_pred) * self._parent.derivative(y_pred)
 
     @property
-    def calculate(self):
-        return lambda y, y_pred: self._cost_function(y, y_pred, False)
-
-    @property
     def cost_function(self):
         return self._cost_function_name
-
-    @cost_function.setter
-    def cost_function(self, value):
-        if value not in self._available_cost_functions:
-            raise LayerError("'{}' is not implemented".format(value))
-        self._cost_function_name = value
-        self._cost_function = self._available_cost_functions[value]
-
-    def set_cost_function_derivative(self, func, name=None):
-        name = "Custom Cost Function" if name is None else name
-        self._cost_function_name = name
-        self._cost_function = func
 
     # Cost Functions
 
@@ -242,22 +187,6 @@ class CostLayer(Layer):
         assert_string = "y or y_pred should be np.ndarray in cost function"
         assert isinstance(y, np.ndarray) or isinstance(y_pred, np.ndarray), assert_string
         return 0.5 * np.average((y - y_pred) ** 2)
-
-    @staticmethod
-    def _svm(y, y_pred, diff=True):
-        n, y = y_pred.shape[0], np.argmax(y, axis=1)
-        correct_class_scores = y_pred[np.arange(n), y]
-        margins = np.maximum(0, y_pred - correct_class_scores[:, None] + 1.0)
-        margins[np.arange(n), y] = 0
-        loss = np.sum(margins) / n
-        num_pos = np.sum(margins > 0, axis=1)
-        if not diff:
-            return loss
-        dx = np.zeros_like(y_pred)
-        dx[margins > 0] = 1
-        dx[np.arange(n), y] -= num_pos
-        dx /= n
-        return dx
 
     @staticmethod
     def _cross_entropy(y, y_pred, diff=True):
@@ -294,10 +223,10 @@ class LayerFactory:
     }
     available_sub_layers = {
         "Dropout", "Normalize", "ConvNorm", "ConvDrop",
-        "MSE", "SVM", "Cross Entropy", "Log Likelihood"
+        "MSE", "Cross Entropy", "Log Likelihood"
     }
     available_cost_functions = {
-        "MSE", "SVM", "Cross Entropy", "Log Likelihood"
+        "MSE", "Cross Entropy", "Log Likelihood"
     }
 
     def handle_str_main_layers(self, name, *args, **kwargs):
