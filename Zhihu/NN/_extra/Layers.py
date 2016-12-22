@@ -40,8 +40,6 @@ class Layer(metaclass=ABCMeta):
 
     @LayerTiming.timeit(level=1, prefix="[Core] ")
     def activate(self, x, w, bias=None, predict=False):
-        # print(x)
-        # _ = input(w)
         if isinstance(self, CostLayer):
             return self._activate(x + bias, predict)
         return self._activate(x.dot(w) + bias, predict)
@@ -108,7 +106,6 @@ class ELU(Layer):
 
 class ReLU(Layer):
     def _activate(self, x, predict):
-        # _ = input(x)
         return np.maximum(0, x)
 
     def _derivative(self, y, delta=None):
