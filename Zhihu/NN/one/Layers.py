@@ -51,7 +51,7 @@ class Identical(Layer):
         return x
 
 
-class ReLU(Layer):
+class CF0910(Layer):
     def _activate(self, x, predict):
         return tf.minimum(tf.maximum(x, 0), 6)
 
