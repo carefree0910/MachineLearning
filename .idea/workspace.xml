@@ -40,7 +40,7 @@
       <file leaf-file-name="Network.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/Zhihu/NN/one/Network.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="600">
+            <state relative-caret-position="640">
               <caret line="116" column="0" lean-forward="true" selection-start-line="116" selection-start-column="0" selection-end-line="116" selection-end-column="0" />
               <folding>
                 <element signature="e#182#2408#0" expanded="false" />
@@ -60,7 +60,6 @@
                 <element signature="e#2490#2545#0" expanded="false" />
                 <element signature="e#2632#2732#0" expanded="false" />
                 <element signature="e#2849#3467#0" expanded="false" />
-                <element signature="e#3558#3631#0" expanded="false" />
                 <element signature="e#3718#3861#0" expanded="false" />
               </folding>
             </state>
@@ -843,7 +842,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/Zhihu/NN/one/Network.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="600">
+        <state relative-caret-position="640">
           <caret line="116" column="0" lean-forward="true" selection-start-line="116" selection-start-column="0" selection-end-line="116" selection-end-column="0" />
           <folding>
             <element signature="e#182#2408#0" expanded="false" />
@@ -863,7 +862,6 @@
             <element signature="e#2490#2545#0" expanded="false" />
             <element signature="e#2632#2732#0" expanded="false" />
             <element signature="e#2849#3467#0" expanded="false" />
-            <element signature="e#3558#3631#0" expanded="false" />
             <element signature="e#3718#3861#0" expanded="false" />
           </folding>
         </state>
