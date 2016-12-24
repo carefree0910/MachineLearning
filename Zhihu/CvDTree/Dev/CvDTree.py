@@ -1,6 +1,5 @@
 import time
 import math
-import random
 import numpy as np
 from collections import Counter
 
@@ -54,6 +53,7 @@ class CvDNode:
         if tree is not None:
             tree.nodes.append(self)
         self.feature_dim = None
+        self.feats = []
         self._depth = depth
         self.parent = parent
         self.is_root = is_root
@@ -71,8 +71,8 @@ class CvDNode:
         return 1 + max([_child.height for _child in self.children.values()])
 
     def feed_data(self, data, labels):
-        self._data = np.array(data).T
-        self.labels = np.array(labels)
+        self._data = data.T
+        self.labels = labels
 
     def stop(self, eps):
         if (
@@ -89,24 +89,22 @@ class CvDNode:
             return True
         return False
 
-    def crop(self, x=None):
-        x = self._data if x is None else x
-        _mask = np.ones(len(x), dtype=np.bool)
-        _mask[self.feature_dim] = False
-        return x[_mask]
-
     def get_class(self):
         _counter = Counter(self.labels)
         return max(_counter.keys(), key=(lambda key: _counter[key]))
 
-    def _gen_children(self, features, new_data, con_ent):
+    def _gen_children(self, feat, con_ent):
+        features = self._data[feat]
+        _new_feats = self.feats[:]
+        _new_feats.remove(feat)
         for feat in set(features):
             _feat_mask = features == feat
             _new_node = self.__class__(
                 self.tree, self._max_depth, self._base, ent=con_ent,
                 depth=self._depth + 1, parent=self, is_root=False, prev_feat=feat)
+            _new_node.feats = _new_feats
             self.children[feat] = _new_node
-            _new_node.fit(new_data[:, _feat_mask].T, self.labels[_feat_mask])
+            _new_node.fit(self._data[:, _feat_mask].T, self.labels[_feat_mask])
 
     def _handle_terminate(self):
         self.tree.depth = max(self._depth, self.tree.depth)
@@ -122,16 +120,16 @@ class CvDNode:
         if self.stop(eps):
             return
         _cluster = Cluster(self._data.T, self.labels, self._base)
-        _max_gain, _con_ent = _cluster.info_gain(0)
-        _max_feature = 0
-        for i in range(1, len(self._data)):
-            _tmp_gain, _tmp_con_ent = _cluster.info_gain(i)
+        _max_gain, _con_ent = _cluster.info_gain(self.feats[0])
+        _max_feature = self.feats[0]
+        for feat in self.feats:
+            _tmp_gain, _tmp_con_ent = _cluster.info_gain(feat)
             if _tmp_gain > _max_gain:
-                (_max_gain, _con_ent), _max_feature = (_tmp_gain, _tmp_con_ent), i
+                (_max_gain, _con_ent), _max_feature = (_tmp_gain, _tmp_con_ent), feat
         if self.early_stop(_max_gain, eps):
             return
         self.feature_dim = _max_feature
-        self._gen_children(self._data[_max_feature], self.crop(), _con_ent)
+        self._gen_children(_max_feature, _con_ent)
         if self.is_root:
             self.tree.prune()
 
@@ -151,7 +149,7 @@ class CvDNode:
         if self.category is not None:
             return self.category
         try:
-            return self.children[x[self.feature_dim]].predict_one(self.crop(x))
+            return self.children[x[self.feature_dim]].predict_one(x)
         except KeyError:
             return self.get_class()
 
@@ -195,6 +193,8 @@ class CvDBase:
         return np.sum(np.array(y) == np.array(y_pred)) / len(y)
 
     def fit(self, data=None, labels=None, eps=1e-8):
+        data, labels = np.array(data), np.array(labels)
+        self.root.feats = [i for i in range(data.shape[1])]
         self.root.fit(data, labels, eps)
 
     def prune(self, alpha=1):

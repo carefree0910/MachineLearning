@@ -123,7 +123,7 @@ class CvDNode:
 
     @property
     def key(self):
-        return self._depth, self._prev_feat, id(self)
+        return self._depth, self._prev_feat
 
     @property
     def height(self):
