@@ -2,7 +2,6 @@ import time
 import math
 import random
 import numpy as np
-from collections import Counter
 
 
 # Util
@@ -10,19 +9,19 @@ from collections import Counter
 class Cluster:
     def __init__(self, data, labels, base=2):
         self._data = np.array(data).T
-        self._counters = Counter(labels)
+        self._counters = np.bincount(labels)
         self._labels = np.array(labels)
         self._base = base
 
     def ent(self, ent=None, eps=1e-12):
         _len = len(self._labels)
         if ent is None:
-            ent = [_val for _val in self._counters.values()]
+            ent = [max(eps, _val) for _val in self._counters]
         return max(eps, -sum([_c / _len * math.log(_c / _len, self._base) for _c in ent]))
 
     def con_ent(self, idx):
         data = self._data[idx]
-        features = list(sorted(set(data)))
+        features = set(data)
         tmp_labels = [data == feature for feature in features]
         label_lst = [self._labels[label] for label in tmp_labels]
         rs = 0
@@ -69,7 +68,7 @@ class CvDNode:
         return 1 + max([_child.height for _child in self.children.values()])
 
     def feed_data(self, data, labels):
-        self._data = data.T
+        self._data = data
         self.labels = labels
 
     def stop(self, eps):
@@ -88,11 +87,11 @@ class CvDNode:
         return False
 
     def get_class(self):
-        _counter = Counter(self.labels)
-        return max(_counter.keys(), key=(lambda key: _counter[key]))
+        _counter = np.bincount(self.labels)
+        return np.argmax(_counter)
 
     def _gen_children(self, feat, con_ent):
-        features = self._data[feat]
+        features = self._data[:, feat]
         _new_feats = self.feats[:]
         _new_feats.remove(feat)
         for feat in set(features):
@@ -102,7 +101,7 @@ class CvDNode:
                 depth=self._depth + 1, parent=self, is_root=False, prev_feat=feat)
             _new_node.feats = _new_feats
             self.children[feat] = _new_node
-            _new_node.fit(self._data[:, _feat_mask].T, self.labels[_feat_mask])
+            _new_node.fit(self._data[_feat_mask, :], self.labels[_feat_mask])
 
     def _handle_terminate(self):
         self.tree.depth = max(self._depth, self.tree.depth)
@@ -117,7 +116,7 @@ class CvDNode:
             self.feed_data(data, labels)
         if self.stop(eps):
             return
-        _cluster = Cluster(self._data.T, self.labels, self._base)
+        _cluster = Cluster(self._data, self.labels, self._base)
         _max_gain, _con_ent = _cluster.info_gain(self.feats[0])
         _max_feature = self.feats[0]
         for feat in self.feats:
@@ -236,7 +235,14 @@ if __name__ == '__main__':
     for line in _data:
         _y.append(line.pop(0))
         _x.append(line)
-    _x, _y = np.array(_x), np.array(_y)
+    _x = np.array(_x).T
+    for _i, line in enumerate(_x):
+        _dic = {_c: i for i, _c in enumerate(set(line))}
+        for _j, _elem in enumerate(line):
+            _x[_i][_j] = _dic[_elem]
+    _x = _x.T
+    _dic = {c: i for i, c in enumerate(set(_y))}
+    _y = np.array([_dic[yy] for yy in _y])
     train_num = 5000
     x_train = _x[:train_num]
     y_train = _y[:train_num]

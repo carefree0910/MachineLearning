@@ -22,7 +22,7 @@ class Cluster:
 
     def con_ent(self, idx):
         data = self._data[idx]
-        features = list(sorted(set(data)))
+        features = set(data)
         tmp_labels = [data == feature for feature in features]
         label_lst = [self._labels[label] for label in tmp_labels]
         rs = 0
