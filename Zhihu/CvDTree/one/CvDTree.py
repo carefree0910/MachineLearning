@@ -237,12 +237,7 @@ if __name__ == '__main__':
     for line in _data:
         _y.append(line.pop(0))
         _x.append(line)
-    _x, _y = np.array(_x).T, np.array(_y)
-    for _i, line in enumerate(_x):
-        _dic = {_c: i for i, _c in enumerate(set(line))}
-        for _j, elem in enumerate(line):
-            _x[_i][_j] = _dic[elem]
-    _x = _x.T
+    _x, _y = np.array(_x), np.array(_y)
     train_num = 5000
     x_train = _x[:train_num]
     y_train = _y[:train_num]

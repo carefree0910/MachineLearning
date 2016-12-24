@@ -3,8 +3,6 @@ import math
 import numpy as np
 from collections import Counter
 
-from sklearn.tree import DecisionTreeClassifier
-
 # TODO: Debug - Pruning, CART Pruning
 # TODO: Try batch prediction and visualization
 # TODO: Support Continuous Data ; Feed sample-weight
@@ -370,12 +368,7 @@ if __name__ == '__main__':
     for line in _data:
         _y.append(line.pop(0))
         _x.append(line)
-    _x, _y = np.array(_x).T, np.array(_y)
-    for _i, line in enumerate(_x):
-        _dic = {_c: i for i, _c in enumerate(set(line))}
-        for _j, elem in enumerate(line):
-            _x[_i][_j] = _dic[elem]
-    _x = _x.T
+    _x, _y = np.array(_x), np.array(_y)
     train_num = 5000
     x_train = _x[:train_num]
     y_train = _y[:train_num]
@@ -386,13 +379,6 @@ if __name__ == '__main__':
     _tree = C45Tree()
     _tree.fit(x_train, y_train)
     _tree.view()
-    _y_pred = _tree.predict(x_test)
-    print(np.sum(_y_pred == y_test) / len(y_test))
-    print(time.time() - _t)
-
-    _t = time.time()
-    _sk_tree = DecisionTreeClassifier()
-    _sk_tree.fit(x_train, y_train)
     _y_pred = _tree.predict(x_test)
     print(np.sum(_y_pred == y_test) / len(y_test))
     print(time.time() - _t)
