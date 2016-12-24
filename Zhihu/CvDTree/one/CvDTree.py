@@ -59,10 +59,7 @@ class CvDNode:
         self.is_root = is_root
         self.prev_feat = prev_feat
         self.leafs = {}
-
-    @property
-    def key(self):
-        return self._depth, self.prev_feat
+        self.key = self._depth, self.prev_feat, str(random.random())[:8]
 
     @property
     def height(self):

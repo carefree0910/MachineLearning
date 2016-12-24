@@ -1,5 +1,6 @@
 import time
 import math
+import random
 import numpy as np
 from collections import Counter
 
@@ -85,15 +86,12 @@ class CvDNode:
         self.weight = 0
         self.leafs = {}
         self.pruned = False
+        self.key = self._depth, self.prev_feat, str(random.random())[:8]
 
     def __getitem__(self, item):
         if isinstance(item, str):
             return getattr(self, "_" + item)
         return
-
-    @property
-    def key(self):
-        return self._depth, self._prev_feat
 
     @property
     def height(self):
