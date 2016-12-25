@@ -1,20 +1,22 @@
 import time
 import math
-import random
 import numpy as np
-from collections import Counter
 
-# TODO: Debug - Pruning, CART Pruning
 # TODO: Try batch prediction and visualization
-# TODO: Support Continuous Data ; Feed sample-weight
+# TODO: Support Continuous Data
+# TODO: CART
 
 
 # Util
 
 class Cluster:
-    def __init__(self, data, labels, base=2):
+    def __init__(self, data, labels, sample_weights=None, base=2):
         self._data = np.array(data).T
-        self._counters = Counter(labels)
+        if sample_weights is None:
+            self._counters = np.bincount(labels)
+        else:
+            self._counters = np.bincount(labels, weights=sample_weights)
+        self._sample_weights = sample_weights
         self._labels = np.array(labels)
         self._cache = None
         self._base = base
@@ -22,12 +24,12 @@ class Cluster:
     def ent(self, ent=None, eps=1e-12):
         _len = len(self._labels)
         if ent is None:
-            ent = [_val for _val in self._counters.values()]
-        return max(eps, -sum([_c / _len * math.log(_c / _len, self._base) for _c in ent]))
+            ent = [_val for _val in self._counters]
+        return max(eps, -sum([_c / _len * math.log(_c / _len, self._base) if _c != 0 else 0 for _c in ent]))
 
     def gini(self, p=None):
         if p is None:
-            p = [_val for _val in self._counters.values()]
+            p = [_val for _val in self._counters]
         return 1 - sum([(_p / len(self._labels)) ** 2 for _p in p])
 
     def con_chaos(self, idx, criteria="ent"):
@@ -44,7 +46,10 @@ class Cluster:
         rs = 0
         for data_label, tar_label in zip(tmp_labels, label_lst):
             tmp_data = self._data.T[data_label]
-            _ent = _method(Cluster(tmp_data, tar_label, base=self._base))
+            if self._sample_weights is None:
+                _ent = _method(Cluster(tmp_data, tar_label, base=self._base))
+            else:
+                _ent = _method(Cluster(tmp_data, tar_label, self._sample_weights[data_label], base=self._base))
             rs += len(tmp_data) / len(data) * _ent
         return rs
 
@@ -70,28 +75,33 @@ class CvDNode:
         self._data = self.labels = None
         self._max_depth = max_depth
         self._base = base
-        self._ent = ent
+        self.ent = ent
         self.criteria = None
         self.children = {}
         self.category = None
+        self.sample_weights = self.prune_criteria = None
 
         self.tree = tree
         if tree is not None:
             tree.nodes.append(self)
         self.feature_dim = None
+        self.feats = []
         self._depth = depth
         self.parent = parent
-        self._is_root = is_root
+        self.is_root = is_root
         self._prev_feat = prev_feat
-        self.weight = 0
         self.leafs = {}
         self.pruned = False
-        self.key = self._depth, self.prev_feat, str(random.random())[:8]
+        self.label_dic = {}
 
     def __getitem__(self, item):
         if isinstance(item, str):
             return getattr(self, "_" + item)
         return
+
+    @property
+    def key(self):
+        return self._depth, self.prev_feat, id(self)
 
     @property
     def height(self):
@@ -103,15 +113,25 @@ class CvDNode:
     def prev_feat(self):
         return self._prev_feat
 
+    @property
+    def info_dic(self):
+        return {
+            "ent": self.ent,
+            "labels": self.labels
+        }
+
     def copy(self):
         _new_node = self.__class__(
-            None, self._max_depth, self._base, self._ent,
-            self._depth, self.parent, self._is_root, self._prev_feat)
+            None, self._max_depth, self._base, self.ent,
+            self._depth, self.parent, self.is_root, self._prev_feat)
         _new_node.tree = self.tree
         _new_node.feature_dim = self.feature_dim
         _new_node.category = self.category
         _new_node.labels = self.labels
         _new_node.pruned = self.pruned
+        _new_node.label_dic = self.label_dic
+        _new_node.sample_weights = self.sample_weights
+        _new_node.prune_criteria = self.prune_criteria
         if self.children:
             for key, node in self.children.items():
                 _new_node.children[key] = node.copy()
@@ -127,12 +147,12 @@ class CvDNode:
         self.tree.nodes.append(self)
 
     def feed_data(self, data, labels):
-        self._data = np.array(data).T
+        self._data = np.array(data)
         self.labels = np.array(labels)
 
     def stop(self, eps):
         if (
-            self._data.shape[1] == 1 or (self._ent is not None and self._ent <= eps)
+            self._data.shape[1] == 1 or (self.ent is not None and self.ent <= eps)
             or (self._max_depth is not None and self._depth >= self._max_depth)
         ):
             self._handle_terminate()
@@ -145,75 +165,76 @@ class CvDNode:
             return True
         return False
 
-    def crop(self, x=None):
-        x = self._data if x is None else x
-        _mask = np.ones(len(x), dtype=np.bool)
-        _mask[self.feature_dim] = False
-        return x[_mask]
-
     def get_class(self):
-        _counter = Counter(self.labels)
-        return max(_counter, key=(lambda key: _counter[key]))
+        _counter = np.bincount(self.labels)
+        return np.argmax(_counter)
 
     def get_threshold(self):
         if self.category is None:
             rs = 0
             for leaf in self.leafs.values():
-                _cluster = Cluster(None, leaf, self._base)
-                rs += len(leaf) * _cluster.ent()
-            return Cluster(None, self.labels, self._base).ent() - rs / (self.weight - 1)
+                _cluster = Cluster(None, leaf["labels"], None, self._base)
+                rs += len(leaf["labels"]) * _cluster.ent()
+            return Cluster(None, self.labels, None, self._base).ent() - rs / (len(self.leafs) - 1)
         return 0
 
-    def _gen_children(self, features, new_data, con_chaos):
+    def _gen_children(self, feat, con_chaos):
+        features = self._data[:, feat]
+        _new_feats = self.feats[:]
+        _new_feats.remove(feat)
         for feat in set(features):
             _feat_mask = features == feat
             _new_node = self.__class__(
                 self.tree, self._max_depth, self._base, ent=con_chaos,
                 depth=self._depth + 1, parent=self, is_root=False, prev_feat=feat)
+            _new_node.feats = _new_feats
+            _new_node.label_dic = self.label_dic
             self.children[feat] = _new_node
-            _new_node.fit(new_data[:, _feat_mask].T, self.labels[_feat_mask])
+            _local_weights = None if self.sample_weights is None else self.sample_weights[_feat_mask]
+            _new_node.fit(self._data[_feat_mask, :], self.labels[_feat_mask],
+                          _local_weights, self.prune_criteria)
 
     def _handle_terminate(self):
         self.tree.depth = max(self._depth, self.tree.depth)
         self.category = self.get_class()
         _parent = self
         while _parent is not None:
-            _parent.leafs[self.key] = self.labels
-            _parent.weight += 1
+            _parent.leafs[self.key] = self.info_dic
             _parent = _parent.parent
 
-    def fit(self, data, labels, eps=1e-8):
+    def fit(self, data, labels, sample_weights, prune_criteria, eps=1e-8):
         if data is not None and labels is not None:
             self.feed_data(data, labels)
+        self.sample_weights, self.prune_criteria = sample_weights, prune_criteria
         if self.stop(eps):
             return
-        _cluster = Cluster(self._data.T, self.labels, self._base)
-        _max_gain, _con_chaos = _cluster.info_gain(0, criteria=self.criteria, get_con_chaos=True)
-        _max_feature = 0
-        for i in range(1, len(self._data)):
-            _tmp_gain, _tmp_con_chaos = _cluster.info_gain(i, criteria=self.criteria, get_con_chaos=True)
+        _cluster = Cluster(self._data, self.labels, sample_weights, self._base)
+        _max_gain, _con_chaos = _cluster.info_gain(self.feats[0], criteria=self.criteria, get_con_chaos=True)
+        _max_feature = self.feats[0]
+        for feat in self.feats:
+            _tmp_gain, _tmp_con_chaos = _cluster.info_gain(feat, criteria=self.criteria, get_con_chaos=True)
             if _tmp_gain > _max_gain:
-                (_max_gain, _con_chaos), _max_feature = (_tmp_gain, _tmp_con_chaos), i
+                (_max_gain, _con_chaos), _max_feature = (_tmp_gain, _tmp_con_chaos), feat
         if self.early_stop(_max_gain, eps):
             return
         self.feature_dim = _max_feature
-        self._gen_children(self._data[_max_feature], self.crop(), _con_chaos)
-        if self._is_root:
+        self._gen_children(_max_feature, _con_chaos)
+        if self.is_root:
             self.tree.prune()
 
     def prune(self):
-        self.category = self.get_class()
-        dw = self.weight - 1
-        self.weight = 1
+        if self.category is None:
+            self.category = self.get_class()
+        if self.prune_criteria not in ("normal", "cart"):
+            return
         _pop_lst = [key for key in self.leafs]
-        self.mark_pruned()
         _parent = self
         while _parent is not None:
             for _k in _pop_lst:
                 _parent.leafs.pop(_k)
-            _parent.leafs[self.key] = self.labels
-            _parent.weight -= dw
+            _parent.leafs[self.key] = self.info_dic
             _parent = _parent.parent
+        self.mark_pruned()
         self.children = {}
 
     def mark_pruned(self):
@@ -226,17 +247,9 @@ class CvDNode:
         if self.category is not None:
             return self.category
         try:
-            return self.children[x[self.feature_dim]].predict_one(self.crop(x))
+            return self.children[x[self.feature_dim]].predict_one(x)
         except KeyError:
             return self.get_class()
-
-    def predict(self, x):
-        if self.category is not None:
-            if self._is_root:
-                return [self.category] * len(x)
-            return self.category
-        x = np.atleast_2d(x)
-        return [self.predict_one(xx) for xx in x]
 
     def view(self, indent=4):
         print(" " * indent * self._depth, self)
@@ -251,7 +264,7 @@ class CvDNode:
             return "CvDNode ({}) ({} -> {})".format(
                 self._depth, self._prev_feat, self.feature_dim)
         return "CvDNode ({}) ({} -> class: {})".format(
-            self._depth, self._prev_feat, self.category)
+            self._depth, self._prev_feat, self.label_dic[self.category])\
 
     __repr__ = __str__
 
@@ -271,7 +284,7 @@ class C45Node(CvDNode):
 # Tree
 
 class CvDBase:
-    def __init__(self, max_depth=None, node=None):
+    def __init__(self, max_depth=None, node=None, prune_criteria="normal"):
         self.nodes = []
         self.trees = []
         self._threshold_cache = None
@@ -282,6 +295,9 @@ class CvDBase:
             self.root = node
             self.root.feed_tree(self)
         self.depth = 1
+        self.label_dic = {}
+        self.prune_alpha = 1
+        self.prune_criteria = prune_criteria
 
     @staticmethod
     def acc(y, y_pred):
@@ -290,48 +306,91 @@ class CvDBase:
     def copy(self):
         _new_tree = self.__class__(self._max_depth, node=self.root.copy())
         _new_tree.nodes = [_node.copy() for _node in self.nodes]
+        _new_tree.label_dic = self.label_dic.copy()
         _new_tree.depth = self.depth
         return _new_tree
 
-    def fit(self, data=None, labels=None, eps=1e-8):
-        self.root.fit(data, labels, eps)
-        _arg = np.argmax([CvDBase.acc(labels, tree.predict(data)) for tree in self.trees])
-        _tar_tree = self.trees[_arg]
-        self.nodes = _tar_tree.nodes
-        self.depth = _tar_tree.depth
-        self.root = _tar_tree.root
+    def fit(self, data=None, labels=None, sample_weights=None, eps=1e-8, **kwargs):
+        _dic = {c: i for i, c in enumerate(set(labels))}
+        labels = np.array([_dic[yy] for yy in labels])
+        self.label_dic = {value: key for key, value in _dic.items()}
+        data = np.array(data)
+        self.root.label_dic = self.label_dic
+        self.root.feats = [i for i in range(data.shape[1])]
+        self.root.fit(data, labels, sample_weights, self.prune_criteria, eps)
+        if self.prune_criteria == "normal":
+            self.prune_alpha = kwargs.get("alpha", self.prune_alpha)
+        elif self.prune_criteria == "cart":
+            _arg = np.argmax([CvDBase.acc(labels, tree.predict(data, False)) for tree in self.trees])
+            _tar_tree = self.trees[_arg]
+            self.nodes = _tar_tree.nodes
+            self.depth = _tar_tree.depth
+            self.root = _tar_tree.root
 
-    def prune(self):
-        self.trees.append(self.copy())
-        if self.depth <= 2:
-            return
-        _nodes = [_node for _node in self.nodes if _node.category is None]
-        if self._threshold_cache is None:
-            _thresholds = [_node.get_threshold() for _node in _nodes]
-        else:
-            _thresholds = self._threshold_cache
-        _arg = np.argmin(_thresholds)
-        _nodes[_arg].prune()
-        _thresholds[_arg] = _nodes[_arg].get_threshold()
-        self.depth = self.root.height
+    def _reduce_nodes(self):
         for i in range(len(self.nodes) - 1, -1, -1):
             if self.nodes[i].pruned:
                 self.nodes.pop(i)
-        for i in range(len(_thresholds) - 1, -1, -1):
-            if _nodes[i].pruned:
-                _thresholds.pop(i)
-        self._threshold_cache = _thresholds
-        if self.depth > 2:
-            self.prune()
-        else:
-            self.trees.append(self.copy())
-        pass
 
-    def predict_one(self, x):
+    def prune(self):
+        _continue = False
+        if self.root.prune_criteria == "normal":
+            if self.depth <= 2:
+                return
+            _tmp_nodes = [node for node in self.nodes if not node.is_root and not node.category]
+            if not _tmp_nodes:
+                return
+            _old = np.array([sum(
+                [leaf["ent"] * len(leaf["labels"]) for leaf in node.leafs.values()]
+            ) + self.prune_alpha * len(node.leafs) for node in _tmp_nodes])
+            _new = np.array([node.ent * len(node.labels) + self.prune_alpha for node in _tmp_nodes])
+            _mask = (_old - _new) > 0
+            arg = np.argmax(_mask)
+            if _mask[arg]:
+                _tmp_nodes[arg].prune()
+                _continue = True
+        elif self.root.prune_criteria == "cart":
+            self.trees.append(self.copy())
+            if self.depth <= 2:
+                return
+            _nodes = [_node for _node in self.nodes if _node.category is None]
+            if self._threshold_cache is None:
+                _thresholds = [_node.get_threshold() for _node in _nodes]
+            else:
+                _thresholds = self._threshold_cache
+            _arg = np.argmin(_thresholds)
+            _nodes[_arg].prune()
+            _thresholds[_arg] = _nodes[_arg].get_threshold()
+            self.depth = self.root.height
+            for i in range(len(self.nodes) - 1, -1, -1):
+                if self.nodes[i].pruned:
+                    self.nodes.pop(i)
+            for i in range(len(_thresholds) - 1, -1, -1):
+                if _nodes[i].pruned:
+                    _thresholds.pop(i)
+            self._threshold_cache = _thresholds
+            if self.depth > 2:
+                _continue = True
+            else:
+                self.trees.append(self.copy())
+        else:
+            return
+        if _continue:
+            self._reduce_nodes()
+            self.prune()
+
+    def predict_one(self, x, transform=True):
+        if transform:
+            return self.label_dic[self.root.predict_one(x)]
         return self.root.predict_one(x)
 
-    def predict(self, x):
-        return self.root.predict(x)
+    def predict(self, x, transform=True):
+        x = np.atleast_2d(x)
+        return np.array([self.predict_one(xx, transform) for xx in x])
+
+    def estimate(self, x, y):
+        y = np.array(y)
+        print("Acc: {:8.6} %".format(100 * np.sum(self.predict(x) == y) / len(y)))
 
     def view(self):
         self.root.view()
@@ -342,24 +401,31 @@ class CvDBase:
     __repr__ = __str__
 
 
-class ID3Tree(CvDBase):
-    def __init__(self, *args, **kwargs):
-        if "node" not in kwargs:
-            CvDBase.__init__(self, node=ID3Node(), *args, **kwargs)
-        else:
-            CvDBase.__init__(self, *args, **kwargs)
+class CvDMeta(type):
+    def __new__(mcs, *args, **kwargs):
+        name, bases, attr = args[:3]
+        base, node = bases
+
+        def __init__(self, *_args, **_kwargs):
+            if "node" not in _kwargs:
+                CvDBase.__init__(self, node=node(max_depth=kwargs.get("max_depth")), *_args, **_kwargs)
+            else:
+                CvDBase.__init__(self, *_args, **_kwargs)
+
+        attr["__init__"] = __init__
+        return type(name, bases, attr)
 
 
-class C45Tree(CvDBase):
-    def __init__(self, *args, **kwargs):
-        if "node" not in kwargs:
-            CvDBase.__init__(self, node=C45Node(), *args, **kwargs)
-        else:
-            CvDBase.__init__(self, *args, **kwargs)
+class ID3Tree(CvDBase, ID3Node, metaclass=CvDMeta):
+    pass
+
+
+class C45Tree(CvDBase, C45Node, metaclass=CvDMeta):
+    pass
 
 if __name__ == '__main__':
     _data, _x, _y = [], [], []
-    with open("data.txt", "r") as file:
+    with open("Data/data.txt", "r") as file:
         for line in file:
             _data.append(line.split(","))
     np.random.shuffle(_data)
@@ -377,6 +443,5 @@ if __name__ == '__main__':
     _tree = C45Tree()
     _tree.fit(x_train, y_train)
     _tree.view()
-    _y_pred = _tree.predict(x_test)
-    print(np.sum(_y_pred == y_test) / len(y_test))
-    print(time.time() - _t)
+    _tree.estimate(x_test, y_test)
+    print("Time cost: {:8.6}".format(time.time() - _t))

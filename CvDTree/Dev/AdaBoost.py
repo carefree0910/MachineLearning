@@ -3,8 +3,8 @@ import numpy as np
 from math import pi, exp, log
 import matplotlib.pyplot as plt
 
-from NaiveBayes import MergedNB
-from CvDTree import C45Tree
+from CvDTree.Dev.NaiveBayes import MergedNB
+from CvDTree.Dev.Tree import C45Tree
 
 try:
     from mpl_toolkits.mplot3d import Axes3D
@@ -23,8 +23,8 @@ class Util:
 
     @staticmethod
     def data_cleaning(line):
-        line = line.replace('"', "")
-        return list(map(lambda c: c.strip(), line.split(";")))
+        # line = line.replace('"', "")
+        return list(map(lambda c: c.strip(), line.split(",")))
 
     @staticmethod
     def get_raw_data():
@@ -313,7 +313,7 @@ if __name__ == '__main__':
     ada = AdaBoost()
 
     _t = time.time()
-    ada.fit(train_x, train_y, "CvDTree", epoch=10, max_depth=6)
+    ada.fit(train_x, train_y, "CvDTree", epoch=10)
     ada.estimate(train_x, train_y)
     ada.estimate(test_x, test_y)
     print("Clf Num: {}".format(len(ada["clfs"])))
@@ -340,9 +340,9 @@ if __name__ == '__main__':
     # ada.reset()
 
     _t = time.time()
-    ada.fit(train_x, train_y, "STree")
+    ada.fit(train_x, train_y, "STree", prune_criteria="none", max_depth=2)
     ada.estimate(train_x, train_y)
-    ada.estimate(train_x, train_y)
+    ada.estimate(test_x, test_y)
     print("Clf Num: {}".format(len(ada["clfs"])))
     print("Clf Params: {}".format(ada.params))
     print("Time Cost: {:8.6}".format(time.time() - _t))

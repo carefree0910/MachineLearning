@@ -6,9 +6,13 @@ import numpy as np
 # Util
 
 class Cluster:
-    def __init__(self, data, labels, base=2):
+    def __init__(self, data, labels, sample_weights=None, base=2):
         self._data = np.array(data).T
-        self._counters = np.bincount(labels)
+        if sample_weights is None:
+            self._counters = np.bincount(labels)
+        else:
+            self._counters = np.bincount(labels, weights=sample_weights)
+        self._sample_weights = sample_weights
         self._labels = np.array(labels)
         self._base = base
 
@@ -26,7 +30,10 @@ class Cluster:
         rs = 0
         for data_label, tar_label in zip(tmp_labels, label_lst):
             tmp_data = self._data.T[data_label]
-            _ent = Cluster(tmp_data, tar_label, base=self._base).ent()
+            if self._sample_weights is None:
+                _ent = Cluster(tmp_data, tar_label, base=self._base).ent()
+            else:
+                _ent = Cluster(tmp_data, tar_label, self._sample_weights[data_label], base=self._base).ent()
             rs += len(tmp_data) / len(data) * _ent
         return rs
 
@@ -47,6 +54,7 @@ class CvDNode:
         self.ent = ent
         self.children = {}
         self.category = None
+        self.label_dic = {}
 
         self.tree = tree
         if tree is not None:
@@ -103,6 +111,7 @@ class CvDNode:
                 self.tree, self._max_depth, self._base, ent=con_ent,
                 depth=self._depth + 1, parent=self, is_root=False, prev_feat=feat)
             _new_node.feats = _new_feats
+            _new_node.label_dic = self.label_dic
             self.children[feat] = _new_node
             _new_node.fit(self._data[_feat_mask, :], self.labels[_feat_mask])
 
@@ -114,12 +123,12 @@ class CvDNode:
             _parent.leafs[self.key] = self
             _parent = _parent.parent
 
-    def fit(self, data, labels, eps=1e-8):
+    def fit(self, data, labels, sample_weights=None, eps=1e-8):
         if data is not None and labels is not None:
             self.feed_data(data, labels)
         if self.stop(eps):
             return
-        _cluster = Cluster(self._data, self.labels, self._base)
+        _cluster = Cluster(self._data, self.labels, sample_weights, self._base)
         _max_gain, _con_ent = _cluster.info_gain(self.feats[0])
         _max_feature = self.feats[0]
         for feat in self.feats:
@@ -160,14 +169,6 @@ class CvDNode:
         except KeyError:
             return self.get_class()
 
-    def predict(self, x):
-        if self.category is not None:
-            if self.is_root:
-                return [self.category] * len(x)
-            return self.category
-        x = np.atleast_2d(x)
-        return [self.predict_one(xx) for xx in x]
-
     def view(self, indent=4):
         print(" " * indent * self._depth, self)
         for _node in sorted(self.children.values()):
@@ -181,7 +182,7 @@ class CvDNode:
             return "CvDNode ({}) ({} -> {})".format(
                 self._depth, self.prev_feat, self.feature_dim)
         return "CvDNode ({}) ({} -> class: {})".format(
-            self._depth, self.prev_feat, self.category)
+            self._depth, self.prev_feat, self.label_dic[self.category])
 
     __repr__ = __str__
 
@@ -194,20 +195,27 @@ class CvDBase:
         self._max_depth = max_depth
         self.root = CvDNode(self, max_depth)
         self.depth = 1
+        self.label_dic = {}
 
     @staticmethod
     def acc(y, y_pred):
         return np.sum(np.array(y) == np.array(y_pred)) / len(y)
 
-    def fit(self, data=None, labels=None, eps=1e-8):
-        data, labels = np.array(data), np.array(labels)
+    def fit(self, data=None, labels=None, sample_weights=None, eps=1e-8):
+        _dic = {c: i for i, c in enumerate(set(labels))}
+        labels = np.array([_dic[yy] for yy in labels])
+        self.label_dic = {value: key for key, value in _dic.items()}
+        data = np.array(data)
+        self.root.label_dic = self.label_dic
         self.root.feats = [i for i in range(data.shape[1])]
-        self.root.fit(data, labels, eps)
+        self.root.fit(data, labels, sample_weights, eps)
 
     def prune(self, alpha=1):
         if self.depth <= 2:
             return
         _tmp_nodes = [node for node in self.nodes if not node.is_root and not node.category]
+        if not _tmp_nodes:
+            return
         _old = np.array([sum(
             [leaf.ent * len(leaf.labels) for leaf in node.leafs.values()]
         ) + alpha * len(node.leafs) for node in _tmp_nodes])
@@ -222,10 +230,11 @@ class CvDBase:
             self.prune(alpha)
 
     def predict_one(self, x):
-        return self.root.predict_one(x)
+        return self.label_dic[self.root.predict_one(x)]
 
     def predict(self, x):
-        return self.root.predict(x)
+        x = np.atleast_2d(x)
+        return [self.predict_one(xx) for xx in x]
 
     def estimate(self, x, y):
         y = np.array(y)
@@ -248,9 +257,7 @@ if __name__ == '__main__':
     for line in _data:
         _y.append(line.pop(0))
         _x.append(list(map(lambda c: c.strip(), line)))
-    _x = np.array(_x)
-    _dic = {c: i for i, c in enumerate(set(_y))}
-    _y = np.array([_dic[yy] for yy in _y])
+    _x, _y = np.array(_x), np.array(_y)
     train_num = 5000
     x_train = _x[:train_num]
     y_train = _y[:train_num]
