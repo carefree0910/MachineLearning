@@ -59,7 +59,11 @@ class CvDNode:
         self.is_root = is_root
         self.prev_feat = prev_feat
         self.leafs = {}
-        self.key = self._depth, self.prev_feat, str(random.random())[:8]
+        self.pruned = False
+
+    @property
+    def key(self):
+        return self._depth, self.prev_feat, id(self)
 
     @property
     def height(self):
@@ -130,6 +134,12 @@ class CvDNode:
         if self.is_root:
             self.tree.prune()
 
+    def mark_pruned(self):
+        self.pruned = True
+        if self.children:
+            for child in self.children.values():
+                child.mark_pruned()
+
     def prune(self):
         if self.category is None:
             self.category = self.get_class()
@@ -140,6 +150,7 @@ class CvDNode:
                 _parent.leafs.pop(_k)
             _parent.leafs[self.key] = self
             _parent = _parent.parent
+        self.mark_pruned()
         self.children = {}
 
     def predict_one(self, x):
@@ -206,6 +217,9 @@ class CvDBase:
         arg = np.argmax(_mask)
         if _mask[arg]:
             _tmp_nodes[arg].prune()
+            for i in range(len(self.nodes) - 1, -1, -1):
+                if self.nodes[i].pruned:
+                    self.nodes.pop(i)
             self.prune(alpha)
 
     def predict_one(self, x):

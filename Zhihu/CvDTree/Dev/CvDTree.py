@@ -1,8 +1,6 @@
 import time
 import math
-import random
 import numpy as np
-from collections import Counter
 
 
 # Util
@@ -10,14 +8,14 @@ from collections import Counter
 class Cluster:
     def __init__(self, data, labels, base=2):
         self._data = np.array(data).T
-        self._counters = Counter(labels)
+        self._counters = np.bincount(labels)
         self._labels = np.array(labels)
         self._base = base
 
     def ent(self, ent=None, eps=1e-12):
         _len = len(self._labels)
         if ent is None:
-            ent = [_val for _val in self._counters.values()]
+            ent = [max(eps, _val) for _val in self._counters]
         return max(eps, -sum([_c / _len * math.log(_c / _len, self._base) for _c in ent]))
 
     def con_ent(self, idx):
@@ -92,8 +90,8 @@ class CvDNode:
         return False
 
     def get_class(self):
-        _counter = Counter(self.labels)
-        return max(_counter.keys(), key=(lambda key: _counter[key]))
+        _counter = np.bincount(self.labels)
+        return np.argmax(_counter)
 
     def _gen_children(self, feat, con_ent):
         features = self._data[:, feat]
@@ -249,8 +247,10 @@ if __name__ == '__main__':
     np.random.shuffle(_data)
     for line in _data:
         _y.append(line.pop(0))
-        _x.append(line)
-    _x, _y = np.array(_x), np.array(_y)
+        _x.append(list(map(lambda c: c.strip(), line)))
+    _x = np.array(_x)
+    _dic = {c: i for i, c in enumerate(set(_y))}
+    _y = np.array([_dic[yy] for yy in _y])
     train_num = 5000
     x_train = _x[:train_num]
     y_train = _y[:train_num]
