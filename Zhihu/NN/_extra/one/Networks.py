@@ -117,7 +117,9 @@ class NN:
             _activations = self._get_activations(x)
             _deltas = [self._layers[-1].bp_first(y, _activations[-1])]
             for i in range(-1, -len(_activations), -1):
-                _deltas.append(self._layers[i - 1].bp(_activations[i - 1], self._weights[i], _deltas[-1]))
+                _deltas.append(
+                    self._layers[i - 1].bp(_activations[i - 1], self._weights[i], _deltas[-1])
+                )
             for i in range(layer_width - 2, 0, -1):
                 self._opt(i, _activations[i - 1], _deltas[layer_width - i - 1])
             self._opt(0, x, _deltas[-1])

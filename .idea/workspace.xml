@@ -2,17 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="a4743ded-d384-4ad3-a479-12cfa6f90f49" name="Default" comment="">
-      <change type="DELETED" beforePath="$PROJECT_DIR$/NN/TF/Playground.py" afterPath="" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/NN/Basic/Networks.py" afterPath="$PROJECT_DIR$/NN/Basic/Networks.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/NN/NN.py" afterPath="$PROJECT_DIR$/NN/NN.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/NN/TF/Layers.py" afterPath="$PROJECT_DIR$/NN/TF/Layers.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/NN/TF/Networks.py" afterPath="$PROJECT_DIR$/NN/TF/Networks.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/NN/TF/Optimizers.py" afterPath="$PROJECT_DIR$/NN/TF/Optimizers.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/NN/Test/Test.py" afterPath="$PROJECT_DIR$/NN/Test/Test.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Zhihu/NN/Util.py" afterPath="$PROJECT_DIR$/Zhihu/NN/Util.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Zhihu/NN/_extra/Layers.py" afterPath="$PROJECT_DIR$/Zhihu/NN/_extra/Layers.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Zhihu/NN/_extra/one/Test.py" afterPath="$PROJECT_DIR$/Zhihu/NN/_extra/one/Test.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Zhihu/NN/_extra/one/Networks.py" afterPath="$PROJECT_DIR$/Zhihu/NN/_extra/one/Networks.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -24,7 +14,7 @@
   <component name="CoverageDataManager">
     <SUITE FILE_PATH="coverage/MachineLearning$CvDTree__1_.coverage" NAME="CvDTree (1) Coverage Results" MODIFIED="1482640273086" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/CvDTree/Dev" />
     <SUITE FILE_PATH="coverage/MachineLearning$AdaBoost.coverage" NAME="AdaBoost Coverage Results" MODIFIED="1482641725706" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/CvDTree/Dev" />
-    <SUITE FILE_PATH="coverage/MachineLearning$Test.coverage" NAME="Test Coverage Results" MODIFIED="1482648197824" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Zhihu/NN/_extra/one" />
+    <SUITE FILE_PATH="coverage/MachineLearning$Test.coverage" NAME="Test Coverage Results" MODIFIED="1482649902687" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Zhihu/NN/_extra/one" />
     <SUITE FILE_PATH="coverage/MachineLearning$Tree.coverage" NAME="Tree Coverage Results" MODIFIED="1482641616730" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/CvDTree/Dev" />
     <SUITE FILE_PATH="coverage/MachineLearning$Main.coverage" NAME="Main Coverage Results" MODIFIED="1482384662852" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Bayes/NaiveBayes" />
     <SUITE FILE_PATH="coverage/MachineLearning$RN.coverage" NAME="RN Coverage Results" MODIFIED="1482384432304" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/RegularizationNetworks" />
@@ -38,10 +28,10 @@
   <component name="ExecutionTargetManager" SELECTED_TARGET="default_target" />
   <component name="FileEditorManager">
     <leaf>
-      <file leaf-file-name="Layers.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="Layers.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Zhihu/NN/_extra/Layers.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="220">
+            <state relative-caret-position="-258">
               <caret line="50" column="56" lean-forward="false" selection-start-line="50" selection-start-column="56" selection-end-line="50" selection-end-column="56" />
               <folding>
                 <element signature="e#224#440#0" expanded="false" />
@@ -103,25 +93,13 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="Test.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/Zhihu/NN/_extra/one/Test.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="180">
-              <caret line="29" column="0" lean-forward="true" selection-start-line="29" selection-start-column="0" selection-end-line="29" selection-end-column="0" />
-              <folding>
-                <element signature="e#137#497#0" expanded="false" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
       <file leaf-file-name="Networks.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Zhihu/NN/_extra/one/Networks.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="160">
-              <caret line="150" column="0" lean-forward="true" selection-start-line="150" selection-start-column="0" selection-end-line="150" selection-end-column="0" />
+              <caret line="152" column="0" lean-forward="true" selection-start-line="152" selection-start-column="0" selection-end-line="152" selection-end-column="0" />
               <folding>
-                <element signature="e#225#5249#0" expanded="false" />
+                <element signature="e#225#5287#0" expanded="false" />
                 <element signature="e#278#465#0" expanded="false" />
                 <element signature="e#557#703#0" expanded="false" />
                 <element signature="e#600#703#0" expanded="false" />
@@ -139,12 +117,23 @@
                 <element signature="e#3055#3368#0" expanded="false" />
                 <element signature="e#3088#3193#0" expanded="false" />
                 <element signature="e#3220#3368#0" expanded="false" />
-                <element signature="e#3479#4175#0" expanded="false" />
-                <element signature="e#3662#4175#0" expanded="false" />
-                <element signature="e#4258#4288#0" expanded="false" />
-                <element signature="e#4375#4561#0" expanded="false" />
-                <element signature="e#4641#5249#0" expanded="false" />
+                <element signature="e#3479#4213#0" expanded="false" />
+                <element signature="e#3662#4213#0" expanded="false" />
+                <element signature="e#3912#4040#0" expanded="false" />
+                <element signature="e#4296#4326#0" expanded="false" />
+                <element signature="e#4413#4599#0" expanded="false" />
+                <element signature="e#4679#5287#0" expanded="false" />
               </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="Test.py" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/Zhihu/NN/_extra/one/Test.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="560">
+              <caret line="29" column="0" lean-forward="true" selection-start-line="29" selection-start-column="0" selection-end-line="29" selection-end-column="0" />
+              <folding />
             </state>
           </provider>
         </entry>
@@ -211,10 +200,10 @@
         <option value="$PROJECT_DIR$/NN/TF/Layers.py" />
         <option value="$PROJECT_DIR$/NN/TF/Optimizers.py" />
         <option value="$PROJECT_DIR$/NN/Test/Test.py" />
-        <option value="$PROJECT_DIR$/Zhihu/NN/_extra/one/Networks.py" />
         <option value="$PROJECT_DIR$/Zhihu/NN/Util.py" />
         <option value="$PROJECT_DIR$/Zhihu/NN/_extra/one/Test.py" />
         <option value="$PROJECT_DIR$/Zhihu/NN/_extra/Layers.py" />
+        <option value="$PROJECT_DIR$/Zhihu/NN/_extra/one/Networks.py" />
       </list>
     </option>
   </component>
@@ -255,72 +244,6 @@
             </PATH_ELEMENT>
             <PATH_ELEMENT>
               <option name="myItemId" value="MachineLearning" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-          </PATH>
-          <PATH>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="MachineLearning" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="MachineLearning" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="Zhihu" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="NN" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-          </PATH>
-          <PATH>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="MachineLearning" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="MachineLearning" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="Zhihu" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="NN" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="_extra" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-          </PATH>
-          <PATH>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="MachineLearning" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="MachineLearning" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="Zhihu" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="NN" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="_extra" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="one" />
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
           </PATH>
@@ -600,11 +523,11 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="-9" y="29" width="1938" height="1060" extended-state="6" />
+    <frame x="-9" y="29" width="1938" height="1060" extended-state="7" />
     <editor active="true" />
     <layout>
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
-      <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="-1" side_tool="true" content_ui="tabs" />
+      <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32960895" sideWeight="0.5" order="-1" side_tool="true" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32960895" sideWeight="0.5" order="-1" side_tool="false" content_ui="tabs" />
       <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32960895" sideWeight="0.5" order="-1" side_tool="false" content_ui="tabs" />
       <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.35530725" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
@@ -2626,51 +2549,9 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/Zhihu/NN/_extra/one/Networks.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="160">
-          <caret line="150" column="0" lean-forward="true" selection-start-line="150" selection-start-column="0" selection-end-line="150" selection-end-column="0" />
-          <folding>
-            <element signature="e#225#5249#0" expanded="false" />
-            <element signature="e#278#465#0" expanded="false" />
-            <element signature="e#557#703#0" expanded="false" />
-            <element signature="e#600#703#0" expanded="false" />
-            <element signature="e#736#759#0" expanded="false" />
-            <element signature="e#870#966#0" expanded="false" />
-            <element signature="e#1046#1503#0" expanded="false" />
-            <element signature="e#1192#1397#0" expanded="false" />
-            <element signature="e#1424#1503#0" expanded="false" />
-            <element signature="e#1574#1933#0" expanded="false" />
-            <element signature="e#2007#2044#0" expanded="false" />
-            <element signature="e#2119#2401#0" expanded="false" />
-            <element signature="e#2262#2373#0" expanded="false" />
-            <element signature="e#2473#2639#0" expanded="false" />
-            <element signature="e#2723#2961#0" expanded="false" />
-            <element signature="e#3055#3368#0" expanded="false" />
-            <element signature="e#3088#3193#0" expanded="false" />
-            <element signature="e#3220#3368#0" expanded="false" />
-            <element signature="e#3479#4175#0" expanded="false" />
-            <element signature="e#3662#4175#0" expanded="false" />
-            <element signature="e#4258#4288#0" expanded="false" />
-            <element signature="e#4375#4561#0" expanded="false" />
-            <element signature="e#4641#5249#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Zhihu/NN/_extra/one/Test.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="180">
-          <caret line="29" column="0" lean-forward="true" selection-start-line="29" selection-start-column="0" selection-end-line="29" selection-end-column="0" />
-          <folding>
-            <element signature="e#137#497#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/Zhihu/NN/_extra/Layers.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="220">
+        <state relative-caret-position="-258">
           <caret line="50" column="56" lean-forward="false" selection-start-line="50" selection-start-column="56" selection-end-line="50" selection-end-column="56" />
           <folding>
             <element signature="e#224#440#0" expanded="false" />
@@ -2728,6 +2609,47 @@
             <element signature="e#6260#6496#0" expanded="false" />
             <element signature="e#6609#6881#0" expanded="false" />
           </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Zhihu/NN/_extra/one/Networks.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="160">
+          <caret line="152" column="0" lean-forward="true" selection-start-line="152" selection-start-column="0" selection-end-line="152" selection-end-column="0" />
+          <folding>
+            <element signature="e#225#5287#0" expanded="false" />
+            <element signature="e#278#465#0" expanded="false" />
+            <element signature="e#557#703#0" expanded="false" />
+            <element signature="e#600#703#0" expanded="false" />
+            <element signature="e#736#759#0" expanded="false" />
+            <element signature="e#870#966#0" expanded="false" />
+            <element signature="e#1046#1503#0" expanded="false" />
+            <element signature="e#1192#1397#0" expanded="false" />
+            <element signature="e#1424#1503#0" expanded="false" />
+            <element signature="e#1574#1933#0" expanded="false" />
+            <element signature="e#2007#2044#0" expanded="false" />
+            <element signature="e#2119#2401#0" expanded="false" />
+            <element signature="e#2262#2373#0" expanded="false" />
+            <element signature="e#2473#2639#0" expanded="false" />
+            <element signature="e#2723#2961#0" expanded="false" />
+            <element signature="e#3055#3368#0" expanded="false" />
+            <element signature="e#3088#3193#0" expanded="false" />
+            <element signature="e#3220#3368#0" expanded="false" />
+            <element signature="e#3479#4213#0" expanded="false" />
+            <element signature="e#3662#4213#0" expanded="false" />
+            <element signature="e#3912#4040#0" expanded="false" />
+            <element signature="e#4296#4326#0" expanded="false" />
+            <element signature="e#4413#4599#0" expanded="false" />
+            <element signature="e#4679#5287#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Zhihu/NN/_extra/one/Test.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="560">
+          <caret line="29" column="0" lean-forward="true" selection-start-line="29" selection-start-column="0" selection-end-line="29" selection-end-column="0" />
+          <folding />
         </state>
       </provider>
     </entry>
