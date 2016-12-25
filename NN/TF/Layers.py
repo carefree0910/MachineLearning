@@ -2,9 +2,9 @@ import numpy as np
 from math import ceil
 from abc import ABCMeta, abstractmethod
 
-from Errors import *
-from TF.Optimizers import *
-from Util import Timing
+from NN.Errors import *
+from NN.TF.Optimizers import *
+from NN.Util import Timing
 
 
 class Layer(metaclass=ABCMeta):

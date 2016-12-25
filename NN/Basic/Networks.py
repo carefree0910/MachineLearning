@@ -31,7 +31,7 @@ class NNConfig:
 
 # Neural Network
 
-class NN:
+class NNDist:
 
     NNTiming = Timing()
 
@@ -59,8 +59,8 @@ class NN:
         self._optimizer_factory = OptFactory()
 
         self._available_metrics = {
-            "acc": NN._acc, "_acc": NN._acc,
-            "f1": NN._f1_score, "_f1_score": NN._f1_score
+            "acc": NNDist._acc, "_acc": NNDist._acc,
+            "f1": NNDist._f1_score, "_f1_score": NNDist._f1_score
         }
 
     @NNTiming.timeit(level=4, prefix="[Initialize] ")

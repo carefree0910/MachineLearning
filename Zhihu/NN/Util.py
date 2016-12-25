@@ -18,6 +18,22 @@ class DataUtil:
         z[x * y < 0, :] = [1, 0]
         return np.c_[x, y].astype(np.float32), z
 
+    @staticmethod
+    def gen_spin(size, n=7):
+        n_class = 2
+        xs = np.zeros((size * n, 2), dtype=np.float32)
+        ys = np.zeros(size * n, dtype=np.int8)
+        for j in range(n):
+            ix = range(size * j, size * (j + 1))
+            r = np.linspace(0.0, 1, size+1)[1:]
+            t = np.array(
+                np.linspace(j * (n + 1), (j + 1) * (n + 1), size) +
+                np.array(np.random.random(size=size)) * 0.2)
+            xs[ix] = np.c_[r * np.sin(t), r * np.cos(t)]
+            ys[ix] = j % n_class
+        z = np.array([[1, 0] if yy == 0 else [0, 1] for yy in ys])
+        return xs, z
+
 
 class VisUtil:
 

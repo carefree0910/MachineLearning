@@ -1,5 +1,5 @@
-from Util import *
-from NN import *
+from NN.Util import *
+from NN.Basic.Networks import *
 
 np.random.seed(142857)  # for reproducibility
 

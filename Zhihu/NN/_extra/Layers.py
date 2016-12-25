@@ -48,8 +48,6 @@ class Layer(metaclass=ABCMeta):
     def bp(self, y, w, prev_delta):
         if self.child is not None:
             return prev_delta
-        if isinstance(self, CostLayer):
-            return self._derivative(y, prev_delta.dot(w.T) * self._parent.derivative(y))
         return prev_delta.dot(w.T) * self._derivative(y)
 
     @abstractmethod

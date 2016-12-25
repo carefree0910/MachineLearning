@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from Util import Timing
+from NN.Util import Timing
 
 # TODO: Customize Optimizer
 

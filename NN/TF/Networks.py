@@ -8,8 +8,8 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
-from TF.Layers import *
-from Util import ProgressBar, VisUtil, Util
+from NN.TF.Layers import *
+from NN.Util import ProgressBar, VisUtil, Util
 
 # TODO: Visualization (Tensor Board)
 
