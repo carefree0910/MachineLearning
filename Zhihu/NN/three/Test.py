@@ -20,7 +20,7 @@ def main():
     nn.add(ReLU((24,)))
     nn.add(CrossEntropy((y.shape[1],)))
 
-    nn.fit(x, y, epoch=epoch, verbose=2)
+    nn.fit(x, y, epoch=epoch)
     nn.visualize_2d(x, y)
     nn.evaluate(x, y)
 

@@ -14,7 +14,7 @@ def main():
     timing_level = 1
     nn.feed_timing(timing)
 
-    x, y = DataUtil.gen_xor(10 ** 2, 1)
+    x, y = DataUtil.gen_xor(100, 1)
 
     nn.add(ReLU((x.shape[1], 24)))
     nn.add(CrossEntropy((y.shape[1],)))
