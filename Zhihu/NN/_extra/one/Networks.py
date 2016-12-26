@@ -9,15 +9,13 @@ np.random.seed(142857)  # for reproducibility
 
 # Neural Network
 
-class NN:
+class NNDist:
     NNTiming = Timing()
 
     def __init__(self):
         self._layers, self._weights, self._bias = [], [], []
         self._w_optimizer = self._b_optimizer = None
         self._current_dimension = 0
-
-        self._layer_factory = LayerFactory()
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def feed_timing(self, timing):

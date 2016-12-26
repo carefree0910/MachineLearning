@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 
-from Zhihu.NN.Layers import *
-from Zhihu.NN.Optimizers import *
+from Zhihu.NN._extra.Layers import *
+from Zhihu.NN._extra.Optimizers import *
 from Zhihu.NN.Util import Timing, ProgressBar
 
 np.random.seed(142857)  # for reproducibility
@@ -18,25 +18,21 @@ class NNVerbose:
 
 # Neural Network
 
-class NNBase:
+class NNDist:
     NNTiming = Timing()
 
     def __init__(self):
-        self._layers = []
-        self._optimizer = None
+        self._layers, self._weights, self._bias = [], [], []
+        self._w_optimizer = self._b_optimizer = None
         self._current_dimension = 0
 
-        self._tfx = self._tfy = None
-        self._tf_weights, self._tf_bias = [], []
-        self._cost = self._y_pred = None
-
-        self._train_step = None
         self.verbose = 0
-
-    def __str__(self):
-        return "Neural Network"
-
-    __repr__ = __str__
+        self._logs = {}
+        self._metrics, self._metric_names = [], []
+        self._available_metrics = {
+            "acc": NNDist._acc, "_acc": NNDist._acc,
+            "f1_score": NNDist._f1_score, "_f1_score": NNDist._f1_score
+        }
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def feed_timing(self, timing):
@@ -45,74 +41,54 @@ class NNBase:
             for layer in self._layers:
                 layer.feed_timing(timing)
 
-    @NNTiming.timeit(level=4, prefix="[Private StaticMethod] ")
-    def _get_w(self, shape):
-        initial = tf.truncated_normal(shape, stddev=0.1)
-        return tf.Variable(initial, name="w")
+    def __str__(self):
+        return "Neural Network"
 
-    @NNTiming.timeit(level=4, prefix="[Private StaticMethod] ")
-    def _get_b(self, shape):
-        initial = tf.constant(0.1, shape=shape)
-        return tf.Variable(initial, name="b")
-
-    @NNTiming.timeit(level=4)
-    def _add_weight(self, shape):
-        w_shape = shape
-        b_shape = shape[1],
-        self._tf_weights.append(self._get_w(w_shape))
-        self._tf_bias.append(self._get_b(b_shape))
-
-    @NNTiming.timeit(level=1, prefix="[API] ")
-    def get_rs(self, x, y=None):
-        _cache = self._layers[0].activate(x, self._tf_weights[0], self._tf_bias[0])
-        for i, layer in enumerate(self._layers[1:]):
-            if i == len(self._layers) - 2:
-                if y is None:
-                    return tf.matmul(_cache, self._tf_weights[-1]) + self._tf_bias[-1]
-                return layer.activate(_cache, self._tf_weights[i + 1], self._tf_bias[i + 1], y)
-            _cache = layer.activate(_cache, self._tf_weights[i + 1], self._tf_bias[i + 1])
-        return _cache
-
-    @NNTiming.timeit(level=4, prefix="[API] ")
-    def add(self, layer):
-        if not self._layers:
-            self._layers, self._current_dimension = [layer], layer.shape[1]
-            self._add_weight(layer.shape)
-        else:
-            _next = layer.shape[0]
-            self._layers.append(layer)
-            self._add_weight((self._current_dimension, _next))
-            self._current_dimension = _next
-
-
-class NNDist(NNBase):
-    NNTiming = Timing()
-
-    def __init__(self):
-        NNBase.__init__(self)
-        self._logs = {}
-        self._sess = tf.Session()
-        self._metrics, self._metric_names = [], []
-        self._available_metrics = {
-            "acc": NNDist._acc, "_acc": NNDist._acc,
-            "f1_score": NNDist._f1_score, "_f1_score": NNDist._f1_score
-        }
+    __repr__ = __str__
 
     # Utils
 
-    @NNTiming.timeit(level=2)
-    def _get_prediction(self, x, name=None, batch_size=1e6, verbose=None, out_of_sess=False):
+    @NNTiming.timeit(level=4)
+    def _add_weight(self, shape):
+        self._weights.append(np.random.randn(*shape))
+        self._bias.append(np.zeros((1, shape[1])))
+
+    @NNTiming.timeit(level=4)
+    def _add_layer(self, layer, *args):
+        _parent = self._layers[-1]
+        _current, _next = args
+        self._layers.append(layer)
+        if isinstance(layer, CostLayer):
+            _parent.child = layer
+            self.parent = _parent
+            self._weights.append(np.eye(_current))
+            self._bias.append(np.zeros((1, _current)))
+            self._current_dimension = _next
+        else:
+            self._add_weight((_current, _next))
+            self._current_dimension = _next
+
+    @NNTiming.timeit(level=4)
+    def _add_cost_layer(self):
+        _last_layer = self._layers[-1]
+        if _last_layer.name == "Sigmoid":
+            _cost_func = "Cross Entropy"
+        elif _last_layer.name == "Softmax":
+            _cost_func = "Log Likelihood"
+        else:
+            _cost_func = "MSE"
+        _cost_layer = CostLayer(_last_layer, (self._current_dimension,), _cost_func)
+        self.add(_cost_layer)
+
+    @NNTiming.timeit(level=1)
+    def _get_prediction(self, x, name=None, batch_size=1e6, verbose=None):
         if verbose is None:
             verbose = self.verbose
         single_batch = int(batch_size / np.prod(x.shape[1:]))
         if not single_batch:
             single_batch = 1
         if single_batch >= len(x):
-            if not out_of_sess:
-                return self._y_pred.eval(feed_dict={self._tfx: x})
-            with self._sess.as_default():
-                x = x.astype(np.float32)
-                return self.get_rs(x).eval(feed_dict={self._tfx: x})
+            return self._get_activations(x, predict=True).pop()
         epoch = int(len(x) / single_batch)
         if not len(x) % single_batch:
             epoch += 1
@@ -120,42 +96,33 @@ class NNDist(NNBase):
         sub_bar = ProgressBar(min_value=0, max_value=epoch, name=name)
         if verbose >= NNVerbose.METRICS:
             sub_bar.start()
-        if not out_of_sess:
-            rs = [self._y_pred.eval(feed_dict={self._tfx: x[:single_batch]})]
-        else:
-            rs = [self.get_rs(x[:single_batch])]
-        count = single_batch
+        rs, count = [self._get_activations(x[:single_batch], predict=True).pop()], single_batch
         if verbose >= NNVerbose.METRICS:
             sub_bar.update()
         while count < len(x):
             count += single_batch
             if count >= len(x):
-                if not out_of_sess:
-                    rs.append(self._y_pred.eval(feed_dict={self._tfx: x[count - single_batch:]}))
-                else:
-                    rs.append(self.get_rs(x[count - single_batch:]))
+                rs.append(self._get_activations(x[count - single_batch:], predict=True).pop())
             else:
-                if not out_of_sess:
-                    rs.append(self._y_pred.eval(feed_dict={self._tfx: x[count - single_batch:count]}))
-                else:
-                    rs.append(self.get_rs(x[count - single_batch:count]))
+                rs.append(self._get_activations(x[count - single_batch:count], predict=True).pop())
             if verbose >= NNVerbose.METRICS:
                 sub_bar.update()
-        if out_of_sess:
-            with self._sess.as_default():
-                rs = [_rs.eval() for _rs in rs]
         return np.vstack(rs)
 
+    @NNTiming.timeit(level=1)
+    def _get_activations(self, x, predict=False):
+        _activations = [self._layers[0].activate(x, self._weights[0], self._bias[0], predict)]
+        for i, layer in enumerate(self._layers[1:]):
+            _activations.append(layer.activate(
+                _activations[-1], self._weights[i + 1], self._bias[i + 1], predict))
+        return _activations
+
     @NNTiming.timeit(level=3)
-    def _append_log(self, x, y, name, out_of_sess=False):
-        y_pred = self._get_prediction(x, name, out_of_sess=out_of_sess)
+    def _append_log(self, x, y, name):
+        y_pred = self._get_prediction(x, name)
         for i, metric in enumerate(self._metrics):
             self._logs[name][i].append(metric(y, y_pred))
-        if not out_of_sess:
-            self._logs[name][-1].append(self._layers[-1].calculate(y, y_pred).eval())
-        else:
-            with self._sess.as_default():
-                self._logs[name][-1].append(self._layers[-1].calculate(y, y_pred).eval())
+        self._logs[name][-1].append(self._layers[-1].calculate(y, y_pred) / len(y))
 
     @NNTiming.timeit(level=3)
     def _print_metric_logs(self, data_type):
@@ -187,16 +154,43 @@ class NNDist(NNBase):
         fn = np.sum(y_true * (1 - y_pred))
         return 2 * tp / (2 * tp + fn + fp)
 
+    # Optimizing Process
+
+    def _init_optimizers(self, lr):
+        self._w_optimizer, self._b_optimizer = Adam(lr), Adam(lr)
+        self._w_optimizer.feed_variables(self._weights)
+        self._b_optimizer.feed_variables(self._bias)
+
+    @NNTiming.timeit(level=1)
+    def _opt(self, i, _activation, _delta):
+        self._weights[i] += self._w_optimizer.run(
+            i, _activation.reshape(_activation.shape[0], -1).T.dot(_delta)
+        )
+        self._bias[i] += self._b_optimizer.run(
+            i, np.sum(_delta, axis=0, keepdims=True)
+        )
+
     # API
+
+    @NNTiming.timeit(level=4, prefix="[API] ")
+    def add(self, layer):
+        if not self._layers:
+            self._layers, self._current_dimension = [layer], layer.shape[1]
+            self._add_weight(layer.shape)
+        else:
+            _next = layer.shape[0]
+            layer.shape = (self._current_dimension, _next)
+            self._add_layer(layer, self._current_dimension, _next)
 
     @NNTiming.timeit(level=1, prefix="[API] ")
     def fit(self, x=None, y=None, lr=0.01, epoch=10, batch_size=128, train_rate=None,
             verbose=0, metrics=None, record_period=100):
 
+        # Initialize
         self.verbose = verbose
-        self._optimizer = Adam(lr)
-        self._tfx = tf.placeholder(tf.float32, shape=[None, x.shape[1]])
-        self._tfy = tf.placeholder(tf.float32, shape=[None, y.shape[1]])
+        self._add_cost_layer()
+        self._init_optimizers(lr)
+        layer_width = len(self._layers)
 
         if train_rate is not None:
             train_rate = float(train_rate)
@@ -227,43 +221,44 @@ class NNDist(NNBase):
         if self.verbose >= NNVerbose.EPOCH:
             bar.start()
 
-        with self._sess.as_default() as sess:
-
-            # Define session
-            self._cost = self.get_rs(self._tfx, self._tfy)
-            self._y_pred = self.get_rs(self._tfx)
-            self._train_step = self._optimizer.minimize(self._cost)
-            sess.run(tf.global_variables_initializer())
-
-            # Train
-            sub_bar = ProgressBar(min_value=0, max_value=train_repeat * record_period - 1, name="Iteration")
-            for counter in range(epoch):
-                if self.verbose >= NNVerbose.EPOCH and counter % record_period == 0:
-                    sub_bar.start()
-                for _i in range(train_repeat):
-                    if do_random_batch:
-                        batch = np.random.choice(train_len, batch_size)
-                        x_batch, y_batch = x_train[batch], y_train[batch]
-                    else:
-                        x_batch, y_batch = x_train, y_train
-                    self._train_step.run(feed_dict={self._tfx: x_batch, self._tfy: y_batch})
-                    if self.verbose >= NNVerbose.EPOCH:
-                        if sub_bar.update() and self.verbose >= NNVerbose.METRICS_DETAIL:
-                            self._append_log(x_train, y_train, "train")
-                            self._append_log(x_test, y_test, "test")
-                            self._print_metric_logs("train")
-                            self._print_metric_logs("test")
+        # Train
+        sub_bar = ProgressBar(min_value=0, max_value=train_repeat * record_period - 1, name="Iteration")
+        for counter in range(epoch):
+            if self.verbose >= NNVerbose.EPOCH and counter % record_period == 0:
+                sub_bar.start()
+            for _i in range(train_repeat):
+                if do_random_batch:
+                    batch = np.random.choice(train_len, batch_size)
+                    x_batch, y_batch = x_train[batch], y_train[batch]
+                else:
+                    x_batch, y_batch = x_train, y_train
+                self._w_optimizer.update(); self._b_optimizer.update()
+                _activations = self._get_activations(x_batch)
+                _deltas = [self._layers[-1].bp_first(y_batch, _activations[-1])]
+                for i in range(-1, -len(_activations), -1):
+                    _deltas.append(
+                        self._layers[i - 1].bp(_activations[i - 1], self._weights[i], _deltas[-1])
+                    )
+                for i in range(layer_width - 2, 0, -1):
+                    self._opt(i, _activations[i - 1], _deltas[layer_width - i - 1])
+                self._opt(0, y_batch, _deltas[-1])
                 if self.verbose >= NNVerbose.EPOCH:
-                    sub_bar.update()
-                if (counter + 1) % record_period == 0:
-                    self._append_log(x_train, y_train, "train")
-                    self._append_log(x_test, y_test, "test")
-                    if self.verbose >= NNVerbose.METRICS:
+                    if sub_bar.update() and self.verbose >= NNVerbose.METRICS_DETAIL:
+                        self._append_log(x_train, y_train, "train")
+                        self._append_log(x_test, y_test, "test")
                         self._print_metric_logs("train")
                         self._print_metric_logs("test")
-                    if self.verbose >= NNVerbose.EPOCH:
-                        bar.update(counter // record_period + 1)
-                        sub_bar = ProgressBar(min_value=0, max_value=train_repeat * record_period - 1, name="Iteration")
+            if self.verbose >= NNVerbose.EPOCH:
+                sub_bar.update()
+            if (counter + 1) % record_period == 0:
+                self._append_log(x_train, y_train, "train")
+                self._append_log(x_test, y_test, "test")
+                if self.verbose >= NNVerbose.METRICS:
+                    self._print_metric_logs("train")
+                    self._print_metric_logs("test")
+                if self.verbose >= NNVerbose.EPOCH:
+                    bar.update(counter // record_period + 1)
+                    sub_bar = ProgressBar(min_value=0, max_value=train_repeat * record_period - 1, name="Iteration")
 
     def draw_logs(self):
         metrics_log, loss_log = {}, {}
@@ -288,12 +283,12 @@ class NNDist(NNBase):
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def predict(self, x):
-        return self._get_prediction(x, out_of_sess=True)
+        return self._get_prediction(x)
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def predict_classes(self, x):
         x = np.array(x)
-        return np.argmax(self._get_prediction(x, out_of_sess=True), axis=1)
+        return np.argmax(self._get_prediction(x), axis=1)
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def evaluate(self, x, y):
@@ -302,12 +297,16 @@ class NNDist(NNBase):
         print("Acc: {:8.6}".format(np.sum(y_arg == y_pred) / len(y_arg)))
 
     def visualize_2d(self, x, y, plot_scale=2, plot_precision=0.01):
+
         plot_num = int(1 / plot_precision)
+
         xf = np.linspace(np.min(x) * plot_scale, np.max(x) * plot_scale, plot_num)
         yf = np.linspace(np.min(x) * plot_scale, np.max(x) * plot_scale, plot_num)
         input_x, input_y = np.meshgrid(xf, yf)
         input_xs = np.c_[input_x.ravel(), input_y.ravel()]
+
         output_ys_2d = np.argmax(self.predict(input_xs), axis=1).reshape(len(xf), len(yf))
+
         plt.contourf(input_x, input_y, output_ys_2d, cmap=plt.cm.Spectral)
         plt.scatter(x[:, 0], x[:, 1], c=np.argmax(y, axis=1), s=40, cmap=plt.cm.Spectral)
         plt.axis("off")

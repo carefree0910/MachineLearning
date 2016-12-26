@@ -40,7 +40,6 @@ class NNDist:
         self._layer_names, self._layer_shapes, self._layer_params = [], [], []
         self._lr, self._epoch, self._regularization_param = 0, 0, 0
         self._w_optimizer, self._b_optimizer, self._optimizer_name = None, None, ""
-        self._data_size = 0
         self.verbose = 0
 
         self._whether_apply_bias = False
@@ -69,7 +68,6 @@ class NNDist:
         self._layer_names, self._layer_shapes, self._layer_params = [], [], []
         self._lr, self._epoch, self._regularization_param = 0, 0, 0
         self._w_optimizer, self._b_optimizer, self._optimizer_name = None, None, ""
-        self._data_size = 0
 
         self._whether_apply_bias = False
         self._current_dimension = 0
@@ -182,7 +180,6 @@ class NNDist:
         self._x, self._y = x, y
         self._x_min, self._x_max = np.min(x), np.max(x)
         self._y_min, self._y_max = np.min(y), np.max(y)
-        self._data_size = len(x)
         return x, y
 
     @NNTiming.timeit(level=4)
@@ -315,7 +312,7 @@ class NNDist:
         for i, metric in enumerate(self._metrics):
             self._logs[name][i].append(metric(y, y_pred))
         if get_loss:
-            self._logs[name][-1].append(self._layers[-1].calculate(y, y_pred) / self._data_size)
+            self._logs[name][-1].append(self._layers[-1].calculate(y, y_pred) / len(y))
 
     @NNTiming.timeit(level=3)
     def _print_metric_logs(self, show_loss, data_type):

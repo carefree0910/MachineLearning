@@ -1,6 +1,5 @@
 from Zhihu.NN.Util import *
-from Zhihu.NN.two.Network import *
-from Zhihu.NN.Layers import *
+from Zhihu.NN._extra.two.Networks import *
 
 np.random.seed(142857)  # for reproducibility
 
@@ -14,13 +13,13 @@ def main():
     timing_level = 1
     nn.feed_timing(timing)
 
-    x, y = DataUtil.gen_spin(100)
+    x, y = DataUtil.gen_spin(1000)
 
     nn.add(ReLU((x.shape[1], 36)))
     nn.add(ReLU((36,)))
-    nn.add(CrossEntropy((y.shape[1],)))
+    nn.add(Softmax((y.shape[1],)))
 
-    nn.fit(x, y, epoch=epoch, verbose=2, metrics=["acc", "f1_score"], train_rate=0.8)
+    nn.fit(x, y, epoch=epoch, verbose=2)
     nn.draw_logs()
     nn.visualize_2d(x, y)
 

@@ -6,7 +6,7 @@ np.random.seed(142857)  # for reproducibility
 
 def main():
 
-    nn = NN()
+    nn = NNDist()
     epoch = 1600
 
     timing = Timing(enabled=True)

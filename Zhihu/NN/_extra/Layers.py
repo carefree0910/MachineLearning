@@ -170,6 +170,10 @@ class CostLayer(Layer):
         return -self._cost_function(y, y_pred) * self._parent.derivative(y_pred)
 
     @property
+    def calculate(self):
+        return lambda y, y_pred: self._cost_function(y, y_pred, False)
+
+    @property
     def cost_function(self):
         return self._cost_function_name
 
