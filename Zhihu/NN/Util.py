@@ -129,7 +129,7 @@ class Util:
 
 
 class ProgressBar:
-    def __init__(self, min_value=None, max_value=None, min_refresh_period=0.5, width=30, name=""):
+    def __init__(self, min_value=0, max_value=None, min_refresh_period=0.5, width=30, name=""):
         self._min, self._max = min_value, max_value
         self._task_length = int(max_value - min_value) if (
             min_value is not None and max_value is not None
@@ -160,14 +160,13 @@ class ProgressBar:
             tmp_avg_hour = int(tmp_avg / 3600)
             tmp_avg_min = int((tmp_avg - tmp_avg_hour * 3600) / 60)
             tmp_avg_sec = tmp_avg % 60
-            sys.stdout.write(
+            print(
                 "\r" + "##{}({:d} : {:d} -> {:d}) Task Finished. "
                        "Time Cost: {:3d} h {:3d} min {:6.4} s; Average: {:3d} h {:3d} min {:6.4} s ".format(
                             self._bar_name, self._task_length, self._min, self._max,
                             tmp_hour, tmp_min, tmp_sec, tmp_avg_hour, tmp_avg_min, tmp_avg_sec
-                        ) + " ##\n"
+                        ) + " ##\n", end=""
             )
-            sys.stdout.flush()
             self._ended = True
             return True
         if self._counter >= self._max:
@@ -194,14 +193,15 @@ class ProgressBar:
             tmp_avg_min = 0
             tmp_avg_sec = 0
         passed = int(self._counter * self._bar_width / self._max)
-        sys.stdout.write("\r" + "##{}[".format(
+        print("\r" + "##{}[".format(
             self._bar_name
         ) + "-" * passed + " " * (self._bar_width - passed) + "] : {} / {}".format(
             self._counter, self._max
         ) + " ##  Time Cost: {:3d} h {:3d} min {:6.4} s; Average: {:3d} h {:3d} min {:6.4} s ".format(
             tmp_hour, tmp_min, tmp_sec, tmp_avg_hour, tmp_avg_min, tmp_avg_sec
-        ) if self._counter != self._min else "##{}Progress bar initialized  ##".format(self._bar_name))
-        sys.stdout.flush()
+        ) if self._counter != self._min else "##{}Progress bar initialized  ##".format(
+            self._bar_name), end=""
+        )
         return True
 
     def set_min(self, min_val):
