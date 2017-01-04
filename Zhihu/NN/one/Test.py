@@ -8,13 +8,13 @@ np.random.seed(142857)  # for reproducibility
 def main():
 
     nn = NNDist()
-    epoch = 1000
+    epoch = 1600
 
     timing = Timing(enabled=True)
     timing_level = 1
     nn.feed_timing(timing)
 
-    x, y = DataUtil.gen_xor(100, 1)
+    x, y = DataUtil.gen_xor(100)
 
     nn.add(ReLU((x.shape[1], 24)))
     nn.add(CrossEntropy((y.shape[1],)))

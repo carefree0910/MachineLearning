@@ -44,8 +44,7 @@ class NNDist:
         if isinstance(layer, CostLayer):
             _parent.child = layer
             self.parent = _parent
-            self._weights.append(np.eye(_current))
-            self._bias.append(np.zeros((1, _current)))
+            self._add_weight((1, 1))
             self._current_dimension = _next
         else:
             self._add_weight((_current, _next))
@@ -115,11 +114,11 @@ class NNDist:
             _activations = self._get_activations(x)
             _deltas = [self._layers[-1].bp_first(y, _activations[-1])]
             for i in range(-1, -len(_activations), -1):
-                _deltas.append(
-                    self._layers[i - 1].bp(_activations[i - 1], self._weights[i], _deltas[-1])
-                )
+                _deltas.append(self._layers[i - 1].bp(
+                    _activations[i - 1], self._weights[i], _deltas[-1]
+                ))
             for i in range(layer_width - 2, 0, -1):
-                self._opt(i, _activations[i - 1], _deltas[layer_width - i - 1])
+                self._opt(i, _activations[i - 1], _deltas[layer_width-i-1])
             self._opt(0, x, _deltas[-1])
 
     @NNTiming.timeit(level=4, prefix="[API] ")

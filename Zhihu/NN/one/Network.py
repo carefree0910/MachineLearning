@@ -51,7 +51,7 @@ class NNBase:
         self._tf_bias.append(self._get_b(b_shape))
 
     @NNTiming.timeit(level=1, prefix="[API] ")
-    def get_rs(self, x, y=None):
+    def _get_rs(self, x, y=None):
         _cache = self._layers[0].activate(x, self._tf_weights[0], self._tf_bias[0])
         for i, layer in enumerate(self._layers[1:]):
             if i == len(self._layers) - 2:
@@ -85,7 +85,7 @@ class NNDist(NNBase):
     @NNTiming.timeit(level=2)
     def _get_prediction(self, x):
         with self._sess.as_default():
-            return self.get_rs(x).eval(feed_dict={self._tfx: x})
+            return self._get_rs(x).eval(feed_dict={self._tfx: x})
 
     # API
 
@@ -96,8 +96,8 @@ class NNDist(NNBase):
         self._tfy = tf.placeholder(tf.float32, shape=[None, y.shape[1]])
         with self._sess.as_default() as sess:
             # Define session
-            self._cost = self.get_rs(self._tfx, self._tfy)
-            self._y_pred = self.get_rs(self._tfx)
+            self._cost = self._get_rs(self._tfx, self._tfy)
+            self._y_pred = self._get_rs(self._tfx)
             self._train_step = self._optimizer.minimize(self._cost)
             sess.run(tf.global_variables_initializer())
             # Train

@@ -7,13 +7,13 @@ np.random.seed(142857)  # for reproducibility
 def main():
 
     nn = NNDist()
-    epoch = 1600
+    epoch = 1000
 
     timing = Timing(enabled=True)
     timing_level = 1
     nn.feed_timing(timing)
 
-    x, y = DataUtil.gen_spin(100)
+    x, y = DataUtil.gen_spin(100, n_class=7)
 
     nn.add(ReLU((x.shape[1], 24)))
     nn.add(ReLU((24,)))
