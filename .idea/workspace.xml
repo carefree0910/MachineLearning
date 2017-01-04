@@ -1,15 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="a4743ded-d384-4ad3-a479-12cfa6f90f49" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Zhihu/NN/Util.py" afterPath="$PROJECT_DIR$/Zhihu/NN/Util.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Zhihu/NN/_extra/one/Networks.py" afterPath="$PROJECT_DIR$/Zhihu/NN/_extra/one/Networks.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Zhihu/NN/_extra/one/Test.py" afterPath="$PROJECT_DIR$/Zhihu/NN/_extra/one/Test.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Zhihu/NN/one/Network.py" afterPath="$PROJECT_DIR$/Zhihu/NN/one/Network.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Zhihu/NN/one/Test.py" afterPath="$PROJECT_DIR$/Zhihu/NN/one/Test.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Zhihu/NN/two/Test.py" afterPath="$PROJECT_DIR$/Zhihu/NN/two/Test.py" />
-    </list>
+    <list default="true" id="a4743ded-d384-4ad3-a479-12cfa6f90f49" name="Default" comment="" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -106,8 +98,8 @@
       <file leaf-file-name="Layers.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/Zhihu/NN/Layers.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="602">
-              <caret line="72" column="0" lean-forward="true" selection-start-line="72" selection-start-column="0" selection-end-line="72" selection-end-column="0" />
+            <state relative-caret-position="522">
+              <caret line="66" column="0" lean-forward="true" selection-start-line="66" selection-start-column="0" selection-end-line="66" selection-end-column="0" />
               <folding>
                 <element signature="e#152#484#0" expanded="false" />
                 <element signature="e#187#205#0" expanded="false" />
@@ -147,7 +139,7 @@
         <entry file="file://$PROJECT_DIR$/Zhihu/NN/two/Test.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="260">
-              <caret line="15" column="0" lean-forward="true" selection-start-line="15" selection-start-column="0" selection-end-line="15" selection-end-column="0" />
+              <caret line="15" column="0" lean-forward="false" selection-start-line="15" selection-start-column="0" selection-end-line="15" selection-end-column="0" />
               <folding />
             </state>
           </provider>
@@ -1141,7 +1133,7 @@
     <entry file="file://$PROJECT_DIR$/Zhihu/NN/two/Test.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="260">
-          <caret line="15" column="0" lean-forward="true" selection-start-line="15" selection-start-column="0" selection-end-line="15" selection-end-column="0" />
+          <caret line="15" column="0" lean-forward="false" selection-start-line="15" selection-start-column="0" selection-end-line="15" selection-end-column="0" />
           <folding />
         </state>
       </provider>
@@ -1226,8 +1218,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/Zhihu/NN/Layers.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="602">
-          <caret line="72" column="0" lean-forward="true" selection-start-line="72" selection-start-column="0" selection-end-line="72" selection-end-column="0" />
+        <state relative-caret-position="522">
+          <caret line="66" column="0" lean-forward="true" selection-start-line="66" selection-start-column="0" selection-end-line="66" selection-end-column="0" />
           <folding>
             <element signature="e#152#484#0" expanded="false" />
             <element signature="e#187#205#0" expanded="false" />
