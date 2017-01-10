@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from Zhihu.SVM.Util import Timing
+from Zhihu.NaiveSVM.Util import Timing
 
 np.random.seed(142857)
 
@@ -53,8 +53,6 @@ class SVM:
         con1 = self._alpha <= 0
         con2 = (0 < self._alpha) & (self._alpha < self._c)
         con3 = self._alpha >= self._c
-        # idx = np.argmax(con2)
-        # self._b = self._y[idx] - np.sum(self._w * np.array([self._kernel(self._x[idx], xi) for xi in self._x]))
         y_pred = self.predict()
         dis = self._y * y_pred - 1
         err1 = dis ** 2
