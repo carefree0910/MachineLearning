@@ -70,22 +70,6 @@ class NNBase:
         self._tf_weights.append(self._get_w(w_shape))
         self._tf_bias.append(self._get_b(b_shape))
 
-    def _add_layer(self, layer, *args):
-        _current, _next = args
-        fc_shape, conv_channel, last_layer = None, None, self._layers[-1]
-        if isinstance(last_layer, ConvLayer):
-            if isinstance(layer, ConvLayer):
-                conv_channel = last_layer.n_filters
-                _current = (conv_channel, last_layer.out_h, last_layer.out_w)
-                layer.feed_shape((_current, _next))
-            else:
-                layer.is_fc = True
-                last_layer.is_fc_base = True
-                fc_shape = last_layer.out_h * last_layer.out_w * last_layer.n_filters
-        self._layers.append(layer)
-        self._add_weight((_current, _next), conv_channel, fc_shape)
-        self._current_dimension = _next
-
     @NNTiming.timeit(level=1, prefix="[API] ")
     def get_rs(self, x, y=None):
         _cache = self._layers[0].activate(x, self._tf_weights[0], self._tf_bias[0])
@@ -109,11 +93,25 @@ class NNBase:
         else:
             if len(layer.shape) == 2:
                 _current, _next = layer.shape
-                self._add_layer(layer, _current, _next)
             elif len(layer.shape) == 1:
                 _next = layer.shape[0]
                 layer.shape = (self._current_dimension, _next)
-                self._add_layer(layer, self._current_dimension, _next)
+                _current = self._current_dimension
+            else:
+                raise ValueError
+            fc_shape, conv_channel, last_layer = None, None, self._layers[-1]
+            if isinstance(last_layer, ConvLayer):
+                if isinstance(layer, ConvLayer):
+                    conv_channel = last_layer.n_filters
+                    _current = (conv_channel, last_layer.out_h, last_layer.out_w)
+                    layer.feed_shape((_current, _next))
+                else:
+                    layer.is_fc = True
+                    last_layer.is_fc_base = True
+                    fc_shape = last_layer.out_h * last_layer.out_w * last_layer.n_filters
+            self._layers.append(layer)
+            self._add_weight((_current, _next), conv_channel, fc_shape)
+            self._current_dimension = _next
 
 
 class NNDist(NNBase):
@@ -325,31 +323,4 @@ class NNDist(NNBase):
             xs = np.arange(len(loss)) + 1
             plt.plot(xs, loss, label="Data Type: {}".format(key))
         plt.legend()
-        plt.show()
-
-    @NNTiming.timeit(level=4, prefix="[API] ")
-    def predict(self, x):
-        return self._get_prediction(x, out_of_sess=True)
-
-    @NNTiming.timeit(level=4, prefix="[API] ")
-    def predict_classes(self, x):
-        x = np.array(x)
-        return np.argmax(self._get_prediction(x, out_of_sess=True), axis=1)
-
-    @NNTiming.timeit(level=4, prefix="[API] ")
-    def evaluate(self, x, y):
-        y_pred = self.predict_classes(x)
-        y_arg = np.argmax(y, axis=1)
-        print("Acc: {:8.6}".format(np.sum(y_arg == y_pred) / len(y_arg)))
-
-    def visualize_2d(self, x, y, plot_scale=2, plot_precision=0.01):
-        plot_num = int(1 / plot_precision)
-        xf = np.linspace(np.min(x) * plot_scale, np.max(x) * plot_scale, plot_num)
-        yf = np.linspace(np.min(x) * plot_scale, np.max(x) * plot_scale, plot_num)
-        input_x, input_y = np.meshgrid(xf, yf)
-        input_xs = np.c_[input_x.ravel(), input_y.ravel()]
-        output_ys_2d = np.argmax(self.predict(input_xs), axis=1).reshape(len(xf), len(yf))
-        plt.contourf(input_x, input_y, output_ys_2d, cmap=plt.cm.Spectral)
-        plt.scatter(x[:, 0], x[:, 1], c=np.argmax(y, axis=1), s=40, cmap=plt.cm.Spectral)
-        plt.axis("off")
         plt.show()
