@@ -1,4 +1,3 @@
-from Zhihu.NN.Errors import *
 from Zhihu.NN._extra.Optimizers import *
 from Zhihu.NN.Util import Timing
 
@@ -150,9 +149,6 @@ class CostLayer(Layer):
             "Cross Entropy": CostLayer._cross_entropy,
             "Log Likelihood": CostLayer._log_likelihood
         }
-
-        if cost_function not in self._available_cost_functions:
-            raise LayerError("Cost function '{}' not implemented".format(cost_function))
         self._cost_function_name = cost_function
         self._cost_function = self._available_cost_functions[cost_function]
 
@@ -160,7 +156,7 @@ class CostLayer(Layer):
         return x
 
     def _derivative(self, y, delta=None):
-        raise LayerError("derivative function should not be called in CostLayer")
+        raise ValueError("derivative function should not be called in CostLayer")
 
     def bp_first(self, y, y_pred):
         if self._parent.name == "Sigmoid" and self.cost_function == "Cross Entropy":
@@ -209,38 +205,3 @@ class CostLayer(Layer):
 
     def __str__(self):
         return self._cost_function_name
-
-
-# Factory
-
-class LayerFactory:
-    available_root_layers = {
-        "Tanh": Tanh, "Sigmoid": Sigmoid,
-        "ELU": ELU, "ReLU": ReLU, "Softplus": Softplus,
-        "Softmax": Softmax,
-        "Identical": Identical
-    }
-    available_sub_layers = {
-        "Dropout", "Normalize", "ConvNorm", "ConvDrop",
-        "MSE", "Cross Entropy", "Log Likelihood"
-    }
-    available_cost_functions = {
-        "MSE", "Cross Entropy", "Log Likelihood"
-    }
-
-    def handle_str_main_layers(self, name, *args, **kwargs):
-        if name not in self.available_sub_layers:
-            if name in self.available_root_layers:
-                name = self.available_root_layers[name]
-            else:
-                raise BuildNetworkError("Undefined layer '{}' found".format(name))
-            return name(*args, **kwargs)
-        return None
-
-    def get_layer_by_name(self, name, parent, current_dimension, *args, **kwargs):
-        _layer = self.handle_str_main_layers(name, *args, **kwargs)
-        if _layer:
-            return _layer, None
-        _current, _next = parent.shape[1], current_dimension
-        _layer = CostLayer(parent, (_current, _next), name)
-        return _layer, (_current, _next)

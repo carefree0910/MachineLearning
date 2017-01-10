@@ -1,6 +1,5 @@
 from Zhihu.NN.Layers import *
 from Zhihu.NN.Optimizers import *
-from Zhihu.NN.Util import Timing
 
 np.random.seed(142857)  # for reproducibility
 
@@ -8,7 +7,6 @@ np.random.seed(142857)  # for reproducibility
 # Neural Network
 
 class NNBase:
-    NNTiming = Timing()
 
     def __init__(self):
         self._layers = []
@@ -26,31 +24,28 @@ class NNBase:
 
     __repr__ = __str__
 
-    @NNTiming.timeit(level=4, prefix="[API] ")
     def feed_timing(self, timing):
         if isinstance(timing, Timing):
             self.NNTiming = timing
             for layer in self._layers:
                 layer.feed_timing(timing)
 
-    @NNTiming.timeit(level=4, prefix="[Private StaticMethod] ")
-    def _get_w(self, shape):
+    @staticmethod
+    def _get_w(shape):
         initial = tf.truncated_normal(shape, stddev=0.1)
         return tf.Variable(initial, name="w")
 
-    @NNTiming.timeit(level=4, prefix="[Private StaticMethod] ")
-    def _get_b(self, shape):
+    @staticmethod
+    def _get_b(shape):
         initial = tf.constant(0.1, shape=shape)
         return tf.Variable(initial, name="b")
 
-    @NNTiming.timeit(level=4)
     def _add_weight(self, shape):
         w_shape = shape
         b_shape = shape[1],
         self._tf_weights.append(self._get_w(w_shape))
         self._tf_bias.append(self._get_b(b_shape))
 
-    @NNTiming.timeit(level=1, prefix="[API] ")
     def _get_rs(self, x, y=None):
         _cache = self._layers[0].activate(x, self._tf_weights[0], self._tf_bias[0])
         for i, layer in enumerate(self._layers[1:]):
@@ -61,7 +56,6 @@ class NNBase:
             _cache = layer.activate(_cache, self._tf_weights[i + 1], self._tf_bias[i + 1])
         return _cache
 
-    @NNTiming.timeit(level=4, prefix="[API] ")
     def add(self, layer):
         if not self._layers:
             self._layers, self._current_dimension = [layer], layer.shape[1]
@@ -74,7 +68,6 @@ class NNBase:
 
 
 class NNDist(NNBase):
-    NNTiming = Timing()
 
     def __init__(self):
         NNBase.__init__(self)
@@ -82,14 +75,12 @@ class NNDist(NNBase):
 
     # Utils
 
-    @NNTiming.timeit(level=2)
     def _get_prediction(self, x):
         with self._sess.as_default():
             return self._get_rs(x).eval(feed_dict={self._tfx: x})
 
     # API
 
-    @NNTiming.timeit(level=1, prefix="[API] ")
     def fit(self, x=None, y=None, lr=0.001, epoch=10):
         self._optimizer = Adam(lr)
         self._tfx = tf.placeholder(tf.float32, shape=[None, x.shape[1]])
@@ -104,12 +95,10 @@ class NNDist(NNBase):
             for counter in range(epoch):
                 self._train_step.run(feed_dict={self._tfx: x, self._tfy: y})
 
-    @NNTiming.timeit(level=4, prefix="[API] ")
     def predict_classes(self, x):
         x = np.array(x)
         return np.argmax(self._get_prediction(x), axis=1)
 
-    @NNTiming.timeit(level=4, prefix="[API] ")
     def evaluate(self, x, y):
         y_pred = self.predict_classes(x)
         y_arg = np.argmax(y, axis=1)

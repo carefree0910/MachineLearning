@@ -1,4 +1,4 @@
-from NN import *
+from NN.NN import *
 
 np.random.seed(142857)  # for reproducibility
 

@@ -1,4 +1,4 @@
-from NN.NN import *
+from Zhihu.CNN.one.Network import *
 
 np.random.seed(142857)  # for reproducibility
 
@@ -24,7 +24,7 @@ def main():
 
     import pickle
 
-    with open("../Data/mini_mnist.dat", "rb") as file:
+    with open("../Data/mnist.dat", "rb") as file:
         x, y = pickle.load(file)
 
     # x = x.reshape(len(x), 1, 28, 28)

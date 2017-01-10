@@ -203,6 +203,8 @@ class NNBase:
             if i == len(self._layers) - 2:
                 if y is None:
                     if not pipe:
+                        if isinstance(self._layers[-2], ConvLayer):
+                            _cache = tf.reshape(_cache, [-1, int(np.prod(_cache.get_shape()[1:]))])
                         if self._tf_bias[-1] is not None:
                             return tf.matmul(_cache, self._tf_weights[-1]) + self._tf_bias[-1]
                         return tf.matmul(_cache, self._tf_weights[-1])
@@ -446,6 +448,9 @@ class NNDist(NNBase):
         _activations = [self._layers[0].activate(x, self._tf_weights[0], self._tf_bias[0], True)]
         for i, layer in enumerate(self._layers[1:]):
             if i == len(self._layers) - 2:
+                if isinstance(self._layers[i], ConvLayer):
+                    _activations[-1] = tf.reshape(
+                        _activations[-1], [-1, int(np.prod(_activations[-1].get_shape()[1:]))])
                 if self._tf_bias[-1] is not None:
                     _activations.append(tf.matmul(_activations[-1], self._tf_weights[-1]) + self._tf_bias[-1])
                 else:

@@ -1,4 +1,3 @@
-import os
 import time
 import wrapt
 import pickle
@@ -9,172 +8,32 @@ import matplotlib.pyplot as plt
 
 class DataUtil:
 
-    TAR_IDX = 2
-    CLEAR_CACHE = True
-    SKIP_FIRST = False
-    DATA_CLEANED = True
-
-    CLASSES_NUM = 2
-    WHETHER_NUMERICAL = [True] * 16 + [False] * 3
-    WHETHER_EXPAND = [False] * 9 + [True] * 7 + [False] * 4
-    EXPAND_NUM_LST = [0] * 9 + [
-        12, 4, 8, 2, 10, 5, 3
-    ] + [0] * 4
-
-    # Get & Cache Data
+    @staticmethod
+    def gen_xor(size, scale=1):
+        x = np.random.randn(size) * scale
+        y = np.random.randn(size) * scale
+        z = np.zeros((size, 2))
+        z[x * y >= 0, :] = [0, 1]
+        z[x * y < 0, :] = [1, 0]
+        return np.c_[x, y].astype(np.float32), z
 
     @staticmethod
-    def get_cache_path(path):
-        return ".Data/data.cache" if path is None else path[:path.rfind(".")] + ".cache"
-
-    @staticmethod
-    def clear_cache(path, clear=CLEAR_CACHE):
-        path = DataUtil.get_cache_path(path)
-        if clear and os.path.isfile(path):
-            os.remove(path)
-
-    @staticmethod
-    def get_cache(path):
-        path = DataUtil.get_cache_path(path)
-        try:
-            with open(path, "rb") as file:
-                nn_data = pickle.load(file)
-            return nn_data
-        except FileNotFoundError:
-            return None
-
-    @staticmethod
-    def do_cache(path, data):
-        path = DataUtil.get_cache_path(path)
-        with open(path, "wb") as file:
-            pickle.dump(data, file)
-
-    @staticmethod
-    def data_cleaning(line):
-        # line = line.replace('"', "")
-        return list(map(lambda c: c.strip(), line.split(",")))
-
-    @staticmethod
-    def get_data(path=None):
-        tar_idx = DataUtil.TAR_IDX
-        path = ".Data/data.txt" if path is None else path
-        categories = None
-
-        x = []
-        with open(path, "r") as file:
-            flag = None
-            for line in file:
-                if DataUtil.SKIP_FIRST and flag is None:
-                    flag = True
-                    continue
-
-                line = DataUtil.data_cleaning(line)
-
-                tmp_x = []
-                if not DataUtil.DATA_CLEANED:
-                    if categories is None:
-                        categories = [{"flag": 1, _l: 0} for _l in line]
-                    for i, _l in enumerate(line):
-                        if not DataUtil.WHETHER_NUMERICAL[i]:
-                            if _l in categories[i]:
-                                tmp_x.append(categories[i][_l])
-                            else:
-                                tmp_x.append(categories[i]["flag"])
-                                categories[i][_l] = categories[i]["flag"]
-                                categories[i]["flag"] += 1
-                        else:
-                            tmp_x.append(float(_l))
-                else:
-                    for i, _l in enumerate(line):
-                        if i == tar_idx:
-                            tmp_x.append(int(_l))
-                        elif not DataUtil.WHETHER_EXPAND[i]:
-                            tmp_x.append(float(_l))
-                        else:
-                            _l = int(_l)
-                            for _i in range(DataUtil.EXPAND_NUM_LST[i]):
-                                if _i == _l - 1:
-                                    tmp_x.append(1)
-                                else:
-                                    tmp_x.append(0)
-
-                x.append(tmp_x)
-
-        classes_num = categories[tar_idx]["flag"] if DataUtil.CLASSES_NUM is None else DataUtil.CLASSES_NUM
-        expand_sum = sum(DataUtil.EXPAND_NUM_LST[:tar_idx])
-        expand_seq = np.array(DataUtil.EXPAND_NUM_LST[:tar_idx]) > 0
-        assert isinstance(expand_seq, np.ndarray), "Never mind. You'll never see this error"
-        expand_num = int(np.sum(expand_seq))
-        expand_total = expand_sum - expand_num
-        y = np.array([xx.pop(tar_idx + expand_total) for xx in x])
-        y = np.array([[0 if i != yy else 1 for i in range(classes_num)] for yy in y])
-
-        return np.array(x), y
-
-    @staticmethod
-    def get_and_cache_data(path=None):
-        DataUtil.clear_cache(path)
-        _data = DataUtil.get_cache(path)
-
-        if _data is None:
-            x, y = DataUtil.get_data(path)
-            DataUtil.do_cache(path, (x, y))
-        else:
-            x, y = _data
-
-        return np.array(x, dtype=np.float32), np.array(y, dtype=np.float32)
-
-    # Gen & Write Data
-
-    @staticmethod
-    def init_size_and_path(size, path):
-        size = int(size)
-        path = ".Data/data.txt" if path is None else path
-        return size, path
-
-    @staticmethod
-    def gen_xor(size, scale, path=None):
-        size, path = DataUtil.init_size_and_path(size, path)
-        with open(path, "w") as file:
-            quarter_size = int(size / 4)
-            seq1 = np.random.random(size=quarter_size) * scale
-            seq2 = np.random.random(size=quarter_size) * scale
-            seq = list(zip(seq1, seq2))
-            x0 = [(str(_s1), str(_s2)) for _s1, _s2 in seq]
-            x1 = [(str(-_s1), str(_s2)) for _s1, _s2 in seq]
-            x2 = [(str(-_s1), str(-_s2)) for _s1, _s2 in seq]
-            x3 = [(str(_s1), str(-_s2)) for _s1, _s2 in seq]
-            for i, x in enumerate((x0, x1, x2, x3)):
-                file.write("\n".join([",".join(_x) + ",{}".format(i % 2) for _x in x]) + "\n")
-
-    @staticmethod
-    def gen_spin(size, n_classes=2, path=None):
-        size, path = DataUtil.init_size_and_path(size, path)
-        dimension = 2
-        xs = np.zeros((size * n_classes, dimension))
-        ys = np.zeros(size * n_classes, dtype='uint8')
-        for j in range(n_classes):
+    def gen_spin(size, n=7, n_class=7):
+        xs = np.zeros((size * n, 2), dtype=np.float32)
+        ys = np.zeros(size * n, dtype=np.int8)
+        for j in range(n):
             ix = range(size * j, size * (j + 1))
-            r = np.linspace(0.0, 1, size)
+            r = np.linspace(0.0, 1, size+1)[1:]
             t = np.array(
-                np.linspace(j * (n_classes + 1), (j + 1) * (n_classes + 1), size) +
+                np.linspace(j * (n + 1), (j + 1) * (n + 1), size) +
                 np.array(np.random.random(size=size)) * 0.2)
             xs[ix] = np.c_[r * np.sin(t), r * np.cos(t)]
-            ys[ix] = j % DataUtil.CLASSES_NUM
-
-        with open(path, "w") as file:
-            xs = list(map(lambda v: (str(v[0]), str(v[1])), xs))
-            file.write("\n".join([",".join(x) + ",{}".format(y) for x, y in zip(xs, ys)]) + "\n")
-
-    @staticmethod
-    def gen_random(size, scale, n_classes=2, path=None):
-        size, path = DataUtil.init_size_and_path(size, path)
-        quarter_size = int(size / 4)
-        with open(path, "w") as file:
-            xs = (2 * np.random.rand(size, 2) - 1) * scale
-            xs = list(map(lambda v: (str(v[0]), str(v[1])), xs))
-            ans = np.random.randint(n_classes, size=quarter_size * 4)
-            file.write("\n".join([",".join(x) + ",{}".format(y) for x, y in zip(xs, ans)]) + "\n")
+            ys[ix] = j % n_class
+        z = []
+        for yy in ys:
+            tmp = [0 if i != yy else 1 for i in range(n_class)]
+            z.append(tmp)
+        return xs, np.array(z)
 
 
 class VisUtil:
@@ -430,7 +289,3 @@ class Timing:
                     print("{:<42s} :  {:12.7} s (Call Time: {:6d})".format(
                         key, timing_info["timing"], timing_info["call_time"]))
         print("-" * 110)
-
-
-if __name__ == '__main__':
-    DataUtil.gen_spin(100)

@@ -2,8 +2,6 @@ import numpy as np
 import tensorflow as tf
 from abc import ABCMeta, abstractmethod
 
-from Zhihu.NN.Errors import *
-
 
 class Layer(metaclass=ABCMeta):
     def __init__(self, shape):
@@ -74,36 +72,3 @@ class CrossEntropy(CostLayer):
 class MSE(CostLayer):
     def _activate(self, x, y):
         return tf.reduce_mean(tf.square(x - y))
-
-
-# Factory
-
-class LayerFactory:
-    available_root_layers = {
-
-        # Normal Layers
-        "Tanh": Tanh, "Sigmoid": Sigmoid,
-        "ELU": ELU, "ReLU": ReLU, "Softplus": Softplus,
-        "Identical": Identical,
-        "CF0910": CF0910,
-
-        # Cost Layers
-        "CrossEntropy": CrossEntropy, "MSE": MSE,
-    }
-
-    def handle_str_main_layers(self, name, *args, **kwargs):
-        if name in self.available_root_layers:
-            name = self.available_root_layers[name]
-        else:
-            raise BuildNetworkError("Undefined layer '{}' found".format(name))
-        return name(*args, **kwargs)
-
-    def get_layer_by_name(self, name, *args, **kwargs):
-        if "parent" in kwargs:
-            if not args:
-                kwargs["shape"] = (kwargs["parent"].shape[1], 2)
-            kwargs.pop("parent")
-        _layer = self.handle_str_main_layers(name, *args, **kwargs)
-        if _layer:
-            return _layer, None
-        return

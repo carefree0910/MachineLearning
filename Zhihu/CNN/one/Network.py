@@ -1,8 +1,8 @@
 import matplotlib.pyplot as plt
 
-from Zhihu.NN.Layers import *
-from Zhihu.NN.Optimizers import *
-from Zhihu.NN.Util import ProgressBar
+from Zhihu.CNN.Layers import *
+from Zhihu.CNN.Optimizers import *
+from Zhihu.CNN.Util import ProgressBar
 
 np.random.seed(142857)  # for reproducibility
 
@@ -19,6 +19,7 @@ class NNVerbose:
 # Neural Network
 
 class NNBase:
+    NNTiming = Timing()
 
     def __init__(self):
         self._layers = []
@@ -53,16 +54,45 @@ class NNBase:
         initial = tf.constant(0.1, shape=shape)
         return tf.Variable(initial, name="b")
 
-    def _add_weight(self, shape):
-        w_shape = shape
-        b_shape = shape[1],
+    def _add_weight(self, shape, conv_channel=None, fc_shape=None):
+        if fc_shape is not None:
+            w_shape = (fc_shape, shape[1])
+            b_shape = shape[1],
+        elif conv_channel is not None:
+            if len(shape[1]) <= 2:
+                w_shape = shape[1][0], shape[1][1], conv_channel, conv_channel
+            else:
+                w_shape = (shape[1][1], shape[1][2], conv_channel, shape[1][0])
+            b_shape = shape[1][0],
+        else:
+            w_shape = shape
+            b_shape = shape[1],
         self._tf_weights.append(self._get_w(w_shape))
         self._tf_bias.append(self._get_b(b_shape))
 
+    def _add_layer(self, layer, *args):
+        _current, _next = args
+        fc_shape, conv_channel, last_layer = None, None, self._layers[-1]
+        if isinstance(last_layer, ConvLayer):
+            if isinstance(layer, ConvLayer):
+                conv_channel = last_layer.n_filters
+                _current = (conv_channel, last_layer.out_h, last_layer.out_w)
+                layer.feed_shape((_current, _next))
+            else:
+                layer.is_fc = True
+                last_layer.is_fc_base = True
+                fc_shape = last_layer.out_h * last_layer.out_w * last_layer.n_filters
+        self._layers.append(layer)
+        self._add_weight((_current, _next), conv_channel, fc_shape)
+        self._current_dimension = _next
+
+    @NNTiming.timeit(level=1, prefix="[API] ")
     def get_rs(self, x, y=None):
         _cache = self._layers[0].activate(x, self._tf_weights[0], self._tf_bias[0])
         for i, layer in enumerate(self._layers[1:]):
             if i == len(self._layers) - 2:
+                if isinstance(self._layers[i], ConvLayer):
+                    _cache = tf.reshape(_cache, [-1, int(np.prod(_cache.get_shape()[1:]))])
                 if y is None:
                     return tf.matmul(_cache, self._tf_weights[-1]) + self._tf_bias[-1]
                 return layer.activate(_cache, self._tf_weights[i + 1], self._tf_bias[i + 1], y)
@@ -72,15 +102,22 @@ class NNBase:
     def add(self, layer):
         if not self._layers:
             self._layers, self._current_dimension = [layer], layer.shape[1]
-            self._add_weight(layer.shape)
+            if isinstance(layer, ConvLayer):
+                self._add_weight(layer.shape, layer.n_channels)
+            else:
+                self._add_weight(layer.shape)
         else:
-            _next = layer.shape[0]
-            self._layers.append(layer)
-            self._add_weight((self._current_dimension, _next))
-            self._current_dimension = _next
+            if len(layer.shape) == 2:
+                _current, _next = layer.shape
+                self._add_layer(layer, _current, _next)
+            elif len(layer.shape) == 1:
+                _next = layer.shape[0]
+                layer.shape = (self._current_dimension, _next)
+                self._add_layer(layer, self._current_dimension, _next)
 
 
 class NNDist(NNBase):
+    NNTiming = Timing()
 
     def __init__(self):
         NNBase.__init__(self)
@@ -94,6 +131,16 @@ class NNDist(NNBase):
 
     # Utils
 
+    @staticmethod
+    @NNTiming.timeit(level=4, prefix="[Private StaticMethod] ")
+    def _transfer_x(x):
+        if len(x.shape) == 1:
+            x = x.reshape(1, -1)
+        if len(x.shape) == 4:
+            x = x.transpose(0, 2, 3, 1)
+        return x.astype(np.float32)
+
+    @NNTiming.timeit(level=2)
     def _get_prediction(self, x, name=None, batch_size=1e6, verbose=None, out_of_sess=False):
         if verbose is None:
             verbose = self.verbose
@@ -139,6 +186,7 @@ class NNDist(NNBase):
                 rs = [_rs.eval() for _rs in rs]
         return np.vstack(rs)
 
+    @NNTiming.timeit(level=3)
     def _append_log(self, x, y, name, out_of_sess=False):
         y_pred = self._get_prediction(x, name, out_of_sess=out_of_sess)
         for i, metric in enumerate(self._metrics):
@@ -149,6 +197,7 @@ class NNDist(NNBase):
             with self._sess.as_default():
                 self._logs[name][-1].append(self._layers[-1].calculate(y, y_pred).eval())
 
+    @NNTiming.timeit(level=3)
     def _print_metric_logs(self, data_type):
         print()
         print("=" * 47)
@@ -162,11 +211,13 @@ class NNDist(NNBase):
     # Metrics
 
     @staticmethod
+    @NNTiming.timeit(level=2, prefix="[Private StaticMethod] ")
     def _acc(y, y_pred):
         y_arg, y_pred_arg = np.argmax(y, axis=1), np.argmax(y_pred, axis=1)
         return np.sum(y_arg == y_pred_arg) / len(y_arg)
 
     @staticmethod
+    @NNTiming.timeit(level=2, prefix="[Private StaticMethod] ")
     def _f1_score(y, y_pred):
         y_true, y_pred = np.argmax(y, axis=1), np.argmax(y_pred, axis=1)
         tp = np.sum(y_true * y_pred)
@@ -178,12 +229,14 @@ class NNDist(NNBase):
 
     # API
 
+    @NNTiming.timeit(level=1, prefix="[API] ")
     def fit(self, x=None, y=None, lr=0.01, epoch=10, batch_size=128, train_rate=None,
             verbose=0, metrics=None, record_period=100):
 
         self.verbose = verbose
+        x = NNDist._transfer_x(x)
         self._optimizer = Adam(lr)
-        self._tfx = tf.placeholder(tf.float32, shape=[None, x.shape[1]])
+        self._tfx = tf.placeholder(tf.float32, shape=[None, *x.shape[1:]])
         self._tfy = tf.placeholder(tf.float32, shape=[None, y.shape[1]])
 
         if train_rate is not None:
@@ -274,13 +327,16 @@ class NNDist(NNBase):
         plt.legend()
         plt.show()
 
+    @NNTiming.timeit(level=4, prefix="[API] ")
     def predict(self, x):
         return self._get_prediction(x, out_of_sess=True)
 
+    @NNTiming.timeit(level=4, prefix="[API] ")
     def predict_classes(self, x):
         x = np.array(x)
         return np.argmax(self._get_prediction(x, out_of_sess=True), axis=1)
 
+    @NNTiming.timeit(level=4, prefix="[API] ")
     def evaluate(self, x, y):
         y_pred = self.predict_classes(x)
         y_arg = np.argmax(y, axis=1)
