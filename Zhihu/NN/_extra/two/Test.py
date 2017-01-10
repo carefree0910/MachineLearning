@@ -7,7 +7,7 @@ np.random.seed(142857)  # for reproducibility
 def main():
 
     nn = NNDist()
-    epoch = 1600
+    epoch = 1000
 
     timing = Timing(enabled=True)
     timing_level = 1
@@ -15,11 +15,11 @@ def main():
 
     x, y = DataUtil.gen_spin(100)
 
-    nn.add(ReLU((x.shape[1], 36)))
-    nn.add(ReLU((36,)))
+    nn.add(ReLU((x.shape[1], 24)))
+    nn.add(ReLU((24,)))
     nn.add(Softmax((y.shape[1],)))
 
-    nn.fit(x, y, epoch=epoch, verbose=2)
+    nn.fit(x, y, epoch=epoch, verbose=2, metrics=["acc", "f1_score"], train_rate=0.8)
     nn.draw_logs()
     nn.visualize_2d(x, y)
 

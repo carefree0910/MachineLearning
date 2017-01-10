@@ -25,13 +25,10 @@ class Optimizers(metaclass=ABCMeta):
         if isinstance(timing, Timing):
             self.OptTiming = timing
 
+    @abstractmethod
     @OptTiming.timeit(level=1, prefix="[API] ")
     def run(self, i, dw):
-        return self._run(i, dw)
-
-    @abstractmethod
-    def _run(self, i, dw):
-        raise NotImplementedError("Please implement a 'feed' method for your optimizer")
+        raise NotImplementedError("Please implement a 'run' method for your optimizer")
 
     @OptTiming.timeit(level=4, prefix="[API] ")
     def update(self):
@@ -50,7 +47,7 @@ class Optimizers(metaclass=ABCMeta):
 
 class SGD(Optimizers):
 
-    def _run(self, i, dw):
+    def run(self, i, dw):
         return self.lr * dw
 
     def _update(self):
@@ -95,7 +92,7 @@ class Momentum(Optimizers):
         self._ceiling = value
         self.update_step()
 
-    def _run(self, i, dw):
+    def run(self, i, dw):
         velocity = self._cache
         velocity[i] = velocity[i] * self._momentum + self.lr * dw
         return velocity[i]
@@ -107,7 +104,7 @@ class Momentum(Optimizers):
 
 class NAG(Momentum):
 
-    def _run(self, i, dw):
+    def run(self, i, dw):
         dw *= self.lr
         velocity = self._cache
         velocity[i] = self._momentum * velocity[i] + dw
@@ -126,7 +123,7 @@ class Adam(Optimizers):
             [np.zeros(var.shape) for var in variables],
         ]
 
-    def _run(self, i, dw):
+    def run(self, i, dw):
         self._cache[0][i] = self._cache[0][i] * self.beta1 + (1 - self.beta1) * dw
         self._cache[1][i] = self._cache[1][i] * self.beta2 + (1 - self.beta2) * (dw ** 2)
         return self.lr * self._cache[0][i] / (np.sqrt(self._cache[1][i] + self.eps))
@@ -141,7 +138,7 @@ class RMSProp(Optimizers):
         Optimizers.__init__(self, lr, cache)
         self.decay_rate, self.eps = decay_rate, eps
 
-    def _run(self, i, dw):
+    def run(self, i, dw):
         self._cache[i] = self._cache[i] * self.decay_rate + (1 - self.decay_rate) * dw ** 2
         return self.lr * dw / (np.sqrt(self._cache[i] + self.eps))
 

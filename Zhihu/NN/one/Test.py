@@ -8,7 +8,7 @@ np.random.seed(142857)  # for reproducibility
 def main():
 
     nn = NNDist()
-    epoch = 1600
+    epoch = 1000
 
     timing = Timing(enabled=True)
     timing_level = 1

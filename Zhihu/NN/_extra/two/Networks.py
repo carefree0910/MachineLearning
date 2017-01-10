@@ -241,7 +241,7 @@ class NNDist:
                     )
                 for i in range(layer_width - 2, 0, -1):
                     self._opt(i, _activations[i - 1], _deltas[layer_width - i - 1])
-                self._opt(0, y_batch, _deltas[-1])
+                self._opt(0, x_batch, _deltas[-1])
                 if self.verbose >= NNVerbose.EPOCH:
                     if sub_bar.update() and self.verbose >= NNVerbose.METRICS_DETAIL:
                         self._append_log(x_train, y_train, "train")
