@@ -21,6 +21,12 @@ class Layer(metaclass=ABCMeta):
         self.is_fc_base = False
         self.is_sub_layer = False
 
+    def __str__(self):
+        return self.__class__.__name__
+
+    def __repr__(self):
+        return str(self)
+
     def init(self):
         pass
 
@@ -76,12 +82,6 @@ class Layer(metaclass=ABCMeta):
     @abstractmethod
     def _activate(self, x, predict):
         pass
-
-    def __str__(self):
-        return self.__class__.__name__
-
-    def __repr__(self):
-        return str(self)
 
 
 class SubLayer(Layer):

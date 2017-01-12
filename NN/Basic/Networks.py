@@ -62,6 +62,25 @@ class NNDist:
             "f1": NNDist._f1_score, "_f1_score": NNDist._f1_score
         }
 
+    def __getitem__(self, item):
+        if isinstance(item, int):
+            if item < 0 or item >= len(self._layers):
+                return
+            bias = self._bias[item]
+            return {
+                "name": self._layers[item].name,
+                "weight": self._weights[item],
+                "bias": bias
+            }
+        if isinstance(item, str):
+            return getattr(self, "_" + item)
+        return
+
+    def __str__(self):
+        return "Neural Network"
+
+    __repr__ = __str__
+
     @NNTiming.timeit(level=4, prefix="[Initialize] ")
     def initialize(self):
         self._layers, self._weights, self._bias = [], [], []
@@ -87,11 +106,6 @@ class NNDist:
             self.NNTiming = timing
             for layer in self._layers:
                 layer.feed_timing(timing)
-
-    def __str__(self):
-        return "Neural Network"
-
-    __repr__ = __str__
 
     # Property
 
@@ -148,20 +162,6 @@ class NNDist:
             raise BuildNetworkError("Invalid Optimizer '{}' provided".format(value))
 
     # Utils
-
-    def __getitem__(self, item):
-        if isinstance(item, int):
-            if item < 0 or item >= len(self._layers):
-                return
-            bias = self._bias[item]
-            return {
-                "name": self._layers[item].name,
-                "weight": self._weights[item],
-                "bias": bias
-            }
-        if isinstance(item, str):
-            return getattr(self, "_" + item)
-        return
 
     @NNTiming.timeit(level=4)
     def _feed_data(self, x, y):
@@ -325,6 +325,232 @@ class NNDist:
             print("{:<16s} {:<16s}: {:12.8}".format(
                 data_type, "loss", self._logs[data_type][-1][-1]))
         print("=" * 47)
+
+    @NNTiming.timeit(level=1)
+    def _draw_network(self, radius=6, width=1200, height=800, padding=0.2, sub_layer_height_scale=0, delay=1,
+                      weight_average=None, activations=None):
+
+        layers = len(self._layers) + 1
+        units = [layer.shape[0] for layer in self._layers] + [self._layers[-1].shape[1]]
+        whether_sub_layers = np.array([False] + [isinstance(layer, SubLayer) for layer in self._layers])
+        n_sub_layers = int(np.sum(whether_sub_layers))
+
+        img = np.zeros((height, width, 3), np.uint8)
+        axis0_padding = int(height / (layers - 1 + 2 * padding)) * padding
+        axis0_step = (height - 2 * axis0_padding) / layers
+        sub_layer_decrease = int((1 - sub_layer_height_scale) * axis0_step)
+        axis0 = np.linspace(
+            axis0_padding,
+            height + n_sub_layers * sub_layer_decrease - axis0_padding,
+            layers, dtype=np.int)
+        axis0 -= sub_layer_decrease * np.cumsum(whether_sub_layers)
+        axis1_divide = [int(width / (unit + 1)) for unit in units]
+        axis1 = [np.linspace(divide, width - divide, units[i], dtype=np.int)
+                 for i, divide in enumerate(axis1_divide)]
+
+        colors, thicknesses = [], []
+        color_weights = [weight.copy() for weight in self._weights]
+        color_min = [np.min(weight) for weight in color_weights]
+        color_max = [np.max(weight) for weight in color_weights]
+        color_average = [np.average(weight) for weight in color_weights] if weight_average is None else weight_average
+        for weight, weight_min, weight_max, weight_average in zip(
+                color_weights, color_min, color_max, color_average
+        ):
+            line_info = VisUtil.get_line_info(weight, weight_min, weight_max, weight_average)
+            colors.append(line_info[0])
+            thicknesses.append(line_info[1])
+
+        activations = [np.average(np.abs(activation), axis=0) for activation in activations]
+        activations = [activation / np.max(activation) for activation in activations]
+        for i, (y, xs) in enumerate(zip(axis0, axis1)):
+            for j, x in enumerate(xs):
+                if i == 0:
+                    cv2.circle(img, (x, y), radius, (20, 215, 20), int(radius / 2))
+                else:
+                    activation = activations[i - 1][j]
+                    try:
+                        cv2.circle(img, (x, y), radius, (
+                            int(255 * activation), int(255 * activation), int(255 * activation)), int(radius / 2))
+                    except ValueError:
+                        cv2.circle(img, (x, y), radius, (0, 0, 255), int(radius / 2))
+            if i > 0:
+                cv2.putText(img, self._layers[i - 1].name, (12, y - 36), cv2.LINE_AA, 0.6, (255, 255, 255), 2)
+
+        for i, y in enumerate(axis0):
+            if i == len(axis0) - 1:
+                break
+            for j, x in enumerate(axis1[i]):
+                new_y = axis0[i + 1]
+                whether_sub_layer = isinstance(self._layers[i], SubLayer)
+                for k, new_x in enumerate(axis1[i + 1]):
+                    if whether_sub_layer and j != k:
+                        continue
+                    cv2.line(img, (x, y), (new_x, new_y), colors[i][j][k], thicknesses[i][j][k])
+
+        cv2.imshow("Neural Network", img)
+        cv2.waitKey(delay)
+        return img
+
+    @NNTiming.timeit(level=1)
+    def _draw_detailed_network(self, radius=6, width=1200, height=800, padding=0.2,
+                               plot_scale=2, plot_precision=0.03,
+                               sub_layer_height_scale=0, delay=1,
+                               weight_average=None):
+
+        layers = len(self._layers) + 1
+        units = [layer.shape[0] for layer in self._layers] + [self._layers[-1].shape[1]]
+        whether_sub_layers = np.array([False] + [isinstance(layer, SubLayer) for layer in self._layers])
+        n_sub_layers = int(np.sum(whether_sub_layers))
+
+        plot_num = int(1 / plot_precision)
+        if plot_num % 2 == 1:
+            plot_num += 1
+        half_plot_num = int(plot_num * 0.5)
+        xf = np.linspace(self._x_min * plot_scale, self._x_max * plot_scale, plot_num)
+        yf = np.linspace(self._x_min * plot_scale, self._x_max * plot_scale, plot_num) * -1
+        input_x, input_y = np.meshgrid(xf, yf)
+        input_xs = np.c_[input_x.ravel(), input_y.ravel()]
+
+        _activations = [activation.T.reshape(units[i + 1], plot_num, plot_num)
+                        for i, activation in enumerate(self._get_activations(input_xs, predict=True))]
+        _graphs = []
+        for j, activation in enumerate(_activations):
+            _graph_group = []
+            for ac in activation:
+                data = np.zeros((plot_num, plot_num, 3), np.uint8)
+                mask = ac >= np.average(ac)
+                data[mask], data[~mask] = [0, 125, 255], [255, 125, 0]
+                _graph_group.append(data)
+            _graphs.append(_graph_group)
+
+        img = np.zeros((height, width, 3), np.uint8)
+        axis0_padding = int(height / (layers - 1 + 2 * padding)) * padding + plot_num
+        axis0_step = (height - 2 * axis0_padding) / layers
+        sub_layer_decrease = int((1 - sub_layer_height_scale) * axis0_step)
+        axis0 = np.linspace(
+            axis0_padding,
+            height + n_sub_layers * sub_layer_decrease - axis0_padding,
+            layers, dtype=np.int)
+        axis0 -= sub_layer_decrease * np.cumsum(whether_sub_layers)
+        axis1_padding = plot_num
+        axis1 = [np.linspace(axis1_padding, width - axis1_padding, unit + 2, dtype=np.int)
+                 for unit in units]
+        axis1 = [axis[1:-1] for axis in axis1]
+
+        colors, thicknesses = [], []
+        color_weights = [weight.copy() for weight in self._weights]
+        color_min = [np.min(weight) for weight in color_weights]
+        color_max = [np.max(weight) for weight in color_weights]
+        color_average = [np.average(weight) for weight in color_weights] if weight_average is None else weight_average
+        for weight, weight_min, weight_max, weight_average in zip(
+                color_weights, color_min, color_max, color_average
+        ):
+            line_info = VisUtil.get_line_info(weight, weight_min, weight_max, weight_average)
+            colors.append(line_info[0])
+            thicknesses.append(line_info[1])
+
+        for i, (y, xs) in enumerate(zip(axis0, axis1)):
+            for j, x in enumerate(xs):
+                if i == 0:
+                    cv2.circle(img, (x, y), radius, (20, 215, 20), int(radius / 2))
+                else:
+                    graph = _graphs[i - 1][j]
+                    img[y - half_plot_num:y + half_plot_num, x - half_plot_num:x + half_plot_num] = graph
+            if i > 0:
+                cv2.putText(img, self._layers[i - 1].name, (12, y - 36), cv2.LINE_AA, 0.6, (255, 255, 255), 2)
+
+        for i, y in enumerate(axis0):
+            if i == len(axis0) - 1:
+                break
+            for j, x in enumerate(axis1[i]):
+                new_y = axis0[i + 1]
+                whether_sub_layer = isinstance(self._layers[i], SubLayer)
+                for k, new_x in enumerate(axis1[i + 1]):
+                    if whether_sub_layer and j != k:
+                        continue
+                    cv2.line(img, (x, y + half_plot_num), (new_x, new_y - half_plot_num),
+                             colors[i][j][k], thicknesses[i][j][k])
+
+        cv2.imshow("Neural Network", img)
+        cv2.waitKey(delay)
+        return img
+
+    @NNTiming.timeit(level=1)
+    def _draw_img_network(self, img_shape, width=1200, height=800, padding=0.2,
+                          sub_layer_height_scale=0, delay=1,
+                          weight_average=None):
+
+        img_width, img_height = img_shape
+        half_width = int(img_width * 0.5) if img_width % 2 == 0 else int(img_width * 0.5) + 1
+        half_height = int(img_height * 0.5) if img_height % 2 == 0 else int(img_height * 0.5) + 1
+
+        layers = len(self._layers)
+        units = [layer.shape[1] for layer in self._layers]
+        whether_sub_layers = np.array([isinstance(layer, SubLayer) for layer in self._layers])
+        n_sub_layers = int(np.sum(whether_sub_layers))
+
+        _activations = [self._weights[0].copy().T]
+        for weight in self._weights[1:]:
+            _activations.append(weight.T.dot(_activations[-1]))
+        _graphs = []
+        for j, activation in enumerate(_activations):
+            _graph_group = []
+            for ac in activation:
+                ac = ac.reshape(img_width, img_height)
+                ac -= np.average(ac)
+                data = np.zeros((img_width, img_height, 3), np.uint8)
+                mask = ac >= 0.25
+                data[mask], data[~mask] = [0, 130, 255], [255, 130, 0]
+                _graph_group.append(data)
+            _graphs.append(_graph_group)
+
+        img = np.zeros((height, width, 3), np.uint8)
+        axis0_padding = int(height / (layers - 1 + 2 * padding)) * padding + img_height
+        axis0_step = (height - 2 * axis0_padding) / layers
+        sub_layer_decrease = int((1 - sub_layer_height_scale) * axis0_step)
+        axis0 = np.linspace(
+            axis0_padding,
+            height + n_sub_layers * sub_layer_decrease - axis0_padding,
+            layers, dtype=np.int)
+        axis0 -= sub_layer_decrease * np.cumsum(whether_sub_layers)
+        axis1_padding = img_width
+        axis1 = [np.linspace(axis1_padding, width - axis1_padding, unit + 2, dtype=np.int)
+                 for unit in units]
+        axis1 = [axis[1:-1] for axis in axis1]
+
+        colors, thicknesses = [], []
+        color_weights = [weight.copy() for weight in self._weights]
+        color_min = [np.min(weight) for weight in color_weights]
+        color_max = [np.max(weight) for weight in color_weights]
+        color_average = [np.average(weight) for weight in color_weights] if weight_average is None else weight_average
+        for weight, weight_min, weight_max, weight_average in zip(
+                color_weights, color_min, color_max, color_average
+        ):
+            line_info = VisUtil.get_line_info(weight, weight_min, weight_max, weight_average)
+            colors.append(line_info[0])
+            thicknesses.append(line_info[1])
+
+        for i, (y, xs) in enumerate(zip(axis0, axis1)):
+            for j, x in enumerate(xs):
+                graph = _graphs[i][j]
+                img[y - half_height:y + half_height, x - half_width:x + half_width] = graph
+            cv2.putText(img, self._layers[i].name, (12, y - 36), cv2.LINE_AA, 0.6, (255, 255, 255), 2)
+
+        for i, y in enumerate(axis0):
+            if i == len(axis0) - 1:
+                break
+            for j, x in enumerate(axis1[i]):
+                new_y = axis0[i + 1]
+                whether_sub_layer = isinstance(self._layers[i + 1], SubLayer)
+                for k, new_x in enumerate(axis1[i + 1]):
+                    if whether_sub_layer and j != k:
+                        continue
+                    cv2.line(img, (x, y + half_height), (new_x, new_y - half_height),
+                             colors[i + 1][j][k], thicknesses[i + 1][j][k])
+
+        cv2.imshow("Neural Network", img)
+        cv2.waitKey(delay)
+        return img
 
     # Metrics
 
@@ -662,11 +888,11 @@ class NNDist:
                         self.visualize_2d(x_test, y_test, *visualize_setting)
                 if x_test.shape[1] == 2:
                     if draw_network:
-                        img = self.draw_network(weight_average=weight_average, activations=_activations)
+                        img = self._draw_network(weight_average=weight_average, activations=_activations)
                     if draw_detailed_network:
-                        img = self.draw_detailed_network(weight_average=weight_average)
+                        img = self._draw_detailed_network(weight_average=weight_average)
                 elif draw_img_network:
-                    img = self.draw_img_network(img_shape, weight_average=weight_average)
+                    img = self._draw_img_network(img_shape, weight_average=weight_average)
                 if self.verbose >= NNVerbose.EPOCH:
                     bar.update(counter // record_period + 1)
                     sub_bar = ProgressBar(min_value=0, max_value=train_repeat * record_period - 1, name="Iteration")
@@ -815,232 +1041,6 @@ class NNDist:
             ax.set_ylabel("y")
             ax.set_zlabel("z")
             plt.show()
-
-    @NNTiming.timeit(level=1, prefix="[API] ")
-    def draw_network(self, radius=6, width=1200, height=800, padding=0.2, sub_layer_height_scale=0, delay=1,
-                     weight_average=None, activations=None):
-
-        layers = len(self._layers) + 1
-        units = [layer.shape[0] for layer in self._layers] + [self._layers[-1].shape[1]]
-        whether_sub_layers = np.array([False] + [isinstance(layer, SubLayer) for layer in self._layers])
-        n_sub_layers = int(np.sum(whether_sub_layers))
-
-        img = np.zeros((height, width, 3), np.uint8)
-        axis0_padding = int(height / (layers - 1 + 2 * padding)) * padding
-        axis0_step = (height - 2 * axis0_padding) / layers
-        sub_layer_decrease = int((1 - sub_layer_height_scale) * axis0_step)
-        axis0 = np.linspace(
-            axis0_padding,
-            height + n_sub_layers * sub_layer_decrease - axis0_padding,
-            layers, dtype=np.int)
-        axis0 -= sub_layer_decrease * np.cumsum(whether_sub_layers)
-        axis1_divide = [int(width / (unit + 1)) for unit in units]
-        axis1 = [np.linspace(divide, width - divide, units[i], dtype=np.int)
-                 for i, divide in enumerate(axis1_divide)]
-
-        colors, thicknesses = [], []
-        color_weights = [weight.copy() for weight in self._weights]
-        color_min = [np.min(weight) for weight in color_weights]
-        color_max = [np.max(weight) for weight in color_weights]
-        color_average = [np.average(weight) for weight in color_weights] if weight_average is None else weight_average
-        for weight, weight_min, weight_max, weight_average in zip(
-            color_weights, color_min, color_max, color_average
-        ):
-            line_info = VisUtil.get_line_info(weight, weight_min, weight_max, weight_average)
-            colors.append(line_info[0])
-            thicknesses.append(line_info[1])
-
-        activations = [np.average(np.abs(activation), axis=0) for activation in activations]
-        activations = [activation / np.max(activation) for activation in activations]
-        for i, (y, xs) in enumerate(zip(axis0, axis1)):
-            for j, x in enumerate(xs):
-                if i == 0:
-                    cv2.circle(img, (x, y), radius, (20, 215, 20), int(radius / 2))
-                else:
-                    activation = activations[i - 1][j]
-                    try:
-                        cv2.circle(img, (x, y), radius, (
-                            int(255 * activation), int(255 * activation), int(255 * activation)), int(radius / 2))
-                    except ValueError:
-                        cv2.circle(img, (x, y), radius, (0, 0, 255), int(radius / 2))
-            if i > 0:
-                cv2.putText(img, self._layers[i - 1].name, (12, y - 36), cv2.LINE_AA, 0.6, (255, 255, 255), 2)
-
-        for i, y in enumerate(axis0):
-            if i == len(axis0) - 1:
-                break
-            for j, x in enumerate(axis1[i]):
-                new_y = axis0[i + 1]
-                whether_sub_layer = isinstance(self._layers[i], SubLayer)
-                for k, new_x in enumerate(axis1[i + 1]):
-                    if whether_sub_layer and j != k:
-                        continue
-                    cv2.line(img, (x, y), (new_x, new_y), colors[i][j][k], thicknesses[i][j][k])
-
-        cv2.imshow("Neural Network", img)
-        cv2.waitKey(delay)
-        return img
-
-    @NNTiming.timeit(level=1, prefix="[API] ")
-    def draw_detailed_network(self, radius=6, width=1200, height=800, padding=0.2,
-                              plot_scale=2, plot_precision=0.03,
-                              sub_layer_height_scale=0, delay=1,
-                              weight_average=None):
-
-        layers = len(self._layers) + 1
-        units = [layer.shape[0] for layer in self._layers] + [self._layers[-1].shape[1]]
-        whether_sub_layers = np.array([False] + [isinstance(layer, SubLayer) for layer in self._layers])
-        n_sub_layers = int(np.sum(whether_sub_layers))
-
-        plot_num = int(1 / plot_precision)
-        if plot_num % 2 == 1:
-            plot_num += 1
-        half_plot_num = int(plot_num * 0.5)
-        xf = np.linspace(self._x_min * plot_scale, self._x_max * plot_scale, plot_num)
-        yf = np.linspace(self._x_min * plot_scale, self._x_max * plot_scale, plot_num) * -1
-        input_x, input_y = np.meshgrid(xf, yf)
-        input_xs = np.c_[input_x.ravel(), input_y.ravel()]
-
-        _activations = [activation.T.reshape(units[i + 1], plot_num, plot_num)
-                        for i, activation in enumerate(self._get_activations(input_xs, predict=True))]
-        _graphs = []
-        for j, activation in enumerate(_activations):
-            _graph_group = []
-            for ac in activation:
-                data = np.zeros((plot_num, plot_num, 3), np.uint8)
-                mask = ac >= np.average(ac)
-                data[mask], data[~mask] = [0, 125, 255], [255, 125, 0]
-                _graph_group.append(data)
-            _graphs.append(_graph_group)
-
-        img = np.zeros((height, width, 3), np.uint8)
-        axis0_padding = int(height / (layers - 1 + 2 * padding)) * padding + plot_num
-        axis0_step = (height - 2 * axis0_padding) / layers
-        sub_layer_decrease = int((1 - sub_layer_height_scale) * axis0_step)
-        axis0 = np.linspace(
-            axis0_padding,
-            height + n_sub_layers * sub_layer_decrease - axis0_padding,
-            layers, dtype=np.int)
-        axis0 -= sub_layer_decrease * np.cumsum(whether_sub_layers)
-        axis1_padding = plot_num
-        axis1 = [np.linspace(axis1_padding, width - axis1_padding, unit + 2, dtype=np.int)
-                 for unit in units]
-        axis1 = [axis[1:-1] for axis in axis1]
-
-        colors, thicknesses = [], []
-        color_weights = [weight.copy() for weight in self._weights]
-        color_min = [np.min(weight) for weight in color_weights]
-        color_max = [np.max(weight) for weight in color_weights]
-        color_average = [np.average(weight) for weight in color_weights] if weight_average is None else weight_average
-        for weight, weight_min, weight_max, weight_average in zip(
-            color_weights, color_min, color_max, color_average
-        ):
-            line_info = VisUtil.get_line_info(weight, weight_min, weight_max, weight_average)
-            colors.append(line_info[0])
-            thicknesses.append(line_info[1])
-
-        for i, (y, xs) in enumerate(zip(axis0, axis1)):
-            for j, x in enumerate(xs):
-                if i == 0:
-                    cv2.circle(img, (x, y), radius, (20, 215, 20), int(radius / 2))
-                else:
-                    graph = _graphs[i - 1][j]
-                    img[y-half_plot_num:y+half_plot_num, x-half_plot_num:x+half_plot_num] = graph
-            if i > 0:
-                cv2.putText(img, self._layers[i - 1].name, (12, y - 36), cv2.LINE_AA, 0.6, (255, 255, 255), 2)
-
-        for i, y in enumerate(axis0):
-            if i == len(axis0) - 1:
-                break
-            for j, x in enumerate(axis1[i]):
-                new_y = axis0[i + 1]
-                whether_sub_layer = isinstance(self._layers[i], SubLayer)
-                for k, new_x in enumerate(axis1[i + 1]):
-                    if whether_sub_layer and j != k:
-                        continue
-                    cv2.line(img, (x, y+half_plot_num), (new_x, new_y-half_plot_num),
-                             colors[i][j][k], thicknesses[i][j][k])
-
-        cv2.imshow("Neural Network", img)
-        cv2.waitKey(delay)
-        return img
-
-    @NNTiming.timeit(level=1, prefix="[API] ")
-    def draw_img_network(self, img_shape, width=1200, height=800, padding=0.2,
-                         sub_layer_height_scale=0, delay=1,
-                         weight_average=None):
-
-        img_width, img_height = img_shape
-        half_width = int(img_width * 0.5) if img_width % 2 == 0 else int(img_width * 0.5) + 1
-        half_height = int(img_height * 0.5) if img_height % 2 == 0 else int(img_height * 0.5) + 1
-
-        layers = len(self._layers)
-        units = [layer.shape[1] for layer in self._layers]
-        whether_sub_layers = np.array([isinstance(layer, SubLayer) for layer in self._layers])
-        n_sub_layers = int(np.sum(whether_sub_layers))
-
-        _activations = [self._weights[0].copy().T]
-        for weight in self._weights[1:]:
-            _activations.append(weight.T.dot(_activations[-1]))
-        _graphs = []
-        for j, activation in enumerate(_activations):
-            _graph_group = []
-            for ac in activation:
-                ac = ac.reshape(img_width, img_height)
-                ac -= np.average(ac)
-                data = np.zeros((img_width, img_height, 3), np.uint8)
-                mask = ac >= 0.25
-                data[mask], data[~mask] = [0, 130, 255], [255, 130, 0]
-                _graph_group.append(data)
-            _graphs.append(_graph_group)
-
-        img = np.zeros((height, width, 3), np.uint8)
-        axis0_padding = int(height / (layers - 1 + 2 * padding)) * padding + img_height
-        axis0_step = (height - 2 * axis0_padding) / layers
-        sub_layer_decrease = int((1 - sub_layer_height_scale) * axis0_step)
-        axis0 = np.linspace(
-            axis0_padding,
-            height + n_sub_layers * sub_layer_decrease - axis0_padding,
-            layers, dtype=np.int)
-        axis0 -= sub_layer_decrease * np.cumsum(whether_sub_layers)
-        axis1_padding = img_width
-        axis1 = [np.linspace(axis1_padding, width - axis1_padding, unit + 2, dtype=np.int)
-                 for unit in units]
-        axis1 = [axis[1:-1] for axis in axis1]
-
-        colors, thicknesses = [], []
-        color_weights = [weight.copy() for weight in self._weights]
-        color_min = [np.min(weight) for weight in color_weights]
-        color_max = [np.max(weight) for weight in color_weights]
-        color_average = [np.average(weight) for weight in color_weights] if weight_average is None else weight_average
-        for weight, weight_min, weight_max, weight_average in zip(
-            color_weights, color_min, color_max, color_average
-        ):
-            line_info = VisUtil.get_line_info(weight, weight_min, weight_max, weight_average)
-            colors.append(line_info[0])
-            thicknesses.append(line_info[1])
-
-        for i, (y, xs) in enumerate(zip(axis0, axis1)):
-            for j, x in enumerate(xs):
-                graph = _graphs[i][j]
-                img[y - half_height:y + half_height, x - half_width:x + half_width] = graph
-            cv2.putText(img, self._layers[i].name, (12, y - 36), cv2.LINE_AA, 0.6, (255, 255, 255), 2)
-
-        for i, y in enumerate(axis0):
-            if i == len(axis0) - 1:
-                break
-            for j, x in enumerate(axis1[i]):
-                new_y = axis0[i + 1]
-                whether_sub_layer = isinstance(self._layers[i + 1], SubLayer)
-                for k, new_x in enumerate(axis1[i + 1]):
-                    if whether_sub_layer and j != k:
-                        continue
-                    cv2.line(img, (x, y + half_height), (new_x, new_y - half_height),
-                             colors[i + 1][j][k], thicknesses[i + 1][j][k])
-
-        cv2.imshow("Neural Network", img)
-        cv2.waitKey(delay)
-        return img
 
     def draw_results(self):
         metrics_log, loss_log = {}, {}

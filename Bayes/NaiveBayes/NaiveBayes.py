@@ -67,6 +67,12 @@ class NaiveBayes(metaclass=ABCMeta):
             return getattr(self, "_" + item)
         return
 
+    def __str__(self):
+        return self.__class__.__name__
+
+    def __repr__(self):
+        return str(self)
+
     @abstractmethod
     def feed_data(self, data, tar_idx=-1):
         pass
@@ -122,12 +128,6 @@ class NaiveBayes(metaclass=ABCMeta):
     @abstractmethod
     def estimate(self, data=None):
         pass
-
-    def __str__(self):
-        return self.__class__.__name__
-
-    def __repr__(self):
-        return str(self)
 
 
 class MultinomialNB(NaiveBayes):

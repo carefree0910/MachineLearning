@@ -1,3 +1,4 @@
+import cv2
 import time
 import math
 import numpy as np
@@ -67,6 +68,18 @@ class CvDNode:
         self.prev_feat = prev_feat
         self.leafs = {}
         self.pruned = False
+
+    def __lt__(self, other):
+        return self.prev_feat < other.prev_feat
+
+    def __str__(self):
+        if self.category is None:
+            return "CvDNode ({}) ({} -> {})".format(
+                self._depth, self.prev_feat, self.feature_dim)
+        return "CvDNode ({}) ({} -> class: {})".format(
+            self._depth, self.prev_feat, self.label_dic[self.category])
+
+    __repr__ = __str__
 
     @property
     def key(self):
@@ -174,17 +187,10 @@ class CvDNode:
         for _node in sorted(self.children.values()):
             _node.view()
 
-    def __lt__(self, other):
-        return self.prev_feat < other.prev_feat
-
-    def __str__(self):
-        if self.category is None:
-            return "CvDNode ({}) ({} -> {})".format(
-                self._depth, self.prev_feat, self.feature_dim)
-        return "CvDNode ({}) ({} -> class: {})".format(
-            self._depth, self.prev_feat, self.label_dic[self.category])
-
-    __repr__ = __str__
+    def update_layers(self):
+        self.tree.layers[self._depth].append(self)
+        for _node in sorted(self.children.values()):
+            _node.update_layers()
 
 
 # Tree
@@ -192,9 +198,15 @@ class CvDNode:
 class CvDBase:
     def __init__(self, max_depth=None):
         self.nodes = []
+        self.layers = []
         self._max_depth = max_depth
         self.root = CvDNode(self, max_depth)
         self.label_dic = {}
+
+    def __str__(self):
+        return "CvDTree ({})".format(self.depth)
+
+    __repr__ = __str__
 
     @property
     def depth(self):
@@ -246,10 +258,57 @@ class CvDBase:
     def view(self):
         self.root.view()
 
-    def __str__(self):
-        return "CvDTree ({})".format(self.depth)
+    def draw(self, radius=24, width=1200, height=800, padding=0.2, plot_num=30):
+        self.layers = [[] for _ in range(self.depth)]
+        self.root.update_layers()
+        units = [len(layer) for layer in self.layers]
 
-    __repr__ = __str__
+        img = np.zeros((height, width, 3), np.uint8)
+        axis0_padding = int(height / (len(self.layers) - 1 + 2 * padding)) * padding + plot_num
+        axis0 = np.linspace(
+            axis0_padding, height - axis0_padding, len(self.layers), dtype=np.int)
+        axis1_padding = plot_num
+        axis1 = [np.linspace(axis1_padding, width - axis1_padding, unit + 2, dtype=np.int)
+                 for unit in units]
+        axis1 = [axis[1:-1] for axis in axis1]
+
+        for i, (y, xs) in enumerate(zip(axis0, axis1)):
+            for j, x in enumerate(xs):
+                if i == 0:
+                    cv2.circle(img, (x, y), radius, (225, 100, 125), 2)
+                else:
+                    cv2.circle(img, (x, y), radius, (125, 100, 225), 2)
+                node = self.layers[i][j]
+                if node.feature_dim is not None:
+                    text = str(node.feature_dim)
+                    color = (0, 0, 255)
+                else:
+                    text = str(self.label_dic[node.category])
+                    color = (0, 255, 0)
+                cv2.putText(img, text, (x-7*len(text)+2, y+3), cv2.LINE_AA, 0.6, color, 2)
+
+        for i, y in enumerate(axis0):
+            if i == len(axis0) - 1:
+                break
+            for j, x in enumerate(axis1[i]):
+                new_y = axis0[i + 1]
+                dy = new_y - y - 2 * radius
+                for k, new_x in enumerate(axis1[i + 1]):
+                    dx = new_x - x
+                    length = np.sqrt(dx**2+dy**2)
+                    ratio = 0.5 - min(0.4, 1.2 * 24/length)
+                    if self.layers[i + 1][k] in self.layers[i][j].children.values():
+                        cv2.line(img, (x, y+radius), (x+int(dx*ratio), y+radius+int(dy*ratio)),
+                                 (125, 125, 125), 2)
+                        cv2.putText(img, self.layers[i+1][k].prev_feat,
+                                    (x+int(dx*0.5)-6, y+radius+int(dy*0.5)),
+                                    cv2.LINE_AA, 0.6, (255, 255, 255), 2)
+                        cv2.line(img, (new_x-int(dx*ratio), new_y-radius-int(dy*ratio)), (new_x, new_y-radius),
+                                 (125, 125, 125), 2)
+
+        cv2.imshow("CvDTree", img)
+        cv2.waitKey(0)
+        return img
 
 if __name__ == '__main__':
     _data, _x, _y = [], [], []
@@ -273,3 +332,4 @@ if __name__ == '__main__':
     _tree.view()
     _tree.estimate(x_test, y_test)
     print("Time cost: {:8.6}".format(time.time() - _t))
+    _tree.draw()

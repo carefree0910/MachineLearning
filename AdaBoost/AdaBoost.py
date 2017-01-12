@@ -37,10 +37,6 @@ class Util:
                 x.append(Util.data_cleaning(line))
         return x
 
-    @staticmethod
-    def gaussian(x, mu, sigma):
-        return exp(-(x - mu) ** 2 / (2 * sigma ** 2)) / (sqrt_pi * sigma)
-
 
 class AdaBoost:
 
@@ -87,15 +83,6 @@ class AdaBoost:
     def reset(self):
         self._clf, self._clfs, self._clfs_weights = "", [], []
         self._sample_weight = None
-
-    @staticmethod
-    def get_xy(data):
-        length = len(data)
-        x, y = np.zeros((length, 3)), np.zeros(length, dtype=np.int8)
-        for i, (_x, _y) in enumerate(data):
-            x[i] = _x
-            y[i] = _y
-        return x, y
 
     # noinspection PyUnresolvedReferences
     def fit(self, x, y, clf=None, epoch=10, eps=1e-8, early_stop=False, *args, **kwargs):

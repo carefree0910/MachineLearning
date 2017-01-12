@@ -39,10 +39,10 @@ class ConvLayer(Layer):
                          shape[1] = shape of current layer's weight   f x c x h x w
         :param stride:   stride
         :param padding:  zero-padding
+        :param parent:   parent
         """
         if parent is not None:
-            _parent = parent.root if parent.is_sub_layer else parent
-            shape, stride, padding = _parent.shape, _parent.stride, _parent.padding
+            shape, stride, padding = parent.shape, parent.stride, parent.padding
         Layer.__init__(self, shape)
         self._stride = stride
         if isinstance(padding, str):
@@ -56,7 +56,7 @@ class ConvLayer(Layer):
             self._pad_flag = "VALID"
         self.parent = parent
         if len(shape) == 1:
-            self.n_channels, self.n_filters, self.out_h, self.out_w = None, None, None, None
+            self.n_channels = self.n_filters = self.out_h = self.out_w = None
         else:
             self.feed_shape(shape)
 
@@ -70,10 +70,6 @@ class ConvLayer(Layer):
         else:
             self.out_h = ceil(height / self._stride)
             self.out_w = ceil(width / self._stride)
-
-    @property
-    def params(self):
-        return self.shape, self._stride, self._padding
 
     @property
     def stride(self):
@@ -90,10 +86,6 @@ class ConvLayer(Layer):
 
 class ConvPoolLayer(ConvLayer):
     LayerTiming = Timing()
-
-    @property
-    def params(self):
-        return (self.shape[0], self.shape[1][1:]), self._stride, self._padding
 
     def feed_shape(self, shape):
         shape = (shape[0], (shape[0][0], *shape[1]))
@@ -126,18 +118,17 @@ class ConvMeta(type):
             return tf.nn.conv2d(x, w, strides=[self._stride] * 4, padding=self._pad_flag)
 
         def _activate(self, x, w, bias, predict):
-            res = self._conv(x, w) + bias if bias is not None else self._conv(x, w)
+            res = self._conv(x, w) + bias
             return layer._activate(self, res, predict)
 
         def activate(self, x, w, bias=None, predict=False):
             if self._pad_flag == "VALID" and self._padding > 0:
                 _pad = [self._padding] * 2
                 x = tf.pad(x, [[0, 0], _pad, _pad, [0, 0]], "CONSTANT")
-            return self.LayerTiming.timeit(level=1, name="activate", cls_name=name, prefix="[Core] ")(
-                _activate)(self, x, w, bias, predict)
+            return _activate(self, x, w, bias, predict)
 
         for key, value in locals().items():
-            if str(value).find("function") >= 0 or str(value).find("property"):
+            if str(value).find("function") >= 0:
                 attr[key] = value
 
         return type(name, bases, attr)

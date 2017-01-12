@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 class DataUtil:
 
     @staticmethod
-    def gen_xor(size, scale=1):
+    def gen_xor(size=100, scale=1):
         x = np.random.randn(size) * scale
         y = np.random.randn(size) * scale
         z = np.zeros((size, 2))
@@ -18,7 +18,7 @@ class DataUtil:
         return np.c_[x, y].astype(np.float32), z
 
     @staticmethod
-    def gen_spin(size, n=7, n_class=7):
+    def gen_spin(size=20, n=7, n_class=7):
         xs = np.zeros((size * n, 2), dtype=np.float32)
         ys = np.zeros(size * n, dtype=np.int8)
         for j in range(n):

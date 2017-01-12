@@ -1,6 +1,5 @@
 import time
 import math
-import random
 import numpy as np
 from collections import Counter
 
@@ -109,7 +108,6 @@ class CvDNode:
             _new_node.fit(self._data[_feat_mask, :], self.labels[_feat_mask])
 
     def _handle_terminate(self):
-        self.tree.depth = max(self._depth, self.tree.depth)
         self.category = self.get_class()
         _parent = self
         while _parent is not None:
@@ -144,6 +142,7 @@ class CvDNode:
     def prune(self):
         if self.category is None:
             self.category = self.get_class()
+            self.feature_dim = None
         _pop_lst = [key for key in self.leafs]
         _parent = self
         while _parent is not None:
@@ -195,7 +194,10 @@ class CvDBase:
         self.nodes = []
         self._max_depth = max_depth
         self.root = CvDNode(self, max_depth)
-        self.depth = 1
+
+    @property
+    def depth(self):
+        return self.root.height
 
     @staticmethod
     def acc(y, y_pred):
@@ -243,7 +245,7 @@ class CvDBase:
 
 if __name__ == '__main__':
     _data, _x, _y = [], [], []
-    with open("data.txt", "r") as file:
+    with open("../data.txt", "r") as file:
         for line in file:
             _data.append(line.split(","))
     np.random.shuffle(_data)
@@ -261,6 +263,5 @@ if __name__ == '__main__':
     _tree = CvDBase()
     _tree.fit(x_train, y_train)
     _tree.view()
-    _y_pred = _tree.predict(x_test)
     _tree.estimate(x_test, y_test)
     print("Time cost: {:8.6}".format(time.time() - _t))

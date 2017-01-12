@@ -12,6 +12,12 @@ class Optimizers(metaclass=ABCMeta):
         self.lr = lr
         self._cache = cache
 
+    def __str__(self):
+        return self.__class__.__name__
+
+    def __repr__(self):
+        return str(self)
+
     @property
     def name(self):
         return str(self)
@@ -40,12 +46,6 @@ class Optimizers(metaclass=ABCMeta):
     @abstractmethod
     def _update(self):
         raise NotImplementedError("Please implement an 'update' method for your optimizer")
-
-    def __str__(self):
-        return self.__class__.__name__
-
-    def __repr__(self):
-        return str(self)
 
 
 class SGD(Optimizers):

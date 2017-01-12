@@ -29,6 +29,12 @@ class Layer(metaclass=ABCMeta):
         self.is_sub_layer = False
         self._last_sub_layer = None
 
+    def __str__(self):
+        return self.__class__.__name__
+
+    def __repr__(self):
+        return str(self)
+
     def feed_timing(self, timing):
         if isinstance(timing, Timing):
             self.LayerTiming = timing
@@ -119,12 +125,6 @@ class Layer(metaclass=ABCMeta):
     @LayerTiming.timeit(level=2, prefix="[Core Util] ")
     def safe_exp(y):
         return np.exp(y - np.max(y, axis=1, keepdims=True))
-
-    def __str__(self):
-        return self.__class__.__name__
-
-    def __repr__(self):
-        return str(self)
 
 
 class SubLayer(Layer):

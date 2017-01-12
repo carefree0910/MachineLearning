@@ -1,6 +1,8 @@
+import cv2
 import time
 import math
 import numpy as np
+from copy import deepcopy
 
 # TODO: Try batch prediction and visualization
 # TODO: Support Continuous Data
@@ -99,6 +101,18 @@ class CvDNode:
             return getattr(self, "_" + item)
         return
 
+    def __lt__(self, other):
+        return self.prev_feat < other.prev_feat
+
+    def __str__(self):
+        if self.children:
+            return "CvDNode ({}) ({} -> {})".format(
+                self._depth, self._prev_feat, self.feature_dim)
+        return "CvDNode ({}) ({} -> class: {})".format(
+            self._depth, self._prev_feat, self.label_dic[self.category])\
+
+    __repr__ = __str__
+
     @property
     def key(self):
         return self._depth, self.prev_feat, id(self)
@@ -119,28 +133,6 @@ class CvDNode:
             "ent": self.ent,
             "labels": self.labels
         }
-
-    def copy(self):
-        _new_node = self.__class__(
-            None, self._max_depth, self._base, self.ent,
-            self._depth, self.parent, self.is_root, self._prev_feat)
-        _new_node.tree = self.tree
-        _new_node.feature_dim = self.feature_dim
-        _new_node.category = self.category
-        _new_node.labels = self.labels
-        _new_node.pruned = self.pruned
-        _new_node.label_dic = self.label_dic
-        _new_node.sample_weights = self.sample_weights
-        _new_node.prune_criteria = self.prune_criteria
-        if self.children:
-            for key, node in self.children.items():
-                _new_node.children[key] = node.copy()
-        else:
-            _new_node.category = self.category
-        if self.leafs:
-            for key, leaf in self.leafs.items():
-                _new_node.leafs[key] = leaf.copy()
-        return _new_node
 
     def feed_tree(self, tree):
         self.tree = tree
@@ -195,7 +187,6 @@ class CvDNode:
                           _local_weights, self.prune_criteria)
 
     def _handle_terminate(self):
-        self.tree.depth = max(self._depth, self.tree.depth)
         self.category = self.get_class()
         _parent = self
         while _parent is not None:
@@ -225,6 +216,7 @@ class CvDNode:
     def prune(self):
         if self.category is None:
             self.category = self.get_class()
+            self.feature_dim = None
         if self.prune_criteria not in ("normal", "cart"):
             return
         _pop_lst = [key for key in self.leafs]
@@ -256,17 +248,10 @@ class CvDNode:
         for _node in sorted(self.children.values()):
             _node.view()
 
-    def __lt__(self, other):
-        return self.prev_feat < other.prev_feat
-
-    def __str__(self):
-        if self.children:
-            return "CvDNode ({}) ({} -> {})".format(
-                self._depth, self._prev_feat, self.feature_dim)
-        return "CvDNode ({}) ({} -> class: {})".format(
-            self._depth, self._prev_feat, self.label_dic[self.category])\
-
-    __repr__ = __str__
+    def update_layers(self):
+        self.tree.layers[self._depth].append(self)
+        for _node in sorted(self.children.values()):
+            _node.update_layers()
 
 
 class ID3Node(CvDNode):
@@ -287,6 +272,7 @@ class CvDBase:
     def __init__(self, max_depth=None, node=None, prune_criteria="normal"):
         self.nodes = []
         self.trees = []
+        self.layers = []
         self._threshold_cache = None
         self._max_depth = max_depth
         if node is None:
@@ -294,21 +280,22 @@ class CvDBase:
         else:
             self.root = node
             self.root.feed_tree(self)
-        self.depth = 1
         self.label_dic = {}
         self.prune_alpha = 1
         self.prune_criteria = prune_criteria
 
+    def __str__(self):
+        return "CvDTree ({})".format(self.depth)
+
+    __repr__ = __str__
+
+    @property
+    def depth(self):
+        return self.root.height
+
     @staticmethod
     def acc(y, y_pred):
         return np.sum(np.array(y) == np.array(y_pred)) / len(y)
-
-    def copy(self):
-        _new_tree = self.__class__(self._max_depth, node=self.root.copy())
-        _new_tree.nodes = [_node.copy() for _node in self.nodes]
-        _new_tree.label_dic = self.label_dic.copy()
-        _new_tree.depth = self.depth
-        return _new_tree
 
     def fit(self, data=None, labels=None, sample_weights=None, eps=1e-8, **kwargs):
         _dic = {c: i for i, c in enumerate(set(labels))}
@@ -324,7 +311,6 @@ class CvDBase:
             _arg = np.argmax([CvDBase.acc(labels, tree.predict(data, False)) for tree in self.trees])
             _tar_tree = self.trees[_arg]
             self.nodes = _tar_tree.nodes
-            self.depth = _tar_tree.depth
             self.root = _tar_tree.root
 
     def _reduce_nodes(self):
@@ -350,7 +336,7 @@ class CvDBase:
                 _tmp_nodes[arg].prune()
                 _continue = True
         elif self.root.prune_criteria == "cart":
-            self.trees.append(self.copy())
+            self.trees.append(deepcopy(self))
             if self.depth <= 2:
                 return
             _nodes = [_node for _node in self.nodes if _node.category is None]
@@ -361,7 +347,6 @@ class CvDBase:
             _arg = np.argmin(_thresholds)
             _nodes[_arg].prune()
             _thresholds[_arg] = _nodes[_arg].get_threshold()
-            self.depth = self.root.height
             for i in range(len(self.nodes) - 1, -1, -1):
                 if self.nodes[i].pruned:
                     self.nodes.pop(i)
@@ -372,7 +357,7 @@ class CvDBase:
             if self.depth > 2:
                 _continue = True
             else:
-                self.trees.append(self.copy())
+                self.trees.append(deepcopy(self))
         else:
             return
         if _continue:
@@ -395,10 +380,57 @@ class CvDBase:
     def view(self):
         self.root.view()
 
-    def __str__(self):
-        return "CvDTree ({})".format(self.depth)
+    def draw(self, radius=24, width=1200, height=800, padding=0.2, plot_num=30):
+        self.layers = [[] for _ in range(self.depth)]
+        self.root.update_layers()
+        units = [len(layer) for layer in self.layers]
 
-    __repr__ = __str__
+        img = np.zeros((height, width, 3), np.uint8)
+        axis0_padding = int(height / (len(self.layers) - 1 + 2 * padding)) * padding + plot_num
+        axis0 = np.linspace(
+            axis0_padding, height - axis0_padding, len(self.layers), dtype=np.int)
+        axis1_padding = plot_num
+        axis1 = [np.linspace(axis1_padding, width - axis1_padding, unit + 2, dtype=np.int)
+                 for unit in units]
+        axis1 = [axis[1:-1] for axis in axis1]
+
+        for i, (y, xs) in enumerate(zip(axis0, axis1)):
+            for j, x in enumerate(xs):
+                if i == 0:
+                    cv2.circle(img, (x, y), radius, (225, 100, 125), 2)
+                else:
+                    cv2.circle(img, (x, y), radius, (125, 100, 225), 2)
+                node = self.layers[i][j]
+                if node.feature_dim is not None:
+                    text = str(node.feature_dim)
+                    color = (0, 0, 255)
+                else:
+                    text = str(self.label_dic[node.category])
+                    color = (0, 255, 0)
+                cv2.putText(img, text, (x-7*len(text)+2, y+3), cv2.LINE_AA, 0.6, color, 2)
+
+        for i, y in enumerate(axis0):
+            if i == len(axis0) - 1:
+                break
+            for j, x in enumerate(axis1[i]):
+                new_y = axis0[i + 1]
+                dy = new_y - y - 2 * radius
+                for k, new_x in enumerate(axis1[i + 1]):
+                    dx = new_x - x
+                    length = np.sqrt(dx**2+dy**2)
+                    ratio = 0.5 - min(0.4, 1.2 * 24/length)
+                    if self.layers[i + 1][k] in self.layers[i][j].children.values():
+                        cv2.line(img, (x, y+radius), (x+int(dx*ratio), y+radius+int(dy*ratio)),
+                                 (125, 125, 125), 2)
+                        cv2.putText(img, self.layers[i+1][k].prev_feat,
+                                    (x+int(dx*0.5)-6, y+radius+int(dy*0.5)),
+                                    cv2.LINE_AA, 0.6, (255, 255, 255), 2)
+                        cv2.line(img, (new_x-int(dx*ratio), new_y-radius-int(dy*ratio)), (new_x, new_y-radius),
+                                 (125, 125, 125), 2)
+
+        cv2.imshow("CvDTree", img)
+        cv2.waitKey(0)
+        return img
 
 
 class CvDMeta(type):
@@ -445,3 +477,4 @@ if __name__ == '__main__':
     _tree.view()
     _tree.estimate(x_test, y_test)
     print("Time cost: {:8.6}".format(time.time() - _t))
+    _tree.draw()
