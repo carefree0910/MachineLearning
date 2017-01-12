@@ -104,7 +104,7 @@ class AdaBoost:
             y_pred[y_pred == 0] = -1
             tmp_vec = self._sample_weight * np.exp(-am * ty * y_pred)
             self._sample_weight = tmp_vec / np.sum(tmp_vec)
-            self._clfs.append(deepcopy(tmp_clf.predict))
+            self._clfs.append(deepcopy(tmp_clf))
             self._clfs_weights.append(am)
             if early_stop:
                 if em <= eps:
@@ -116,7 +116,7 @@ class AdaBoost:
         x = np.array(x)
         rs = np.zeros(len(x))
         for clf, am in zip(self._clfs, self._clfs_weights):
-            y_pred = clf(x)
+            y_pred = clf.predict(x)
             y_pred[y_pred == 0] = -1
             rs += am * y_pred
         if get_raw_result:
@@ -266,6 +266,13 @@ class AdaBoost:
         plt.show()
 
         print("Done.")
+
+    def draw(self):
+        try:
+            for i, clf in enumerate(self._clfs):
+                clf.draw(title="{} ({})".format(self._clf, i+1))
+        except AttributeError:
+            return
 
 if __name__ == '__main__':
 

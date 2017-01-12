@@ -532,7 +532,7 @@ class NNDist(NNBase):
                 _graph_group.append(data)
             _graphs.append(_graph_group)
 
-        img = np.zeros((height, width, 3), np.uint8)
+        img = np.ones((height, width, 3), np.uint8) * 255
         axis0_padding = int(height / (layers - 1 + 2 * padding)) * padding + plot_num
         axis0_step = (height - 2 * axis0_padding) / layers
         sub_layer_decrease = int((1 - sub_layer_height_scale) * axis0_step)
@@ -566,7 +566,7 @@ class NNDist(NNBase):
                     graph = _graphs[i - 1][j]
                     img[y - half_plot_num:y + half_plot_num, x - half_plot_num:x + half_plot_num] = graph
             if i > 0:
-                cv2.putText(img, self._layers[i - 1].name, (12, y - 36), cv2.LINE_AA, 0.6, (255, 255, 255), 2)
+                cv2.putText(img, self._layers[i - 1].name, (12, y - 36), cv2.LINE_AA, 0.6, (0, 0, 0), 1)
 
         for i, y in enumerate(axis0):
             if i == len(axis0) - 1:

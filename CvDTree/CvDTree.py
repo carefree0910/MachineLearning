@@ -72,10 +72,9 @@ class Cluster:
 # Node
 
 class CvDNode:
-    def __init__(self, tree=None, max_depth=None, base=2, ent=None,
+    def __init__(self, tree=None, base=2, ent=None,
                  depth=0, parent=None, is_root=True, prev_feat="Root"):
         self._data = self.labels = None
-        self._max_depth = max_depth
         self._base = base
         self.ent = ent
         self.criteria = None
@@ -124,6 +123,10 @@ class CvDNode:
         return 1 + max([_child.height for _child in self.children.values()])
 
     @property
+    def max_depth(self):
+        return self.tree.max_depth
+
+    @property
     def prev_feat(self):
         return self._prev_feat
 
@@ -145,7 +148,7 @@ class CvDNode:
     def stop(self, eps):
         if (
             self._data.shape[1] == 1 or (self.ent is not None and self.ent <= eps)
-            or (self._max_depth is not None and self._depth >= self._max_depth)
+            or (self.max_depth is not None and self._depth >= self.max_depth)
         ):
             self._handle_terminate()
             return True
@@ -177,7 +180,7 @@ class CvDNode:
         for feat in set(features):
             _feat_mask = features == feat
             _new_node = self.__class__(
-                self.tree, self._max_depth, self._base, ent=con_chaos,
+                self.tree, self._base, ent=con_chaos,
                 depth=self._depth + 1, parent=self, is_root=False, prev_feat=feat)
             _new_node.feats = _new_feats
             _new_node.label_dic = self.label_dic
@@ -380,12 +383,12 @@ class CvDBase:
     def view(self):
         self.root.view()
 
-    def draw(self, radius=24, width=1200, height=800, padding=0.2, plot_num=30):
+    def draw(self, radius=24, width=1200, height=800, padding=0.2, plot_num=30, title="CvDTree"):
         self.layers = [[] for _ in range(self.depth)]
         self.root.update_layers()
         units = [len(layer) for layer in self.layers]
 
-        img = np.zeros((height, width, 3), np.uint8)
+        img = np.ones((height, width, 3), np.uint8) * 255
         axis0_padding = int(height / (len(self.layers) - 1 + 2 * padding)) * padding + plot_num
         axis0 = np.linspace(
             axis0_padding, height - axis0_padding, len(self.layers), dtype=np.int)
@@ -397,9 +400,9 @@ class CvDBase:
         for i, (y, xs) in enumerate(zip(axis0, axis1)):
             for j, x in enumerate(xs):
                 if i == 0:
-                    cv2.circle(img, (x, y), radius, (225, 100, 125), 2)
+                    cv2.circle(img, (x, y), radius, (225, 100, 125), 1)
                 else:
-                    cv2.circle(img, (x, y), radius, (125, 100, 225), 2)
+                    cv2.circle(img, (x, y), radius, (125, 100, 225), 1)
                 node = self.layers[i][j]
                 if node.feature_dim is not None:
                     text = str(node.feature_dim)
@@ -407,7 +410,7 @@ class CvDBase:
                 else:
                     text = str(self.label_dic[node.category])
                     color = (0, 255, 0)
-                cv2.putText(img, text, (x-7*len(text)+2, y+3), cv2.LINE_AA, 0.6, color, 2)
+                cv2.putText(img, text, (x-7*len(text)+2, y+3), cv2.LINE_AA, 0.6, color, 1)
 
         for i, y in enumerate(axis0):
             if i == len(axis0) - 1:
@@ -421,14 +424,14 @@ class CvDBase:
                     ratio = 0.5 - min(0.4, 1.2 * 24/length)
                     if self.layers[i + 1][k] in self.layers[i][j].children.values():
                         cv2.line(img, (x, y+radius), (x+int(dx*ratio), y+radius+int(dy*ratio)),
-                                 (125, 125, 125), 2)
+                                 (125, 125, 125), 1)
                         cv2.putText(img, self.layers[i+1][k].prev_feat,
                                     (x+int(dx*0.5)-6, y+radius+int(dy*0.5)),
-                                    cv2.LINE_AA, 0.6, (255, 255, 255), 2)
+                                    cv2.LINE_AA, 0.6, (0, 0, 0), 1)
                         cv2.line(img, (new_x-int(dx*ratio), new_y-radius-int(dy*ratio)), (new_x, new_y-radius),
-                                 (125, 125, 125), 2)
+                                 (125, 125, 125), 1)
 
-        cv2.imshow("CvDTree", img)
+        cv2.imshow(title, img)
         cv2.waitKey(0)
         return img
 
@@ -436,15 +439,20 @@ class CvDBase:
 class CvDMeta(type):
     def __new__(mcs, *args, **kwargs):
         name, bases, attr = args[:3]
-        base, node = bases
+        _, node = bases
 
         def __init__(self, *_args, **_kwargs):
-            if "node" not in _kwargs:
-                CvDBase.__init__(self, node=node(max_depth=kwargs.get("max_depth")), *_args, **_kwargs)
+            if "max_depth" in _kwargs:
+                CvDBase.__init__(self, _kwargs.pop("max_depth"), node=node(*_args, **_kwargs))
             else:
-                CvDBase.__init__(self, *_args, **_kwargs)
+                CvDBase.__init__(self, node=node(*_args, **_kwargs))
+
+        @property
+        def max_depth(self):
+            return self._max_depth
 
         attr["__init__"] = __init__
+        attr["max_depth"] = max_depth
         return type(name, bases, attr)
 
 

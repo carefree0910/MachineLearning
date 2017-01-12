@@ -385,7 +385,7 @@ class CvDBase:
         self.root.update_layers()
         units = [len(layer) for layer in self.layers]
 
-        img = np.zeros((height, width, 3), np.uint8)
+        img = np.ones((height, width, 3), np.uint8) * 255
         axis0_padding = int(height / (len(self.layers) - 1 + 2 * padding)) * padding + plot_num
         axis0 = np.linspace(
             axis0_padding, height - axis0_padding, len(self.layers), dtype=np.int)
@@ -397,9 +397,9 @@ class CvDBase:
         for i, (y, xs) in enumerate(zip(axis0, axis1)):
             for j, x in enumerate(xs):
                 if i == 0:
-                    cv2.circle(img, (x, y), radius, (225, 100, 125), 2)
+                    cv2.circle(img, (x, y), radius, (225, 100, 125), 1)
                 else:
-                    cv2.circle(img, (x, y), radius, (125, 100, 225), 2)
+                    cv2.circle(img, (x, y), radius, (125, 100, 225), 1)
                 node = self.layers[i][j]
                 if node.feature_dim is not None:
                     text = str(node.feature_dim)
@@ -407,7 +407,7 @@ class CvDBase:
                 else:
                     text = str(self.label_dic[node.category])
                     color = (0, 255, 0)
-                cv2.putText(img, text, (x-7*len(text)+2, y+3), cv2.LINE_AA, 0.6, color, 2)
+                cv2.putText(img, text, (x-7*len(text)+2, y+3), cv2.LINE_AA, 0.6, color, 1)
 
         for i, y in enumerate(axis0):
             if i == len(axis0) - 1:
@@ -421,12 +421,12 @@ class CvDBase:
                     ratio = 0.5 - min(0.4, 1.2 * 24/length)
                     if self.layers[i + 1][k] in self.layers[i][j].children.values():
                         cv2.line(img, (x, y+radius), (x+int(dx*ratio), y+radius+int(dy*ratio)),
-                                 (125, 125, 125), 2)
+                                 (125, 125, 125), 1)
                         cv2.putText(img, self.layers[i+1][k].prev_feat,
                                     (x+int(dx*0.5)-6, y+radius+int(dy*0.5)),
-                                    cv2.LINE_AA, 0.6, (255, 255, 255), 2)
+                                    cv2.LINE_AA, 0.6, (0, 0, 0), 1)
                         cv2.line(img, (new_x-int(dx*ratio), new_y-radius-int(dy*ratio)), (new_x, new_y-radius),
-                                 (125, 125, 125), 2)
+                                 (125, 125, 125), 1)
 
         cv2.imshow("CvDTree", img)
         cv2.waitKey(0)

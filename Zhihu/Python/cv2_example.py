@@ -1,5 +1,3 @@
-import cv2
-
 from Zhihu.NN.Util import DataUtil
 from NN.Basic.Networks import *
 from CvDTree.CvDTree import *
@@ -10,10 +8,10 @@ def cv2_example():
 
 
 def visualize_nn():
-    x, y = DataUtil.gen_spin()
+    x, y = DataUtil.gen_xor()
     nn = NNDist()
-    nn.add("ReLU", (x.shape[1], 24))
-    nn.add("ReLU", (24,))
+    nn.add("ReLU", (x.shape[1], 6))
+    nn.add("ReLU", (6,))
     nn.add("Softmax", (y.shape[1],))
     nn.fit(x, y, epoch=1000, draw_detailed_network=True)
 
