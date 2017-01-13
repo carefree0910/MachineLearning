@@ -270,6 +270,17 @@ class NNBase:
                     raise LayerError("Invalid Layer provided (invalid shape '{}' found)".format(layer.shape))
 
     @NNTiming.timeit(level=4, prefix="[API] ")
+    def add_pipe_layer(self, idx, layer, shape, *args, **kwargs):
+        _last_layer = self._layers[-1]
+        _last_parent = self._layers[-2]
+        if not isinstance(_last_layer, NNPipe):
+            raise BuildLayerError("Adding pipe layers to a non-NNPipe object is not allowed")
+        if not _last_layer.initialized[idx] and len(shape) == 1:
+            _dim = (_last_parent.n_filters, _last_parent.out_h, _last_parent.out_w)
+            shape = (_dim, shape[0])
+        _last_layer.add(idx, layer, shape, *args, **kwargs)
+
+    @NNTiming.timeit(level=4, prefix="[API] ")
     def preview(self, verbose=0):
         if not self._layers:
             rs = "None"
@@ -651,17 +662,6 @@ class NNDist(NNBase):
     @NNTiming.timeit(level=4, prefix="[API] ")
     def feed(self, x, y):
         self._feed_data(x, y)
-
-    @NNTiming.timeit(level=4, prefix="[API] ")
-    def add_pipe_layer(self, idx, layer, shape, *args, **kwargs):
-        _last_layer = self._layers[-1]
-        _last_parent = self._layers[-2]
-        if not isinstance(_last_layer, NNPipe):
-            raise BuildLayerError("Adding pipe layers to a non-NNPipe object is not allowed")
-        if not _last_layer.initialized[idx] and len(shape) == 1:
-            _dim = (_last_parent.n_filters, _last_parent.out_h, _last_parent.out_w)
-            shape = (_dim, shape[0])
-        _last_layer.add(idx, layer, shape, *args, **kwargs)
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def build(self, units="load"):

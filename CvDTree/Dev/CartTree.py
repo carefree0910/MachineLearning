@@ -16,7 +16,7 @@ class BinCluster:
         if sample_weights is None:
             self._counters = np.bincount(labels)
         else:
-            self._counters = np.bincount(labels, weights=sample_weights)
+            self._counters = np.bincount(labels, weights=sample_weights * len(sample_weights))
         self._sample_weights = sample_weights
         self._labels = np.array(labels)
         self._cache = None
@@ -50,7 +50,8 @@ class BinCluster:
             if self._sample_weights is None:
                 _ent = _method(BinCluster(tmp_data, tar_label, base=self._base))
             else:
-                _ent = _method(BinCluster(tmp_data, tar_label, self._sample_weights[data_label], base=self._base))
+                _new_weights = self._sample_weights[data_label]
+                _ent = _method(BinCluster(tmp_data, tar_label, _new_weights / np.sum(_new_weights), base=self._base))
             rs += len(tmp_data) / len(data) * _ent
         return rs
 
@@ -138,6 +139,14 @@ class CartNode:
             "labels": self.labels
         }
 
+    @property
+    def targets(self):
+        return self.tree.targets
+
+    @targets.setter
+    def targets(self, value):
+        self.tree.targets = value
+
     def cut_tree(self):
         self.tree = None
         for child in self.children.values():
@@ -154,6 +163,8 @@ class CartNode:
     def feed_data(self, data, labels):
         self.data = np.array(data)
         self.labels = np.array(labels)
+        if not self.targets:
+            self.targets = [None] * self.data.shape[1]
 
     def stop(self, eps):
         if (
@@ -215,7 +226,12 @@ class CartNode:
         _max_gain = _con_chaos = 0
         _max_feature = _max_tar = None
         for feat in self.feats:
-            for tar in set(self.data[:, feat]):
+            if self.targets[feat] is None:
+                _set = set(self.data[:, feat])
+                self.targets[feat] = _set
+            else:
+                _set = self.targets[feat]
+            for tar in _set:
                 _tmp_gain, _tmp_con_chaos = _cluster.info_gain(
                     feat, tar, criterion=self.criterion, get_con_chaos=True)
                 if _tmp_gain > _max_gain:
@@ -223,16 +239,15 @@ class CartNode:
         if self.early_stop(_max_gain, eps):
             return
         self.feature_dim, self.tar = _max_feature, _max_tar
+        self.targets[_max_feature].discard(_max_tar)
         self._gen_children(_max_feature, _max_tar, _con_chaos)
+        full = None
         if self.left_child.category is None and self.left_child.feature_dim is None:
-            self.category = self.right_child.category
-            self.feature_dim = self.right_child.feture_dim
-            self.left_child = self.right_child = None
-            self.mark_pruned()
-            self.tree.reduce_nodes()
+            full = self.right_child
         elif self.right_child.category is None and self.right_child.feature_dim is None:
-            self.category = self.left_child.category
-            self.feature_dim = self.left_child.feture_dim
+            full = self.left_child
+        if full is not None:
+            self.category, self.feature_dim = full.category, full.feature_dim
             self.left_child = self.right_child = None
             self.mark_pruned()
             self.tree.reduce_nodes()
@@ -286,6 +301,7 @@ class CartTree:
         self.nodes = []
         self.trees = []
         self.layers = []
+        self.targets = []
         self._threshold_cache = None
         self._max_depth = max_depth
         if "criterion" in kwargs:
@@ -433,7 +449,7 @@ if __name__ == '__main__':
     _data, _x, _y = [], [], []
     with open("Data/data.txt", "r") as file:
         for line in file:
-            _data.append(line.split(","))
+            _data.append(line.strip().split(","))
     np.random.shuffle(_data)
     for line in _data:
         _y.append(line.pop(0))
@@ -446,7 +462,7 @@ if __name__ == '__main__':
     y_test = _y[train_num:]
 
     _t = time.time()
-    _tree = CartTree()
+    _tree = CartTree(max_depth=1)
     _tree.fit(x_train, y_train)
     _tree.view()
     _tree.estimate(x_test, y_test)

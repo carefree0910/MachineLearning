@@ -14,7 +14,7 @@ class Cluster:
         if sample_weights is None:
             self._counters = np.bincount(labels)
         else:
-            self._counters = np.bincount(labels, weights=sample_weights)
+            self._counters = np.bincount(labels, weights=sample_weights * len(sample_weights))
         self._sample_weights = sample_weights
         self._labels = np.array(labels)
         self._cache = None
@@ -41,7 +41,8 @@ class Cluster:
             if self._sample_weights is None:
                 _ent = _method(Cluster(tmp_data, tar_label, base=self._base))
             else:
-                _ent = _method(Cluster(tmp_data, tar_label, self._sample_weights[data_label], base=self._base))
+                _new_weights = self._sample_weights[data_label]
+                _ent = _method(Cluster(tmp_data, tar_label, _new_weights / np.sum(_new_weights), base=self._base))
             rs += len(tmp_data) / len(data) * _ent
         return rs
 
@@ -150,15 +151,6 @@ class CvDNode:
     def get_class(self):
         _counter = np.bincount(self.labels)
         return np.argmax(_counter)
-
-    def get_threshold(self):
-        if self.category is None:
-            rs = 0
-            for leaf in self.leafs.values():
-                _cluster = Cluster(None, leaf["labels"], None, self._base)
-                rs += len(leaf["labels"]) * _cluster.ent()
-            return Cluster(None, self.labels, None, self._base).ent() - rs / (len(self.leafs) - 1)
-        return 0
 
     def _gen_children(self, feat, con_chaos):
         features = self._data[:, feat]
