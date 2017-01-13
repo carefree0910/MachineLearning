@@ -2,11 +2,8 @@ import cv2
 import time
 import math
 import numpy as np
-from copy import deepcopy
 
 # TODO: Try batch prediction and visualization
-# TODO: Support Continuous Data
-# TODO: CART
 
 
 # Util
@@ -29,18 +26,11 @@ class Cluster:
             ent = [_val for _val in self._counters]
         return max(eps, -sum([_c / _len * math.log(_c / _len, self._base) if _c != 0 else 0 for _c in ent]))
 
-    def gini(self, p=None):
-        if p is None:
-            p = [_val for _val in self._counters]
-        return 1 - sum([(_p / len(self._labels)) ** 2 for _p in p])
-
-    def con_chaos(self, idx, criteria="ent"):
-        if criteria == "ent":
+    def con_chaos(self, idx, criterion="ent"):
+        if criterion == "ent":
             _method = lambda cluster: cluster.ent()
-        elif criteria == "gini":
-            _method = lambda cluster: cluster.gini()
         else:
-            raise NotImplementedError("Conditional info criteria '{}' not defined".format(criteria))
+            raise NotImplementedError("Conditional info criterion '{}' not defined".format(criterion))
         data = self._data[idx]
         features = list(sorted(set(data)))
         self._cache = tmp_labels = [data == feature for feature in features]
@@ -55,33 +45,29 @@ class Cluster:
             rs += len(tmp_data) / len(data) * _ent
         return rs
 
-    def info_gain(self, idx, criteria="ent", get_con_chaos=False):
-        if criteria in ("ent", "ratio"):
+    def info_gain(self, idx, criterion="ent", get_con_chaos=False):
+        if criterion in ("ent", "ratio"):
             _con_chaos = self.con_chaos(idx)
             _gain = self.ent() - _con_chaos
-            if criteria == "ratio":
+            if criterion == "ratio":
                 _gain = _gain / self.ent([np.sum(_cache) for _cache in self._cache])
-        elif criteria == "gini":
-            _con_chaos = self.con_chaos(idx, criteria="gini")
-            _gain = self.gini() - _con_chaos
         else:
-            raise NotImplementedError("Info_gain criteria '{}' not defined".format(criteria))
+            raise NotImplementedError("Info_gain criterion '{}' not defined".format(criterion))
         return (_gain, _con_chaos) if get_con_chaos else _gain
 
 
 # Node
 
 class CvDNode:
-    def __init__(self, tree=None, max_depth=None, base=2, ent=None,
+    def __init__(self, tree=None, base=2, ent=None,
                  depth=0, parent=None, is_root=True, prev_feat="Root"):
         self._data = self.labels = None
-        self._max_depth = max_depth
         self._base = base
         self.ent = ent
-        self.criteria = None
+        self.criterion = None
         self.children = {}
         self.category = None
-        self.sample_weights = self.prune_criteria = None
+        self.sample_weights = None
 
         self.tree = tree
         if tree is not None:
@@ -109,7 +95,7 @@ class CvDNode:
             return "CvDNode ({}) ({} -> {})".format(
                 self._depth, self._prev_feat, self.feature_dim)
         return "CvDNode ({}) ({} -> class: {})".format(
-            self._depth, self._prev_feat, self.label_dic[self.category])\
+            self._depth, self._prev_feat, self.label_dic[self.category])
 
     __repr__ = __str__
 
@@ -122,6 +108,10 @@ class CvDNode:
         if self.category is not None:
             return 1
         return 1 + max([_child.height for _child in self.children.values()])
+
+    @property
+    def max_depth(self):
+        return self.tree.max_depth
 
     @property
     def prev_feat(self):
@@ -145,7 +135,7 @@ class CvDNode:
     def stop(self, eps):
         if (
             self._data.shape[1] == 1 or (self.ent is not None and self.ent <= eps)
-            or (self._max_depth is not None and self._depth >= self._max_depth)
+            or (self.max_depth is not None and self._depth >= self.max_depth)
         ):
             self._handle_terminate()
             return True
@@ -177,14 +167,13 @@ class CvDNode:
         for feat in set(features):
             _feat_mask = features == feat
             _new_node = self.__class__(
-                self.tree, self._max_depth, self._base, ent=con_chaos,
+                self.tree, self._base, ent=con_chaos,
                 depth=self._depth + 1, parent=self, is_root=False, prev_feat=feat)
             _new_node.feats = _new_feats
             _new_node.label_dic = self.label_dic
             self.children[feat] = _new_node
             _local_weights = None if self.sample_weights is None else self.sample_weights[_feat_mask]
-            _new_node.fit(self._data[_feat_mask, :], self.labels[_feat_mask],
-                          _local_weights, self.prune_criteria)
+            _new_node.fit(self._data[_feat_mask, :], self.labels[_feat_mask], _local_weights)
 
     def _handle_terminate(self):
         self.category = self.get_class()
@@ -193,17 +182,17 @@ class CvDNode:
             _parent.leafs[self.key] = self.info_dic
             _parent = _parent.parent
 
-    def fit(self, data, labels, sample_weights, prune_criteria, eps=1e-8):
+    def fit(self, data, labels, sample_weights, eps=1e-8):
         if data is not None and labels is not None:
             self.feed_data(data, labels)
-        self.sample_weights, self.prune_criteria = sample_weights, prune_criteria
+        self.sample_weights = sample_weights
         if self.stop(eps):
             return
         _cluster = Cluster(self._data, self.labels, sample_weights, self._base)
-        _max_gain, _con_chaos = _cluster.info_gain(self.feats[0], criteria=self.criteria, get_con_chaos=True)
+        _max_gain, _con_chaos = _cluster.info_gain(self.feats[0], criterion=self.criterion, get_con_chaos=True)
         _max_feature = self.feats[0]
-        for feat in self.feats:
-            _tmp_gain, _tmp_con_chaos = _cluster.info_gain(feat, criteria=self.criteria, get_con_chaos=True)
+        for feat in self.feats[1:]:
+            _tmp_gain, _tmp_con_chaos = _cluster.info_gain(feat, criterion=self.criterion, get_con_chaos=True)
             if _tmp_gain > _max_gain:
                 (_max_gain, _con_chaos), _max_feature = (_tmp_gain, _tmp_con_chaos), feat
         if self.early_stop(_max_gain, eps):
@@ -217,8 +206,6 @@ class CvDNode:
         if self.category is None:
             self.category = self.get_class()
             self.feature_dim = None
-        if self.prune_criteria not in ("normal", "cart"):
-            return
         _pop_lst = [key for key in self.leafs]
         _parent = self
         while _parent is not None:
@@ -257,32 +244,28 @@ class CvDNode:
 class ID3Node(CvDNode):
     def __init__(self, *args, **kwargs):
         CvDNode.__init__(self, *args, **kwargs)
-        self.criteria = "ent"
+        self.criterion = "ent"
 
 
 class C45Node(CvDNode):
     def __init__(self, *args, **kwargs):
         CvDNode.__init__(self, *args, **kwargs)
-        self.criteria = "ratio"
+        self.criterion = "ratio"
 
 
 # Tree
 
 class CvDBase:
-    def __init__(self, max_depth=None, node=None, prune_criteria="normal"):
+    def __init__(self, max_depth=None, node=None):
         self.nodes = []
         self.trees = []
         self.layers = []
         self._threshold_cache = None
         self._max_depth = max_depth
-        if node is None:
-            self.root = CvDNode(self, max_depth)
-        else:
-            self.root = node
-            self.root.feed_tree(self)
+        self.root = node
+        self.root.feed_tree(self)
         self.label_dic = {}
         self.prune_alpha = 1
-        self.prune_criteria = prune_criteria
 
     def __str__(self):
         return "CvDTree ({})".format(self.depth)
@@ -304,14 +287,8 @@ class CvDBase:
         data = np.array(data)
         self.root.label_dic = self.label_dic
         self.root.feats = [i for i in range(data.shape[1])]
-        self.root.fit(data, labels, sample_weights, self.prune_criteria, eps)
-        if self.prune_criteria == "normal":
-            self.prune_alpha = kwargs.get("alpha", self.prune_alpha)
-        elif self.prune_criteria == "cart":
-            _arg = np.argmax([CvDBase.acc(labels, tree.predict(data, False)) for tree in self.trees])
-            _tar_tree = self.trees[_arg]
-            self.nodes = _tar_tree.nodes
-            self.root = _tar_tree.root
+        self.root.fit(data, labels, sample_weights, eps)
+        self.prune_alpha = kwargs.get("alpha", self.prune_alpha)
 
     def _reduce_nodes(self):
         for i in range(len(self.nodes) - 1, -1, -1):
@@ -320,46 +297,20 @@ class CvDBase:
 
     def prune(self):
         _continue = False
-        if self.root.prune_criteria == "normal":
-            if self.depth <= 2:
-                return
-            _tmp_nodes = [node for node in self.nodes if not node.is_root and not node.category]
-            if not _tmp_nodes:
-                return
-            _old = np.array([sum(
-                [leaf["ent"] * len(leaf["labels"]) for leaf in node.leafs.values()]
-            ) + self.prune_alpha * len(node.leafs) for node in _tmp_nodes])
-            _new = np.array([node.ent * len(node.labels) + self.prune_alpha for node in _tmp_nodes])
-            _mask = (_old - _new) > 0
-            arg = np.argmax(_mask)
-            if _mask[arg]:
-                _tmp_nodes[arg].prune()
-                _continue = True
-        elif self.root.prune_criteria == "cart":
-            self.trees.append(deepcopy(self))
-            if self.depth <= 2:
-                return
-            _nodes = [_node for _node in self.nodes if _node.category is None]
-            if self._threshold_cache is None:
-                _thresholds = [_node.get_threshold() for _node in _nodes]
-            else:
-                _thresholds = self._threshold_cache
-            _arg = np.argmin(_thresholds)
-            _nodes[_arg].prune()
-            _thresholds[_arg] = _nodes[_arg].get_threshold()
-            for i in range(len(self.nodes) - 1, -1, -1):
-                if self.nodes[i].pruned:
-                    self.nodes.pop(i)
-            for i in range(len(_thresholds) - 1, -1, -1):
-                if _nodes[i].pruned:
-                    _thresholds.pop(i)
-            self._threshold_cache = _thresholds
-            if self.depth > 2:
-                _continue = True
-            else:
-                self.trees.append(deepcopy(self))
-        else:
+        if self.depth <= 2:
             return
+        _tmp_nodes = [node for node in self.nodes if not node.is_root and not node.category]
+        if not _tmp_nodes:
+            return
+        _old = np.array([sum(
+            [leaf["ent"] * len(leaf["labels"]) for leaf in node.leafs.values()]
+        ) + self.prune_alpha * len(node.leafs) for node in _tmp_nodes])
+        _new = np.array([node.ent * len(node.labels) + self.prune_alpha for node in _tmp_nodes])
+        _mask = (_old - _new) > 0
+        arg = np.argmax(_mask)
+        if _mask[arg]:
+            _tmp_nodes[arg].prune()
+            _continue = True
         if _continue:
             self._reduce_nodes()
             self.prune()
@@ -380,7 +331,7 @@ class CvDBase:
     def view(self):
         self.root.view()
 
-    def draw(self, radius=24, width=1200, height=800, padding=0.2, plot_num=30):
+    def draw(self, radius=24, width=1200, height=800, padding=0.2, plot_num=30, title="CvDTree"):
         self.layers = [[] for _ in range(self.depth)]
         self.root.update_layers()
         units = [len(layer) for layer in self.layers]
@@ -428,7 +379,7 @@ class CvDBase:
                         cv2.line(img, (new_x-int(dx*ratio), new_y-radius-int(dy*ratio)), (new_x, new_y-radius),
                                  (125, 125, 125), 1)
 
-        cv2.imshow("CvDTree", img)
+        cv2.imshow(title, img)
         cv2.waitKey(0)
         return img
 
@@ -436,15 +387,18 @@ class CvDBase:
 class CvDMeta(type):
     def __new__(mcs, *args, **kwargs):
         name, bases, attr = args[:3]
-        base, node = bases
+        _, node = bases
 
-        def __init__(self, *_args, **_kwargs):
-            if "node" not in _kwargs:
-                CvDBase.__init__(self, node=node(max_depth=kwargs.get("max_depth")), *_args, **_kwargs)
-            else:
-                CvDBase.__init__(self, *_args, **_kwargs)
+        def __init__(self, **_kwargs):
+            _max_depth = None if "max_depth" not in _kwargs else _kwargs.pop("max_depth")
+            CvDBase.__init__(self, _max_depth, node(**_kwargs))
+
+        @property
+        def max_depth(self):
+            return self._max_depth
 
         attr["__init__"] = __init__
+        attr["max_depth"] = max_depth
         return type(name, bases, attr)
 
 

@@ -122,7 +122,7 @@ class CvDNode:
         _cluster = Cluster(self._data, self.labels, self._base)
         _max_gain, _con_ent = _cluster.info_gain(self.feats[0])
         _max_feature = self.feats[0]
-        for feat in self.feats:
+        for feat in self.feats[1:]:
             _tmp_gain, _tmp_con_ent = _cluster.info_gain(feat)
             if _tmp_gain > _max_gain:
                 (_max_gain, _con_ent), _max_feature = (_tmp_gain, _tmp_con_ent), feat
