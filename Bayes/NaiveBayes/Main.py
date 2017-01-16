@@ -7,12 +7,11 @@ np.random.seed(142857)
 
 def main():
 
-    whether_discrete = [True] * 17
-    _continuous_lst = [0, 5, 9, 11, 12, 13]
+    whether_discrete = [True] * 20
+    _continuous_lst = [i for i in range(9)]
     for _cl in _continuous_lst:
         whether_discrete[_cl] = False
     nb = MergedNB(whether_discrete)
-    # nb = MultinomialNB()
     util = Util()
 
     train_num = 40000
@@ -22,16 +21,16 @@ def main():
     np.random.shuffle(raw_data)
     train_data = raw_data[:train_num]
     test_data = raw_data[train_num:]
-    nb.feed_data(train_data)
     data_time = time.time() - data_time
 
     learning_time = time.time()
+    nb.feed_data(train_data)
     nb.fit()
     learning_time = time.time() - learning_time
 
     estimation_time = time.time()
+    nb.estimate(train_data)
     nb.estimate(test_data)
-    # nb.estimate(train_data)
     estimation_time = time.time() - estimation_time
 
     print(

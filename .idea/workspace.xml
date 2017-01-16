@@ -3,13 +3,8 @@
   <component name="ChangeListManager">
     <list default="true" id="a4743ded-d384-4ad3-a479-12cfa6f90f49" name="Default" comment="">
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/CvDTree/CartTree.py" afterPath="$PROJECT_DIR$/CvDTree/CartTree.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/CvDTree/CvDTree.py" afterPath="$PROJECT_DIR$/CvDTree/CvDTree.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/CvDTree/Dev/CartTree.py" afterPath="$PROJECT_DIR$/CvDTree/Dev/CartTree.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/CvDTree/Dev/Tree.py" afterPath="$PROJECT_DIR$/CvDTree/Dev/Tree.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/NN/TF/Networks.py" afterPath="$PROJECT_DIR$/NN/TF/Networks.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/NN/Test/DevTest.py" afterPath="$PROJECT_DIR$/NN/Test/DevTest.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Zhihu/CvDTree/three/CvDTree.py" afterPath="$PROJECT_DIR$/Zhihu/CvDTree/three/CvDTree.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Bayes/NaiveBayes/Main.py" afterPath="$PROJECT_DIR$/Bayes/NaiveBayes/Main.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Bayes/NaiveBayes/NaiveBayes.py" afterPath="$PROJECT_DIR$/Bayes/NaiveBayes/NaiveBayes.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -26,7 +21,7 @@
     <SUITE FILE_PATH="coverage/MachineLearning$Tree.coverage" NAME="Tree Coverage Results" MODIFIED="1484282272909" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/CvDTree/Dev" />
     <SUITE FILE_PATH="coverage/MachineLearning$Test__2_.coverage" NAME="Test (2) Coverage Results" MODIFIED="1484049984747" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Zhihu/NN/_extra/one" />
     <SUITE FILE_PATH="coverage/MachineLearning$CIFAR10__1_.coverage" NAME="CIFAR10 (1) Coverage Results" MODIFIED="1484058367859" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/NN/Test" />
-    <SUITE FILE_PATH="coverage/MachineLearning$Main.coverage" NAME="Main Coverage Results" MODIFIED="1482384662852" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Bayes/NaiveBayes" />
+    <SUITE FILE_PATH="coverage/MachineLearning$Main.coverage" NAME="Main Coverage Results" MODIFIED="1484560118695" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Bayes/NaiveBayes" />
     <SUITE FILE_PATH="coverage/MachineLearning$CIFAR10.coverage" NAME="CIFAR10 Coverage Results" MODIFIED="1484103335568" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Zhihu/CNN/one" />
     <SUITE FILE_PATH="coverage/MachineLearning$Mnist.coverage" NAME="Mnist Coverage Results" MODIFIED="1484060028420" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Zhihu/CNN/one" />
     <SUITE FILE_PATH="coverage/MachineLearning$Playground.coverage" NAME="Playground Coverage Results" MODIFIED="1483026401387" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Zhihu/Python" />
@@ -34,7 +29,7 @@
     <SUITE FILE_PATH="coverage/MachineLearning$CvDTree__2_.coverage" NAME="CvDTree (2) Coverage Results" MODIFIED="1482631512373" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Zhihu/CvDTree/two" />
     <SUITE FILE_PATH="coverage/MachineLearning$Network.coverage" NAME="Network Coverage Results" MODIFIED="1484059736279" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Zhihu/CNN/one" />
     <SUITE FILE_PATH="coverage/MachineLearning$cv2_example.coverage" NAME="cv2_example Coverage Results" MODIFIED="1484228219033" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Zhihu/Python" />
-    <SUITE FILE_PATH="coverage/MachineLearning$CartTree.coverage" NAME="CartTree Coverage Results" MODIFIED="1484316137720" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/CvDTree/Dev" />
+    <SUITE FILE_PATH="coverage/MachineLearning$CartTree.coverage" NAME="CartTree Coverage Results" MODIFIED="1484560442969" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/CvDTree/Dev" />
     <SUITE FILE_PATH="coverage/MachineLearning$DevTest.coverage" NAME="DevTest Coverage Results" MODIFIED="1484289445109" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/NN/Test" />
     <SUITE FILE_PATH="coverage/MachineLearning$AdaBoost___Copy.coverage" NAME="AdaBoost - Copy Coverage Results" MODIFIED="1484118851658" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/AdaBoost" />
     <SUITE FILE_PATH="coverage/MachineLearning$RN.coverage" NAME="RN Coverage Results" MODIFIED="1482384432304" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/RegularizationNetworks" />
@@ -48,16 +43,15 @@
   </component>
   <component name="ExecutionTargetManager" SELECTED_TARGET="default_target" />
   <component name="FileEditorManager">
-    <leaf SIDE_TABS_SIZE_LIMIT_KEY="375">
+    <leaf>
       <file leaf-file-name="CartTree.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/CvDTree/Dev/CartTree.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="260">
-              <caret line="470" column="0" lean-forward="true" selection-start-line="470" selection-start-column="0" selection-end-line="470" selection-end-column="0" />
+            <state relative-caret-position="100">
+              <caret line="333" column="29" lean-forward="true" selection-start-line="333" selection-start-column="29" selection-end-line="333" selection-end-column="29" />
               <folding>
                 <element signature="e#81#127#0" expanded="false" />
                 <element signature="e#192#2745#0" expanded="false" />
-                <element signature="e#263#624#0" expanded="false" />
                 <element signature="e#674#883#0" expanded="false" />
                 <element signature="e#921#1052#0" expanded="false" />
                 <element signature="e#1114#2085#0" expanded="false" />
@@ -114,13 +108,11 @@
                 <element signature="e#10139#10219#0" expanded="false" />
                 <element signature="e#10258#10446#0" expanded="false" />
                 <element signature="e#10357#10446#0" expanded="false" />
-                <element signature="e#10469#16168#0" expanded="false" />
                 <element signature="e#10541#10908#0" expanded="false" />
                 <element signature="e#10941#10981#0" expanded="false" />
                 <element signature="e#11050#11073#0" expanded="false" />
                 <element signature="e#11122#11144#0" expanded="false" />
                 <element signature="e#11196#11251#0" expanded="false" />
-                <element signature="e#11335#11937#0" expanded="false" />
                 <element signature="e#11975#12090#0" expanded="false" />
                 <element signature="e#12032#12090#0" expanded="false" />
                 <element signature="e#12121#13154#0" expanded="false" />
@@ -141,7 +133,6 @@
                 <element signature="e#15207#16094#0" expanded="false" />
                 <element signature="e#15349#16094#0" expanded="false" />
                 <element signature="e#15583#16094#0" expanded="false" />
-                <element signature="e#16201#16843#0" expanded="false" />
                 <element signature="e#16281#16348#0" expanded="false" />
                 <element signature="e#16409#16455#0" expanded="false" />
               </folding>
@@ -201,7 +192,6 @@
   <component name="IdeDocumentHistory">
     <option name="CHANGED_PATHS">
       <list>
-        <option value="$PROJECT_DIR$/Zhihu/Python/progress_bar.py" />
         <option value="$PROJECT_DIR$/Zhihu/Python/Utils/Travel/GUI.py" />
         <option value="$PROJECT_DIR$/Zhihu/Python/Utils/progress_bar.py" />
         <option value="$PROJECT_DIR$/Zhihu/NN/_extra/one/Networks.py" />
@@ -231,7 +221,6 @@
         <option value="$PROJECT_DIR$/Zhihu/CNN/one/Network.py" />
         <option value="$PROJECT_DIR$/Zhihu/CNN/Layers.py" />
         <option value="$PROJECT_DIR$/AdaBoost/AdaBoost - Copy.py" />
-        <option value="$PROJECT_DIR$/Bayes/NaiveBayes/NaiveBayes.py" />
         <option value="$PROJECT_DIR$/NN/TF/Layers.py" />
         <option value="$PROJECT_DIR$/NN/TF/Optimizers.py" />
         <option value="$PROJECT_DIR$/NN/Basic/Layers.py" />
@@ -250,8 +239,10 @@
         <option value="$PROJECT_DIR$/CvDTree/CvDTree.py" />
         <option value="$PROJECT_DIR$/CvDTree/Dev/Tree.py" />
         <option value="$PROJECT_DIR$/Zhihu/CvDTree/three/CvDTree.py" />
-        <option value="$PROJECT_DIR$/CvDTree/Dev/CartTree.py" />
         <option value="$PROJECT_DIR$/CvDTree/CartTree.py" />
+        <option value="$PROJECT_DIR$/Bayes/NaiveBayes/Main.py" />
+        <option value="$PROJECT_DIR$/Bayes/NaiveBayes/NaiveBayes.py" />
+        <option value="$PROJECT_DIR$/CvDTree/Dev/CartTree.py" />
       </list>
     </option>
   </component>
@@ -295,6 +286,56 @@
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
           </PATH>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="MachineLearning" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="MachineLearning" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="CvDTree" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="MachineLearning" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="MachineLearning" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="CvDTree" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="Dev" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="MachineLearning" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="MachineLearning" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="Bayes" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="NaiveBayes" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+          </PATH>
         </subPane>
       </pane>
       <pane id="Scratches" />
@@ -322,42 +363,6 @@
       <module name="MachineLearning" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/CvDTree/Dev/CartTree.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <method />
-    </configuration>
-    <configuration default="false" name="Tree" type="PythonConfigurationType" factoryName="Python" temporary="true">
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/CvDTree/Dev" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <module name="MachineLearning" />
-      <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/CvDTree/Dev/Tree.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <method />
-    </configuration>
-    <configuration default="false" name="DevTest" type="PythonConfigurationType" factoryName="Python" temporary="true">
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/NN/Test" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <module name="MachineLearning" />
-      <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/NN/Test/DevTest.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <method />
@@ -576,16 +581,12 @@
       <option name="USE_KEYWORD" value="false" />
       <method />
     </configuration>
-    <list size="3">
+    <list size="1">
       <item index="0" class="java.lang.String" itemvalue="Python.CartTree" />
-      <item index="1" class="java.lang.String" itemvalue="Python.Tree" />
-      <item index="2" class="java.lang.String" itemvalue="Python.DevTest" />
     </list>
     <recent_temporary>
-      <list size="3">
+      <list size="1">
         <item index="0" class="java.lang.String" itemvalue="Python.CartTree" />
-        <item index="1" class="java.lang.String" itemvalue="Python.DevTest" />
-        <item index="2" class="java.lang.String" itemvalue="Python.Tree" />
       </list>
     </recent_temporary>
   </component>
@@ -603,10 +604,10 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="-9" y="29" width="1938" height="1060" extended-state="7" />
-    <editor active="false" />
+    <frame x="-9" y="29" width="1938" height="1060" extended-state="6" />
+    <editor active="true" />
     <layout>
-      <window_info id="Project" active="true" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.20332618" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.21083692" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32960895" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
       <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
@@ -658,20 +659,6 @@
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/Zhihu/NaiveSVM/Util.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://D:/Software/Dev/Anaconda/Lib/site-packages/sklearn/svm/base.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-1147">
-          <caret line="109" column="8" lean-forward="false" selection-start-line="109" selection-start-column="8" selection-end-line="109" selection-end-column="8" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/Zhihu/NaiveSVM/Test.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="180">
@@ -801,20 +788,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/Bayes/NaiveBayes/Main.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="80">
-          <caret line="4" column="19" lean-forward="true" selection-start-line="4" selection-start-column="19" selection-end-line="4" selection-end-column="19" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Bayes/NaiveBayes/NaiveBayes.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="400">
-          <caret line="335" column="0" lean-forward="true" selection-start-line="335" selection-start-column="0" selection-end-line="335" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/NN/TF/Optimizers.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="100">
@@ -891,7 +864,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="175">
           <caret line="4293" column="0" lean-forward="false" selection-start-line="4293" selection-start-column="0" selection-end-line="4293" selection-end-column="0" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -934,10 +906,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="446">
           <caret line="56" column="22" lean-forward="true" selection-start-line="56" selection-start-column="22" selection-end-line="56" selection-end-column="22" />
-          <folding>
-            <element signature="e#602#1140#0" expanded="false" />
-            <element signature="e#2095#2496#0" expanded="false" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -945,7 +913,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="20">
           <caret line="14" column="4" lean-forward="false" selection-start-line="14" selection-start-column="4" selection-end-line="14" selection-end-column="15" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -953,40 +920,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="-318">
           <caret line="276" column="26" lean-forward="true" selection-start-line="276" selection-start-column="26" selection-end-line="276" selection-end-column="26" />
-          <folding>
-            <element signature="e#144#272#0" expanded="false" />
-            <element signature="e#423#932#0" expanded="false" />
-            <element signature="e#474#565#0" expanded="false" />
-            <element signature="e#617#932#0" expanded="false" />
-            <element signature="e#716#915#0" expanded="false" />
-            <element signature="e#750#915#0" expanded="false" />
-            <element signature="e#813#864#0" expanded="false" />
-            <element signature="e#956#9422#0" expanded="false" />
-            <element signature="e#968#1071#0" expanded="false" />
-            <element signature="e#1077#1383#1" expanded="false" />
-            <element signature="e#1417#1537#0" expanded="false" />
-            <element signature="e#1580#1665#0" expanded="false" />
-            <element signature="e#1710#1825#0" expanded="false" />
-            <element signature="e#1871#2116#0" expanded="false" />
-            <element signature="e#1921#2098#0" expanded="false" />
-            <element signature="e#2147#2236#0" expanded="false" />
-            <element signature="e#2378#3430#0" expanded="false" />
-            <element signature="e#2441#2494#0" expanded="false" />
-            <element signature="e#2802#3430#0" expanded="false" />
-            <element signature="e#3313#3430#0" expanded="false" />
-            <element signature="e#3488#3786#0" expanded="false" />
-            <element signature="e#3606#3696#0" expanded="false" />
-            <element signature="e#3826#3924#0" expanded="false" />
-            <element signature="e#3978#7579#0" expanded="false" />
-            <element signature="e#4112#4192#0" expanded="false" />
-            <element signature="e#4982#5256#0" expanded="false" />
-            <element signature="e#7633#9224#0" expanded="false" />
-            <element signature="e#7752#7801#0" expanded="false" />
-            <element signature="e#8411#8606#0" expanded="false" />
-            <element signature="e#9254#9422#0" expanded="false" />
-            <element signature="e#9271#9372#0" expanded="false" />
-            <element signature="e#9999#10032#0" expanded="false" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -994,89 +927,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="640">
           <caret line="426" column="0" lean-forward="false" selection-start-line="426" selection-start-column="0" selection-end-line="426" selection-end-column="0" />
-          <folding>
-            <element signature="e#55#101#0" expanded="false" />
-            <element signature="e#131#2302#0" expanded="false" />
-            <element signature="e#202#563#0" expanded="false" />
-            <element signature="e#613#822#0" expanded="false" />
-            <element signature="e#879#1804#0" expanded="false" />
-            <element signature="e#1380#1786#0" expanded="false" />
-            <element signature="e#1573#1735#0" expanded="false" />
-            <element signature="e#1882#2299#0" expanded="false" />
-            <element signature="e#1928#2126#0" expanded="false" />
-            <element signature="e#2329#7952#0" expanded="false" />
-            <element signature="e#2457#3009#0" expanded="false" />
-            <element signature="e#3052#3137#0" expanded="false" />
-            <element signature="e#3176#3215#0" expanded="false" />
-            <element signature="e#3248#3511#0" expanded="false" />
-            <element signature="e#3278#3382#0" expanded="false" />
-            <element signature="e#3578#3622#0" expanded="false" />
-            <element signature="e#3668#3795#0" expanded="false" />
-            <element signature="e#3844#3870#0" expanded="false" />
-            <element signature="e#3919#3941#0" expanded="false" />
-            <element signature="e#3989#4070#0" expanded="false" />
-            <element signature="e#3996#4070#0" expanded="false" />
-            <element signature="e#4111#4164#0" expanded="false" />
-            <element signature="e#4213#4279#0" expanded="false" />
-            <element signature="e#4314#4572#0" expanded="false" />
-            <element signature="e#4503#4551#0" expanded="false" />
-            <element signature="e#4623#4724#0" expanded="false" />
-            <element signature="e#4655#4703#0" expanded="false" />
-            <element signature="e#4759#4829#0" expanded="false" />
-            <element signature="e#4885#5566#0" expanded="false" />
-            <element signature="e#5030#5566#0" expanded="false" />
-            <element signature="e#5609#5788#0" expanded="false" />
-            <element signature="e#5712#5788#0" expanded="false" />
-            <element signature="e#5857#6747#0" expanded="false" />
-            <element signature="e#6310#6536#0" expanded="false" />
-            <element signature="e#6778#7202#0" expanded="false" />
-            <element signature="e#6816#6884#0" expanded="false" />
-            <element signature="e#7002#7148#0" expanded="false" />
-            <element signature="e#7239#7382#0" expanded="false" />
-            <element signature="e#7308#7382#0" expanded="false" />
-            <element signature="e#7422#7627#0" expanded="false" />
-            <element signature="e#7667#7784#0" expanded="false" />
-            <element signature="e#7823#7952#0" expanded="false" />
-            <element signature="e#7983#8098#0" expanded="false" />
-            <element signature="e#8028#8098#0" expanded="false" />
-            <element signature="e#8129#8249#0" expanded="false" />
-            <element signature="e#8174#8246#0" expanded="false" />
-            <element signature="e#8276#13288#0" expanded="false" />
-            <element signature="e#8331#8584#0" expanded="false" />
-            <element signature="e#8617#8657#0" expanded="false" />
-            <element signature="e#8726#8749#0" expanded="false" />
-            <element signature="e#8801#8856#0" expanded="false" />
-            <element signature="e#8950#9379#0" expanded="false" />
-            <element signature="e#9418#9533#0" expanded="false" />
-            <element signature="e#9475#9533#0" expanded="false" />
-            <element signature="e#9564#10279#0" expanded="false" />
-            <element signature="e#9792#9948#0" expanded="false" />
-            <element signature="e#10147#10199#0" expanded="false" />
-            <element signature="e#10234#10279#0" expanded="false" />
-            <element signature="e#10335#10448#0" expanded="false" />
-            <element signature="e#10500#10591#0" expanded="false" />
-            <element signature="e#10631#10729#0" expanded="false" />
-            <element signature="e#10759#10775#0" expanded="false" />
-            <element signature="e#10883#13288#0" expanded="false" />
-            <element signature="e#11333#11443#0" expanded="false" />
-            <element signature="e#11560#12173#0" expanded="false" />
-            <element signature="e#11603#12173#0" expanded="false" />
-            <element signature="e#11890#11958#0" expanded="false" />
-            <element signature="e#12001#12082#0" expanded="false" />
-            <element signature="e#12225#13214#0" expanded="false" />
-            <element signature="e#12332#13214#0" expanded="false" />
-            <element signature="e#12474#13214#0" expanded="false" />
-            <element signature="e#12708#13214#0" expanded="false" />
-            <element signature="e#13316#13802#0" expanded="false" />
-            <element signature="e#13359#13802#0" expanded="false" />
-            <element signature="e#13464#13605#0" expanded="false" />
-            <element signature="e#13666#13688#0" expanded="false" />
-            <element signature="e#13861#13865#0" expanded="false" />
-            <element signature="e#13924#13928#0" expanded="false" />
-            <element signature="e#13961#14583#0" expanded="false" />
-            <element signature="e#14041#14100#0" expanded="false" />
-            <element signature="e#14161#14207#0" expanded="false" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -1084,88 +934,39 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="640">
           <caret line="426" column="0" lean-forward="false" selection-start-line="426" selection-start-column="0" selection-end-line="426" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/CvDTree/CvDTree.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="80">
+          <caret line="10" column="14" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="426" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Bayes/NaiveBayes/Data/data2.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Bayes/NaiveBayes/Data/data.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Bayes/NaiveBayes/Main.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="160">
+          <caret line="46" column="0" lean-forward="true" selection-start-line="46" selection-start-column="0" selection-end-line="46" selection-end-column="0" />
           <folding>
-            <element signature="e#55#101#0" expanded="false" />
-            <element signature="e#131#2302#0" expanded="false" />
-            <element signature="e#202#563#0" expanded="false" />
-            <element signature="e#613#822#0" expanded="false" />
-            <element signature="e#879#1804#0" expanded="false" />
-            <element signature="e#1380#1786#0" expanded="false" />
-            <element signature="e#1573#1735#0" expanded="false" />
-            <element signature="e#1882#2299#0" expanded="false" />
-            <element signature="e#1928#2126#0" expanded="false" />
-            <element signature="e#2329#7952#0" expanded="false" />
-            <element signature="e#2457#3009#0" expanded="false" />
-            <element signature="e#3052#3137#0" expanded="false" />
-            <element signature="e#3176#3215#0" expanded="false" />
-            <element signature="e#3248#3511#0" expanded="false" />
-            <element signature="e#3278#3382#0" expanded="false" />
-            <element signature="e#3578#3622#0" expanded="false" />
-            <element signature="e#3668#3795#0" expanded="false" />
-            <element signature="e#3844#3870#0" expanded="false" />
-            <element signature="e#3919#3941#0" expanded="false" />
-            <element signature="e#3989#4070#0" expanded="false" />
-            <element signature="e#3996#4070#0" expanded="false" />
-            <element signature="e#4111#4164#0" expanded="false" />
-            <element signature="e#4213#4279#0" expanded="false" />
-            <element signature="e#4314#4572#0" expanded="false" />
-            <element signature="e#4503#4551#0" expanded="false" />
-            <element signature="e#4623#4724#0" expanded="false" />
-            <element signature="e#4655#4703#0" expanded="false" />
-            <element signature="e#4759#4829#0" expanded="false" />
-            <element signature="e#4885#5566#0" expanded="false" />
-            <element signature="e#5030#5566#0" expanded="false" />
-            <element signature="e#5609#5788#0" expanded="false" />
-            <element signature="e#5712#5788#0" expanded="false" />
-            <element signature="e#5857#6747#0" expanded="false" />
-            <element signature="e#6310#6536#0" expanded="false" />
-            <element signature="e#6778#7202#0" expanded="false" />
-            <element signature="e#6816#6884#0" expanded="false" />
-            <element signature="e#7002#7148#0" expanded="false" />
-            <element signature="e#7239#7382#0" expanded="false" />
-            <element signature="e#7308#7382#0" expanded="false" />
-            <element signature="e#7422#7627#0" expanded="false" />
-            <element signature="e#7667#7784#0" expanded="false" />
-            <element signature="e#7823#7952#0" expanded="false" />
-            <element signature="e#7983#8098#0" expanded="false" />
-            <element signature="e#8028#8098#0" expanded="false" />
-            <element signature="e#8129#8249#0" expanded="false" />
-            <element signature="e#8174#8246#0" expanded="false" />
-            <element signature="e#8276#13288#0" expanded="false" />
-            <element signature="e#8331#8584#0" expanded="false" />
-            <element signature="e#8617#8657#0" expanded="false" />
-            <element signature="e#8726#8749#0" expanded="false" />
-            <element signature="e#8801#8856#0" expanded="false" />
-            <element signature="e#8950#9379#0" expanded="false" />
-            <element signature="e#9418#9533#0" expanded="false" />
-            <element signature="e#9475#9533#0" expanded="false" />
-            <element signature="e#9564#10279#0" expanded="false" />
-            <element signature="e#9792#9948#0" expanded="false" />
-            <element signature="e#10147#10199#0" expanded="false" />
-            <element signature="e#10234#10279#0" expanded="false" />
-            <element signature="e#10335#10448#0" expanded="false" />
-            <element signature="e#10500#10591#0" expanded="false" />
-            <element signature="e#10631#10729#0" expanded="false" />
-            <element signature="e#10759#10775#0" expanded="false" />
-            <element signature="e#10883#13288#0" expanded="false" />
-            <element signature="e#11333#11443#0" expanded="false" />
-            <element signature="e#11560#12173#0" expanded="false" />
-            <element signature="e#11603#12173#0" expanded="false" />
-            <element signature="e#11890#11958#0" expanded="false" />
-            <element signature="e#12001#12082#0" expanded="false" />
-            <element signature="e#12225#13214#0" expanded="false" />
-            <element signature="e#12332#13214#0" expanded="false" />
-            <element signature="e#12474#13214#0" expanded="false" />
-            <element signature="e#12708#13214#0" expanded="false" />
-            <element signature="e#13316#13802#0" expanded="false" />
-            <element signature="e#13359#13802#0" expanded="false" />
-            <element signature="e#13464#13605#0" expanded="false" />
-            <element signature="e#13666#13688#0" expanded="false" />
-            <element signature="e#13861#13865#0" expanded="false" />
-            <element signature="e#13924#13928#0" expanded="false" />
-            <element signature="e#13961#14583#0" expanded="false" />
-            <element signature="e#14041#14100#0" expanded="false" />
-            <element signature="e#14161#14207#0" expanded="false" />
+            <element signature="e#98#1100#0" expanded="false" />
+            <element signature="e#816#965#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -1268,104 +1069,79 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/CvDTree/CvDTree.py">
+    <entry file="file://$PROJECT_DIR$/Bayes/NaiveBayes/NaiveBayes.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="80">
-          <caret line="10" column="14" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="426" selection-end-column="0" />
+        <state relative-caret-position="460">
+          <caret line="292" column="0" lean-forward="true" selection-start-line="292" selection-start-column="0" selection-end-line="292" selection-end-column="0" />
           <folding>
-            <element signature="e#55#101#0" expanded="false" />
-            <element signature="e#131#2302#0" expanded="false" />
-            <element signature="e#202#563#0" expanded="false" />
-            <element signature="e#613#822#0" expanded="false" />
-            <element signature="e#879#1804#0" expanded="false" />
-            <element signature="e#1380#1786#0" expanded="false" />
-            <element signature="e#1573#1735#0" expanded="false" />
-            <element signature="e#1882#2299#0" expanded="false" />
-            <element signature="e#1928#2126#0" expanded="false" />
-            <element signature="e#2329#7952#0" expanded="false" />
-            <element signature="e#2457#3009#0" expanded="false" />
-            <element signature="e#3052#3137#0" expanded="false" />
-            <element signature="e#3176#3215#0" expanded="false" />
-            <element signature="e#3248#3511#0" expanded="false" />
-            <element signature="e#3278#3382#0" expanded="false" />
-            <element signature="e#3578#3622#0" expanded="false" />
-            <element signature="e#3668#3795#0" expanded="false" />
-            <element signature="e#3844#3870#0" expanded="false" />
-            <element signature="e#3919#3941#0" expanded="false" />
-            <element signature="e#3989#4070#0" expanded="false" />
-            <element signature="e#3996#4070#0" expanded="false" />
-            <element signature="e#4111#4164#0" expanded="false" />
-            <element signature="e#4213#4279#0" expanded="false" />
-            <element signature="e#4314#4572#0" expanded="false" />
-            <element signature="e#4503#4551#0" expanded="false" />
-            <element signature="e#4623#4724#0" expanded="false" />
-            <element signature="e#4655#4703#0" expanded="false" />
-            <element signature="e#4759#4829#0" expanded="false" />
-            <element signature="e#4885#5566#0" expanded="false" />
-            <element signature="e#5030#5566#0" expanded="false" />
-            <element signature="e#5609#5788#0" expanded="false" />
-            <element signature="e#5712#5788#0" expanded="false" />
-            <element signature="e#5857#6747#0" expanded="false" />
-            <element signature="e#6310#6536#0" expanded="false" />
-            <element signature="e#6778#7202#0" expanded="false" />
-            <element signature="e#6816#6884#0" expanded="false" />
-            <element signature="e#7002#7148#0" expanded="false" />
-            <element signature="e#7239#7382#0" expanded="false" />
-            <element signature="e#7308#7382#0" expanded="false" />
-            <element signature="e#7422#7627#0" expanded="false" />
-            <element signature="e#7667#7784#0" expanded="false" />
-            <element signature="e#7823#7952#0" expanded="false" />
-            <element signature="e#7983#8098#0" expanded="false" />
-            <element signature="e#8028#8098#0" expanded="false" />
-            <element signature="e#8129#8249#0" expanded="false" />
-            <element signature="e#8174#8246#0" expanded="false" />
-            <element signature="e#8276#13288#0" expanded="false" />
-            <element signature="e#8331#8584#0" expanded="false" />
-            <element signature="e#8617#8657#0" expanded="false" />
-            <element signature="e#8726#8749#0" expanded="false" />
-            <element signature="e#8801#8856#0" expanded="false" />
-            <element signature="e#8950#9379#0" expanded="false" />
-            <element signature="e#9418#9533#0" expanded="false" />
-            <element signature="e#9475#9533#0" expanded="false" />
-            <element signature="e#9564#10279#0" expanded="false" />
-            <element signature="e#9792#9948#0" expanded="false" />
-            <element signature="e#10147#10199#0" expanded="false" />
-            <element signature="e#10234#10279#0" expanded="false" />
-            <element signature="e#10335#10448#0" expanded="false" />
-            <element signature="e#10500#10591#0" expanded="false" />
-            <element signature="e#10631#10729#0" expanded="false" />
-            <element signature="e#10759#10775#0" expanded="false" />
-            <element signature="e#10883#13288#0" expanded="false" />
-            <element signature="e#11333#11443#0" expanded="false" />
-            <element signature="e#11560#12173#0" expanded="false" />
-            <element signature="e#11603#12173#0" expanded="false" />
-            <element signature="e#11890#11958#0" expanded="false" />
-            <element signature="e#12001#12082#0" expanded="false" />
-            <element signature="e#12225#13214#0" expanded="false" />
-            <element signature="e#12332#13214#0" expanded="false" />
-            <element signature="e#12474#13214#0" expanded="false" />
-            <element signature="e#12708#13214#0" expanded="false" />
-            <element signature="e#13316#13802#0" expanded="false" />
-            <element signature="e#13359#13802#0" expanded="false" />
-            <element signature="e#13464#13605#0" expanded="false" />
-            <element signature="e#13666#13688#0" expanded="false" />
-            <element signature="e#13861#13865#0" expanded="false" />
-            <element signature="e#13924#13928#0" expanded="false" />
-            <element signature="e#13961#14583#0" expanded="false" />
-            <element signature="e#14041#14100#0" expanded="false" />
-            <element signature="e#14161#14207#0" expanded="false" />
+            <element signature="e#104#616#0" expanded="false" />
+            <element signature="e#155#248#0" expanded="false" />
+            <element signature="e#300#616#0" expanded="false" />
+            <element signature="e#400#599#0" expanded="false" />
+            <element signature="e#434#599#0" expanded="false" />
+            <element signature="e#497#548#0" expanded="false" />
+            <element signature="e#643#1311#0" expanded="false" />
+            <element signature="e#697#764#0" expanded="false" />
+            <element signature="e#892#1311#0" expanded="false" />
+            <element signature="e#897#991#0" expanded="false" />
+            <element signature="e#1008#1117#0" expanded="false" />
+            <element signature="e#1153#1255#0" expanded="false" />
+            <element signature="e#1182#1232#0" expanded="false" />
+            <element signature="e#1337#2837#0" expanded="false" />
+            <element signature="e#1365#1650#0" expanded="false" />
+            <element signature="e#1693#1778#0" expanded="false" />
+            <element signature="e#1831#1835#0" expanded="false" />
+            <element signature="e#1899#1903#0" expanded="false" />
+            <element signature="e#1956#2069#0" expanded="false" />
+            <element signature="e#1963#2069#0" expanded="false" />
+            <element signature="e#2140#2344#0" expanded="false" />
+            <element signature="e#2378#2382#0" expanded="false" />
+            <element signature="e#2444#2712#0" expanded="false" />
+            <element signature="e#2529#2627#0" expanded="false" />
+            <element signature="e#2770#2837#0" expanded="false" />
+            <element signature="e#2878#5877#0" expanded="false" />
+            <element signature="e#2925#4057#0" expanded="false" />
+            <element signature="e#4121#4637#0" expanded="false" />
+            <element signature="e#4215#4637#0" expanded="false" />
+            <element signature="e#4257#4369#0" expanded="false" />
+            <element signature="e#4284#4368#0" expanded="false" />
+            <element signature="e#4404#4637#0" expanded="false" />
+            <element signature="e#4497#4636#0" expanded="false" />
+            <element signature="e#4671#5416#0" expanded="false" />
+            <element signature="e#4926#5129#0" expanded="false" />
+            <element signature="e#4938#5129#0" expanded="false" />
+            <element signature="e#4939#5101#0" expanded="false" />
+            <element signature="e#5247#5395#0" expanded="false" />
+            <element signature="e#5464#5695#0" expanded="false" />
+            <element signature="e#5592#5675#0" expanded="false" />
+            <element signature="e#5735#5877#0" expanded="false" />
+            <element signature="e#5915#7881#0" expanded="false" />
+            <element signature="e#5962#6811#0" expanded="false" />
+            <element signature="e#6875#7081#0" expanded="false" />
+            <element signature="e#7115#7604#0" expanded="false" />
+            <element signature="e#7435#7583#0" expanded="false" />
+            <element signature="e#7649#7881#0" expanded="false" />
+            <element signature="e#7917#10596#0" expanded="false" />
+            <element signature="e#7963#8245#0" expanded="false" />
+            <element signature="e#8289#8631#0" expanded="false" />
+            <element signature="e#8447#8533#0" expanded="false" />
+            <element signature="e#8684#9290#0" expanded="false" />
+            <element signature="e#9354#9462#0" expanded="false" />
+            <element signature="e#9496#9948#0" expanded="false" />
+            <element signature="e#9694#9927#0" expanded="false" />
+            <element signature="e#9993#10596#0" expanded="false" />
+            <element signature="e#10203#10282#0" expanded="false" />
           </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/CvDTree/Dev/CartTree.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="260">
-          <caret line="470" column="0" lean-forward="true" selection-start-line="470" selection-start-column="0" selection-end-line="470" selection-end-column="0" />
+        <state relative-caret-position="100">
+          <caret line="333" column="29" lean-forward="true" selection-start-line="333" selection-start-column="29" selection-end-line="333" selection-end-column="29" />
           <folding>
             <element signature="e#81#127#0" expanded="false" />
             <element signature="e#192#2745#0" expanded="false" />
-            <element signature="e#263#624#0" expanded="false" />
             <element signature="e#674#883#0" expanded="false" />
             <element signature="e#921#1052#0" expanded="false" />
             <element signature="e#1114#2085#0" expanded="false" />
@@ -1422,13 +1198,11 @@
             <element signature="e#10139#10219#0" expanded="false" />
             <element signature="e#10258#10446#0" expanded="false" />
             <element signature="e#10357#10446#0" expanded="false" />
-            <element signature="e#10469#16168#0" expanded="false" />
             <element signature="e#10541#10908#0" expanded="false" />
             <element signature="e#10941#10981#0" expanded="false" />
             <element signature="e#11050#11073#0" expanded="false" />
             <element signature="e#11122#11144#0" expanded="false" />
             <element signature="e#11196#11251#0" expanded="false" />
-            <element signature="e#11335#11937#0" expanded="false" />
             <element signature="e#11975#12090#0" expanded="false" />
             <element signature="e#12032#12090#0" expanded="false" />
             <element signature="e#12121#13154#0" expanded="false" />
@@ -1449,7 +1223,6 @@
             <element signature="e#15207#16094#0" expanded="false" />
             <element signature="e#15349#16094#0" expanded="false" />
             <element signature="e#15583#16094#0" expanded="false" />
-            <element signature="e#16201#16843#0" expanded="false" />
             <element signature="e#16281#16348#0" expanded="false" />
             <element signature="e#16409#16455#0" expanded="false" />
           </folding>

@@ -1,25 +1,23 @@
 import numpy as np
 from math import pi, exp
-from collections import Counter
-from abc import ABCMeta, abstractmethod
 
 sqrt_pi = pi ** 0.5
 
-SKIP_FIRST = True
+SKIP_FIRST = False
 
 
 class Util:
 
     @staticmethod
     def data_cleaning(line):
-        line = line.replace('"', "")
-        return list(map(lambda c: c.strip(), line.split(";")))
+        # line = line.replace('"', "")
+        return list(map(lambda c: c.strip(), line.split(",")))
 
     @staticmethod
     def get_raw_data():
         x = []
         skip_first_flag = None
-        with open("Data/data.txt", "r") as file:
+        with open("Data/data2.txt", "r") as file:
             for line in file:
                 if skip_first_flag is None and SKIP_FIRST:
                     skip_first_flag = True
@@ -27,12 +25,12 @@ class Util:
                 x.append(Util.data_cleaning(line))
         return x
 
-    @staticmethod
-    def gaussian(x, mu, sigma):
-        return exp(-(x - mu) ** 2 / (2 * sigma ** 2)) / (sqrt_pi * sigma)
-
 
 class NBFunctions:
+
+    @staticmethod
+    def gaussian(x, mu, sigma):
+        return exp(-(x - mu) ** 2 / (2 * sigma)) / (sqrt_pi * sigma ** 0.5)
 
     # noinspection PyTypeChecker
     @staticmethod
@@ -45,19 +43,19 @@ class NBFunctions:
 
         def func(_c):
             def sub(_x):
-                return Util.gaussian(_x, mu[_c], sigma[_c])
+                return NBFunctions.gaussian(_x, mu[_c], sigma[_c])
             return sub
 
         return [func(_c=c) for c in range(n_category)]
 
 
-class NaiveBayes(metaclass=ABCMeta):
+class NaiveBayes:
 
     def __init__(self):
         self._func = None
         self._tar_idx = None
         self._n_possibilities = None
-        self._x = self._y = None
+        self._data_len = self._data_dim = None
         self._labelled_x = self._label_zip = None
         self._category = self._categories = self._category_info = None
         self._initialized = False
@@ -67,48 +65,23 @@ class NaiveBayes(metaclass=ABCMeta):
             return getattr(self, "_" + item)
         return
 
-    def __str__(self):
-        return self.__class__.__name__
-
-    def __repr__(self):
-        return str(self)
-
-    @abstractmethod
     def feed_data(self, data, tar_idx=-1):
         pass
 
-    @abstractmethod
     def feed_sample_weight(self, sample_weight=None):
         pass
 
-    def get_prior_probability(self, lb):
-        return [(_c_num + lb) / (len(self._x) + lb * len(self._category))
-                for _c_num in sorted(self._category.values())]
+    def get_prior_probability(self, lb=1):
+        return [(_c_num + lb) / (self._data_len + lb * len(self._category))
+                for _c_num in self._category]
 
-    def fit(self, x=None, y=None, sample_weight=None, lb=1, func=None):
-        """
-            self._x:               input matrix     :  x = (x1, ..., xn)              (xi is a vector)
-            self._y:               target vector    :  y = (ω1, ..., ωn)              (ωi = 1, ..., m)
-            self._category:        Counter          :  Counter(y)
-            self._n_possibilities: list             :  If ωi is discrete, list[i] = n_possibilities
-                                                           else, list[i] = None or pre_configured_function
-        :param x:               input matrix        :  x = self.x if x or y is None
-        :param y:               target vector       :  y = self.y if x or y is None
-        :param sample_weight:   sample weights      :  sample_weight = np.ones if is None
-        :param lb:              lambda              :  lambda = 1 -> Laplace Smoothing
-        :param func:            function            :  None or func(x, tar_category) = p(x|tar_category)
-        :return:                function            :  func(x, tar_category) = p(x|tar_category)
-        """
+    def fit(self, x=None, y=None, sample_weight=None, lb=1):
         if not self._initialized:
             self.feed_data(np.hstack((x, y[:, None])))
         if sample_weight is not None:
             self.feed_sample_weight(sample_weight)
-        if func is None:
-            func = self._fit(lb)
+        self._func = self._fit(lb)
 
-        self._func = func
-
-    @abstractmethod
     def _fit(self, lb):
         pass
 
@@ -125,15 +98,8 @@ class NaiveBayes(metaclass=ABCMeta):
     def predict(self, x, get_raw_result=False):
         return np.array([self.predict_one(xx, get_raw_result) for xx in x])
 
-    @abstractmethod
-    def estimate(self, data=None):
-        pass
-
 
 class MultinomialNB(NaiveBayes):
-
-    def __init__(self):
-        NaiveBayes.__init__(self)
 
     def feed_data(self, data, tar_idx=-1):
         tar_idx = int(tar_idx)
@@ -145,16 +111,18 @@ class MultinomialNB(NaiveBayes):
         categories = [{_l: i for i, _l in enumerate(feats)} for feats in features]
         x = [[categories[i][_l] for i, _l in enumerate(line)] for line in data]
         y = [xx.pop(tar_idx) for xx in x]
-        category = Counter(y)
-        n_possibilities = [len(counter) for counter in features]
+        for lst in (features, categories):
+            lst.append(lst.pop(tar_idx))
+        category = np.bincount(y)
+        n_possibilities = [len(feats) for feats in features]
         n_possibilities.pop()
 
         x, y = np.array(x), np.array(y)
-        labels = [y == value for value in set(y)]
+        labels = [y == value for value in range(len(category))]
         labelled_x = [x[ci].T for ci in labels]
 
         self._tar_idx = tar_idx
-        self._x, self._y = x, y
+        self._data_len, self._data_dim = len(y), x.shape[1]
         self._labelled_x, self._label_zip = labelled_x, list(zip(labels, labelled_x))
         self._category, self._categories, self._n_possibilities = category, categories, n_possibilities
         self.feed_sample_weight()
@@ -179,11 +147,11 @@ class MultinomialNB(NaiveBayes):
 
         data = [None for _ in range(n_dim)]
         for dim, n_possibilities in enumerate(self._n_possibilities):
-            new_category = self._category_info[dim]
             data[dim] = [[
-                (new_category[c][p] + lb) / (self._category[c] + lb * n_possibilities)
+                (self._category_info[dim][c][p] + lb) / (self._category[c] + lb * n_possibilities)
                 for p in range(n_possibilities)
             ] for c in range(n_category)]
+        self._data = [np.array(dim_info) for dim_info in data]
 
         def func(input_x, tar_category):
             rs = 1
@@ -201,19 +169,13 @@ class MultinomialNB(NaiveBayes):
                 x[i][j] = self._categories[j][char]
         return x, y
 
-    def estimate(self, data=None):
-        if data is None:
-            x, y = self._x, self._y
-        else:
-            x, y = self.get_xy_from_data(data)
+    def estimate(self, data):
+        x, y = self.get_xy_from_data(data)
         y_pred = self.predict(x)
-        print("Acc             : {:12.6} %".format(100 * np.sum(y_pred == y) / len(y)))
+        print("Acc: {:12.6} %".format(100 * np.sum(y_pred == y) / len(y)))
 
 
 class GaussianNB(NaiveBayes):
-
-    def __init__(self):
-        NaiveBayes.__init__(self)
 
     def feed_data(self, data, tar_idx=-1):
         tar_idx = int(tar_idx)
@@ -223,16 +185,20 @@ class GaussianNB(NaiveBayes):
         x = [list(map(lambda c: float(c), line)) for line in data]
         y = [int(xx.pop(tar_idx)) for xx in x]
         labels = sorted(list(set(y)))
-        category = Counter(y)
+        categories = {label: i for i, label in enumerate(labels)}
 
-        x, y = np.array(x), np.array(y)
+        x = np.array(x)
+        y = np.array([categories[yy] for yy in y])
+
+        category = np.bincount(y)
         labels = [y == label for label in labels]
         labelled_x = [x[ci].T for ci in labels]
 
         self._tar_idx = tar_idx
-        self._x, self._y = x, y
+        self._data_dim = x.shape[1]
+        self._data_len = len(y)
         self._labelled_x, self._label_zip = labelled_x, labels
-        self._category = category
+        self._category, self._categories = category, categories
         self.feed_sample_weight()
         self._initialized = True
 
@@ -244,11 +210,11 @@ class GaussianNB(NaiveBayes):
 
     def _fit(self, lb):
         n_category = len(self._category)
-        n_dim = self._x.shape[1]
         p_category = self.get_prior_probability(lb)
         data = [
             NBFunctions.gaussian_maximum_likelihood(
-                self._labelled_x, n_category, dim) for dim in range(n_dim)]
+                self._labelled_x, n_category, dim) for dim in range(self._data_dim)]
+        self._data = data
 
         def func(input_x, tar_category):
             rs = 1
@@ -259,13 +225,10 @@ class GaussianNB(NaiveBayes):
         return func
 
     def estimate(self, data=None):
-        if data is None:
-            x, y = self._x, self._y
-        else:
-            x = [list(map(lambda c: float(c), line)) for line in data]
-            y = [int(xx.pop(self._tar_idx)) for xx in x]
+        x = [list(map(lambda c: float(c), line)) for line in data]
+        y = [self._categories[xx.pop(self._tar_idx)] for xx in x]
         y_pred = self.predict(x)
-        print("Acc             : {:12.6} %".format(100 * np.sum(y_pred == y) / len(y)))
+        print("Acc: {:12.6} %".format(100 * np.sum(y_pred == y) / len(y)))
 
 
 class MergedNB(NaiveBayes):
@@ -294,7 +257,7 @@ class MergedNB(NaiveBayes):
         self._multinomial.feed_data(self._discrete_data, tar_idx)
         _y_category = self._multinomial["categories"][np.sum(self._whether_discrete)-1]
         _y = np.array([_y_category[yy] for yy in _y])
-        self._category = Counter(_y)
+        self._category = np.bincount(_y)
         self._gaussian.feed_data(np.hstack((self._continuous_data, _y[:, None])), tar_idx)
         self._initialized = True
 
@@ -316,13 +279,8 @@ class MergedNB(NaiveBayes):
         return func
 
     def estimate(self, data=None):
-        if data is None:
-            data = np.zeros((self._discrete_data.shape[0],
-                             self._discrete_data.shape[1] + self._continuous_data.shape[1]))
-            _d, _c = self._discrete_data, self._continuous_data
-        else:
-            data = np.array(data)
-            _d, _c = data[:, self._whether_discrete], data[:, self._whether_continuous]
+        data = np.array(data)
+        _d, _c = data[:, self._whether_discrete], data[:, self._whether_continuous]
         _categories = self._multinomial["categories"]
         for i, line in enumerate(_d):
             for j, char in enumerate(line):
@@ -331,5 +289,4 @@ class MergedNB(NaiveBayes):
         data[:, self._whether_discrete] = _d.astype(np.int)
         data[:, self._whether_continuous] = _c.astype(np.double)
         y, y_pred = self.predict(data[:, range(data.shape[1]-1)]), data[:, -1]
-        rs = np.sum(y == y_pred)
-        print("Acc: {:8.6} %".format(100 * rs / len(y)))
+        print("Acc: {:8.6} %".format(100 * np.sum(y == y_pred) / len(y)))
