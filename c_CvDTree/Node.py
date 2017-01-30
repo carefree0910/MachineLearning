@@ -1,6 +1,6 @@
 import numpy as np
 
-from c_Tree.Cluster import Cluster
+from c_CvDTree.Cluster import Cluster
 
 np.random.seed(142857)
 

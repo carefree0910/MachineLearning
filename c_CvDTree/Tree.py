@@ -3,7 +3,7 @@ import time
 from copy import deepcopy
 import matplotlib.pyplot as plt
 
-from c_Tree.Node import *
+from c_CvDTree.Node import *
 
 
 # Tree

@@ -1,5 +1,5 @@
 from b_NaiveBayes.Vectorized.MergedNB import MergedNB
-from c_Tree.Tree import *
+from c_CvDTree.Tree import *
 
 from sklearn.tree import DecisionTreeClassifier
 
