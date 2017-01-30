@@ -148,8 +148,6 @@ class CvDNode:
         self.feature_dim = _max_feature
         if self.is_cart or self.wc[_max_feature]:
             self.tar = _max_tar
-            if not self.wc[_max_feature]:
-                self.tree.feature_sets[_max_feature].discard(_max_tar)
             self._gen_children(_chaos_lst)
             if (self.left_child.category is not None and
                     self.left_child.category == self.right_child.category):
@@ -175,6 +173,7 @@ class CvDNode:
             if self.is_cart:
                 _mask = features != tar
                 _masks = [~_mask, _mask]
+                self.tree.feature_sets[feat].discard(tar)
             else:
                 _masks = None
         if self.is_cart or continuous:
