@@ -1,6 +1,5 @@
 import time
 from math import log
-import matplotlib.pyplot as plt
 from copy import deepcopy
 
 from Bayes.NaiveBayes.NaiveBayes import *
@@ -95,8 +94,8 @@ class AdaBoost:
         ty[ty == 0] = -1
         if self._sample_weight is None:
             self._sample_weight = np.ones(len(x)) / len(x)
-        tmp_clf = AdaBoost._weak_clf[clf](*args, **kwargs)
         for _ in range(epoch):
+            tmp_clf = AdaBoost._weak_clf[clf](*args, **kwargs)
             tmp_clf.fit(x, y, self._sample_weight)
             y_pred = tmp_clf.predict(x)
             em = min(max((y_pred != y).dot(self._sample_weight[:, None])[0], eps), 1 - eps)
@@ -137,7 +136,6 @@ class AdaBoost:
         xs, ys = np.array(x), np.array(y)
 
         print("=" * 30 + "\n" + self.title)
-        self.estimate(x, y)
         decision_function = lambda _x: self.predict(_x, get_raw_result=True)
 
         nx, ny, nz, margin = dense, dense, dense, 0.1
@@ -229,7 +227,6 @@ class AdaBoost:
         xs, ys = np.array(x), np.array(y)
 
         print("=" * 30 + "\n" + self.title)
-        self.estimate(x, y)
         decision_function = lambda _x: self.predict(_x, get_raw_result=True)
 
         nx, ny, margin = dense, dense, 0.1
@@ -273,60 +270,3 @@ class AdaBoost:
                 clf.draw(title="{} ({})".format(self._clf, i+1))
         except AttributeError:
             return
-
-if __name__ == '__main__':
-
-    whether_discrete = [True] * 17
-    _continuous_lst = [0, 5, 9, 11, 12, 13]
-    for _cl in _continuous_lst:
-        whether_discrete[_cl] = False
-    nb = MergedNB(whether_discrete)
-    util = Util()
-
-    train_num = 40000
-
-    data_time = time.time()
-    raw_data = util.get_raw_data()
-    np.random.shuffle(raw_data)
-    nb.feed_data(raw_data)
-    clean_data = nb.data
-    train_data = clean_data[:train_num]
-    test_data = clean_data[train_num:]
-    data_time = time.time() - data_time
-
-    whether_discrete = [False] * 6 + [True] * 11
-    # nb = MergedNB(whether_discrete)
-    # nb.feed_data(train_data)
-    # nb.fit()
-    # nb.estimate(test_data)
-
-    ada = AdaBoost()
-    train_x, test_x = train_data[:, range(clean_data.shape[1] - 1)], test_data[:, range(clean_data.shape[1] - 1)]
-    train_y, test_y = train_data[:, -1], test_data[:, -1]
-
-    _t = time.time()
-    ada.fit(train_x, train_y, epoch=100)
-    ada.estimate(train_x, train_y)
-    ada.estimate(test_x, test_y)
-    print("Clf Num: {}".format(len(ada["clfs"])))
-    print("Clf Params: {}".format(ada.params))
-    print("Time Cost: {:8.6}".format(time.time() - _t))
-    ada.reset()
-
-    _t = time.time()
-    ada.fit(train_x, train_y, "NB")
-    ada.estimate(train_x, train_y)
-    ada.estimate(test_x, test_y)
-    print("Clf Num: {}".format(len(ada["clfs"])))
-    print("Clf Params: {}".format(ada.params))
-    print("Time Cost: {:8.6}".format(time.time() - _t))
-    ada.reset()
-
-    _t = time.time()
-    ada.fit(train_x, train_y, "SNB", whether_discrete=whether_discrete)
-    ada.estimate(train_x, train_y)
-    ada.estimate(test_x, test_y)
-    print("Clf Num: {}".format(len(ada["clfs"])))
-    print("Clf Params: {}".format(ada.params))
-    print("Time Cost: {:8.6}".format(time.time() - _t))
-    ada.reset()

@@ -3,7 +3,7 @@ import time
 import math
 import numpy as np
 
-# TODO: Try batch prediction and visualization
+# TODO: Try batch prediction
 
 
 # Util
@@ -26,9 +26,16 @@ class Cluster:
             ent = [_val for _val in self._counters]
         return max(eps, -sum([_c / _len * math.log(_c / _len, self._base) if _c != 0 else 0 for _c in ent]))
 
+    def gini(self, p=None):
+        if p is None:
+            p = [_val for _val in self._counters]
+        return 1 - sum([(_p / len(self._labels)) ** 2 for _p in p])
+
     def con_chaos(self, idx, criterion="ent"):
         if criterion == "ent":
             _method = lambda cluster: cluster.ent()
+        elif criterion == "gini":
+            _method = lambda cluster: cluster.gini()
         else:
             raise NotImplementedError("Conditional info criterion '{}' not defined".format(criterion))
         data = self._data[idx]
@@ -52,6 +59,9 @@ class Cluster:
             _gain = self.ent() - _con_chaos
             if criterion == "ratio":
                 _gain = _gain / self.ent([np.sum(_cache) for _cache in self._cache])
+        elif criterion == "gini":
+            _con_chaos = self.con_chaos(idx, criterion="gini")
+            _gain = self.gini() - _con_chaos
         else:
             raise NotImplementedError("Info_gain criterion '{}' not defined".format(criterion))
         return (_gain, _con_chaos) if get_con_chaos else _gain
