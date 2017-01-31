@@ -93,34 +93,34 @@ def main():
     #       "Estimate Process : {:8.6} s".format(_fit_time, _estimate_time))
     # _tree.visualize2d(_x, _y)
 
-    # _whether_discrete = [True] * 16
-    # _continuous_lst = [0, 5, 9, 11, 12, 13, 14]
-    # for _cl in _continuous_lst:
-    #     _whether_discrete[_cl] = False
-    # _data = DataUtil.get_dataset("bank1", "../_Data/bank1.txt")
-    # np.random.shuffle(_data)
-    # _labels = [xx.pop() for xx in _data]
-    # nb = MergedNB(_whether_discrete)
-    # nb.fit(_data, _labels)
-    # _dx, _cx = nb["multinomial"]["x"], nb["gaussian"]["x"]
-    # _labels = nb["multinomial"]["y"]
-    # _data = np.hstack((_dx, _cx.T))
-    # train_num = 1000
-    # x_train = _data[:train_num]
-    # y_train = _labels[:train_num]
-    # x_test = _data[train_num:]
-    # y_test = _labels[train_num:]
-    # _fit_time = time.time()
-    # _tree = C45Tree()
-    # _tree.fit(x_train, y_train)
-    # _fit_time = time.time() - _fit_time
-    # _tree.view()
-    # _estimate_time = time.time()
-    # _tree.estimate(x_test, y_test)
-    # _estimate_time = time.time() - _estimate_time
-    # print("Fit      Process : {:8.6} s\n"
-    #       "Estimate Process : {:8.6} s".format(_fit_time, _estimate_time))
-    # _tree.visualize()
+    _whether_discrete = [True] * 16
+    _continuous_lst = [0, 5, 9, 11, 12, 13, 14]
+    for _cl in _continuous_lst:
+        _whether_discrete[_cl] = False
+    _data = DataUtil.get_dataset("bank1.0", "../_Data/bank1.0.txt")
+    np.random.shuffle(_data)
+    _labels = [xx.pop() for xx in _data]
+    nb = MergedNB(_whether_discrete)
+    nb.fit(_data, _labels)
+    _dx, _cx = nb["multinomial"]["x"], nb["gaussian"]["x"]
+    _labels = nb["multinomial"]["y"]
+    _data = np.hstack((_dx, _cx.T))
+    train_num = 1000
+    x_train = _data[:train_num]
+    y_train = _labels[:train_num]
+    x_test = _data[train_num:]
+    y_test = _labels[train_num:]
+    _fit_time = time.time()
+    _tree = C45Tree()
+    _tree.fit(x_train, y_train)
+    _fit_time = time.time() - _fit_time
+    _tree.view()
+    _estimate_time = time.time()
+    _tree.estimate(x_test, y_test)
+    _estimate_time = time.time() - _estimate_time
+    print("Fit      Process : {:8.6} s\n"
+          "Estimate Process : {:8.6} s".format(_fit_time, _estimate_time))
+    _tree.visualize()
 
 if __name__ == '__main__':
     main()
