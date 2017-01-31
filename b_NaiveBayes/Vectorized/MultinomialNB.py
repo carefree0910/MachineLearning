@@ -95,37 +95,21 @@ class MultinomialNB(NaiveBayes):
 if __name__ == '__main__':
     import time
 
-    # _data = DataUtil.get_dataset("mushroom", "../../_Data/mushroom.txt")
-    # np.random.shuffle(_data)
-    # train_num = 6000
-    # train_x = _data[:train_num]
-    # test_x = _data[train_num:]
-    # train_y = [xx.pop(0) for xx in train_x]
-    # test_y = [xx.pop(0) for xx in test_x]
-    #
-    # learning_time = time.time()
-    # nb = MultinomialNB()
-    # nb.fit(train_x, train_y)
-    # learning_time = time.time() - learning_time
-    #
-    # estimation_time = time.time()
-    # nb.estimate(train_x, train_y)
-    # nb.estimate(test_x, test_y)
-    # estimation_time = time.time() - estimation_time
-
-    _data = DataUtil.get_dataset("balloon1", "../../_Data/balloon1.txt")
-    _x = _data
-    _y = [xx.pop() for xx in _x]
+    _data = DataUtil.get_dataset("mushroom", "../../_Data/mushroom.txt")
+    np.random.shuffle(_data)
+    train_num = 6000
+    train_x = _data[:train_num]
+    test_x = _data[train_num:]
+    train_y = [xx.pop(0) for xx in train_x]
+    test_y = [xx.pop(0) for xx in test_x]
     learning_time = time.time()
     nb = MultinomialNB()
-    nb.fit(_x, _y)
+    nb.fit(train_x, train_y)
     learning_time = time.time() - learning_time
     estimation_time = time.time()
-    print(nb.predict([["紫色", "小", "小孩", "用脚踩"]]))
-    print(nb.predict([["紫色", "小", "小孩", "用脚踩"]], get_raw_result=True))
-    nb.estimate(_x, _y)
+    nb.estimate(train_x, train_y)
+    nb.estimate(test_x, test_y)
     estimation_time = time.time() - estimation_time
-
     print(
         "Model building  : {:12.6} s\n"
         "Estimation      : {:12.6} s\n"
@@ -135,3 +119,26 @@ if __name__ == '__main__':
         )
     )
     nb.visualize()
+
+    # for dataset in ("balloon1.0", "balloon1.5"):
+    #     _data = DataUtil.get_dataset(dataset, "../../_Data/{}.txt".format(dataset))
+    #     _x = _data
+    #     _y = [xx.pop() for xx in _x]
+    #     learning_time = time.time()
+    #     nb = MultinomialNB()
+    #     nb.fit(_x, _y)
+    #     learning_time = time.time() - learning_time
+    #     estimation_time = time.time()
+    #     print(nb.predict([["紫色", "小", "小孩", "用脚踩"]]))
+    #     print(nb.predict([["紫色", "小", "小孩", "用脚踩"]], get_raw_result=True))
+    #     nb.estimate(_x, _y)
+    #     estimation_time = time.time() - estimation_time
+    #     print(
+    #         "Model building  : {:12.6} s\n"
+    #         "Estimation      : {:12.6} s\n"
+    #         "Total           : {:12.6} s".format(
+    #             learning_time, estimation_time,
+    #             learning_time + estimation_time
+    #         )
+    #     )
+    #     nb.visualize()

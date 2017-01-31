@@ -27,7 +27,7 @@ class DataUtil:
             if name == "mushroom" or "balloon" in name:
                 for _line in file:
                     x.append(_line.strip().split(","))
-            elif name == "bank1":
+            elif name == "bank1.0":
                 for line in file:
                     line = line.replace('"', "")
                     x.append(list(map(lambda c: c.strip(), line.split(";"))))

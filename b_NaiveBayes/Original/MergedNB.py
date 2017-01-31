@@ -62,7 +62,7 @@ if __name__ == '__main__':
     train_num = 40000
 
     data_time = time.time()
-    _data = DataUtil.get_dataset("bank1", "../../_Data/bank1.txt")
+    _data = DataUtil.get_dataset("bank1.0", "../../_Data/bank1.0.txt")
     np.random.shuffle(_data)
     train_x = _data[:train_num]
     test_x = _data[train_num:]
