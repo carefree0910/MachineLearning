@@ -81,9 +81,9 @@ class CvDBase:
         arg = np.argmax(_mask)
         if _mask[arg]:
             _tmp_nodes[arg].prune()
+            self.reduce_nodes()
             _continue = True
         if _continue:
-            self.reduce_nodes()
             self.prune()
 
     def cart_prune(self):
@@ -100,10 +100,8 @@ class CvDBase:
             _thresholds = self._threshold_cache
         _arg = np.argmin(_thresholds)
         _nodes[_arg].prune()
+        self.reduce_nodes()
         _thresholds[_arg] = _nodes[_arg].get_threshold()
-        for i in range(len(self.nodes) - 1, -1, -1):
-            if self.nodes[i].pruned:
-                self.nodes.pop(i)
         for i in range(len(_thresholds) - 1, -1, -1):
             if _nodes[i].pruned:
                 _thresholds.pop(i)
@@ -113,7 +111,6 @@ class CvDBase:
         else:
             self.roots.append(deepcopy(self.root))
         if _continue:
-            self.reduce_nodes()
             self.cart_prune()
 
     def predict_one(self, x):

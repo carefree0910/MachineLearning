@@ -1,6 +1,7 @@
 from b_NaiveBayes.Vectorized.Basic import *
 from b_NaiveBayes.Vectorized.MultinomialNB import MultinomialNB
 from b_NaiveBayes.Vectorized.GaussianNB import GaussianNB
+from Util import DataUtil
 
 
 class MergedNB(NaiveBayes):
@@ -50,34 +51,17 @@ class MergedNB(NaiveBayes):
                 idx += 1
         return x
 
-
-class Util:
-
-    @staticmethod
-    def data_cleaning(line):
-        line = line.replace('"', "")
-        return list(map(lambda c: c.strip(), line.split(";")))
-
-    @staticmethod
-    def get_raw_data():
-        x = []
-        with open("../Data/data2.txt", "r") as file:
-            for line in file:
-                x.append(Util.data_cleaning(line))
-        return x
-
 if __name__ == '__main__':
     import time
     _whether_discrete = [True] * 16
     _continuous_lst = [0, 5, 9, 11, 12, 13, 14]
     for _cl in _continuous_lst:
         _whether_discrete[_cl] = False
-    util = Util()
 
     train_num = 40000
 
     data_time = time.time()
-    _data = util.get_raw_data()
+    _data = DataUtil.get_dataset("bank1", "../../_Data/bank1.txt")
     np.random.shuffle(_data)
     train_x = _data[:train_num]
     test_x = _data[train_num:]
@@ -104,5 +88,5 @@ if __name__ == '__main__':
             data_time + learning_time + estimation_time
         )
     )
-    # nb["multinomial"].visualize()
-    # nb["gaussian"].visualize()
+    nb["multinomial"].visualize()
+    nb["gaussian"].visualize()

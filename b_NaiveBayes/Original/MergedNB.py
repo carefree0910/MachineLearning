@@ -2,6 +2,8 @@ from b_NaiveBayes.Original.Basic import *
 from b_NaiveBayes.Original.MultinomialNB import MultinomialNB
 from b_NaiveBayes.Original.GaussianNB import GaussianNB
 
+from Util import DataUtil
+
 
 class MergedNB(NaiveBayes):
 
@@ -19,7 +21,6 @@ class MergedNB(NaiveBayes):
         self._cat_counter = self._multinomial["cat_counter"]
         self._gaussian.feed_data(x[:, self._whether_continuous], y, sample_weights)
         self._gaussian.label_dic = self._multinomial.label_dic
-        self._initialized = True
 
     def feed_sample_weights(self, sample_weights=None):
         self._multinomial.feed_sample_weights(sample_weights)
@@ -50,22 +51,6 @@ class MergedNB(NaiveBayes):
                 idx += 1
         return x
 
-
-class Util:
-
-    @staticmethod
-    def data_cleaning(line):
-        line = line.replace('"', "")
-        return list(map(lambda c: c.strip(), line.split(";")))
-
-    @staticmethod
-    def get_raw_data():
-        x = []
-        with open("../Data/data2.txt", "r") as file:
-            for line in file:
-                x.append(Util.data_cleaning(line))
-        return x
-
 if __name__ == '__main__':
     import time
 
@@ -73,12 +58,11 @@ if __name__ == '__main__':
     _continuous_lst = [0, 5, 9, 11, 12, 13, 14]
     for _cl in _continuous_lst:
         _whether_discrete[_cl] = False
-    util = Util()
 
     train_num = 40000
 
     data_time = time.time()
-    _data = util.get_raw_data()
+    _data = DataUtil.get_dataset("bank1", "../../_Data/bank1.txt")
     np.random.shuffle(_data)
     train_x = _data[:train_num]
     test_x = _data[train_num:]

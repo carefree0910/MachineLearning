@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 
 x, y = [], []
-for sample in open("data.txt", "r"):
+for sample in open("../_Data/prices.txt", "r"):
     _x, _y = sample.split(",")
     x.append(float(_x))
     y.append(float(_y))

@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 
 from b_NaiveBayes.Original.Basic import *
+from Util import DataUtil
 
 
 class MultinomialNB(NaiveBayes):
@@ -65,10 +66,7 @@ class MultinomialNB(NaiveBayes):
 
 if __name__ == '__main__':
     import time
-    _data = []
-    with open("../Data/data.txt", "r") as file:
-        for _line in file:
-            _data.append(_line.strip().split(","))
+    _data = DataUtil.get_dataset("mushroom", "../../_Data/mushroom.txt")
     np.random.shuffle(_data)
     train_num = 6000
     train_x = _data[:train_num]

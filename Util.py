@@ -21,6 +21,21 @@ class Util:
 class DataUtil:
 
     @staticmethod
+    def get_dataset(name, path):
+        x = []
+        with open(path, "r", encoding="utf8") as file:
+            if name == "mushroom" or "balloon" in name:
+                for _line in file:
+                    x.append(_line.strip().split(","))
+            elif name == "bank1":
+                for line in file:
+                    line = line.replace('"', "")
+                    x.append(list(map(lambda c: c.strip(), line.split(";"))))
+            else:
+                raise NotImplementedError
+        return x
+
+    @staticmethod
     def gen_xor(size=100, scale=1):
         x = np.random.randn(size) * scale
         y = np.random.randn(size) * scale

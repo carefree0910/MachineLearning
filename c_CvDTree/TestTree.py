@@ -1,23 +1,8 @@
 from b_NaiveBayes.Vectorized.MergedNB import MergedNB
 from c_CvDTree.Tree import *
+from Util import DataUtil
 
 from sklearn.tree import DecisionTreeClassifier
-
-
-class Util:
-
-    @staticmethod
-    def data_cleaning(line):
-        line = line.replace('"', "")
-        return list(map(lambda c: c.strip(), line.split(";")))
-
-    @staticmethod
-    def get_raw_data():
-        x = []
-        with open("Data/data2.txt", "r") as file:
-            for line in file:
-                x.append(Util.data_cleaning(line))
-        return x
 
 
 class SKTree(DecisionTreeClassifier):
@@ -69,53 +54,50 @@ class SKTree(DecisionTreeClassifier):
 
 
 def main():
-    # _data, _x, _y = [], [], []
-    # with open("Data/data.txt", "r") as file:
-    #     for line in file:
-    #         _data.append(line.strip().split(","))
-    # np.random.shuffle(_data)
-    # for line in _data:
-    #     _y.append(line.pop(0))
-    #     _x.append(line)
-    # _x, _y = np.array(_x), np.array(_y)
-    # train_num = 5000
-    # x_train = _x[:train_num]
-    # y_train = _y[:train_num]
-    # x_test = _x[train_num:]
-    # y_test = _y[train_num:]
-    # _fit_time = time.time()
-    # _tree = CartTree()
-    # _tree.fit(x_train, y_train)
-    # _fit_time = time.time() - _fit_time
-    # _tree.view()
-    # _estimate_time = time.time()
-    # _tree.estimate(x_test, y_test)
-    # _estimate_time = time.time() - _estimate_time
-    # print("Fit      Process : {:8.6} s\n"
-    #       "Estimate Process : {:8.6} s".format(_fit_time, _estimate_time))
-    # _tree.visualize()
-
-    from Util import DataUtil
-    _x, _y = DataUtil.gen_xor()
-    _y = np.argmax(_y, axis=1)
+    _data = DataUtil.get_dataset("mushroom", "../_Data/mushroom.txt")
+    np.random.shuffle(_data)
+    _x, _y = [], []
+    for line in _data:
+        _y.append(line.pop(0))
+        _x.append(line)
+    _x, _y = np.array(_x), np.array(_y)
+    train_num = 5000
+    x_train = _x[:train_num]
+    y_train = _y[:train_num]
+    x_test = _x[train_num:]
+    y_test = _y[train_num:]
     _fit_time = time.time()
     _tree = C45Tree()
-    _tree.fit(_x, _y)
+    _tree.fit(x_train, y_train)
     _fit_time = time.time() - _fit_time
     _tree.view()
     _estimate_time = time.time()
-    _tree.estimate(_x, _y)
+    _tree.estimate(x_test, y_test)
     _estimate_time = time.time() - _estimate_time
     print("Fit      Process : {:8.6} s\n"
           "Estimate Process : {:8.6} s".format(_fit_time, _estimate_time))
-    _tree.visualize2d(_x, _y)
+    _tree.visualize()
+
+    # from Util import DataUtil
+    # _x, _y = DataUtil.gen_xor()
+    # _y = np.argmax(_y, axis=1)
+    # _fit_time = time.time()
+    # _tree = C45Tree()
+    # _tree.fit(_x, _y)
+    # _fit_time = time.time() - _fit_time
+    # _tree.view()
+    # _estimate_time = time.time()
+    # _tree.estimate(_x, _y)
+    # _estimate_time = time.time() - _estimate_time
+    # print("Fit      Process : {:8.6} s\n"
+    #       "Estimate Process : {:8.6} s".format(_fit_time, _estimate_time))
+    # _tree.visualize2d(_x, _y)
 
     # _whether_discrete = [True] * 16
     # _continuous_lst = [0, 5, 9, 11, 12, 13, 14]
     # for _cl in _continuous_lst:
     #     _whether_discrete[_cl] = False
-    # util = Util()
-    # _data = util.get_raw_data()
+    # _data = DataUtil.get_dataset("bank1", "../_Data/bank1.txt")
     # np.random.shuffle(_data)
     # _labels = [xx.pop() for xx in _data]
     # nb = MergedNB(_whether_discrete)
@@ -129,7 +111,7 @@ def main():
     # x_test = _data[train_num:]
     # y_test = _labels[train_num:]
     # _fit_time = time.time()
-    # _tree = CartTree()
+    # _tree = C45Tree()
     # _tree.fit(x_train, y_train)
     # _fit_time = time.time() - _fit_time
     # _tree.view()

@@ -61,6 +61,8 @@ class NaiveBayes:
     def predict(self, x, get_raw_result=False):
         if isinstance(x, np.ndarray):
             x = x.tolist()
+        else:
+            x = [xx[:] for xx in x]
         x = self._transfer_x(x)
         m_arg, m_probability = np.zeros(len(x), dtype=np.int8), np.zeros(len(x))
         for i in range(len(self._cat_counter)):

@@ -1,6 +1,10 @@
 import matplotlib.pyplot as plt
 
 from b_NaiveBayes.Vectorized.Basic import *
+from Util import DataUtil
+
+from pylab import mpl
+mpl.rcParams['font.sans-serif'] = ['FangSong']
 
 
 class MultinomialNB(NaiveBayes):
@@ -68,7 +72,9 @@ class MultinomialNB(NaiveBayes):
     def visualize(self, save=False):
         colors = plt.cm.Paired([i / len(self.label_dic) for i in range(len(self.label_dic))])
         colors = {_cat: _color for _cat, _color in zip(self.label_dic.values(), colors)}
+        _rev_feat_dics = [{_val: _key for _key, _val in _feat_dic.items()} for _feat_dic in self._feat_dics]
         for j in range(len(self._n_possibilities)):
+            _rev_dic = _rev_feat_dics[j]
             sj = self._n_possibilities[j]
             tmp_x = np.arange(1, sj + 1)
             title = "$j = {}; S_j = {}$".format(j + 1, sj)
@@ -77,8 +83,8 @@ class MultinomialNB(NaiveBayes):
             for c in range(len(self.label_dic)):
                 plt.bar(tmp_x - 0.35 * c, self._data[j][c, :], width=0.35,
                         facecolor=colors[self.label_dic[c]], edgecolor="white",
-                        label="class: {}".format(self.label_dic[c]))
-            plt.xticks([i for i in range(sj + 2)])
+                        label=u"class: {}".format(self.label_dic[c]))
+            plt.xticks([i for i in range(sj + 2)], [""] + [_rev_dic[i] for i in range(sj)] + [""])
             plt.ylim(0, 1.0)
             plt.legend()
             if not save:
@@ -88,25 +94,36 @@ class MultinomialNB(NaiveBayes):
 
 if __name__ == '__main__':
     import time
-    _data = []
-    with open("../Data/data.txt", "r") as file:
-        for _line in file:
-            _data.append(_line.strip().split(","))
-    np.random.shuffle(_data)
-    train_num = 6000
-    train_x = _data[:train_num]
-    test_x = _data[train_num:]
-    train_y = [xx.pop(0) for xx in train_x]
-    test_y = [xx.pop(0) for xx in test_x]
 
+    # _data = DataUtil.get_dataset("mushroom", "../../_Data/mushroom.txt")
+    # np.random.shuffle(_data)
+    # train_num = 6000
+    # train_x = _data[:train_num]
+    # test_x = _data[train_num:]
+    # train_y = [xx.pop(0) for xx in train_x]
+    # test_y = [xx.pop(0) for xx in test_x]
+    #
+    # learning_time = time.time()
+    # nb = MultinomialNB()
+    # nb.fit(train_x, train_y)
+    # learning_time = time.time() - learning_time
+    #
+    # estimation_time = time.time()
+    # nb.estimate(train_x, train_y)
+    # nb.estimate(test_x, test_y)
+    # estimation_time = time.time() - estimation_time
+
+    _data = DataUtil.get_dataset("balloon1", "../../_Data/balloon1.txt")
+    _x = _data
+    _y = [xx.pop() for xx in _x]
     learning_time = time.time()
     nb = MultinomialNB()
-    nb.fit(train_x, train_y)
+    nb.fit(_x, _y)
     learning_time = time.time() - learning_time
-
     estimation_time = time.time()
-    nb.estimate(train_x, train_y)
-    nb.estimate(test_x, test_y)
+    print(nb.predict([["紫色", "小", "小孩", "用脚踩"]]))
+    print(nb.predict([["紫色", "小", "小孩", "用脚踩"]], get_raw_result=True))
+    nb.estimate(_x, _y)
     estimation_time = time.time() - estimation_time
 
     print(
@@ -117,4 +134,4 @@ if __name__ == '__main__':
             learning_time + estimation_time
         )
     )
-    # nb.visualize()
+    nb.visualize()

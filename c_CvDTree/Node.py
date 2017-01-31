@@ -2,8 +2,6 @@ import numpy as np
 
 from c_CvDTree.Cluster import Cluster
 
-np.random.seed(142857)
-
 
 class CvDNode:
     def __init__(self, tree=None, base=2, chaos=None,
@@ -37,7 +35,8 @@ class CvDNode:
             return "CvDNode ({}) ({} -> {})".format(
                 self._depth, self.prev_feat, self.feature_dim)
         return "CvDNode ({}) ({} -> class: {})".format(
-            self._depth, self.prev_feat, self.tree.label_dic[self.category])
+            # self._depth, self.prev_feat, self.tree.label_dic[self.category])
+            self._depth, self.prev_feat, self.category)
 
     __repr__ = __str__
 
@@ -103,11 +102,11 @@ class CvDNode:
                 _parent.leafs.pop(_k)
             _parent.leafs[id(self)] = self.info_dic
             _parent = _parent.parent
+        self.mark_pruned()
         self.feature_dim = None
         self.left_child = self.right_child = None
         self._children = {}
         self.leafs = {}
-        self.mark_pruned()
 
     def mark_pruned(self):
         self.pruned = True
