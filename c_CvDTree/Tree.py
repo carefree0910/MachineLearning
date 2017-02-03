@@ -5,13 +5,12 @@ import matplotlib.pyplot as plt
 
 from c_CvDTree.Node import *
 
+np.random.seed(142857)
 
-# Tree
 
 class CvDBase:
     def __init__(self, max_depth=None, node=None):
-        self.nodes, self.layers = [], []
-        self.roots, self._threshold_cache = [], None
+        self.nodes, self.layers, self.roots = [], [], []
         self._max_depth = max_depth
         self.root = node
         self.feature_sets = []
@@ -24,94 +23,127 @@ class CvDBase:
 
     __repr__ = __str__
 
-    @staticmethod
-    def acc(y, y_pred):
-        return np.sum(np.array(y) == np.array(y_pred)) / len(y)
-
-    def _pre_processing(self, x, continuous_rate=0.05):
+    def feed_data(self, x, continuous_rate=0.2):
         xt = x.T
         self.feature_sets = [set(dimension) for dimension in xt]
         data_len, data_dim = x.shape
         self.whether_continuous = np.array(
             [len(feat) >= continuous_rate * data_len for feat in self.feature_sets])
         self.root.feats = [i for i in range(x.shape[1])]
-        self.root.floor, self.root.ceiling = [None] * len(xt), [None] * len(xt)
-        for i, continuous in enumerate(self.whether_continuous):
-            if continuous:
-                tmp_line = xt[i]
-                self.root.floor[i] = np.min(tmp_line)
-                self.root.ceiling[i] = np.max(tmp_line)
         self.root.feed_tree(self)
 
-    def fit(self, x, y, alpha=1, sample_weights=None, eps=1e-8):
-        self.prune_alpha = alpha
+    # Grow
+
+    def fit(self, x, y, alpha=None, sample_weights=None, eps=1e-8,
+            cv_rate=0.2, train_only=False):
         _dic = {c: i for i, c in enumerate(set(y))}
         y = np.array([_dic[yy] for yy in y])
         self.label_dic = {value: key for key, value in _dic.items()}
-        _x = np.array(x)
-        self._pre_processing(_x)
-        self.root.fit(_x, y, sample_weights, eps)
-        if self.root.is_cart:
-            self.cart_prune()
-            _arg = np.argmax([CvDBase.acc(y, tree.predict(_x)) for tree in self.roots])
-            _tar_root = self.roots[_arg]
-            self.nodes = []
-            _tar_root.feed_tree(self)
-            self.root = _tar_root
+        x = np.array(x)
+        self.prune_alpha = alpha if alpha is not None else x.shape[1] / 2
+        if not train_only and self.root.is_cart:
+            _train_num = int(len(x) * (1-cv_rate))
+            _suffix = np.random.permutation(np.arange(len(x)))
+            _train_suffix = _suffix[:_train_num]
+            _test_suffix = _suffix[_train_num:]
+            if sample_weights is not None:
+                _train_weights = sample_weights[_train_suffix]
+                _test_weights = sample_weights[_test_suffix]
+                _train_weights /= np.sum(_train_weights)
+                _test_weights /= np.sum(_test_weights)
+            else:
+                _train_weights = _test_weights = None
+            x_train, y_train = x[_train_suffix], y[_train_suffix]
+            x_cv, y_cv = x[_test_suffix], y[_test_suffix]
         else:
-            self.prune()
+            x_train, y_train, _train_weights = x, y, sample_weights
+            x_cv = y_cv = _test_weights = None
+        self.feed_data(x_train)
+        self.root.fit(x_train, y_train, _train_weights, eps)
+        self.prune(x_cv, y_cv, _test_weights)
 
     def reduce_nodes(self):
         for i in range(len(self.nodes)-1, -1, -1):
             if self.nodes[i].pruned:
                 self.nodes.pop(i)
 
-    def prune(self):
-        if self.root.height <= 2:
-            return
-        _tmp_nodes = [node for node in self.nodes if not node.is_root and not node.category]
-        if not _tmp_nodes:
-            return
-        _continue = False
-        _old = np.array([sum(
-            [leaf["chaos"] * len(leaf["y"]) for leaf in node.leafs.values()]
-        ) + self.prune_alpha * len(node.leafs) for node in _tmp_nodes])
-        _new = np.array([node.chaos * len(node["y"]) + self.prune_alpha for node in _tmp_nodes])
-        _mask = (_old - _new) > 0
-        arg = np.argmax(_mask)
-        if _mask[arg]:
-            _tmp_nodes[arg].prune()
-            self.reduce_nodes()
-            _continue = True
-        if _continue:
-            self.prune()
+    # Prune
 
-    def cart_prune(self):
-        _continue = False
-        self.root.cut_tree()
-        root_copy = deepcopy(self.root)
-        self.roots.append(root_copy)
-        if self.root.height <= 2:
-            return
-        _nodes = [_node for _node in self.nodes if _node.category is None]
-        if self._threshold_cache is None:
-            _thresholds = [_node.get_threshold() for _node in _nodes]
-        else:
-            _thresholds = self._threshold_cache
-        _arg = np.argmin(_thresholds)
-        _nodes[_arg].prune()
+    def _update_layers(self):
+        self.layers = [[] for _ in range(self.root.height)]
+        self.root.update_layers()
+
+    def _prune(self):
+        self._update_layers()
+        _tmp_nodes = []
+        for _node_lst in self.layers[::-1]:
+            for _node in _node_lst[::-1]:
+                if _node.category is None:
+                    _tmp_nodes.append(_node)
+        _old = np.array([node.cost() + self.prune_alpha * len(node.leafs) for node in _tmp_nodes])
+        _new = np.array([node.cost(pruned=True) + self.prune_alpha for node in _tmp_nodes])
+        _mask = _old >= _new
+        while True:
+            if self.root.height == 1:
+                break
+            p = np.argmax(_mask)
+            if _mask[p]:
+                _tmp_nodes[p].prune()
+                for i, node in enumerate(_tmp_nodes):
+                    if node.affected:
+                        _old[i] = node.cost() + self.prune_alpha * len(node.leafs)
+                        _mask[i] = _old[i] >= _new[i]
+                        node.affected = False
+                for i in range(len(_tmp_nodes) - 1, -1, -1):
+                    if _tmp_nodes[i].pruned:
+                        _tmp_nodes.pop(i)
+                        _old = np.delete(_old, i)
+                        _new = np.delete(_new, i)
+                        _mask = np.delete(_mask, i)
+            else:
+                break
         self.reduce_nodes()
-        _thresholds[_arg] = _nodes[_arg].get_threshold()
-        for i in range(len(_thresholds) - 1, -1, -1):
-            if _nodes[i].pruned:
-                _thresholds.pop(i)
-        self._threshold_cache = _thresholds
-        if self.root.height > 2:
-            _continue = True
+
+    def _cart_prune(self):
+        self.root.cut_tree()
+        _tmp_nodes = [node for node in self.nodes if node.category is None]
+        _thresholds = np.array([node.get_threshold() for node in _tmp_nodes])
+        while True:
+            root_copy = deepcopy(self.root)
+            self.roots.append(root_copy)
+            if self.root.height == 1:
+                break
+            p = np.argmin(_thresholds)
+            _tmp_nodes[p].prune()
+            for i, node in enumerate(_tmp_nodes):
+                if node.affected:
+                    _thresholds[i] = node.get_threshold()
+                    node.affected = False
+            for i in range(len(_tmp_nodes) - 1, -1, -1):
+                if _tmp_nodes[i].pruned:
+                    _tmp_nodes.pop(i)
+                    _thresholds = np.delete(_thresholds, i)
+        self.reduce_nodes()
+
+    @staticmethod
+    def acc(y, y_pred, weights):
+        if weights is not None:
+            return np.sum((np.array(y) == np.array(y_pred)) * weights) / len(y)
+        return np.sum(np.array(y) == np.array(y_pred)) / len(y)
+
+    def prune(self, x_cv, y_cv, weights):
+        if self.root.is_cart:
+            if x_cv is not None and y_cv is not None:
+                self._cart_prune()
+                _arg = np.argmax([CvDBase.acc(y_cv, tree.predict(x_cv), weights) for tree in self.roots])
+                _tar_root = self.roots[_arg]
+                self.nodes = []
+                _tar_root.feed_tree(self)
+                self.root = _tar_root
         else:
-            self.roots.append(deepcopy(self.root))
-        if _continue:
-            self.cart_prune()
+            self._prune()
+
+    # Util
 
     def predict_one(self, x):
         return self.label_dic[self.root.predict_one(x)]
@@ -172,8 +204,7 @@ class CvDBase:
         print("Done.")
 
     def visualize(self, radius=24, width=1200, height=800, padding=0.2, plot_num=30, title="CvDTree"):
-        self.layers = [[] for _ in range(self.root.height)]
-        self.root.update_layers()
+        self._update_layers()
         units = [len(layer) for layer in self.layers]
 
         img = np.ones((height, width, 3), np.uint8) * 255

@@ -2,6 +2,8 @@ import numpy as np
 
 from c_CvDTree.Cluster import Cluster
 
+np.random.seed(142857)
+
 
 class CvDNode:
     def __init__(self, tree=None, base=2, chaos=None,
@@ -12,7 +14,7 @@ class CvDNode:
         self.left_child = self.right_child = None
         self._children, self.leafs = {}, {}
         self.sample_weights = None
-        self.wc = self.floor = self.ceiling = None
+        self.wc = None
 
         self.tree = tree
         if tree is not None:
@@ -21,7 +23,7 @@ class CvDNode:
         self.feature_dim, self.tar, self.feats = None, None, []
         self.parent, self.is_root = parent, is_root
         self._depth, self.prev_feat = depth, prev_feat
-        self.is_cart = self.is_continuous = self.pruned = False
+        self.is_cart = self.is_continuous = self.affected = self.pruned = False
 
     def __getitem__(self, item):
         if isinstance(item, str):
@@ -35,8 +37,7 @@ class CvDNode:
             return "CvDNode ({}) ({} -> {})".format(
                 self._depth, self.prev_feat, self.feature_dim)
         return "CvDNode ({}) ({} -> class: {})".format(
-            # self._depth, self.prev_feat, self.tree.label_dic[self.category])
-            self._depth, self.prev_feat, self.category)
+            self._depth, self.prev_feat, self.tree.label_dic[self.category])
 
     __repr__ = __str__
 
@@ -60,13 +61,6 @@ class CvDNode:
         }
 
     # Grow
-
-    def feed_data(self, x, y):
-        self._x, self._y = x, y
-        if self.floor is None:
-            self.floor = [None] * self._x.shape[1]
-        if self.ceiling is None:
-            self.ceiling = [None] * self._x.shape[1]
 
     def stop1(self, eps):
         if (
@@ -98,6 +92,7 @@ class CvDNode:
         _pop_lst = [key for key in self.leafs]
         _parent = self.parent
         while _parent is not None:
+            _parent.affected = True
             for _k in _pop_lst:
                 _parent.leafs.pop(_k)
             _parent.leafs[id(self)] = self.info_dic
@@ -115,11 +110,16 @@ class CvDNode:
                 _child.mark_pruned()
 
     def fit(self, x, y, sample_weights, eps=1e-8):
-        self.feed_data(x, y)
+        self._x, self._y = np.array(x), np.array(y)
         self.sample_weights = sample_weights
         if self.stop1(eps):
             return
         _cluster = Cluster(self._x, self._y, sample_weights, self.base)
+        if self.is_root:
+            if self.criterion == "gini":
+                self.chaos = _cluster.gini()
+            else:
+                self.chaos = _cluster.ent()
         _max_gain, _chaos_lst = 0, []
         _max_feature = _max_tar = None
         for feat in self.feats:
@@ -162,33 +162,22 @@ class CvDNode:
         _new_feats = self.feats[:]
         if continuous:
             _mask = features < tar
-            if self.floor[feat] is not None:
-                _masks = [_mask & (self.floor[feat] <= features), tar < features]
-            elif self.ceiling[feat] is not None:
-                _masks = [_mask, (tar <= features) & (features <= self.ceiling[feat])]
-            else:
-                _masks = [~_mask, _mask]
+            _masks = [_mask, ~_mask]
         else:
             if self.is_cart:
-                _mask = features != tar
-                _masks = [~_mask, _mask]
+                _mask = features == tar
+                _masks = [_mask, ~_mask]
                 self.tree.feature_sets[feat].discard(tar)
             else:
                 _masks = None
         if self.is_cart or continuous:
             _feats = [tar, "+"] if not continuous else ["{:6.4}-".format(tar), "{:6.4}+".format(tar)]
-            for _feat, side, attr, _chaos in zip(_feats, ["left_child", "right_child"], [
-                ("ceiling", "floor"), ("floor", "ceiling")
-            ], _chaos_lst):
+            for _feat, side, _chaos in zip(_feats, ["left_child", "right_child"], _chaos_lst):
                 _new_node = self.__class__(
                     self.tree, self.base, chaos=_chaos,
                     depth=self._depth + 1, parent=self, is_root=False, prev_feat=_feat)
                 _new_node.criterion = self.criterion
                 setattr(self, side, _new_node)
-                setattr(_new_node, attr[1], getattr(self, attr[1]).copy())
-                _bound = getattr(self, attr[0]).copy()
-                _bound[feat] = tar
-                setattr(_new_node, attr[0], _bound)
             for _node, _feat_mask in zip([self.left_child, self.right_child], _masks):
                 _local_weights = None if self.sample_weights is None else self.sample_weights[_feat_mask]
                 tmp_data, tmp_labels = self._x[_feat_mask, :], self._y[_feat_mask]
@@ -207,9 +196,6 @@ class CvDNode:
                     tree=self.tree, base=self.base, chaos=_chaos,
                     depth=self._depth + 1, parent=self, is_root=False, prev_feat=feat)
                 _new_node.feats = _new_feats
-                for attr in ("ceiling", "floor"):
-                    _bound = getattr(self, attr).copy()
-                    setattr(_new_node, attr, _bound)
                 self.children[feat] = _new_node
                 if self.sample_weights is None:
                     _local_weights = None
@@ -218,18 +204,22 @@ class CvDNode:
                     _local_weights /= np.sum(_local_weights)
                 _new_node.fit(tmp_x, self._y[_feat_mask], _local_weights)
 
-    # Prune
+    # Util
+
+    def update_layers(self):
+        self.tree.layers[self._depth].append(self)
+        for _node in sorted(self.children):
+            _node = self.children[_node]
+            if _node is not None:
+                _node.update_layers()
+
+    def cost(self, pruned=False):
+        if not pruned:
+            return sum([leaf["chaos"] * len(leaf["y"]) for leaf in self.leafs.values()])
+        return self.chaos * len(self._y)
 
     def get_threshold(self):
-        if self.category is None:
-            rs = 0
-            for leaf in self.leafs.values():
-                _cluster = Cluster(None, leaf["y"], None, self.base)
-                rs += len(leaf["y"]) * _cluster.ent()
-            return Cluster(self._x, self._y, None, self.base).ent() - rs / (len(self.leafs) - 1)
-        return 0
-
-    # Util
+        return (self.cost(pruned=True) - self.cost()) / (len(self.leafs) - 1)
 
     def cut_tree(self):
         self.tree = None
@@ -271,13 +261,6 @@ class CvDNode:
             _node = self.children[_node]
             if _node is not None:
                 _node.view()
-
-    def update_layers(self):
-        self.tree.layers[self._depth].append(self)
-        for _node in sorted(self.children):
-            _node = self.children[_node]
-            if _node is not None:
-                _node.update_layers()
 
 
 class ID3Node(CvDNode):

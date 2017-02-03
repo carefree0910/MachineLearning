@@ -5,7 +5,7 @@ import sklearn.naive_bayes as nb
 
 from b_NaiveBayes.Vectorized.MultinomialNB import MultinomialNB
 from b_NaiveBayes.Vectorized.GaussianNB import GaussianNB
-from c_Tree.Tree import *
+from c_CvDTree.Tree import *
 
 
 class AdaBoost:
@@ -62,7 +62,7 @@ class AdaBoost:
         self._sample_weight = np.ones(len(x)) / len(x)
         for _ in range(epoch):
             tmp_clf = AdaBoost._weak_clf[clf](*args, **kwargs)
-            tmp_clf.fit(x, y, self._sample_weight)
+            tmp_clf.fit(x, y, sample_weights=self._sample_weight)
             y_pred = tmp_clf.predict(x)
             em = min(max((y_pred != y).dot(self._sample_weight[:, None])[0], eps), 1 - eps)
             am = 0.5 * log(1 / em - 1)

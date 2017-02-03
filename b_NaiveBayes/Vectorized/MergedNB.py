@@ -28,13 +28,14 @@ class MergedNB(NaiveBayes):
     def _fit(self, lb):
         self._multinomial.fit()
         self._gaussian.fit()
+        p_category = self._multinomial.get_prior_probability(lb)
         discrete_func, continuous_func = self._multinomial["func"], self._gaussian["func"]
 
         def func(input_x, tar_category):
             input_x = np.atleast_2d(input_x)
             return discrete_func(
                 input_x[:, self._whether_discrete].astype(np.int), tar_category) * continuous_func(
-                input_x[:, self._whether_continuous], tar_category)
+                input_x[:, self._whether_continuous], tar_category) / p_category[tar_category]
 
         return func
 
@@ -53,6 +54,7 @@ class MergedNB(NaiveBayes):
 
 if __name__ == '__main__':
     import time
+
     _whether_discrete = [True] * 16
     _continuous_lst = [0, 5, 9, 11, 12, 13, 14]
     for _cl in _continuous_lst:

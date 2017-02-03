@@ -1,4 +1,5 @@
 from d_AdaBoost.AdaBoost import *
+from Util import DataUtil
 
 
 def gen_random(size=100):
@@ -64,12 +65,10 @@ if __name__ == '__main__':
     # _x, _y = gen_spin()
     # test(_x, _y, clf="CvDTree")
 
-    _data, _x, _y = [], [], []
-    with open("../b_NaiveBayes/Data/data.txt", "r") as file:
-        for line in file:
-            _data.append(line.strip().split(","))
+    _data = DataUtil.get_dataset("mushroom", "../_Data/mushroom.txt")
     np.random.shuffle(_data)
     _dic = {"e": -1, "p": 1}
+    _x, _y = [], []
     for line in _data:
         _y.append(_dic[line.pop(0)])
         _x.append(line)
@@ -86,7 +85,7 @@ if __name__ == '__main__':
     cv_test(x_train, y_train, x_test, y_test, clf="Cart", max_depth=1)
     cv_test(x_train, y_train, x_test, y_test, clf="ID3", max_depth=1)
     cv_test(x_train, y_train, x_test, y_test, clf="C45", max_depth=1)
-    cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=1)
-    cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=5)
-    cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=10)
-    cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=15)
+    # cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=1)
+    # cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=5)
+    # cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=10)
+    # cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=15)

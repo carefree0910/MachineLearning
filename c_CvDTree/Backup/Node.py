@@ -1,6 +1,6 @@
 import numpy as np
 
-from c_Tree.Cluster import Cluster
+from c_CvDTree.Cluster import Cluster
 
 np.random.seed(142857)
 
@@ -37,7 +37,8 @@ class CvDNode:
             return "CvDNode ({}) ({} -> {})".format(
                 self._depth, self.prev_feat, self.feature_dim)
         return "CvDNode ({}) ({} -> class: {})".format(
-            self._depth, self.prev_feat, self.tree.label_dic[self.category])
+            # self._depth, self.prev_feat, self.tree.label_dic[self.category])
+            self._depth, self.prev_feat, self.category)
 
     __repr__ = __str__
 
@@ -94,13 +95,34 @@ class CvDNode:
             _parent.leafs[id(self)] = self.info_dic
             _parent = _parent.parent
 
+    def prune(self):
+        self.category = self.get_category()
+        _pop_lst = [key for key in self.leafs]
+        _parent = self.parent
+        while _parent is not None:
+            for _k in _pop_lst:
+                _parent.leafs.pop(_k)
+            _parent.leafs[id(self)] = self.info_dic
+            _parent = _parent.parent
+        self.mark_pruned()
+        self.feature_dim = None
+        self.left_child = self.right_child = None
+        self._children = {}
+        self.leafs = {}
+
+    def mark_pruned(self):
+        self.pruned = True
+        for _child in self.children.values():
+            if _child is not None:
+                _child.mark_pruned()
+
     def fit(self, x, y, sample_weights, eps=1e-8):
         self.feed_data(x, y)
         self.sample_weights = sample_weights
         if self.stop1(eps):
             return
         _cluster = Cluster(self._x, self._y, sample_weights, self.base)
-        _max_gain = _con_chaos = 0
+        _max_gain, _chaos_lst = 0, []
         _max_feature = _max_tar = None
         for feat in self.feats:
             if self.wc[feat]:
@@ -113,33 +135,29 @@ class CvDNode:
                     _set = None
             if self.is_cart or self.wc[feat]:
                 for tar in _set:
-                    _tmp_gain, _tmp_con_chaos = _cluster.bin_info_gain(
+                    _tmp_gain, _tmp_chaos_lst = _cluster.bin_info_gain(
                         feat, tar, criterion=self.criterion, get_chaos_lst=True, continuous=self.wc[feat])
                     if _tmp_gain > _max_gain:
-                        (_max_gain, _con_chaos), _max_feature, _max_tar = (_tmp_gain, _tmp_con_chaos), feat, tar
+                        (_max_gain, _chaos_lst), _max_feature, _max_tar = (_tmp_gain, _tmp_chaos_lst), feat, tar
             else:
-                _tmp_gain, _tmp_con_chaos = _cluster.info_gain(
+                _tmp_gain, _tmp_chaos_lst = _cluster.info_gain(
                     feat, self.criterion, True, self.tree.feature_sets[feat])
                 if _tmp_gain > _max_gain:
-                    (_max_gain, _con_chaos), _max_feature = (_tmp_gain, _tmp_con_chaos), feat
+                    (_max_gain, _chaos_lst), _max_feature = (_tmp_gain, _tmp_chaos_lst), feat
         if self.stop2(_max_gain, eps):
             return
         self.feature_dim = _max_feature
         if self.is_cart or self.wc[_max_feature]:
             self.tar = _max_tar
-            if not self.wc[_max_feature]:
-                self.tree.feature_sets[_max_feature].discard(_max_tar)
-            self._gen_children(_con_chaos)
-            if (self.left_child.category is None and self.left_child.feature_dim is None) or (
-                self.right_child.category is None and self.right_child.feature_dim is None) or (
-                self.left_child.category is not None and self.left_child.category == self.right_child.category
-            ):
+            self._gen_children(_chaos_lst)
+            if (self.left_child.category is not None and
+                    self.left_child.category == self.right_child.category):
                 self.prune()
                 self.tree.reduce_nodes()
         else:
-            self._gen_children(_con_chaos)
+            self._gen_children(_chaos_lst)
 
-    def _gen_children(self, con_chaos):
+    def _gen_children(self, _chaos_lst):
         feat, tar = self.feature_dim, self.tar
         self.is_continuous = continuous = self.wc[feat]
         features = self._x[:, feat]
@@ -147,8 +165,10 @@ class CvDNode:
         if continuous:
             _mask = features < tar
             if self.floor[feat] is not None:
+                print(np.sum(self.floor[feat] > features))
                 _masks = [_mask & (self.floor[feat] <= features), tar < features]
             elif self.ceiling[feat] is not None:
+                print(np.sum(features > self.ceiling[feat]))
                 _masks = [_mask, (tar <= features) & (features <= self.ceiling[feat])]
             else:
                 _masks = [~_mask, _mask]
@@ -156,15 +176,16 @@ class CvDNode:
             if self.is_cart:
                 _mask = features != tar
                 _masks = [~_mask, _mask]
+                self.tree.feature_sets[feat].discard(tar)
             else:
                 _masks = None
         if self.is_cart or continuous:
             _feats = [tar, "+"] if not continuous else ["{:6.4}-".format(tar), "{:6.4}+".format(tar)]
-            for _feat, side, attr in zip(_feats, ["left_child", "right_child"], [
+            for _feat, side, attr, _chaos in zip(_feats, ["left_child", "right_child"], [
                 ("ceiling", "floor"), ("floor", "ceiling")
-            ]):
+            ], _chaos_lst):
                 _new_node = self.__class__(
-                    self.tree, self.base, chaos=con_chaos,
+                    self.tree, self.base, chaos=_chaos,
                     depth=self._depth + 1, parent=self, is_root=False, prev_feat=_feat)
                 _new_node.criterion = self.criterion
                 setattr(self, side, _new_node)
@@ -181,13 +202,13 @@ class CvDNode:
                 _node.fit(tmp_data, tmp_labels, _local_weights)
         else:
             _new_feats.remove(self.feature_dim)
-            for feat in self.tree.feature_sets[self.feature_dim]:
+            for feat, _chaos in zip(self.tree.feature_sets[self.feature_dim], _chaos_lst):
                 _feat_mask = features == feat
                 tmp_x = self._x[_feat_mask, :]
                 if len(tmp_x) == 0:
                     continue
                 _new_node = self.__class__(
-                    tree=self.tree, base=self.base, chaos=con_chaos,
+                    tree=self.tree, base=self.base, chaos=_chaos,
                     depth=self._depth + 1, parent=self, is_root=False, prev_feat=feat)
                 _new_node.feats = _new_feats
                 for attr in ("ceiling", "floor"):
@@ -211,28 +232,6 @@ class CvDNode:
                 rs += len(leaf["y"]) * _cluster.ent()
             return Cluster(self._x, self._y, None, self.base).ent() - rs / (len(self.leafs) - 1)
         return 0
-
-    def prune(self):
-        if self.category is None:
-            self.category = self.get_category()
-            self.feature_dim = None
-        _pop_lst = [key for key in self.leafs]
-        _parent = self.parent
-        while _parent is not None:
-            for _k in _pop_lst:
-                _parent.leafs.pop(_k)
-            _parent.leafs[id(self)] = self.info_dic
-            _parent = _parent.parent
-        self.mark_pruned()
-        self.left_child = self.right_child = None
-        self._children = {}
-        self.leafs = {}
-
-    def mark_pruned(self):
-        self.pruned = True
-        for _child in self.children.values():
-            if _child is not None:
-                _child.mark_pruned()
 
     # Util
 

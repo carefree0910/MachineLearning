@@ -29,13 +29,14 @@ class MergedNB(NaiveBayes):
     def _fit(self, lb):
         self._multinomial.fit()
         self._gaussian.fit()
+        p_category = self._multinomial.get_prior_probability(lb)
         discrete_func, continuous_func = self._multinomial["func"], self._gaussian["func"]
 
         def func(input_x, tar_category):
             input_x = np.array(input_x)
             return discrete_func(
                 input_x[self._whether_discrete].astype(np.int), tar_category) * continuous_func(
-                input_x[self._whether_continuous], tar_category)
+                input_x[self._whether_continuous], tar_category) / p_category[tar_category]
 
         return func
 
@@ -54,13 +55,30 @@ class MergedNB(NaiveBayes):
 if __name__ == '__main__':
     import time
 
+    _whether_discrete = [True, False, True, True]
+    _x = DataUtil.get_dataset("balloon2.0", "../../_Data/{}.txt".format("balloon2.0"))
+    _y = [xx.pop() for xx in _x]
+    learning_time = time.time()
+    nb = MergedNB(_whether_discrete)
+    nb.fit(_x, _y)
+    learning_time = time.time() - learning_time
+    estimation_time = time.time()
+    nb.estimate(_x, _y)
+    estimation_time = time.time() - estimation_time
+    print(
+        "Model building  : {:12.6} s\n"
+        "Estimation      : {:12.6} s\n"
+        "Total           : {:12.6} s".format(
+            learning_time, estimation_time,
+            learning_time + estimation_time
+        )
+    )
+
     _whether_discrete = [True] * 16
     _continuous_lst = [0, 5, 9, 11, 12, 13, 14]
     for _cl in _continuous_lst:
         _whether_discrete[_cl] = False
-
     train_num = 40000
-
     data_time = time.time()
     _data = DataUtil.get_dataset("bank1.0", "../../_Data/bank1.0.txt")
     np.random.shuffle(_data)
@@ -69,17 +87,14 @@ if __name__ == '__main__':
     train_y = [xx.pop() for xx in train_x]
     test_y = [xx.pop() for xx in test_x]
     data_time = time.time() - data_time
-
     learning_time = time.time()
     nb = MergedNB(_whether_discrete)
     nb.fit(train_x, train_y)
     learning_time = time.time() - learning_time
-
     estimation_time = time.time()
     nb.estimate(train_x, train_y)
     nb.estimate(test_x, test_y)
     estimation_time = time.time() - estimation_time
-
     print(
         "Data cleaning   : {:12.6} s\n"
         "Model building  : {:12.6} s\n"

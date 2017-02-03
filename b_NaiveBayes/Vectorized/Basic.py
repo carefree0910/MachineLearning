@@ -1,14 +1,14 @@
 import numpy as np
 from math import pi
 
-sqrt_pi = pi ** 0.5
+sqrt_pi = (2 * pi) ** 0.5
 
 
 class NBFunctions:
 
     @staticmethod
     def gaussian(x, mu, sigma):
-        return np.exp(-(x - mu) ** 2 / (2 * sigma)) / (sqrt_pi * sigma ** 0.5)
+        return np.exp(-(x - mu) ** 2 / (2 * sigma ** 2)) / (sqrt_pi * sigma)
 
     @staticmethod
     def gaussian_maximum_likelihood(labelled_x, n_category, dim):

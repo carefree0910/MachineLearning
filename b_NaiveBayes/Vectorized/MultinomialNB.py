@@ -3,22 +3,11 @@ import matplotlib.pyplot as plt
 from b_NaiveBayes.Vectorized.Basic import *
 from Util import DataUtil
 
-from pylab import mpl
-mpl.rcParams['font.sans-serif'] = ['FangSong']
-
 
 class MultinomialNB(NaiveBayes):
 
     def feed_data(self, x, y, sample_weights=None):
-        if isinstance(x, list):
-            features = map(list, zip(*x))
-        else:
-            features = x.T
-        features = [set(feat) for feat in features]
-        feat_dics = [{_l: i for i, _l in enumerate(feats)} for feats in features]
-        label_dic = {_l: i for i, _l in enumerate(set(y))}
-        x = np.array([[feat_dics[i][_l] for i, _l in enumerate(line)] for line in x])
-        y = np.array([label_dic[yy] for yy in y])
+        x, y, features, feat_dics, label_dic = DataUtil.quantize_data(x, y)
         cat_counter = np.bincount(y)
         n_possibilities = [len(feats) for feats in features]
 
@@ -43,6 +32,7 @@ class MultinomialNB(NaiveBayes):
                     for label, xx in self._label_zip])
 
     def _fit(self, lb):
+        lb = 0
         n_dim = len(self._n_possibilities)
         n_category = len(self._cat_counter)
         p_category = self.get_prior_probability(lb)
@@ -119,26 +109,3 @@ if __name__ == '__main__':
         )
     )
     nb.visualize()
-
-    # for dataset in ("balloon1.0", "balloon1.5"):
-    #     _data = DataUtil.get_dataset(dataset, "../../_Data/{}.txt".format(dataset))
-    #     _x = _data
-    #     _y = [xx.pop() for xx in _x]
-    #     learning_time = time.time()
-    #     nb = MultinomialNB()
-    #     nb.fit(_x, _y)
-    #     learning_time = time.time() - learning_time
-    #     estimation_time = time.time()
-    #     print(nb.predict([["紫色", "小", "小孩", "用脚踩"]]))
-    #     print(nb.predict([["紫色", "小", "小孩", "用脚踩"]], get_raw_result=True))
-    #     nb.estimate(_x, _y)
-    #     estimation_time = time.time() - estimation_time
-    #     print(
-    #         "Model building  : {:12.6} s\n"
-    #         "Estimation      : {:12.6} s\n"
-    #         "Total           : {:12.6} s".format(
-    #             learning_time, estimation_time,
-    #             learning_time + estimation_time
-    #         )
-    #     )
-    #     nb.visualize()

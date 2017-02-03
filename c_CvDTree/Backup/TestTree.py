@@ -1,26 +1,16 @@
 from b_NaiveBayes.Vectorized.MergedNB import MergedNB
-from c_Tree.Tree import *
+from c_CvDTree.Tree import *
+from Util import DataUtil
 
 from sklearn.tree import DecisionTreeClassifier
 
-
-class Util:
-
-    @staticmethod
-    def data_cleaning(line):
-        line = line.replace('"', "")
-        return list(map(lambda c: c.strip(), line.split(";")))
-
-    @staticmethod
-    def get_raw_data():
-        x = []
-        with open("Data/data2.txt", "r") as file:
-            for line in file:
-                x.append(Util.data_cleaning(line))
-        return x
+np.random.seed(142857)
 
 
 class SKTree(DecisionTreeClassifier):
+    def estimate(self, x, y):
+        print("Acc: {:8.6} %".format(100 * np.sum(self.predict(x) == np.array(y)) / len(y)))
+
     def visualize2d(self, x, y, dense=100):
         length = len(x)
         axis = np.array([[.0] * length, [.0] * length])
@@ -69,14 +59,25 @@ class SKTree(DecisionTreeClassifier):
 
 
 def main():
-    # _data, _x, _y = [], [], []
-    # with open("Data/data.txt", "r") as file:
-    #     for line in file:
-    #         _data.append(line.strip().split(","))
-    # np.random.shuffle(_data)
-    # for line in _data:
-    #     _y.append(line.pop(0))
-    #     _x.append(line)
+    # _x = DataUtil.get_dataset("balloon1.5(en)", "../_Data/balloon1.5(en).txt")
+    # np.random.shuffle(_x)
+    # _y = [xx.pop() for xx in _x]
+    # _x, _y = np.array(_x), np.array(_y)
+    # _fit_time = time.time()
+    # _tree = ID3Tree()
+    # _tree.fit(_x, _y, alpha=5)
+    # _fit_time = time.time() - _fit_time
+    # _tree.view()
+    # _estimate_time = time.time()
+    # _tree.estimate(_x, _y)
+    # _estimate_time = time.time() - _estimate_time
+    # print("Fit      Process : {:8.6} s\n"
+    #       "Estimate Process : {:8.6} s".format(_fit_time, _estimate_time))
+    # _tree.visualize()
+
+    # _x = DataUtil.get_dataset("mushroom", "../_Data/mushroom.txt")
+    # np.random.shuffle(_x)
+    # _y = [xx.pop(0) for xx in _x]
     # _x, _y = np.array(_x), np.array(_y)
     # train_num = 5000
     # x_train = _x[:train_num]
@@ -87,24 +88,23 @@ def main():
     # _tree = CartTree()
     # _tree.fit(x_train, y_train)
     # _fit_time = time.time() - _fit_time
-    # _tree.view()
     # _estimate_time = time.time()
     # _tree.estimate(x_test, y_test)
     # _estimate_time = time.time() - _estimate_time
     # print("Fit      Process : {:8.6} s\n"
     #       "Estimate Process : {:8.6} s".format(_fit_time, _estimate_time))
+    # _tree.view()
     # _tree.visualize()
 
-    from Util import DataUtil
     _x, _y = DataUtil.gen_xor()
     _y = np.argmax(_y, axis=1)
     _fit_time = time.time()
-    _tree = ID3Tree()
+    _tree = C45Tree()
     _tree.fit(_x, _y)
     _fit_time = time.time() - _fit_time
-    # _tree.view()
+    _tree.view()
     _estimate_time = time.time()
-    # _tree.estimate(_x, _y)
+    _tree.estimate(_x, _y)
     _estimate_time = time.time() - _estimate_time
     print("Fit      Process : {:8.6} s\n"
           "Estimate Process : {:8.6} s".format(_fit_time, _estimate_time))
@@ -114,8 +114,7 @@ def main():
     # _continuous_lst = [0, 5, 9, 11, 12, 13, 14]
     # for _cl in _continuous_lst:
     #     _whether_discrete[_cl] = False
-    # util = Util()
-    # _data = util.get_raw_data()
+    # _data = DataUtil.get_dataset("bank1.0", "../_Data/bank1.0.txt")
     # np.random.shuffle(_data)
     # _labels = [xx.pop() for xx in _data]
     # nb = MergedNB(_whether_discrete)
@@ -129,16 +128,16 @@ def main():
     # x_test = _data[train_num:]
     # y_test = _labels[train_num:]
     # _fit_time = time.time()
-    # _tree = CartTree()
+    # _tree = C45Tree()
     # _tree.fit(x_train, y_train)
     # _fit_time = time.time() - _fit_time
-    # _tree.view()
+    # # _tree.view()
     # _estimate_time = time.time()
     # _tree.estimate(x_test, y_test)
     # _estimate_time = time.time() - _estimate_time
     # print("Fit      Process : {:8.6} s\n"
     #       "Estimate Process : {:8.6} s".format(_fit_time, _estimate_time))
-    # _tree.visualize()
+    # # _tree.visualize()
 
 if __name__ == '__main__':
     main()

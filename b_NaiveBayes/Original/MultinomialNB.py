@@ -1,21 +1,12 @@
 import matplotlib.pyplot as plt
 
 from b_NaiveBayes.Original.Basic import *
-from Util import DataUtil
 
 
 class MultinomialNB(NaiveBayes):
 
     def feed_data(self, x, y, sample_weights=None):
-        if isinstance(x, list):
-            features = map(list, zip(*x))
-        else:
-            features = x.T
-        features = [set(feat) for feat in features]
-        feat_dics = [{_l: i for i, _l in enumerate(feats)} for feats in features]
-        label_dic = {_l: i for i, _l in enumerate(set(y))}
-        x = np.array([[feat_dics[i][_l] for i, _l in enumerate(line)] for line in x])
-        y = np.array([label_dic[yy] for yy in y])
+        x, y, features, feat_dics, label_dic = DataUtil.quantize_data(x, y)
         cat_counter = np.bincount(y)
         n_possibilities = [len(feats) for feats in features]
         labels = [y == value for value in range(len(cat_counter))]
@@ -66,6 +57,30 @@ class MultinomialNB(NaiveBayes):
 
 if __name__ == '__main__':
     import time
+    from Util import DataUtil
+
+    for dataset in ("balloon1.0", "balloon1.5"):
+        _x = DataUtil.get_dataset(dataset, "../../_Data/{}.txt".format(dataset))
+        _y = [xx.pop() for xx in _x]
+        learning_time = time.time()
+        nb = MultinomialNB()
+        nb.fit(_x, _y)
+        learning_time = time.time() - learning_time
+        print("=" * 30)
+        print(dataset)
+        print("-" * 30)
+        estimation_time = time.time()
+        nb.estimate(_x, _y)
+        estimation_time = time.time() - estimation_time
+        print(
+            "Model building  : {:12.6} s\n"
+            "Estimation      : {:12.6} s\n"
+            "Total           : {:12.6} s".format(
+                learning_time, estimation_time,
+                learning_time + estimation_time
+            )
+        )
+
     _data = DataUtil.get_dataset("mushroom", "../../_Data/mushroom.txt")
     np.random.shuffle(_data)
     train_num = 6000

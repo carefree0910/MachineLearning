@@ -26,6 +26,7 @@ class GaussianNB(NaiveBayes):
                 self._labelled_x[i] *= local_weights[label]
 
     def _fit(self, lb):
+        lb = 0
         n_category = len(self._cat_counter)
         p_category = self.get_prior_probability(lb)
         data = [

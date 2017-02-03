@@ -5,6 +5,10 @@ import numpy as np
 from math import sqrt, ceil
 import matplotlib.pyplot as plt
 
+from pylab import mpl
+mpl.rcParams['font.sans-serif'] = ['FangSong']
+mpl.rcParams['axes.unicode_minus'] = False
+
 
 class Util:
 
@@ -19,7 +23,6 @@ class Util:
 
 
 class DataUtil:
-
     @staticmethod
     def get_dataset(name, path):
         x = []
@@ -73,7 +76,7 @@ class DataUtil:
         label_dic = {_l: i for i, _l in enumerate(set(y))}
         x = np.array([[feat_dics[i][_l] for i, _l in enumerate(line)] for line in x])
         y = np.array([label_dic[yy] for yy in y])
-        return x, y, feat_dics, label_dic
+        return x, y, features, feat_dics, label_dic
 
 
 class VisUtil:
