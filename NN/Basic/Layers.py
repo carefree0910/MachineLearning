@@ -1,6 +1,6 @@
 from NN.Errors import *
 from NN.Basic.Optimizers import *
-from NN.Util import Timing
+from Util import Timing
 
 try:
     from NN.Basic.CFunc.core import col2im_6d_cython

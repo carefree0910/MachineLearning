@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 
 from Zhihu.NN._extra.Layers import *
 from Zhihu.NN._extra.Optimizers import *
-from Zhihu.NN.Util import Timing
+from Util import Timing
 
 np.random.seed(142857)  # for reproducibility
 

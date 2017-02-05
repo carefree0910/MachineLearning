@@ -10,7 +10,7 @@ import matplotlib.cm as cm
 
 from NN.Basic.Layers import *
 from NN.Basic.Optimizers import OptFactory
-from NN.Util import ProgressBar, VisUtil
+from Util import ProgressBar, VisUtil
 
 np.random.seed(142857)  # for reproducibility
 

@@ -1,4 +1,4 @@
-from NN.Util import *
+from Util import *
 from NN.NN import *
 
 np.random.seed(142857)  # for reproducibility
@@ -30,16 +30,10 @@ def main():
     do_log = True
     show_loss = True
     train_only = True
-    whether_gen_xor = False
-    whether_gen_spin = True
-    whether_gen_random = False
-    custom_data_scale = 10 ** 0
     visualize = False
     draw_detailed_network = False
     weight_average = None
     verbose = 1
-    data_path = None
-    # data_path = "Data/Training Set/data.txt"
 
     lr = 0.01
     lb = 0.001
@@ -51,17 +45,12 @@ def main():
     timing_level = 1
     nn.feed_timing(timing)
 
-    if whether_gen_xor:
-        DataUtil.gen_xor(10 ** 2, custom_data_scale, data_path)
-    elif whether_gen_spin:
-        DataUtil.gen_spin(10 ** 2, 7, data_path)
-    elif whether_gen_random:
-        DataUtil.gen_random(10 ** 2, custom_data_scale, DataUtil.CLASSES_NUM)
-    x, y = DataUtil.get_and_cache_data(data_path)
+    x, y = DataUtil.gen_spin(n=7, n_classes=7)
 
     if not load:
 
-        nn.build([x.shape[1], 24, 24, y.shape[1]])
+        nn.add("ReLU", (x.shape[1], 24))
+        nn.add("CrossEntropy", (y.shape[1],))
 
         nn.preview()
 

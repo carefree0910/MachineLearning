@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
 from NN.TF.Layers import *
-from NN.Util import ProgressBar, VisUtil, Util
+from Util import ProgressBar, VisUtil, Util
 
 # TODO: Visualization (Tensor Board)
 

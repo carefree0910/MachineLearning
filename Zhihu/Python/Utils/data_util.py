@@ -1,3 +1,4 @@
+from math import pi
 import numpy as np
 
 
@@ -27,20 +28,18 @@ class DataUtil:
         return np.c_[x, y].astype(np.float32), z
 
     @staticmethod
-    def gen_spin(size=20, n=7, n_class=7):
+    def gen_spin(size=50, n=7, n_classes=7):
         xs = np.zeros((size * n, 2), dtype=np.float32)
         ys = np.zeros(size * n, dtype=np.int8)
         for j in range(n):
             ix = range(size * j, size * (j + 1))
             r = np.linspace(0.0, 1, size+1)[1:]
-            t = np.array(
-                np.linspace(j * (n + 1), (j + 1) * (n + 1), size) +
-                np.array(np.random.random(size=size)) * 0.2)
+            t = np.linspace(2 * j * pi / n, 2 * (j + 4) * pi / n, size) + np.random.random(size=size)
             xs[ix] = np.c_[r * np.sin(t), r * np.cos(t)]
-            ys[ix] = j % n_class
+            ys[ix] = j % n_classes
         z = []
         for yy in ys:
-            tmp = [0 if i != yy else 1 for i in range(n_class)]
+            tmp = [0 if i != yy else 1 for i in range(n_classes)]
             z.append(tmp)
         return xs, np.array(z)
 
@@ -55,7 +54,6 @@ class DataUtil:
             wc = np.array([len(feat) >= continuous_rate * len(y) for feat in features])
         feat_dics = [{_l: i for i, _l in enumerate(feats)} if not wc[i] else None
                      for i, feats in enumerate(features)]
-        label_dic = {_l: i for i, _l in enumerate(set(y))}
         if not separate:
             if np.all(~wc):
                 dtype = np.int
@@ -67,6 +65,7 @@ class DataUtil:
             x = np.array([[feat_dics[i][_l] if not wc[i] else _l for i, _l in enumerate(sample)]
                           for sample in x], dtype=np.double)
             x = (x[:, ~wc].astype(np.int), x[:, wc])
+        label_dic = {_l: i for i, _l in enumerate(set(y))}
         y = np.array([label_dic[yy] for yy in y], dtype=np.int8)
         label_dic = {i: _l for _l, i in label_dic.items()}
         return x, y, wc, features, feat_dics, label_dic

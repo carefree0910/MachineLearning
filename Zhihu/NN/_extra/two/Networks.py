@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 
 from Zhihu.NN._extra.Layers import *
 from Zhihu.NN._extra.Optimizers import *
-from Zhihu.NN.Util import Timing, ProgressBar
+from Util import Timing, ProgressBar
 
 np.random.seed(142857)  # for reproducibility
 

@@ -7,6 +7,7 @@ np.random.seed(142857)  # for reproducibility
 # Neural Network
 
 class NNBase:
+    NNTiming = Timing()
 
     def __init__(self):
         self._layers = []

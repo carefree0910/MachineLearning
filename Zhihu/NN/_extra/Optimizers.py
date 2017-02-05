@@ -1,7 +1,7 @@
 import numpy as np
 from abc import ABCMeta, abstractmethod
 
-from Zhihu.NN.Util import Timing
+from Util import Timing
 
 
 class Optimizers(metaclass=ABCMeta):

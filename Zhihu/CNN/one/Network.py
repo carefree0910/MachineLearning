@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 
 from Zhihu.CNN.Layers import *
 from Zhihu.CNN.Optimizers import *
-from Zhihu.CNN.Util import ProgressBar
+from Util import ProgressBar
 
 np.random.seed(142857)  # for reproducibility
 

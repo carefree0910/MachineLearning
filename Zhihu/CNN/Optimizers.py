@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from Zhihu.CNN.Util import Timing
+from Util import Timing
 
 
 class Optimizers:

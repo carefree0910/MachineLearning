@@ -1,4 +1,4 @@
-from Zhihu.NN.Util import *
+from Util import *
 from Zhihu.NN.one.Network import *
 from Zhihu.NN.Layers import *
 

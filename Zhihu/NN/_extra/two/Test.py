@@ -1,4 +1,4 @@
-from Zhihu.NN.Util import *
+from Util import *
 from Zhihu.NN._extra.two.Networks import *
 
 np.random.seed(142857)  # for reproducibility
