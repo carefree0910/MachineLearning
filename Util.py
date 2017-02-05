@@ -9,6 +9,8 @@ from pylab import mpl
 mpl.rcParams['font.sans-serif'] = ['FangSong']
 mpl.rcParams['axes.unicode_minus'] = False
 
+# np.random.seed(142857)
+
 
 class Util:
 
@@ -28,12 +30,12 @@ class DataUtil:
         x = []
         with open(path, "r", encoding="utf8") as file:
             if name == "mushroom" or "balloon" in name:
-                for _line in file:
-                    x.append(_line.strip().split(","))
+                for sample in file:
+                    x.append(sample.strip().split(","))
             elif name == "bank1.0":
-                for line in file:
-                    line = line.replace('"', "")
-                    x.append(list(map(lambda c: c.strip(), line.split(";"))))
+                for sample in file:
+                    sample = sample.replace('"', "")
+                    x.append(list(map(lambda c: c.strip(), sample.split(";"))))
             else:
                 raise NotImplementedError
         return x
@@ -66,17 +68,31 @@ class DataUtil:
         return xs, np.array(z)
 
     @staticmethod
-    def quantize_data(x, y):
+    def quantize_data(x, y, wc=None, continuous_rate=0.1, separate=False):
         if isinstance(x, list):
-            features = map(list, zip(*x))
+            xt = map(list, zip(*x))
         else:
-            features = x.T
-        features = [set(feat) for feat in features]
-        feat_dics = [{_l: i for i, _l in enumerate(feats)} for feats in features]
+            xt = x.T
+        features = [set(feat) for feat in xt]
+        if wc is None:
+            wc = np.array([len(feat) >= continuous_rate * len(y) for feat in features])
+        feat_dics = [{_l: i for i, _l in enumerate(feats)} if not wc[i] else None
+                     for i, feats in enumerate(features)]
         label_dic = {_l: i for i, _l in enumerate(set(y))}
-        x = np.array([[feat_dics[i][_l] for i, _l in enumerate(line)] for line in x])
-        y = np.array([label_dic[yy] for yy in y])
-        return x, y, features, feat_dics, label_dic
+        if not separate:
+            if np.all(~wc):
+                dtype = np.int
+            else:
+                dtype = np.double
+            x = np.array([[feat_dics[i][_l] if not wc[i] else _l for i, _l in enumerate(sample)]
+                          for sample in x], dtype=dtype)
+        else:
+            x = np.array([[feat_dics[i][_l] if not wc[i] else _l for i, _l in enumerate(sample)]
+                          for sample in x], dtype=np.double)
+            x = (x[:, ~wc].astype(np.int), x[:, wc])
+        y = np.array([label_dic[yy] for yy in y], dtype=np.int8)
+        label_dic = {i: _l for _l, i in label_dic.items()}
+        return x, y, wc, features, feat_dics, label_dic
 
 
 class VisUtil:
@@ -90,12 +106,12 @@ class VisUtil:
         max_mask = mask / max_avg_gap
         min_mask = ~mask / min_avg_gap
         weight *= max_mask + min_mask
-        colors = np.array([
-                              [(130 - 125 * n, 130, 130 + 125 * n) for n in line] for line in weight
-                              ])
-        thicknesses = np.array([
-                                   [int((max_thickness - 1) * abs(n)) + 1 for n in line] for line in weight
-                                   ])
+        colors = np.array(
+            [[(130 - 125 * n, 130, 130 + 125 * n) for n in line] for line in weight]
+        )
+        thicknesses = np.array(
+            [[int((max_thickness - 1) * abs(n)) + 1 for n in line] for line in weight]
+        )
         max_thickness = int(max_thickness)
         if max_thickness <= 1:
             max_thickness = 2
@@ -158,6 +174,60 @@ class VisUtil:
         if img.shape[0] == 1:
             return img.reshape(img.shape[1:])
         return img.transpose(1, 2, 0)
+
+
+class Timing:
+    _timings = {}
+    _enabled = False
+
+    def __init__(self, enabled=True):
+        Timing._enabled = enabled
+
+    @staticmethod
+    def timeit(level=0, name=None, cls_name=None, prefix="[Private Method] "):
+        @wrapt.decorator
+        def wrapper(func, instance, args, kwargs):
+            if not Timing._enabled:
+                return func(*args, **kwargs)
+            if instance is not None:
+                instance_name = "{:>18s}".format(str(instance))
+            else:
+                instance_name = " " * 18 if cls_name is None else "{:>18s}".format(cls_name)
+            _prefix = "{:>26s}".format(prefix)
+            func_name = "{:>28}".format(func.__name__ if name is None else name)
+            _name = instance_name + _prefix + func_name
+            _t = time.time()
+            rs = func(*args, **kwargs)
+            _t = time.time() - _t
+            try:
+                Timing._timings[_name]["timing"] += _t
+                Timing._timings[_name]["call_time"] += 1
+            except KeyError:
+                Timing._timings[_name] = {
+                    "level": level,
+                    "timing": _t,
+                    "call_time": 1
+                }
+            return rs
+
+        return wrapper
+
+    @property
+    def timings(self):
+        return self._timings
+
+    def show_timing_log(self, level):
+        print()
+        print("=" * 110 + "\n" + "Timing log\n" + "-" * 110)
+        if not self.timings:
+            print("None")
+        else:
+            for key in sorted(self.timings.keys()):
+                timing_info = self.timings[key]
+                if level >= timing_info["level"]:
+                    print("{:<42s} :  {:12.7} s (Call Time: {:6d})".format(
+                        key, timing_info["timing"], timing_info["call_time"]))
+        print("-" * 110)
 
 
 class ProgressBar:
@@ -268,55 +338,86 @@ class ProgressBar:
         self._flush()
 
 
-class Timing:
-    _timings = {}
-    _enabled = False
+class ClassifierMeta(type):
+    def __new__(mcs, *args, **kwargs):
+        name, bases, attr = args[:3]
 
-    def __init__(self, enabled=False):
-        Timing._enabled = enabled
-
-    @staticmethod
-    def timeit(level=0, name=None, cls_name=None, prefix="[Private Method] "):
-        @wrapt.decorator
-        def wrapper(func, instance, args, kwargs):
-            if not Timing._enabled:
-                return func(*args, **kwargs)
-            if instance is not None:
-                instance_name = "{:>18s}".format(str(instance))
-            else:
-                instance_name = " " * 18 if cls_name is None else "{:>18s}".format(cls_name)
-            _prefix = "{:>26s}".format(prefix)
-            func_name = "{:>28}".format(func.__name__ if name is None else name)
-            _name = instance_name + _prefix + func_name
-            _t = time.time()
-            rs = func(*args, **kwargs)
-            _t = time.time() - _t
+        def __str__(self):
             try:
-                Timing._timings[_name]["timing"] += _t
-                Timing._timings[_name]["call_time"] += 1
-            except KeyError:
-                Timing._timings[_name] = {
-                    "level": level,
-                    "timing": _t,
-                    "call_time": 1
-                }
-            return rs
+                return self.name
+            except AttributeError:
+                return name
 
-        return wrapper
+        def __repr__(self):
+            return str(self)
 
-    @property
-    def timings(self):
-        return self._timings
+        def __getitem__(self, item):
+            if isinstance(item, str):
+                return getattr(self, "_" + item)
 
-    def show_timing_log(self, level):
-        print()
-        print("=" * 110 + "\n" + "Timing log\n" + "-" * 110)
-        if not self.timings:
-            print("None")
-        else:
-            for key in sorted(self.timings.keys()):
-                timing_info = self.timings[key]
-                if level >= timing_info["level"]:
-                    print("{:<42s} :  {:12.7} s (Call Time: {:6d})".format(
-                        key, timing_info["timing"], timing_info["call_time"]))
-        print("-" * 110)
+        def estimate(self, x, y):
+            print("Acc: {:8.6} %".format(100 * np.sum(self.predict(x) == np.array(y)) / len(y)))
+
+        def visualize2d(self, x, y, dense=100):
+            length = len(x)
+            axis = np.array([[.0] * length, [.0] * length])
+            for i, xx in enumerate(x):
+                axis[0][i] = xx[0]
+                axis[1][i] = xx[1]
+            xs, ys = np.array(x), np.array(y)
+
+            print("=" * 30 + "\n" + str(self))
+            decision_function = lambda _xx: self.predict(_xx)
+
+            nx, ny, margin = dense, dense, 0.1
+            x_min, x_max = np.min(axis[0]), np.max(axis[0])
+            y_min, y_max = np.min(axis[1]), np.max(axis[1])
+            x_margin = max(abs(x_min), abs(x_max)) * margin
+            y_margin = max(abs(y_min), abs(y_max)) * margin
+            x_min -= x_margin
+            x_max += x_margin
+            y_min -= y_margin
+            y_max += y_margin
+
+            def get_base(_nx, _ny):
+                _xf = np.linspace(x_min, x_max, _nx)
+                _yf = np.linspace(y_min, y_max, _ny)
+                n_xf, n_yf = np.meshgrid(_xf, _yf)
+                return _xf, _yf, np.c_[n_xf.ravel(), n_yf.ravel()]
+
+            xf, yf, base_matrix = get_base(nx, ny)
+
+            t = time.time()
+            z = decision_function(base_matrix).reshape((nx, ny))
+            print("Decision Time: {:8.6} s".format(time.time() - t))
+
+            print("Drawing figures...")
+            xy_xf, xy_yf = np.meshgrid(xf, yf, sparse=True)
+            per = 1 / 2
+            colors = plt.cm.rainbow([i * per for i in range(2)])
+
+            plt.figure()
+            plt.pcolormesh(xy_xf, xy_yf, z > 0, cmap=plt.cm.Paired)
+            plt.contour(xf, yf, z, c='k-', levels=[0])
+            plt.scatter(axis[0], axis[1], c=[colors[y] for y in ys])
+            plt.xlim(x_min, x_max)
+            plt.ylim(y_min, y_max)
+            plt.show()
+
+            print("Done.")
+
+        def feed_timing(self, timing):
+            setattr(self, name + "Timing", timing)
+
+        def show_timing_log(self, level=2):
+            getattr(self, name + "Timing").show_timing_log(level)
+
+        for key, value in locals().items():
+            if str(value).find("function") >= 0 or str(value).find("property"):
+                attr[key] = value
+
+        return type(name, bases, attr)
+
+
+class SklearnCompatibleMeta(type):
+    pass

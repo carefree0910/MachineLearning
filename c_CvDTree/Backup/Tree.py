@@ -5,8 +5,6 @@ import matplotlib.pyplot as plt
 
 from c_CvDTree.Node import *
 
-np.random.seed(142857)
-
 
 # Tree
 

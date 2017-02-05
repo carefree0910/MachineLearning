@@ -7,7 +7,9 @@ from Util import DataUtil
 class MultinomialNB(NaiveBayes):
 
     def feed_data(self, x, y, sample_weights=None):
-        x, y, features, feat_dics, label_dic = DataUtil.quantize_data(x, y)
+        if sample_weights is not None:
+            sample_weights = np.array(sample_weights)
+        x, y, _, features, feat_dics, label_dic = DataUtil.quantize_data(x, y, wc=np.array([False] * len(x[0])))
         cat_counter = np.bincount(y)
         n_possibilities = [len(feats) for feats in features]
 
@@ -17,10 +19,10 @@ class MultinomialNB(NaiveBayes):
         self._x, self._y = x, y
         self._labelled_x, self._label_zip = labelled_x, list(zip(labels, labelled_x))
         self._cat_counter, self._feat_dics, self._n_possibilities = cat_counter, feat_dics, n_possibilities
-        self.label_dic = {i: _l for _l, i in label_dic.items()}
-        self.feed_sample_weights(sample_weights)
+        self.label_dic = label_dic
+        self._feed_sample_weights(sample_weights)
 
-    def feed_sample_weights(self, sample_weights=None):
+    def _feed_sample_weights(self, sample_weights=None):
         self._con_counter = []
         for dim, _p in enumerate(self._n_possibilities):
             if sample_weights is None:
@@ -32,7 +34,6 @@ class MultinomialNB(NaiveBayes):
                     for label, xx in self._label_zip])
 
     def _fit(self, lb):
-        lb = 0
         n_dim = len(self._n_possibilities)
         n_category = len(self._cat_counter)
         p_category = self.get_prior_probability(lb)
@@ -54,8 +55,8 @@ class MultinomialNB(NaiveBayes):
         return func
 
     def _transfer_x(self, x):
-        for i, line in enumerate(x):
-            for j, char in enumerate(line):
+        for i, sample in enumerate(x):
+            for j, char in enumerate(sample):
                 x[i][j] = self._feat_dics[j][char]
         return x
 
@@ -108,4 +109,5 @@ if __name__ == '__main__':
             learning_time + estimation_time
         )
     )
+    nb.show_timing_log()
     nb.visualize()

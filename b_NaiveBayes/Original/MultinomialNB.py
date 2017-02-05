@@ -1,12 +1,15 @@
 import matplotlib.pyplot as plt
 
 from b_NaiveBayes.Original.Basic import *
+from Util import DataUtil
 
 
 class MultinomialNB(NaiveBayes):
 
     def feed_data(self, x, y, sample_weights=None):
-        x, y, features, feat_dics, label_dic = DataUtil.quantize_data(x, y)
+        if sample_weights is not None:
+            sample_weights = np.array(sample_weights)
+        x, y, _, features, feat_dics, label_dic = DataUtil.quantize_data(x, y, wc=np.array([False] * len(x[0])))
         cat_counter = np.bincount(y)
         n_possibilities = [len(feats) for feats in features]
         labels = [y == value for value in range(len(cat_counter))]
@@ -15,10 +18,10 @@ class MultinomialNB(NaiveBayes):
         self._x, self._y = x, y
         self._labelled_x, self._label_zip = labelled_x, list(zip(labels, labelled_x))
         self._cat_counter, self._feat_dics, self._n_possibilities = cat_counter, feat_dics, n_possibilities
-        self.label_dic = {i: _l for _l, i in label_dic.items()}
-        self.feed_sample_weights(sample_weights)
+        self.label_dic = label_dic
+        self._feed_sample_weights(sample_weights)
 
-    def feed_sample_weights(self, sample_weights=None):
+    def _feed_sample_weights(self, sample_weights=None):
         self._con_counter = []
         for dim, _p in enumerate(self._n_possibilities):
             if sample_weights is None:
@@ -57,7 +60,6 @@ class MultinomialNB(NaiveBayes):
 
 if __name__ == '__main__':
     import time
-    from Util import DataUtil
 
     for dataset in ("balloon1.0", "balloon1.5"):
         _x = DataUtil.get_dataset(dataset, "../../_Data/{}.txt".format(dataset))
@@ -81,6 +83,9 @@ if __name__ == '__main__':
             )
         )
 
+    print("=" * 30)
+    print("mushroom")
+    print("-" * 30)
     _data = DataUtil.get_dataset("mushroom", "../../_Data/mushroom.txt")
     np.random.shuffle(_data)
     train_num = 6000

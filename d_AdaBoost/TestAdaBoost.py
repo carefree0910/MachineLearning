@@ -1,3 +1,5 @@
+import time
+
 from d_AdaBoost.AdaBoost import *
 from Util import DataUtil
 
@@ -79,13 +81,13 @@ if __name__ == '__main__':
     y_train = _y[:train_num]
     x_test = _x[train_num:]
     y_test = _y[train_num:]
-    cv_test(x_train, y_train, x_test, y_test, clf="Cart", epoch=1, max_depth=1)
-    cv_test(x_train, y_train, x_test, y_test, clf="ID3", epoch=1, max_depth=1)
-    cv_test(x_train, y_train, x_test, y_test, clf="C45", epoch=1, max_depth=1)
-    cv_test(x_train, y_train, x_test, y_test, clf="Cart", max_depth=1)
-    cv_test(x_train, y_train, x_test, y_test, clf="ID3", max_depth=1)
-    cv_test(x_train, y_train, x_test, y_test, clf="C45", max_depth=1)
-    # cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=1)
-    # cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=5)
-    # cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=10)
-    # cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=15)
+    # cv_test(x_train, y_train, x_test, y_test, clf="Cart", epoch=1, max_depth=1)
+    # cv_test(x_train, y_train, x_test, y_test, clf="ID3", epoch=1, max_depth=1)
+    # cv_test(x_train, y_train, x_test, y_test, clf="C45", epoch=1, max_depth=1)
+    # cv_test(x_train, y_train, x_test, y_test, clf="Cart", max_depth=1)
+    # cv_test(x_train, y_train, x_test, y_test, clf="ID3", max_depth=1)
+    # cv_test(x_train, y_train, x_test, y_test, clf="C45", max_depth=1)
+    cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=1)
+    cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=5)
+    cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=10)
+    cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=15)

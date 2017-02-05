@@ -6,7 +6,9 @@ from b_NaiveBayes.Vectorized.Basic import *
 class GaussianNB(NaiveBayes):
 
     def feed_data(self, x, y, sample_weights=None):
-        x = np.array([list(map(lambda c: float(c), line)) for line in x])
+        if sample_weights is not None:
+            sample_weights = np.array(sample_weights)
+        x = np.array([list(map(lambda c: float(c), sample)) for sample in x])
         labels = list(set(y))
         label_dic = {label: i for i, label in enumerate(labels)}
         y = np.array([label_dic[yy] for yy in y])
@@ -17,9 +19,9 @@ class GaussianNB(NaiveBayes):
         self._x, self._y = x.T, y
         self._labelled_x, self._label_zip = labelled_x, labels
         self._cat_counter, self.label_dic = cat_counter, {i: _l for _l, i in label_dic.items()}
-        self.feed_sample_weights(sample_weights)
+        self._feed_sample_weights(sample_weights)
 
-    def feed_sample_weights(self, sample_weights=None):
+    def _feed_sample_weights(self, sample_weights=None):
         if sample_weights is not None:
             local_weights = sample_weights * len(sample_weights)
             for i, label in enumerate(self._label_zip):

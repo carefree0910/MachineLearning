@@ -1,10 +1,12 @@
-from b_NaiveBayes.Vectorized.MergedNB import MergedNB
+import time
+import matplotlib.pyplot as plt
+
 from c_CvDTree.Tree import *
 from Util import DataUtil
 
 from sklearn.tree import DecisionTreeClassifier
 
-np.random.seed(142857)
+np.random.seed(31416)
 
 
 class SKTree(DecisionTreeClassifier):
@@ -77,72 +79,97 @@ def main():
     # _estimate_time = time.time()
     # _tree.estimate(_x, _y)
     # _estimate_time = time.time() - _estimate_time
-    # print("Fit      Process : {:8.6} s\n"
-    #       "Estimate Process : {:8.6} s".format(_fit_time, _estimate_time))
+    # print(
+    #     "Model building  : {:12.6} s\n"
+    #     "Estimation      : {:12.6} s\n"
+    #     "Total           : {:12.6} s".format(
+    #         _fit_time, _estimate_time,
+    #         _fit_time + _estimate_time
+    #     )
+    # )
     # _tree.visualize()
 
     # _x = DataUtil.get_dataset("mushroom", "../_Data/mushroom.txt")
     # np.random.shuffle(_x)
     # _y = [xx.pop(0) for xx in _x]
     # _x, _y = np.array(_x), np.array(_y)
-    # train_num = 5000
+    # # _x, _y, _, _, _ = DataUtil.quantize_data(_x, _y)
+    # train_num = 6000
     # x_train = _x[:train_num]
     # y_train = _y[:train_num]
     # x_test = _x[train_num:]
     # y_test = _y[train_num:]
     # _fit_time = time.time()
-    # _tree = CartTree()
+    # _tree = ID3Tree()
     # _tree.fit(x_train, y_train)
     # _fit_time = time.time() - _fit_time
-    # _tree.view()
+    # # _tree.view()
     # _estimate_time = time.time()
+    # _tree.estimate(x_train, y_train)
     # _tree.estimate(x_test, y_test)
     # _estimate_time = time.time() - _estimate_time
-    # print("Fit      Process : {:8.6} s\n"
-    #       "Estimate Process : {:8.6} s".format(_fit_time, _estimate_time))
+    # print(
+    #     "Model building  : {:12.6} s\n"
+    #     "Estimation      : {:12.6} s\n"
+    #     "Total           : {:12.6} s".format(
+    #         _fit_time, _estimate_time,
+    #         _fit_time + _estimate_time
+    #     )
+    # )
     # _tree.visualize()
 
-    _x, _y = DataUtil.gen_xor()
-    _y = np.argmax(_y, axis=1)
+    # _x, _y = DataUtil.gen_xor()
+    # _y = np.argmax(_y, axis=1)
+    # _fit_time = time.time()
+    # _tree = ID3Tree()
+    # _tree.fit(_x, _y, train_only=True)
+    # _fit_time = time.time() - _fit_time
+    # # _tree.view()
+    # _estimate_time = time.time()
+    # _tree.estimate(_x, _y)
+    # _estimate_time = time.time() - _estimate_time
+    # print(
+    #     "Model building  : {:12.6} s\n"
+    #     "Estimation      : {:12.6} s\n"
+    #     "Total           : {:12.6} s".format(
+    #         _fit_time, _estimate_time,
+    #         _fit_time + _estimate_time
+    #     )
+    # )
+    # _tree.show_timing_log()
+    # _tree.visualize2d(_x, _y)
+    # _tree.visualize()
+
+    _wc = [False] * 16
+    _continuous_lst = [0, 5, 9, 11, 12, 13, 14]
+    for _cl in _continuous_lst:
+        _wc[_cl] = True
+    _data = DataUtil.get_dataset("bank1.0", "../_Data/bank1.0.txt")
+    np.random.shuffle(_data)
+    _labels = [xx.pop() for xx in _data]
+    _data, _labels, _, _, _ = DataUtil.quantize_data(_data, _labels, _wc)
+    train_num = 2000
+    x_train = _data[:train_num]
+    y_train = _labels[:train_num]
+    x_test = _data[train_num:]
+    y_test = _labels[train_num:]
     _fit_time = time.time()
     _tree = ID3Tree()
-    _tree.fit(_x, _y)
+    _tree.fit(x_train, y_train)
     _fit_time = time.time() - _fit_time
-    _tree.view()
-    _estimate_time = time.time()
-    _tree.estimate(_x, _y)
-    _estimate_time = time.time() - _estimate_time
-    print("Fit      Process : {:8.6} s\n"
-          "Estimate Process : {:8.6} s".format(_fit_time, _estimate_time))
-    _tree.visualize2d(_x, _y)
-
-    # _whether_discrete = [True] * 16
-    # _continuous_lst = [0, 5, 9, 11, 12, 13, 14]
-    # for _cl in _continuous_lst:
-    #     _whether_discrete[_cl] = False
-    # _data = DataUtil.get_dataset("bank1.0", "../_Data/bank1.0.txt")
-    # np.random.shuffle(_data)
-    # _labels = [xx.pop() for xx in _data]
-    # nb = MergedNB(_whether_discrete)
-    # nb.fit(_data, _labels)
-    # _dx, _cx = nb["multinomial"]["x"], nb["gaussian"]["x"]
-    # _labels = nb["multinomial"]["y"]
-    # _data = np.hstack((_dx, _cx.T))
-    # train_num = 2000
-    # x_train = _data[:train_num]
-    # y_train = _labels[:train_num]
-    # x_test = _data[train_num:]
-    # y_test = _labels[train_num:]
-    # _fit_time = time.time()
-    # _tree = CartTree()
-    # _tree.fit(x_train, y_train)
-    # _fit_time = time.time() - _fit_time
     # _tree.view()
-    # _estimate_time = time.time()
-    # _tree.estimate(x_test, y_test)
-    # _estimate_time = time.time() - _estimate_time
-    # print("Fit      Process : {:8.6} s\n"
-    #       "Estimate Process : {:8.6} s".format(_fit_time, _estimate_time))
+    _estimate_time = time.time()
+    _tree.estimate(x_test, y_test)
+    _estimate_time = time.time() - _estimate_time
+    print(
+        "Model building  : {:12.6} s\n"
+        "Estimation      : {:12.6} s\n"
+        "Total           : {:12.6} s".format(
+            _fit_time, _estimate_time,
+            _fit_time + _estimate_time
+        )
+    )
+    _tree.show_timing_log()
     # _tree.visualize()
 
 if __name__ == '__main__':

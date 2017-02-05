@@ -1,8 +1,6 @@
 import math
 import numpy as np
 
-np.random.seed(142857)
-
 
 class Cluster:
     def __init__(self, x, y, sample_weights=None, base=2):

@@ -1,14 +1,13 @@
 import cv2
-import time
 from copy import deepcopy
-import matplotlib.pyplot as plt
 
 from c_CvDTree.Node import *
+from Util import ClassifierMeta, Timing
 
-np.random.seed(142857)
 
+class CvDBase(metaclass=ClassifierMeta):
+    CvDBaseTiming = Timing()
 
-class CvDBase:
     def __init__(self, max_depth=None, node=None):
         self.nodes, self.layers, self.roots = [], [], []
         self._max_depth = max_depth
@@ -17,11 +16,6 @@ class CvDBase:
         self.label_dic = {}
         self.prune_alpha = 1
         self.whether_continuous = None
-
-    def __str__(self):
-        return "CvDTree ({})".format(self.root.height)
-
-    __repr__ = __str__
 
     def feed_data(self, x, continuous_rate=0.2):
         xt = x.T
@@ -34,6 +28,7 @@ class CvDBase:
 
     # Grow
 
+    @CvDBaseTiming.timeit(level=1, prefix="[API] ")
     def fit(self, x, y, alpha=None, sample_weights=None, eps=1e-8,
             cv_rate=0.2, train_only=False):
         _dic = {c: i for i, c in enumerate(set(y))}
@@ -62,6 +57,7 @@ class CvDBase:
         self.root.fit(x_train, y_train, _train_weights, eps)
         self.prune(x_cv, y_cv, _test_weights)
 
+    @CvDBaseTiming.timeit(level=3, prefix="[Util] ")
     def reduce_nodes(self):
         for i in range(len(self.nodes)-1, -1, -1):
             if self.nodes[i].pruned:
@@ -69,10 +65,12 @@ class CvDBase:
 
     # Prune
 
+    @CvDBaseTiming.timeit(level=4)
     def _update_layers(self):
         self.layers = [[] for _ in range(self.root.height)]
         self.root.update_layers()
 
+    @CvDBaseTiming.timeit(level=1)
     def _prune(self):
         self._update_layers()
         _tmp_nodes = []
@@ -104,6 +102,7 @@ class CvDBase:
                 break
         self.reduce_nodes()
 
+    @CvDBaseTiming.timeit(level=1)
     def _cart_prune(self):
         self.root.cut_tree()
         _tmp_nodes = [node for node in self.nodes if node.category is None]
@@ -126,11 +125,13 @@ class CvDBase:
         self.reduce_nodes()
 
     @staticmethod
+    @CvDBaseTiming.timeit(level=1, prefix="[Util] ")
     def acc(y, y_pred, weights):
         if weights is not None:
             return np.sum((np.array(y) == np.array(y_pred)) * weights) / len(y)
         return np.sum(np.array(y) == np.array(y_pred)) / len(y)
 
+    @CvDBaseTiming.timeit(level=3, prefix="[Util] ")
     def prune(self, x_cv, y_cv, weights):
         if self.root.is_cart:
             if x_cv is not None and y_cv is not None:
@@ -145,64 +146,19 @@ class CvDBase:
 
     # Util
 
+    @CvDBaseTiming.timeit(level=1, prefix="[API] ")
     def predict_one(self, x):
         return self.label_dic[self.root.predict_one(x)]
 
+    @CvDBaseTiming.timeit(level=3, prefix="[API] ")
     def predict(self, x):
         return np.array([self.predict_one(xx) for xx in x])
 
-    def estimate(self, x, y):
-        print("Acc: {:8.6} %".format(100 * np.sum(self.predict(x) == np.array(y)) / len(y)))
-
+    @CvDBaseTiming.timeit(level=3, prefix="[API] ")
     def view(self):
         self.root.view()
 
-    def visualize2d(self, x, y, dense=100):
-        length = len(x)
-        axis = np.array([[.0] * length, [.0] * length])
-        for i, xx in enumerate(x):
-            axis[0][i] = xx[0]
-            axis[1][i] = xx[1]
-        xs, ys = np.array(x), np.array(y)
-
-        print("=" * 30 + "\n" + str(self))
-        decision_function = lambda _xx: self.predict(_xx)
-
-        nx, ny, margin = dense, dense, 0.1
-        x_min, x_max = np.min(axis[0]), np.max(axis[0])
-        y_min, y_max = np.min(axis[1]), np.max(axis[1])
-        x_margin = max(abs(x_min), abs(x_max)) * margin
-        y_margin = max(abs(y_min), abs(y_max)) * margin
-        x_min -= x_margin
-        x_max += x_margin
-        y_min -= y_margin
-        y_max += y_margin
-
-        def get_base(_nx, _ny):
-            _xf = np.linspace(x_min, x_max, _nx)
-            _yf = np.linspace(y_min, y_max, _ny)
-            n_xf, n_yf = np.meshgrid(_xf, _yf)
-            return _xf, _yf, np.c_[n_xf.ravel(), n_yf.ravel()]
-
-        xf, yf, base_matrix = get_base(nx, ny)
-
-        t = time.time()
-        z = decision_function(base_matrix).reshape((nx, ny))
-        print("Decision Time: {:8.6} s".format(time.time() - t))
-
-        print("Drawing figures...")
-        xy_xf, xy_yf = np.meshgrid(xf, yf, sparse=True)
-        per = 1 / 2
-        colors = plt.cm.rainbow([i * per for i in range(2)])
-
-        plt.figure()
-        plt.pcolormesh(xy_xf, xy_yf, z > 0, cmap=plt.cm.Paired)
-        plt.contour(xf, yf, z, c='k-', levels=[0])
-        plt.scatter(axis[0], axis[1], c=[colors[y] for y in ys])
-        plt.show()
-
-        print("Done.")
-
+    @CvDBaseTiming.timeit(level=2, prefix="[API] ")
     def visualize(self, radius=24, width=1200, height=800, padding=0.2, plot_num=30, title="CvDTree"):
         self._update_layers()
         units = [len(layer) for layer in self.layers]
@@ -224,7 +180,7 @@ class CvDBase:
                     cv2.circle(img, (x, y), radius, (125, 100, 225), 1)
                 node = self.layers[i][j]
                 if node.feature_dim is not None:
-                    text = str(node.feature_dim)
+                    text = str(node.feature_dim + 1)
                     color = (0, 0, 255)
                 else:
                     text = str(self.label_dic[node.category])
@@ -263,6 +219,7 @@ class CvDMeta(type):
         def __init__(self, **_kwargs):
             _max_depth = None if "max_depth" not in _kwargs else _kwargs.pop("max_depth")
             CvDBase.__init__(self, _max_depth, node(**_kwargs))
+            self.name = name
 
         @property
         def max_depth(self):

@@ -2,8 +2,6 @@ import numpy as np
 
 from c_CvDTree.Cluster import Cluster
 
-np.random.seed(142857)
-
 
 class CvDNode:
     def __init__(self, tree=None, base=2, chaos=None,

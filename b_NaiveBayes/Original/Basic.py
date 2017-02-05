@@ -1,6 +1,8 @@
 import numpy as np
 from math import pi, exp
 
+from Util import ClassifierMeta, Timing
+
 sqrt_pi = (2 * pi) ** 0.5
 
 
@@ -26,7 +28,8 @@ class NBFunctions:
         return [func(_c=c) for c in range(n_category)]
 
 
-class NaiveBayes:
+class NaiveBayes(metaclass=ClassifierMeta):
+    NaiveBayesTiming = Timing()
 
     def __init__(self):
         self._x = self._y = None
@@ -36,20 +39,18 @@ class NaiveBayes:
         self._cat_counter = self._con_counter = None
         self.label_dic = self._feat_dics = None
 
-    def __getitem__(self, item):
-        if isinstance(item, str):
-            return getattr(self, "_" + item)
-
     def feed_data(self, x, y, sample_weights=None):
         pass
 
-    def feed_sample_weights(self, sample_weights=None):
+    def _feed_sample_weights(self, sample_weights=None):
         pass
 
+    @NaiveBayesTiming.timeit(level=2, prefix="[API] ")
     def get_prior_probability(self, lb=1):
         return [(_c_num + lb) / (len(self._y) + lb * len(self._cat_counter))
                 for _c_num in self._cat_counter]
 
+    @NaiveBayesTiming.timeit(level=2, prefix="[API] ")
     def fit(self, x=None, y=None, sample_weights=None, lb=1):
         if x is not None and y is not None:
             self.feed_data(x, y, sample_weights)
@@ -58,6 +59,7 @@ class NaiveBayes:
     def _fit(self, lb):
         pass
 
+    @NaiveBayesTiming.timeit(level=1, prefix="[API] ")
     def predict_one(self, x, get_raw_result=False):
         if isinstance(x, np.ndarray):
             x = x.tolist()
@@ -73,12 +75,9 @@ class NaiveBayes:
             return self.label_dic[m_arg]
         return m_probability
 
+    @NaiveBayesTiming.timeit(level=3, prefix="[API] ")
     def predict(self, x, get_raw_result=False):
         return np.array([self.predict_one(xx, get_raw_result) for xx in x])
-
-    def estimate(self, x, y):
-        y_pred = self.predict(x)
-        print("Acc: {:12.6} %".format(100 * np.sum(y_pred == y) / len(y)))
 
     def _transfer_x(self, x):
         return x
