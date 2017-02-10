@@ -2,10 +2,10 @@ from b_NaiveBayes.Original.Basic import *
 from b_NaiveBayes.Original.MultinomialNB import MultinomialNB
 from b_NaiveBayes.Original.GaussianNB import GaussianNB
 
-from Util import DataUtil
+from Util import DataUtil, SubClassTimingMeta
 
 
-class MergedNB(NaiveBayes):
+class MergedNB(NaiveBayes, metaclass=SubClassTimingMeta):
 
     def __init__(self, whether_continuous):
         NaiveBayes.__init__(self)
@@ -16,9 +16,9 @@ class MergedNB(NaiveBayes):
             self._whether_continuous = np.array(whether_continuous)
             self._whether_discrete = ~self._whether_continuous
 
-    def feed_data(self, x, y, sample_weights=None):
-        if sample_weights is not None:
-            sample_weights = np.array(sample_weights)
+    def feed_data(self, x, y, sample_weight=None):
+        if sample_weight is not None:
+            sample_weight = np.array(sample_weight)
         x, y, wc, features, feat_dics, label_dic = DataUtil.quantize_data(
             x, y, wc=self._whether_continuous, separate=True)
         if self._whether_continuous is None:
@@ -44,11 +44,11 @@ class MergedNB(NaiveBayes):
         self._gaussian._labelled_x, self._gaussian._label_zip = labelled_x, labels
         self._gaussian._cat_counter, self._gaussian.label_dic = cat_counter, label_dic
 
-        self._feed_sample_weights(sample_weights)
+        self._feed_sample_weight(sample_weight)
 
-    def _feed_sample_weights(self, sample_weights=None):
-        self._multinomial._feed_sample_weights(sample_weights)
-        self._gaussian._feed_sample_weights(sample_weights)
+    def _feed_sample_weight(self, sample_weight=None):
+        self._multinomial._feed_sample_weight(sample_weight)
+        self._gaussian._feed_sample_weight(sample_weight)
 
     def _fit(self, lb):
         self._multinomial.fit()

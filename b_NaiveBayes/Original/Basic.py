@@ -1,7 +1,7 @@
 import numpy as np
 from math import pi, exp
 
-from Util import ClassifierMeta, Timing
+from Util import ClassifierBase, ClassifierMeta, Timing
 
 sqrt_pi = (2 * pi) ** 0.5
 
@@ -28,7 +28,7 @@ class NBFunctions:
         return [func(_c=c) for c in range(n_category)]
 
 
-class NaiveBayes(metaclass=ClassifierMeta):
+class NaiveBayes(ClassifierBase, metaclass=ClassifierMeta):
     NaiveBayesTiming = Timing()
 
     def __init__(self):
@@ -39,10 +39,10 @@ class NaiveBayes(metaclass=ClassifierMeta):
         self._cat_counter = self._con_counter = None
         self.label_dic = self._feat_dics = None
 
-    def feed_data(self, x, y, sample_weights=None):
+    def feed_data(self, x, y, sample_weight=None):
         pass
 
-    def _feed_sample_weights(self, sample_weights=None):
+    def _feed_sample_weight(self, sample_weight=None):
         pass
 
     @NaiveBayesTiming.timeit(level=2, prefix="[API] ")
@@ -51,9 +51,9 @@ class NaiveBayes(metaclass=ClassifierMeta):
                 for _c_num in self._cat_counter]
 
     @NaiveBayesTiming.timeit(level=2, prefix="[API] ")
-    def fit(self, x=None, y=None, sample_weights=None, lb=1):
+    def fit(self, x=None, y=None, sample_weight=None, lb=1):
         if x is not None and y is not None:
-            self.feed_data(x, y, sample_weights)
+            self.feed_data(x, y, sample_weight)
         self._func = self._fit(lb)
 
     def _fit(self, lb):

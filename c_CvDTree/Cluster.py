@@ -3,14 +3,14 @@ import numpy as np
 
 
 class Cluster:
-    def __init__(self, x, y, sample_weights=None, base=2):
+    def __init__(self, x, y, sample_weight=None, base=2):
         self._x, self._y = x.T, y
-        if sample_weights is None:
+        if sample_weight is None:
             self._counters = np.bincount(self._y)
         else:
             # noinspection PyTypeChecker
-            self._counters = np.bincount(self._y, weights=sample_weights*len(sample_weights))
-        self._sample_weights = sample_weights
+            self._counters = np.bincount(self._y, weights=sample_weight * len(sample_weight))
+        self._sample_weight = sample_weight
         self._con_chaos_cache = self._ent_cache = self._gini_cache = None
         self._base = base
 
@@ -53,10 +53,10 @@ class Cluster:
         rs, chaos_lst = 0, []
         for data_label, tar_label in zip(tmp_labels, label_lst):
             tmp_data = self._x.T[data_label]
-            if self._sample_weights is None:
+            if self._sample_weight is None:
                 _chaos = _method(Cluster(tmp_data, tar_label, base=self._base))
             else:
-                _new_weights = self._sample_weights[data_label]
+                _new_weights = self._sample_weight[data_label]
                 _chaos = _method(Cluster(tmp_data, tar_label, _new_weights / np.sum(_new_weights), base=self._base))
             rs += len(tmp_data) / len(data) * _chaos
             chaos_lst.append(_chaos)
@@ -91,10 +91,10 @@ class Cluster:
         rs, chaos_lst = 0, []
         for data_label, tar_label in zip(tmp_labels, label_lst):
             tmp_data = self._x.T[data_label]
-            if self._sample_weights is None:
+            if self._sample_weight is None:
                 _chaos = _method(Cluster(tmp_data, tar_label, base=self._base))
             else:
-                _new_weights = self._sample_weights[data_label]
+                _new_weights = self._sample_weight[data_label]
                 _chaos = _method(Cluster(tmp_data, tar_label, _new_weights / np.sum(_new_weights), base=self._base))
             rs += len(tmp_data) / len(data) * _chaos
             chaos_lst.append(_chaos)

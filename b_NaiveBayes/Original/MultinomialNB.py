@@ -1,14 +1,14 @@
 import matplotlib.pyplot as plt
 
 from b_NaiveBayes.Original.Basic import *
-from Util import DataUtil
+from Util import DataUtil, SubClassTimingMeta
 
 
-class MultinomialNB(NaiveBayes):
+class MultinomialNB(NaiveBayes, metaclass=SubClassTimingMeta):
 
-    def feed_data(self, x, y, sample_weights=None):
-        if sample_weights is not None:
-            sample_weights = np.array(sample_weights)
+    def feed_data(self, x, y, sample_weight=None):
+        if sample_weight is not None:
+            sample_weight = np.array(sample_weight)
         x, y, _, features, feat_dics, label_dic = DataUtil.quantize_data(x, y, wc=np.array([False] * len(x[0])))
         cat_counter = np.bincount(y)
         n_possibilities = [len(feats) for feats in features]
@@ -19,16 +19,16 @@ class MultinomialNB(NaiveBayes):
         self._labelled_x, self._label_zip = labelled_x, list(zip(labels, labelled_x))
         self._cat_counter, self._feat_dics, self._n_possibilities = cat_counter, feat_dics, n_possibilities
         self.label_dic = label_dic
-        self._feed_sample_weights(sample_weights)
+        self._feed_sample_weight(sample_weight)
 
-    def _feed_sample_weights(self, sample_weights=None):
+    def _feed_sample_weight(self, sample_weight=None):
         self._con_counter = []
         for dim, _p in enumerate(self._n_possibilities):
-            if sample_weights is None:
+            if sample_weight is None:
                 self._con_counter.append([
                     np.bincount(xx[dim], minlength=_p) for xx in self._labelled_x])
             else:
-                local_weights = sample_weights * len(sample_weights)
+                local_weights = sample_weight * len(sample_weight)
                 self._con_counter.append([
                     np.bincount(xx[dim], weights=local_weights[label], minlength=_p)
                     for label, xx in self._label_zip])

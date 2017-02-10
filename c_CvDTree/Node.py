@@ -12,7 +12,7 @@ class CvDNode:
         self.criterion = self.category = None
         self.left_child = self.right_child = None
         self._children, self.leafs = {}, {}
-        self.sample_weights = None
+        self.sample_weight = None
         self.wc = None
 
         self.tree = tree
@@ -108,12 +108,12 @@ class CvDNode:
             if _child is not None:
                 _child.mark_pruned()
 
-    def fit(self, x, y, sample_weights, feature_bound=None, eps=1e-8):
+    def fit(self, x, y, sample_weight, feature_bound=None, eps=1e-8):
         self._x, self._y = np.array(x), np.array(y)
-        self.sample_weights = sample_weights
+        self.sample_weight = sample_weight
         if self.stop1(eps):
             return
-        _cluster = Cluster(self._x, self._y, sample_weights, self.base)
+        _cluster = Cluster(self._x, self._y, sample_weight, self.base)
         if self.is_root:
             if self.criterion == "gini":
                 self.chaos = _cluster.gini()
@@ -186,7 +186,7 @@ class CvDNode:
                 _new_node.criterion = self.criterion
                 setattr(self, side, _new_node)
             for _node, _feat_mask in zip([self.left_child, self.right_child], _masks):
-                _local_weights = None if self.sample_weights is None else self.sample_weights[_feat_mask]
+                _local_weights = None if self.sample_weight is None else self.sample_weight[_feat_mask]
                 tmp_data, tmp_labels = self._x[_feat_mask, :], self._y[_feat_mask]
                 if len(tmp_labels) == 0:
                     continue
@@ -204,10 +204,10 @@ class CvDNode:
                     depth=self._depth + 1, parent=self, is_root=False, prev_feat=feat)
                 _new_node.feats = _new_feats
                 self.children[feat] = _new_node
-                if self.sample_weights is None:
+                if self.sample_weight is None:
                     _local_weights = None
                 else:
-                    _local_weights = self.sample_weights[_feat_mask]
+                    _local_weights = self.sample_weight[_feat_mask]
                     _local_weights /= np.sum(_local_weights)
                 _new_node.fit(tmp_x, self._y[_feat_mask], _local_weights, feature_bound)
 

@@ -2,7 +2,7 @@ from c_CvDTree.Tree import *
 from Util import DataUtil
 
 
-class RandomForest(metaclass=ClassifierMeta):
+class RandomForest(ClassifierBase, metaclass=ClassifierMeta):
     RandomForestTiming = Timing()
     _cvd_trees = {
         "id3": ID3Tree,
@@ -37,7 +37,7 @@ class RandomForest(metaclass=ClassifierMeta):
         for _ in range(epoch):
             tmp_tree = RandomForest._cvd_trees[tree](*args, **kwargs)
             _indices = np.random.randint(n_sample, size=n_sample)
-            tmp_tree.fit(x[_indices], y[_indices], sample_weights=sample_weights, feature_bound=1)
+            tmp_tree.fit(x[_indices], y[_indices], sample_weight=sample_weights, feature_bound=1)
             self._trees.append(deepcopy(tmp_tree))
 
     @RandomForestTiming.timeit(level=1, prefix="[API] ")

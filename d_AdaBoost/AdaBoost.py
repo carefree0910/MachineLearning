@@ -8,7 +8,7 @@ from b_NaiveBayes.Vectorized.GaussianNB import GaussianNB
 from c_CvDTree.Tree import *
 
 
-class AdaBoost(metaclass=ClassifierMeta):
+class AdaBoost(ClassifierBase, metaclass=ClassifierMeta):
     AdaBoostTiming = Timing()
     _weak_clf = {
         "CvDTree": DecisionTreeClassifier,

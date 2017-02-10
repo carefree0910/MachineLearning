@@ -2,10 +2,10 @@ import cv2
 from copy import deepcopy
 
 from c_CvDTree.Node import *
-from Util import ClassifierMeta, Timing
+from Util import ClassifierBase, ClassifierMeta, Timing
 
 
-class CvDBase(metaclass=ClassifierMeta):
+class CvDBase(ClassifierBase, metaclass=ClassifierMeta):
     CvDBaseTiming = Timing()
 
     def __init__(self, whether_continuous=None, max_depth=None, node=None):
@@ -32,7 +32,7 @@ class CvDBase(metaclass=ClassifierMeta):
     # Grow
 
     @CvDBaseTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, alpha=None, sample_weights=None, eps=1e-8,
+    def fit(self, x, y, alpha=None, sample_weight=None, eps=1e-8,
             cv_rate=0.2, train_only=False, feature_bound=None):
         _dic = {c: i for i, c in enumerate(set(y))}
         y = np.array([_dic[yy] for yy in y])
@@ -44,9 +44,9 @@ class CvDBase(metaclass=ClassifierMeta):
             _indices = np.random.permutation(np.arange(len(x)))
             _train_indices = _indices[:_train_num]
             _test_indices = _indices[_train_num:]
-            if sample_weights is not None:
-                _train_weights = sample_weights[_train_indices]
-                _test_weights = sample_weights[_test_indices]
+            if sample_weight is not None:
+                _train_weights = sample_weight[_train_indices]
+                _test_weights = sample_weight[_test_indices]
                 _train_weights /= np.sum(_train_weights)
                 _test_weights /= np.sum(_test_weights)
             else:
@@ -54,7 +54,7 @@ class CvDBase(metaclass=ClassifierMeta):
             x_train, y_train = x[_train_indices], y[_train_indices]
             x_cv, y_cv = x[_test_indices], y[_test_indices]
         else:
-            x_train, y_train, _train_weights = x, y, sample_weights
+            x_train, y_train, _train_weights = x, y, sample_weight
             x_cv = y_cv = _test_weights = None
         self.feed_data(x_train)
         self.root.fit(x_train, y_train, _train_weights, feature_bound, eps)

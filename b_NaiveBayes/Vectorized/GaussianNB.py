@@ -6,9 +6,9 @@ from Util import SubClassTimingMeta
 
 class GaussianNB(NaiveBayes, metaclass=SubClassTimingMeta):
 
-    def feed_data(self, x, y, sample_weights=None):
-        if sample_weights is not None:
-            sample_weights = np.array(sample_weights)
+    def feed_data(self, x, y, sample_weight=None):
+        if sample_weight is not None:
+            sample_weight = np.array(sample_weight)
         x = np.array([list(map(lambda c: float(c), sample)) for sample in x])
         labels = list(set(y))
         label_dic = {label: i for i, label in enumerate(labels)}
@@ -20,11 +20,11 @@ class GaussianNB(NaiveBayes, metaclass=SubClassTimingMeta):
         self._x, self._y = x.T, y
         self._labelled_x, self._label_zip = labelled_x, labels
         self._cat_counter, self.label_dic = cat_counter, {i: _l for _l, i in label_dic.items()}
-        self._feed_sample_weights(sample_weights)
+        self._feed_sample_weight(sample_weight)
 
-    def _feed_sample_weights(self, sample_weights=None):
-        if sample_weights is not None:
-            local_weights = sample_weights * len(sample_weights)
+    def _feed_sample_weight(self, sample_weight=None):
+        if sample_weight is not None:
+            local_weights = sample_weight * len(sample_weight)
             for i, label in enumerate(self._label_zip):
                 self._labelled_x[i] *= local_weights[label]
 
