@@ -62,8 +62,7 @@ if __name__ == '__main__':
     import time
 
     for dataset in ("balloon1.0", "balloon1.5"):
-        _x = DataUtil.get_dataset(dataset, "../../_Data/{}.txt".format(dataset))
-        _y = [xx.pop() for xx in _x]
+        _x, _y = DataUtil.get_dataset(dataset, "../../_Data/{}.txt".format(dataset))
         learning_time = time.time()
         nb = MultinomialNB()
         nb.fit(_x, _y)
@@ -86,22 +85,19 @@ if __name__ == '__main__':
     print("=" * 30)
     print("mushroom")
     print("-" * 30)
-    _data = DataUtil.get_dataset("mushroom", "../../_Data/mushroom.txt")
-    np.random.shuffle(_data)
+
     train_num = 6000
-    train_x = _data[:train_num]
-    test_x = _data[train_num:]
-    train_y = [xx.pop(0) for xx in train_x]
-    test_y = [xx.pop(0) for xx in test_x]
+    (x_train, y_train), (x_test, y_test) = DataUtil.get_dataset(
+        "mushroom", "../../_Data/mushroom.txt", train_num=train_num, tar_idx=0)
 
     learning_time = time.time()
     nb = MultinomialNB()
-    nb.fit(train_x, train_y)
+    nb.fit(x_train, y_train)
     learning_time = time.time() - learning_time
 
     estimation_time = time.time()
-    nb.estimate(train_x, train_y)
-    nb.estimate(test_x, test_y)
+    nb.estimate(x_train, y_train)
+    nb.estimate(x_test, y_test)
     estimation_time = time.time() - estimation_time
 
     print(

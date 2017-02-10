@@ -8,21 +8,24 @@ from Util import ClassifierMeta, Timing
 class CvDBase(metaclass=ClassifierMeta):
     CvDBaseTiming = Timing()
 
-    def __init__(self, max_depth=None, node=None):
+    def __init__(self, whether_continuous=None, max_depth=None, node=None):
         self.nodes, self.layers, self.roots = [], [], []
         self._max_depth = max_depth
         self.root = node
         self.feature_sets = []
         self.label_dic = {}
         self.prune_alpha = 1
-        self.whether_continuous = None
+        self.whether_continuous = whether_continuous
 
     def feed_data(self, x, continuous_rate=0.2):
         xt = x.T
         self.feature_sets = [set(dimension) for dimension in xt]
         data_len, data_dim = x.shape
-        self.whether_continuous = np.array(
-            [len(feat) >= continuous_rate * data_len for feat in self.feature_sets])
+        if self.whether_continuous is None:
+            self.whether_continuous = np.array(
+                [len(feat) >= continuous_rate * data_len for feat in self.feature_sets])
+        else:
+            self.whether_continuous = np.array(self.whether_continuous)
         self.root.feats = [i for i in range(x.shape[1])]
         self.root.feed_tree(self)
 
@@ -30,7 +33,7 @@ class CvDBase(metaclass=ClassifierMeta):
 
     @CvDBaseTiming.timeit(level=1, prefix="[API] ")
     def fit(self, x, y, alpha=None, sample_weights=None, eps=1e-8,
-            cv_rate=0.2, train_only=False):
+            cv_rate=0.2, train_only=False, feature_bound=None):
         _dic = {c: i for i, c in enumerate(set(y))}
         y = np.array([_dic[yy] for yy in y])
         self.label_dic = {value: key for key, value in _dic.items()}
@@ -38,23 +41,23 @@ class CvDBase(metaclass=ClassifierMeta):
         self.prune_alpha = alpha if alpha is not None else x.shape[1] / 2
         if not train_only and self.root.is_cart:
             _train_num = int(len(x) * (1-cv_rate))
-            _suffix = np.random.permutation(np.arange(len(x)))
-            _train_suffix = _suffix[:_train_num]
-            _test_suffix = _suffix[_train_num:]
+            _indices = np.random.permutation(np.arange(len(x)))
+            _train_indices = _indices[:_train_num]
+            _test_indices = _indices[_train_num:]
             if sample_weights is not None:
-                _train_weights = sample_weights[_train_suffix]
-                _test_weights = sample_weights[_test_suffix]
+                _train_weights = sample_weights[_train_indices]
+                _test_weights = sample_weights[_test_indices]
                 _train_weights /= np.sum(_train_weights)
                 _test_weights /= np.sum(_test_weights)
             else:
                 _train_weights = _test_weights = None
-            x_train, y_train = x[_train_suffix], y[_train_suffix]
-            x_cv, y_cv = x[_test_suffix], y[_test_suffix]
+            x_train, y_train = x[_train_indices], y[_train_indices]
+            x_cv, y_cv = x[_test_indices], y[_test_indices]
         else:
             x_train, y_train, _train_weights = x, y, sample_weights
             x_cv = y_cv = _test_weights = None
         self.feed_data(x_train)
-        self.root.fit(x_train, y_train, _train_weights, eps)
+        self.root.fit(x_train, y_train, _train_weights, feature_bound, eps)
         self.prune(x_cv, y_cv, _test_weights)
 
     @CvDBaseTiming.timeit(level=3, prefix="[Util] ")
@@ -216,9 +219,9 @@ class CvDMeta(type):
         name, bases, attr = args[:3]
         _, node = bases
 
-        def __init__(self, **_kwargs):
-            _max_depth = None if "max_depth" not in _kwargs else _kwargs.pop("max_depth")
-            CvDBase.__init__(self, _max_depth, node(**_kwargs))
+        def __init__(self, whether_continuous=None, _max_depth=None, _node=None, **_kwargs):
+            tmp_node = _node if isinstance(_node, CvDNode) else node
+            CvDBase.__init__(self, whether_continuous, _max_depth, tmp_node(**_kwargs))
             self.name = name
 
         @property

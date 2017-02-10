@@ -1,10 +1,10 @@
 from b_NaiveBayes.Vectorized.Basic import *
 from b_NaiveBayes.Vectorized.MultinomialNB import MultinomialNB
 from b_NaiveBayes.Vectorized.GaussianNB import GaussianNB
-from Util import DataUtil
+from Util import DataUtil, TimingMeta
 
 
-class MergedNB(NaiveBayes):
+class MergedNB(NaiveBayes, metaclass=TimingMeta):
 
     def __init__(self, whether_continuous=None):
         NaiveBayes.__init__(self)
@@ -91,22 +91,18 @@ if __name__ == '__main__':
     train_num = 40000
 
     data_time = time.time()
-    _data = DataUtil.get_dataset("bank1.0", "../../_Data/bank1.0.txt")
-    np.random.shuffle(_data)
-    train_x = _data[:train_num]
-    test_x = _data[train_num:]
-    train_y = [xx.pop() for xx in train_x]
-    test_y = [xx.pop() for xx in test_x]
+    (x_train, y_train), (x_test, y_test) = DataUtil.get_dataset(
+        "bank1.0", "../../_Data/bank1.0.txt", train_num=train_num)
     data_time = time.time() - data_time
 
     learning_time = time.time()
     nb = MergedNB(_whether_continuous)
-    nb.fit(train_x, train_y)
+    nb.fit(x_train, y_train)
     learning_time = time.time() - learning_time
 
     estimation_time = time.time()
-    nb.estimate(train_x, train_y)
-    nb.estimate(test_x, test_y)
+    nb.estimate(x_train, y_train)
+    nb.estimate(x_test, y_test)
     estimation_time = time.time() - estimation_time
 
     print(
@@ -118,5 +114,6 @@ if __name__ == '__main__':
             data_time + learning_time + estimation_time
         )
     )
+    nb.show_timing_log()
     nb["multinomial"].visualize()
     nb["gaussian"].visualize()

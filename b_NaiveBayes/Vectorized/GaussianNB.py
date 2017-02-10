@@ -1,9 +1,10 @@
 import matplotlib.pyplot as plt
 
 from b_NaiveBayes.Vectorized.Basic import *
+from Util import TimingMeta
 
 
-class GaussianNB(NaiveBayes):
+class GaussianNB(NaiveBayes, metaclass=TimingMeta):
 
     def feed_data(self, x, y, sample_weights=None):
         if sample_weights is not None:

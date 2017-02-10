@@ -67,16 +67,11 @@ if __name__ == '__main__':
     # _x, _y = gen_spin()
     # test(_x, _y, clf="CvDTree")
 
-    _data = DataUtil.get_dataset("mushroom", "../_Data/mushroom.txt")
-    np.random.shuffle(_data)
+    _x, _y = DataUtil.get_dataset("mushroom", "../_Data/mushroom.txt", tar_idx=0)
     _dic = {"e": -1, "p": 1}
-    _x, _y = [], []
-    for line in _data:
-        _y.append(_dic[line.pop(0)])
-        _x.append(line)
-    _x, _y = np.array(_x), np.array(_y)
+    _y = np.array([_dic[c] for c in _y])
     _dic = [{_k: i for i, _k in enumerate(set(xx))} for xx in _x]
-    train_num = 5000
+    train_num = 6000
     x_train = _x[:train_num]
     y_train = _y[:train_num]
     x_test = _x[train_num:]

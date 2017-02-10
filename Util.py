@@ -2,6 +2,8 @@ import time
 import wrapt
 import pickle
 import numpy as np
+from abc import ABCMeta
+from copy import deepcopy
 from math import pi, sqrt, ceil
 import matplotlib.pyplot as plt
 
@@ -26,7 +28,7 @@ class Util:
 
 class DataUtil:
     @staticmethod
-    def get_dataset(name, path):
+    def get_dataset(name, path, train_num=None, tar_idx=None, shuffle=True, quantize=False, **kwargs):
         x = []
         with open(path, "r", encoding="utf8") as file:
             if name == "mushroom" or "balloon" in name:
@@ -38,7 +40,22 @@ class DataUtil:
                     x.append(list(map(lambda c: c.strip(), sample.split(";"))))
             else:
                 raise NotImplementedError
-        return x
+        if shuffle:
+            np.random.shuffle(x)
+        tar_idx = -1 if tar_idx is None else tar_idx
+        y = np.array([xx.pop(tar_idx) for xx in x])
+        x = np.array(x)
+        if not quantize:
+            if train_num is None:
+                return x, y
+            return (x[:train_num], y[:train_num]), (x[train_num:], y[train_num:])
+        x, y, wc, features, feat_dics, label_dic = DataUtil.quantize_data(x, y, **kwargs)
+        if train_num is None:
+            return x, y, wc, features, feat_dics, label_dic
+        return (
+            (x[:train_num], y[:train_num]), (x[train_num:], y[train_num:]),
+            wc, features, feat_dics, label_dic
+        )
 
     @staticmethod
     def gen_xor(size=100, scale=1):
@@ -53,12 +70,12 @@ class DataUtil:
     def gen_spin(size=50, n=7, n_classes=7):
         xs = np.zeros((size * n, 2), dtype=np.float32)
         ys = np.zeros(size * n, dtype=np.int8)
-        for j in range(n):
-            ix = range(size * j, size * (j + 1))
+        for i in range(n):
+            ix = range(size * i, size * (i + 1))
             r = np.linspace(0.0, 1, size+1)[1:]
-            t = np.linspace(2 * j * pi / n, 2 * (j + 4) * pi / n, size) + np.random.random(size=size) * 0.1
+            t = np.linspace(2 * i * pi / n, 2 * (i + 4) * pi / n, size) + np.random.random(size=size) * 0.1
             xs[ix] = np.c_[r * np.sin(t), r * np.cos(t)]
-            ys[ix] = j % n_classes
+            ys[ix] = i % n_classes
         z = []
         for yy in ys:
             tmp = [0 if i != yy else 1 for i in range(n_classes)]
@@ -181,8 +198,13 @@ class Timing:
     def __init__(self, enabled=True):
         Timing._enabled = enabled
 
+    def __str__(self):
+        return "Timing"
+
+    __repr__ = __str__
+
     @staticmethod
-    def timeit(level=0, name=None, cls_name=None, prefix="[Private Method] "):
+    def timeit(level=0, name=None, cls_name=None, prefix="[Method] "):
         @wrapt.decorator
         def wrapper(func, instance, args, kwargs):
             if not Timing._enabled:
@@ -339,6 +361,7 @@ class ProgressBar:
 class ClassifierMeta(type):
     def __new__(mcs, *args, **kwargs):
         name, bases, attr = args[:3]
+        clf_timing = attr[name + "Timing"]
 
         def __str__(self):
             try:
@@ -353,6 +376,7 @@ class ClassifierMeta(type):
             if isinstance(item, str):
                 return getattr(self, "_" + item)
 
+        @clf_timing.timeit(level=1, prefix="[API] ")
         def estimate(self, x, y):
             print("Acc: {:8.6} %".format(100 * np.sum(self.predict(x) == np.array(y)) / len(y)))
 
@@ -417,5 +441,14 @@ class ClassifierMeta(type):
         return type(name, bases, attr)
 
 
-class SklearnCompatibleMeta(type):
+class TimingMeta(type):
+    def __new__(mcs, *args, **kwargs):
+        name, bases, attr = args[:3]
+        timing = getattr(bases[0], bases[0].__name__ + "Timing")
+        attr = {_name: timing.timeit(level=2)(_value) if "__" not in _name else _value
+                for _name, _value in attr.items()}
+        return type(name, bases, attr)
+
+
+class SklearnCompatibleMeta(ABCMeta, ClassifierMeta):
     pass

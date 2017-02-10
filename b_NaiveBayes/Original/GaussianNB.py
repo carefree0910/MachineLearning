@@ -46,31 +46,23 @@ class GaussianNB(NaiveBayes):
 if __name__ == '__main__':
     import time
 
-    _data = DataUtil.get_dataset("mushroom", "../../_Data/mushroom.txt")
-    np.random.shuffle(_data)
-    train_num = 6000
-    xs = _data
-    ys = [xx.pop(0) for xx in xs]
-
+    xs, ys = DataUtil.get_dataset("mushroom", "../../_Data/mushroom.txt", tar_idx=0)
     nb = MultinomialNB()
     nb.feed_data(xs, ys)
     xs, ys = nb["x"].tolist(), nb["y"].tolist()
 
-    train_x, test_x = xs[:train_num], xs[train_num:]
-    train_y, test_y = ys[:train_num], ys[train_num:]
-
     train_num = 6000
-    train_data = _data[:train_num]
-    test_data = _data[train_num:]
+    x_train, x_test = xs[:train_num], xs[train_num:]
+    y_train, y_test = ys[:train_num], ys[train_num:]
 
     learning_time = time.time()
     nb = GaussianNB()
-    nb.fit(train_x, train_y)
+    nb.fit(x_train, y_train)
     learning_time = time.time() - learning_time
 
     estimation_time = time.time()
-    nb.estimate(train_x, train_y)
-    nb.estimate(test_x, test_y)
+    nb.estimate(x_train, y_train)
+    nb.estimate(x_test, y_test)
     estimation_time = time.time() - estimation_time
 
     print(

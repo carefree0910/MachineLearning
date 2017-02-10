@@ -1,10 +1,10 @@
 import matplotlib.pyplot as plt
 
 from b_NaiveBayes.Vectorized.Basic import *
-from Util import DataUtil
+from Util import DataUtil, TimingMeta
 
 
-class MultinomialNB(NaiveBayes):
+class MultinomialNB(NaiveBayes, metaclass=TimingMeta):
 
     def feed_data(self, x, y, sample_weights=None):
         if sample_weights is not None:
@@ -86,20 +86,17 @@ class MultinomialNB(NaiveBayes):
 if __name__ == '__main__':
     import time
 
-    _data = DataUtil.get_dataset("mushroom", "../../_Data/mushroom.txt")
-    np.random.shuffle(_data)
     train_num = 6000
-    train_x = _data[:train_num]
-    test_x = _data[train_num:]
-    train_y = [xx.pop(0) for xx in train_x]
-    test_y = [xx.pop(0) for xx in test_x]
+    (x_train, y_train), (x_test, y_test) = DataUtil.get_dataset(
+        "mushroom", "../../_Data/mushroom.txt", train_num=train_num, tar_idx=0)
+
     learning_time = time.time()
     nb = MultinomialNB()
-    nb.fit(train_x, train_y)
+    nb.fit(x_train, y_train)
     learning_time = time.time() - learning_time
     estimation_time = time.time()
-    nb.estimate(train_x, train_y)
-    nb.estimate(test_x, test_y)
+    nb.estimate(x_train, y_train)
+    nb.estimate(x_test, y_test)
     estimation_time = time.time() - estimation_time
     print(
         "Model building  : {:12.6} s\n"

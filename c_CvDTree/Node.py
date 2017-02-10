@@ -1,4 +1,5 @@
 import numpy as np
+from math import log2
 
 from c_CvDTree.Cluster import Cluster
 
@@ -107,7 +108,7 @@ class CvDNode:
             if _child is not None:
                 _child.mark_pruned()
 
-    def fit(self, x, y, sample_weights, eps=1e-8):
+    def fit(self, x, y, sample_weights, feature_bound=None, eps=1e-8):
         self._x, self._y = np.array(x), np.array(y)
         self.sample_weights = sample_weights
         if self.stop1(eps):
@@ -120,7 +121,15 @@ class CvDNode:
                 self.chaos = _cluster.ent()
         _max_gain, _chaos_lst = 0, []
         _max_feature = _max_tar = None
-        for feat in self.feats:
+        feat_len = len(self.feats)
+        if feature_bound is None:
+            indices = range(0, feat_len)
+        elif feature_bound == "log":
+            indices = np.random.permutation(feat_len)[:max(1, int(log2(feat_len)))]
+        else:
+            indices = np.random.permutation(feat_len)[:feature_bound]
+        tmp_feats = [self.feats[i] for i in indices]
+        for feat in tmp_feats:
             if self.wc[feat]:
                 _samples = np.sort(self._x.T[feat])
                 _set = (_samples[:-1] + _samples[1:]) * 0.5
@@ -145,19 +154,19 @@ class CvDNode:
         self.feature_dim = _max_feature
         if self.is_cart or self.wc[_max_feature]:
             self.tar = _max_tar
-            self._gen_children(_chaos_lst)
+            self._gen_children(_chaos_lst, feature_bound)
             if (self.left_child.category is not None and
                     self.left_child.category == self.right_child.category):
                 self.prune()
                 self.tree.reduce_nodes()
         else:
-            self._gen_children(_chaos_lst)
+            self._gen_children(_chaos_lst, feature_bound)
 
-    def _gen_children(self, _chaos_lst):
+    def _gen_children(self, _chaos_lst, feature_bound):
         feat, tar = self.feature_dim, self.tar
         self.is_continuous = continuous = self.wc[feat]
         features = self._x[:, feat]
-        _new_feats = self.feats[:]
+        _new_feats = self.feats.copy()
         if continuous:
             _mask = features < tar
             _masks = [_mask, ~_mask]
@@ -182,7 +191,7 @@ class CvDNode:
                 if len(tmp_labels) == 0:
                     continue
                 _node.feats = _new_feats
-                _node.fit(tmp_data, tmp_labels, _local_weights)
+                _node.fit(tmp_data, tmp_labels, _local_weights, feature_bound)
         else:
             _new_feats.remove(self.feature_dim)
             for feat, _chaos in zip(self.tree.feature_sets[self.feature_dim], _chaos_lst):
@@ -200,7 +209,7 @@ class CvDNode:
                 else:
                     _local_weights = self.sample_weights[_feat_mask]
                     _local_weights /= np.sum(_local_weights)
-                _new_node.fit(tmp_x, self._y[_feat_mask], _local_weights)
+                _new_node.fit(tmp_x, self._y[_feat_mask], _local_weights, feature_bound)
 
     # Util
 

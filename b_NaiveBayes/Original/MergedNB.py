@@ -25,15 +25,12 @@ class MergedNB(NaiveBayes):
             self._whether_continuous = wc
             self._whether_discrete = ~self._whether_continuous
         self.label_dic = label_dic
-
         discrete_x, continuous_x = x
-
         cat_counter = np.bincount(y)
         self._cat_counter = cat_counter
-
         labels = [y == value for value in range(len(cat_counter))]
-        labelled_x = [discrete_x[ci].T for ci in labels]
 
+        labelled_x = [discrete_x[ci].T for ci in labels]
         self._multinomial._x, self._multinomial._y = x, y
         self._multinomial._labelled_x, self._multinomial._label_zip = labelled_x, list(zip(labels, labelled_x))
         self._multinomial._cat_counter = cat_counter
@@ -43,7 +40,6 @@ class MergedNB(NaiveBayes):
         self._multinomial.label_dic = label_dic
 
         labelled_x = [continuous_x[label].T for label in labels]
-
         self._gaussian._x, self._gaussian._y = continuous_x.T, y
         self._gaussian._labelled_x, self._gaussian._label_zip = labelled_x, labels
         self._gaussian._cat_counter, self._gaussian.label_dic = cat_counter, label_dic
@@ -109,20 +105,16 @@ if __name__ == '__main__':
 
     train_num = 40000
     data_time = time.time()
-    _data = DataUtil.get_dataset("bank1.0", "../../_Data/bank1.0.txt")
-    np.random.shuffle(_data)
-    train_x = _data[:train_num]
-    test_x = _data[train_num:]
-    train_y = [xx.pop() for xx in train_x]
-    test_y = [xx.pop() for xx in test_x]
+    (x_train, y_train), (x_test, y_test) = DataUtil.get_dataset(
+        "bank1.0", "../../_Data/bank1.0.txt", train_num=train_num)
     data_time = time.time() - data_time
     learning_time = time.time()
     nb = MergedNB(_whether_continuous)
-    nb.fit(train_x, train_y)
+    nb.fit(x_train, y_train)
     learning_time = time.time() - learning_time
     estimation_time = time.time()
-    nb.estimate(train_x, train_y)
-    nb.estimate(test_x, test_y)
+    nb.estimate(x_train, y_train)
+    nb.estimate(x_test, y_test)
     estimation_time = time.time() - estimation_time
     print(
         "Data cleaning   : {:12.6} s\n"
