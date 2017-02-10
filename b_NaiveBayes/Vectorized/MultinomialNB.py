@@ -1,10 +1,10 @@
 import matplotlib.pyplot as plt
 
 from b_NaiveBayes.Vectorized.Basic import *
-from Util import DataUtil, TimingMeta
+from Util import DataUtil, SubClassTimingMeta
 
 
-class MultinomialNB(NaiveBayes, metaclass=TimingMeta):
+class MultinomialNB(NaiveBayes, metaclass=SubClassTimingMeta):
 
     def feed_data(self, x, y, sample_weights=None):
         if sample_weights is not None:

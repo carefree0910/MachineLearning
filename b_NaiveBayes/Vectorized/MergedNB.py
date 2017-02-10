@@ -1,10 +1,10 @@
 from b_NaiveBayes.Vectorized.Basic import *
 from b_NaiveBayes.Vectorized.MultinomialNB import MultinomialNB
 from b_NaiveBayes.Vectorized.GaussianNB import GaussianNB
-from Util import DataUtil, TimingMeta
+from Util import DataUtil, SubClassTimingMeta
 
 
-class MergedNB(NaiveBayes, metaclass=TimingMeta):
+class MergedNB(NaiveBayes, metaclass=SubClassTimingMeta):
 
     def __init__(self, whether_continuous=None):
         NaiveBayes.__init__(self)
