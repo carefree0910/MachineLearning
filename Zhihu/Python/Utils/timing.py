@@ -6,11 +6,16 @@ class Timing:
     _timings = {}
     _enabled = False
 
-    def __init__(self, enabled=False):
+    def __init__(self, enabled=True):
         Timing._enabled = enabled
 
+    def __str__(self):
+        return "Timing"
+
+    __repr__ = __str__
+
     @staticmethod
-    def timeit(level=0, name=None, cls_name=None, prefix="[Function] "):
+    def timeit(level=0, name=None, cls_name=None, prefix="[Method] "):
         @wrapt.decorator
         def wrapper(func, instance, args, kwargs):
             if not Timing._enabled:
@@ -35,6 +40,7 @@ class Timing:
                     "call_time": 1
                 }
             return rs
+
         return wrapper
 
     @property

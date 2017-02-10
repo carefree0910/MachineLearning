@@ -2,8 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="a4743ded-d384-4ad3-a479-12cfa6f90f49" name="Default" comment="">
+      <change type="DELETED" beforePath="$PROJECT_DIR$/Zhihu/Python/timing.py" afterPath="" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/Zhihu/Python/Utils/metaclass_application.py" afterPath="$PROJECT_DIR$/Zhihu/Python/Utils/clf_metas.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -55,103 +55,12 @@
   <component name="ExecutionTargetManager" SELECTED_TARGET="default_target" />
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="375">
-      <file leaf-file-name="Util.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/Util.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="240">
-              <caret line="111" column="0" lean-forward="true" selection-start-line="111" selection-start-column="0" selection-end-line="111" selection-end-column="0" />
-              <folding>
-                <element signature="e#330#518#0" expanded="false" />
-                <element signature="e#392#518#0" expanded="false" />
-                <element signature="e#409#448#0" expanded="false" />
-                <element signature="e#541#4006#0" expanded="false" />
-                <element signature="e#666#1821#0" expanded="false" />
-                <element signature="e#740#1140#0" expanded="false" />
-                <element signature="e#800#875#0" expanded="false" />
-                <element signature="e#928#1080#0" expanded="false" />
-                <element signature="e#968#1080#0" expanded="false" />
-                <element signature="e#1360#1491#0" expanded="false" />
-                <element signature="e#1701#1811#0" expanded="false" />
-                <element signature="e#1885#2108#0" expanded="false" />
-                <element signature="e#2181#2758#0" expanded="false" />
-                <element signature="e#2314#2598#0" expanded="false" />
-                <element signature="e#2648#2727#0" expanded="false" />
-                <element signature="e#2861#4006#0" expanded="false" />
-                <element signature="e#3133#3252#0" expanded="false" />
-                <element signature="e#3290#3542#0" expanded="false" />
-                <element signature="e#3414#3528#0" expanded="false" />
-                <element signature="e#3569#3767#0" expanded="false" />
-                <element signature="e#3582#3696#0" expanded="false" />
-                <element signature="e#4029#6940#0" expanded="false" />
-                <element signature="e#4139#4977#0" expanded="false" />
-                <element signature="e#5037#5709#0" expanded="false" />
-                <element signature="e#5179#5709#0" expanded="false" />
-                <element signature="e#5783#6069#0" expanded="false" />
-                <element signature="e#5809#5916#0" expanded="false" />
-                <element signature="e#6155#6704#0" expanded="false" />
-                <element signature="e#6378#6568#0" expanded="false" />
-                <element signature="e#6413#6568#0" expanded="false" />
-                <element signature="e#6445#6568#0" expanded="false" />
-                <element signature="e#6768#6940#0" expanded="false" />
-                <element signature="e#6961#8837#0" expanded="false" />
-                <element signature="e#7043#7068#0" expanded="false" />
-                <element signature="e#7101#7116#0" expanded="false" />
-                <element signature="e#7239#8255#0" expanded="false" />
-                <element signature="e#7319#8231#0" expanded="false" />
-                <element signature="e#7919#8014#0" expanded="false" />
-                <element signature="e#8060#8209#0" expanded="false" />
-                <element signature="e#8085#8209#0" expanded="false" />
-                <element signature="e#8302#8322#0" expanded="false" />
-                <element signature="e#8370#8837#0" expanded="false" />
-                <element signature="e#8520#8812#0" expanded="false" />
-                <element signature="e#8576#8812#0" expanded="false" />
-                <element signature="e#8678#8812#0" expanded="false" />
-                <element signature="e#8863#13253#0" expanded="false" />
-                <element signature="e#8963#9502#0" expanded="false" />
-                <element signature="e#9534#12100#0" expanded="false" />
-                <element signature="e#9617#9680#0" expanded="false" />
-                <element signature="e#9722#10612#0" expanded="false" />
-                <element signature="e#10167#10311#0" expanded="false" />
-                <element signature="e#10664#10720#0" expanded="false" />
-                <element signature="e#10970#11321#0" expanded="false" />
-                <element signature="e#11348#11513#0" expanded="false" />
-                <element signature="e#12142#12429#0" expanded="false" />
-                <element signature="e#12180#12385#0" expanded="false" />
-                <element signature="e#12221#12333#0" expanded="false" />
-                <element signature="e#12471#12743#0" expanded="false" />
-                <element signature="e#12509#12715#0" expanded="false" />
-                <element signature="e#12550#12663#0" expanded="false" />
-                <element signature="e#12791#13006#0" expanded="false" />
-                <element signature="e#12902#13006#0" expanded="false" />
-                <element signature="e#13037#13253#0" expanded="false" />
-                <element signature="e#13079#13152#0" expanded="false" />
-                <element signature="e#13288#16127#0" expanded="false" />
-                <element signature="e#13331#16127#0" expanded="false" />
-                <element signature="e#13443#13543#0" expanded="false" />
-                <element signature="e#13585#13601#0" expanded="false" />
-                <element signature="e#13652#13726#0" expanded="false" />
-                <element signature="e#13827#13911#0" expanded="false" />
-                <element signature="e#13973#15726#0" expanded="false" />
-                <element signature="e#14104#14157#0" expanded="false" />
-                <element signature="e#14775#14982#0" expanded="false" />
-                <element signature="e#15779#15817#0" expanded="false" />
-                <element signature="e#15875#15928#0" expanded="false" />
-                <element signature="e#15986#16087#0" expanded="false" />
-                <element signature="e#16158#16471#0" expanded="false" />
-                <element signature="e#16532#16536#0" expanded="false" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
       <file leaf-file-name="clf_metas.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/Zhihu/Python/Utils/clf_metas.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="200">
-              <caret line="100" column="0" lean-forward="true" selection-start-line="100" selection-start-column="0" selection-end-line="100" selection-end-column="0" />
+            <state relative-caret-position="40">
+              <caret line="5" column="0" lean-forward="true" selection-start-line="5" selection-start-column="0" selection-end-line="5" selection-end-column="0" />
               <folding>
-                <element signature="e#121#2960#0" expanded="false" />
-                <element signature="e#164#2960#0" expanded="false" />
                 <element signature="e#276#376#0" expanded="false" />
                 <element signature="e#418#434#0" expanded="false" />
                 <element signature="e#485#559#0" expanded="false" />
@@ -320,8 +229,6 @@
   <component name="IdeDocumentHistory">
     <option name="CHANGED_PATHS">
       <list>
-        <option value="$PROJECT_DIR$/_Data/balloon1.0.txt" />
-        <option value="$PROJECT_DIR$/_Data/balloon2.0.txt" />
         <option value="$PROJECT_DIR$/_Data/balloon1.5(en).txt" />
         <option value="$PROJECT_DIR$/_Data/balloon1.0(en).txt" />
         <option value="$PROJECT_DIR$/c_CvDTree/Backup/Cluster.py" />
@@ -371,6 +278,8 @@
         <option value="$PROJECT_DIR$/c_CvDTree/Node.py" />
         <option value="$PROJECT_DIR$/d_AdaBoost/RandomForest.py" />
         <option value="$PROJECT_DIR$/Zhihu/Python/Utils/metaclass_application.py" />
+        <option value="$PROJECT_DIR$/Zhihu/Python/Utils/clf_metas.py" />
+        <option value="$PROJECT_DIR$/Zhihu/Python/timing.py" />
       </list>
     </option>
   </component>
@@ -412,46 +321,6 @@
             </PATH_ELEMENT>
             <PATH_ELEMENT>
               <option name="myItemId" value="MachineLearning" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-          </PATH>
-          <PATH>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="MachineLearning" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="MachineLearning" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="Zhihu" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="Python" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-          </PATH>
-          <PATH>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="MachineLearning" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="MachineLearning" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="Zhihu" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="Python" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="Utils" />
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
           </PATH>
@@ -769,7 +638,7 @@
   </component>
   <component name="ToolWindowManager">
     <frame x="952" y="38" width="976" height="1050" extended-state="0" />
-    <editor active="true" />
+    <editor active="false" />
     <layout>
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3299435" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32960895" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
@@ -778,7 +647,7 @@
       <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.51284915" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Coverage" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="true" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="9" side_tool="false" content_ui="tabs" />
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.36807096" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="true" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.36807096" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
       <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32768363" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
@@ -823,14 +692,6 @@
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/Zhihu/NN/one/Test.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="400">
-          <caret line="22" column="0" lean-forward="true" selection-start-line="22" selection-start-column="0" selection-end-line="22" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/Zhihu/NN/two/Network.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="80">
@@ -2648,10 +2509,18 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/Zhihu/Python/timing.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="80">
+          <caret line="61" column="0" lean-forward="true" selection-start-line="61" selection-start-column="0" selection-end-line="61" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/Util.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="240">
-          <caret line="111" column="0" lean-forward="true" selection-start-line="111" selection-start-column="0" selection-end-line="111" selection-end-column="0" />
+        <state relative-caret-position="320">
+          <caret line="193" column="0" lean-forward="false" selection-start-line="193" selection-start-column="0" selection-end-line="249" selection-end-column="24" />
           <folding>
             <element signature="e#330#518#0" expanded="false" />
             <element signature="e#392#518#0" expanded="false" />
@@ -2737,11 +2606,9 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/Zhihu/Python/Utils/clf_metas.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="200">
-          <caret line="100" column="0" lean-forward="true" selection-start-line="100" selection-start-column="0" selection-end-line="100" selection-end-column="0" />
+        <state relative-caret-position="40">
+          <caret line="5" column="0" lean-forward="true" selection-start-line="5" selection-start-column="0" selection-end-line="5" selection-end-column="0" />
           <folding>
-            <element signature="e#121#2960#0" expanded="false" />
-            <element signature="e#164#2960#0" expanded="false" />
             <element signature="e#276#376#0" expanded="false" />
             <element signature="e#418#434#0" expanded="false" />
             <element signature="e#485#559#0" expanded="false" />
