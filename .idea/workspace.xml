@@ -2,22 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="a4743ded-d384-4ad3-a479-12cfa6f90f49" name="Default" comment="">
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/Zhihu/Python/Utils/metaclass_application.py" />
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/d_AdaBoost/RandomForest.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/dictionaries/Carefree0910.xml" afterPath="$PROJECT_DIR$/.idea/dictionaries/Carefree0910.xml" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Util.py" afterPath="$PROJECT_DIR$/Util.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/b_NaiveBayes/Original/GaussianNB.py" afterPath="$PROJECT_DIR$/b_NaiveBayes/Original/GaussianNB.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/b_NaiveBayes/Original/MergedNB.py" afterPath="$PROJECT_DIR$/b_NaiveBayes/Original/MergedNB.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/b_NaiveBayes/Original/MultinomialNB.py" afterPath="$PROJECT_DIR$/b_NaiveBayes/Original/MultinomialNB.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/b_NaiveBayes/Vectorized/GaussianNB.py" afterPath="$PROJECT_DIR$/b_NaiveBayes/Vectorized/GaussianNB.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/b_NaiveBayes/Vectorized/MergedNB.py" afterPath="$PROJECT_DIR$/b_NaiveBayes/Vectorized/MergedNB.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/b_NaiveBayes/Vectorized/MultinomialNB.py" afterPath="$PROJECT_DIR$/b_NaiveBayes/Vectorized/MultinomialNB.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/c_CvDTree/Node.py" afterPath="$PROJECT_DIR$/c_CvDTree/Node.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/c_CvDTree/TestTree.py" afterPath="$PROJECT_DIR$/c_CvDTree/TestTree.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/c_CvDTree/Tree.py" afterPath="$PROJECT_DIR$/c_CvDTree/Tree.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/d_AdaBoost/AdaBoost.py" afterPath="$PROJECT_DIR$/d_AdaBoost/AdaBoost.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/d_AdaBoost/TestAdaBoost.py" afterPath="$PROJECT_DIR$/d_AdaBoost/TestAdaBoost.py" />
+      <change type="MOVED" beforePath="$PROJECT_DIR$/Zhihu/Python/Utils/metaclass_application.py" afterPath="$PROJECT_DIR$/Zhihu/Python/Utils/clf_metas.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -69,11 +55,11 @@
   <component name="ExecutionTargetManager" SELECTED_TARGET="default_target" />
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="375">
-      <file leaf-file-name="Util.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="Util.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Util.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="400">
-              <caret line="358" column="0" lean-forward="true" selection-start-line="358" selection-start-column="0" selection-end-line="358" selection-end-column="0" />
+            <state relative-caret-position="240">
+              <caret line="111" column="0" lean-forward="true" selection-start-line="111" selection-start-column="0" selection-end-line="111" selection-end-column="0" />
               <folding>
                 <element signature="e#330#518#0" expanded="false" />
                 <element signature="e#392#518#0" expanded="false" />
@@ -153,6 +139,33 @@
                 <element signature="e#15986#16087#0" expanded="false" />
                 <element signature="e#16158#16471#0" expanded="false" />
                 <element signature="e#16532#16536#0" expanded="false" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="clf_metas.py" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/Zhihu/Python/Utils/clf_metas.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="200">
+              <caret line="100" column="0" lean-forward="true" selection-start-line="100" selection-start-column="0" selection-end-line="100" selection-end-column="0" />
+              <folding>
+                <element signature="e#121#2960#0" expanded="false" />
+                <element signature="e#164#2960#0" expanded="false" />
+                <element signature="e#276#376#0" expanded="false" />
+                <element signature="e#418#434#0" expanded="false" />
+                <element signature="e#485#559#0" expanded="false" />
+                <element signature="e#660#744#0" expanded="false" />
+                <element signature="e#806#2559#0" expanded="false" />
+                <element signature="e#937#990#0" expanded="false" />
+                <element signature="e#1608#1815#0" expanded="false" />
+                <element signature="e#2612#2650#0" expanded="false" />
+                <element signature="e#2708#2761#0" expanded="false" />
+                <element signature="e#2819#2920#0" expanded="false" />
+                <element signature="e#2991#3304#0" expanded="false" />
+                <element signature="e#3034#3304#0" expanded="false" />
+                <element signature="e#3143#3265#0" expanded="false" />
+                <element signature="e#3365#3369#0" expanded="false" />
               </folding>
             </state>
           </provider>
@@ -399,6 +412,46 @@
             </PATH_ELEMENT>
             <PATH_ELEMENT>
               <option name="myItemId" value="MachineLearning" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="MachineLearning" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="MachineLearning" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="Zhihu" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="Python" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="MachineLearning" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="MachineLearning" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="Zhihu" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="Python" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="Utils" />
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
           </PATH>
@@ -720,12 +773,12 @@
     <layout>
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3299435" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32960895" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
-      <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32960895" sideWeight="0.5" order="10" side_tool="false" content_ui="tabs" />
+      <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32881355" sideWeight="0.5" order="10" side_tool="false" content_ui="tabs" />
       <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.5819209" sideWeight="0.5" order="8" side_tool="false" content_ui="tabs" />
       <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.51284915" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Coverage" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="true" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="9" side_tool="false" content_ui="tabs" />
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.36807096" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.36807096" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
       <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32768363" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
@@ -770,16 +823,6 @@
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/Zhihu/NN/two/Test.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="5" lean-forward="false" selection-start-line="0" selection-start-column="5" selection-end-line="0" selection-end-column="5" />
-          <folding>
-            <element signature="e#150#447#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/Zhihu/NN/one/Test.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="400">
@@ -2575,35 +2618,40 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/Zhihu/Python/Utils/metaclass_application.py">
+    <entry file="file://$PROJECT_DIR$/Zhihu/Python/metaclass_example.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="200">
-          <caret line="100" column="0" lean-forward="true" selection-start-line="100" selection-start-column="0" selection-end-line="100" selection-end-column="0" />
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
           <folding>
-            <element signature="e#121#2960#0" expanded="false" />
-            <element signature="e#164#2960#0" expanded="false" />
-            <element signature="e#276#376#0" expanded="false" />
-            <element signature="e#418#434#0" expanded="false" />
-            <element signature="e#485#559#0" expanded="false" />
-            <element signature="e#660#744#0" expanded="false" />
-            <element signature="e#806#2559#0" expanded="false" />
-            <element signature="e#937#990#0" expanded="false" />
-            <element signature="e#1608#1815#0" expanded="false" />
-            <element signature="e#2612#2650#0" expanded="false" />
-            <element signature="e#2708#2761#0" expanded="false" />
-            <element signature="e#2819#2920#0" expanded="false" />
-            <element signature="e#2991#3304#0" expanded="false" />
-            <element signature="e#3034#3304#0" expanded="false" />
-            <element signature="e#3143#3265#0" expanded="false" />
-            <element signature="e#3365#3369#0" expanded="false" />
+            <element signature="e#18#246#0" expanded="false" />
+            <element signature="e#46#62#0" expanded="false" />
+            <element signature="e#91#119#0" expanded="false" />
+            <element signature="e#150#180#0" expanded="false" />
+            <element signature="e#215#246#0" expanded="false" />
+            <element signature="e#273#328#0" expanded="false" />
+            <element signature="e#296#328#0" expanded="false" />
+            <element signature="e#356#415#0" expanded="false" />
+            <element signature="e#381#415#0" expanded="false" />
+            <element signature="e#443#488#0" expanded="false" />
+            <element signature="e#472#488#0" expanded="false" />
+            <element signature="e#516#975#0" expanded="false" />
+            <element signature="e#559#975#0" expanded="false" />
+            <element signature="e#666#683#0" expanded="false" />
+            <element signature="e#722#741#0" expanded="false" />
+            <element signature="e#784#807#0" expanded="false" />
+            <element signature="e#865#935#0" expanded="false" />
+            <element signature="e#1017#1021#0" expanded="false" />
+            <element signature="e#1079#1083#0" expanded="false" />
+            <element signature="e#1108#1162#0" expanded="false" />
+            <element signature="e#1195#1227#0" expanded="false" />
           </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/Util.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="400">
-          <caret line="358" column="0" lean-forward="true" selection-start-line="358" selection-start-column="0" selection-end-line="358" selection-end-column="0" />
+        <state relative-caret-position="240">
+          <caret line="111" column="0" lean-forward="true" selection-start-line="111" selection-start-column="0" selection-end-line="111" selection-end-column="0" />
           <folding>
             <element signature="e#330#518#0" expanded="false" />
             <element signature="e#392#518#0" expanded="false" />
@@ -2683,6 +2731,31 @@
             <element signature="e#15986#16087#0" expanded="false" />
             <element signature="e#16158#16471#0" expanded="false" />
             <element signature="e#16532#16536#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Zhihu/Python/Utils/clf_metas.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="200">
+          <caret line="100" column="0" lean-forward="true" selection-start-line="100" selection-start-column="0" selection-end-line="100" selection-end-column="0" />
+          <folding>
+            <element signature="e#121#2960#0" expanded="false" />
+            <element signature="e#164#2960#0" expanded="false" />
+            <element signature="e#276#376#0" expanded="false" />
+            <element signature="e#418#434#0" expanded="false" />
+            <element signature="e#485#559#0" expanded="false" />
+            <element signature="e#660#744#0" expanded="false" />
+            <element signature="e#806#2559#0" expanded="false" />
+            <element signature="e#937#990#0" expanded="false" />
+            <element signature="e#1608#1815#0" expanded="false" />
+            <element signature="e#2612#2650#0" expanded="false" />
+            <element signature="e#2708#2761#0" expanded="false" />
+            <element signature="e#2819#2920#0" expanded="false" />
+            <element signature="e#2991#3304#0" expanded="false" />
+            <element signature="e#3034#3304#0" expanded="false" />
+            <element signature="e#3143#3265#0" expanded="false" />
+            <element signature="e#3365#3369#0" expanded="false" />
           </folding>
         </state>
       </provider>
