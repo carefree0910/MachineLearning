@@ -27,12 +27,7 @@ class ClassifierMeta(type):
             print("Acc: {:8.6} %".format(100 * np.sum(self.predict(x) == np.array(y)) / len(y)))
 
         def visualize2d(self, x, y, dense=100):
-            length = len(x)
-            axis = np.array([[.0] * length, [.0] * length])
-            for i, xx in enumerate(x):
-                axis[0][i] = xx[0]
-                axis[1][i] = xx[1]
-            xs, ys = np.array(x), np.array(y)
+            axis, y = np.array(x).T, np.array(y)
 
             print("=" * 30 + "\n" + str(self))
             decision_function = lambda _xx: self.predict(_xx)
@@ -67,7 +62,7 @@ class ClassifierMeta(type):
             plt.figure()
             plt.pcolormesh(xy_xf, xy_yf, z > 0, cmap=plt.cm.Paired)
             plt.contour(xf, yf, z, c='k-', levels=[0])
-            plt.scatter(axis[0], axis[1], c=[colors[y] for y in ys])
+            plt.scatter(axis[0], axis[1], c=[colors[yy] for yy in y])
             plt.xlim(x_min, x_max)
             plt.ylim(y_min, y_max)
             plt.show()

@@ -99,7 +99,7 @@ def main():
     (x_train, y_train), (x_test, y_test), *_ = DataUtil.get_dataset(
         "bank1.0", "../_Data/bank1.0.txt", train_num=train_num, quantize=True)
     _fit_time = time.time()
-    _tree = ID3Tree()
+    _tree = SKTree()
     _tree.fit(x_train, y_train)
     _fit_time = time.time() - _fit_time
     # _tree.view()

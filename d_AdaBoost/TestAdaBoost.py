@@ -53,10 +53,10 @@ def cv_test(x, y, xt, yt, clf, epoch=10, **kwargs):
     print("Time cost: {:8.6} s".format(time.time() - _t))
 
 if __name__ == '__main__':
-    # _x, _y = gen_random()
-    # test(_x, _y)
-    # test(_x, _y, clf="CvDTree")
-    # test(_x, _y, clf="CvDTree", max_depth=1)
+    _x, _y = gen_random()
+    test(_x, _y)
+    test(_x, _y, clf="CvDTree")
+    test(_x, _y, clf="CvDTree", max_depth=1)
     # _x, _y = gen_xor()
     # test(_x, _y, clf="Cart")
     # test(_x, _y, clf="CvDTree")
@@ -67,22 +67,22 @@ if __name__ == '__main__':
     # _x, _y = gen_spin()
     # test(_x, _y, clf="CvDTree")
 
-    _x, _y = DataUtil.get_dataset("mushroom", "../_Data/mushroom.txt", tar_idx=0)
-    _dic = {"e": -1, "p": 1}
-    _y = np.array([_dic[c] for c in _y])
-    _dic = [{_k: i for i, _k in enumerate(set(xx))} for xx in _x]
-    train_num = 6000
-    x_train = _x[:train_num]
-    y_train = _y[:train_num]
-    x_test = _x[train_num:]
-    y_test = _y[train_num:]
-    # cv_test(x_train, y_train, x_test, y_test, clf="Cart", epoch=1, max_depth=1)
-    # cv_test(x_train, y_train, x_test, y_test, clf="ID3", epoch=1, max_depth=1)
-    # cv_test(x_train, y_train, x_test, y_test, clf="C45", epoch=1, max_depth=1)
-    # cv_test(x_train, y_train, x_test, y_test, clf="Cart", max_depth=1)
-    # cv_test(x_train, y_train, x_test, y_test, clf="ID3", max_depth=1)
-    # cv_test(x_train, y_train, x_test, y_test, clf="C45", max_depth=1)
-    cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=1)
-    cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=5)
-    cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=10)
-    cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=15)
+    # _x, _y = DataUtil.get_dataset("mushroom", "../_Data/mushroom.txt", tar_idx=0)
+    # _dic = {"e": -1, "p": 1}
+    # _y = np.array([_dic[c] for c in _y])
+    # _dic = [{_k: i for i, _k in enumerate(set(xx))} for xx in _x]
+    # train_num = 6000
+    # x_train = _x[:train_num]
+    # y_train = _y[:train_num]
+    # x_test = _x[train_num:]
+    # y_test = _y[train_num:]
+    # # cv_test(x_train, y_train, x_test, y_test, clf="Cart", epoch=1, max_depth=1)
+    # # cv_test(x_train, y_train, x_test, y_test, clf="ID3", epoch=1, max_depth=1)
+    # # cv_test(x_train, y_train, x_test, y_test, clf="C45", epoch=1, max_depth=1)
+    # # cv_test(x_train, y_train, x_test, y_test, clf="Cart", max_depth=1)
+    # # cv_test(x_train, y_train, x_test, y_test, clf="ID3", max_depth=1)
+    # # cv_test(x_train, y_train, x_test, y_test, clf="C45", max_depth=1)
+    # cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=1)
+    # cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=5)
+    # cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=10)
+    # cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=15)
