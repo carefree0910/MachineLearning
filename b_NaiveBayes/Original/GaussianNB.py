@@ -1,6 +1,8 @@
 from b_NaiveBayes.Original.Basic import *
 from b_NaiveBayes.Original.MultinomialNB import MultinomialNB
-from Util import DataUtil, SubClassTimingMeta
+
+from Util.Util import DataUtil
+from Util.Metas import SubClassTimingMeta
 
 
 class GaussianNB(NaiveBayes, metaclass=SubClassTimingMeta):

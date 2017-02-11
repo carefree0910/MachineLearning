@@ -1,7 +1,9 @@
 import time
 
 from c_CvDTree.Tree import *
-from Util import DataUtil, ClassifierBase, SklearnCompatibleMeta
+
+from Util.Util import DataUtil
+from Util.Metas import SklearnCompatibleMeta
 
 from sklearn.tree import DecisionTreeClassifier
 

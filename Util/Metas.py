@@ -3,7 +3,7 @@ import numpy as np
 from abc import ABCMeta
 import matplotlib.pyplot as plt
 
-from Util import Timing
+from Util.Timing import Timing
 
 
 class TimingMeta(type):

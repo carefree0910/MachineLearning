@@ -1,5 +1,6 @@
 from c_CvDTree.Tree import *
-from Util import DataUtil
+
+from Util.Util import DataUtil
 
 
 class RandomForest(ClassifierBase, metaclass=ClassifierMeta):
@@ -12,17 +13,6 @@ class RandomForest(ClassifierBase, metaclass=ClassifierMeta):
 
     def __init__(self):
         self._trees = []
-        self._kwarg_cache = {}
-
-    @property
-    def params(self):
-        rs = ""
-        if self._kwarg_cache:
-            tmp_rs = []
-            for key, value in self._kwarg_cache.items():
-                tmp_rs.append("{}: {}".format(key, value))
-            rs += "( " + "; ".join(tmp_rs) + " )"
-        return rs
 
     @staticmethod
     @RandomForestTiming.timeit(level=2, prefix="[StaticMethod] ")
@@ -31,27 +21,23 @@ class RandomForest(ClassifierBase, metaclass=ClassifierMeta):
         return u[np.argmax(c)]
 
     @RandomForestTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, tree="cart", epoch=10, sample_weights=None, *args, **kwargs):
-        self._kwarg_cache = kwargs
+    def fit(self, x, y, tree="cart", epoch=10, feature_bound="log", sample_weight=None, *args, **kwargs):
         n_sample = len(y)
         for _ in range(epoch):
             tmp_tree = RandomForest._cvd_trees[tree](*args, **kwargs)
             _indices = np.random.randint(n_sample, size=n_sample)
-            tmp_tree.fit(x[_indices], y[_indices], sample_weight=sample_weights, feature_bound=1)
+            if sample_weight is None:
+                _local_weight = None
+            else:
+                _local_weight = np.array(sample_weight)
+                _local_weight /= np.sum(_local_weight)
+            tmp_tree.fit(x[_indices], y[_indices], sample_weight=_local_weight, feature_bound=feature_bound)
             self._trees.append(deepcopy(tmp_tree))
 
     @RandomForestTiming.timeit(level=1, prefix="[API] ")
     def predict(self, x):
-        _matrix = [_tree.predict(x) for _tree in self._trees]
-        return np.array([RandomForest.most_appearance(rs) for rs in zip(*_matrix)])
-
-    def visualize(self):
-        try:
-            for i, clf in enumerate(self._trees):
-                clf.visualize()
-                _ = input("Press any key to continue...")
-        except AttributeError:
-            return
+        _matrix = np.array([_tree.predict(x) for _tree in self._trees]).T
+        return np.array([RandomForest.most_appearance(rs) for rs in _matrix])
 
 if __name__ == '__main__':
     import time
@@ -77,4 +63,3 @@ if __name__ == '__main__':
         )
     )
     forest.show_timing_log()
-    # forest.visualize()

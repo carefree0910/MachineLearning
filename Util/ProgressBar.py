@@ -107,18 +107,3 @@ class ProgressBar:
         self._current = self._clock = time.time()
         self._started = True
         self._flush()
-
-
-def task():
-    x = 0
-    for _ in range(10 ** 6):
-        x = 0
-    return x
-
-if __name__ == '__main__':
-    n = 100
-    bar = ProgressBar(max_value=n, name="Test")
-    bar.start()
-    for i in range(n):
-        task()
-        bar.update()

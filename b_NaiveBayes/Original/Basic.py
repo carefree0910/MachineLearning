@@ -1,7 +1,9 @@
 import numpy as np
 from math import pi, exp
 
-from Util import ClassifierBase, ClassifierMeta, Timing
+from Util.Timing import Timing
+from Util.Bases import ClassifierBase
+from Util.Metas import ClassifierMeta
 
 sqrt_pi = (2 * pi) ** 0.5
 

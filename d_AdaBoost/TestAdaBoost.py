@@ -1,7 +1,8 @@
 import time
 
 from d_AdaBoost.AdaBoost import *
-from Util import DataUtil
+
+from Util.Util import DataUtil
 
 
 def gen_random(size=100):

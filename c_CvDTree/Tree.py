@@ -2,7 +2,10 @@ import cv2
 from copy import deepcopy
 
 from c_CvDTree.Node import *
-from Util import ClassifierBase, ClassifierMeta, Timing
+
+from Util.Timing import Timing
+from Util.Bases import ClassifierBase
+from Util.Metas import ClassifierMeta
 
 
 class CvDBase(ClassifierBase, metaclass=ClassifierMeta):

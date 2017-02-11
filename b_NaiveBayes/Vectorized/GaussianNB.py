@@ -1,7 +1,8 @@
 import matplotlib.pyplot as plt
 
 from b_NaiveBayes.Vectorized.Basic import *
-from Util import SubClassTimingMeta
+
+from Util.Metas import SubClassTimingMeta
 
 
 class GaussianNB(NaiveBayes, metaclass=SubClassTimingMeta):

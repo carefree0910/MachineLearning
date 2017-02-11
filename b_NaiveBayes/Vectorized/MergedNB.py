@@ -1,7 +1,9 @@
 from b_NaiveBayes.Vectorized.Basic import *
 from b_NaiveBayes.Vectorized.MultinomialNB import MultinomialNB
 from b_NaiveBayes.Vectorized.GaussianNB import GaussianNB
-from Util import DataUtil, SubClassTimingMeta
+
+from Util.Util import DataUtil
+from Util.Metas import SubClassTimingMeta
 
 
 class MergedNB(NaiveBayes, metaclass=SubClassTimingMeta):
