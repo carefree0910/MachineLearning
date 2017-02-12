@@ -54,16 +54,18 @@ class DataUtil:
         )
 
     @staticmethod
-    def gen_xor(size=100, scale=1):
+    def gen_xor(size=100, scale=1, one_hot=True):
         x = np.random.randn(size) * scale
         y = np.random.randn(size) * scale
         z = np.zeros((size, 2))
         z[x * y >= 0, :] = [0, 1]
         z[x * y < 0, :] = [1, 0]
-        return np.c_[x, y].astype(np.float32), z
+        if one_hot:
+            return np.c_[x, y].astype(np.float32), z
+        return np.c_[x, y].astype(np.float32), np.argmax(z, axis=1)
 
     @staticmethod
-    def gen_spin(size=50, n=7, n_class=7, scale=4):
+    def gen_spin(size=50, n=7, n_class=7, scale=4, one_hot=True):
         xs = np.zeros((size * n, 2), dtype=np.float32)
         ys = np.zeros(size * n, dtype=np.int8)
         for i in range(n):
@@ -72,10 +74,22 @@ class DataUtil:
             t = np.linspace(2 * i * pi / n, 2 * (i + scale) * pi / n, size) + np.random.random(size=size) * 0.1
             xs[ix] = np.c_[r * np.sin(t), r * np.cos(t)]
             ys[ix] = i % n_class
+        if not one_hot:
+            return xs, ys
         z = []
         for yy in ys:
-            tmp = [0 if i != yy else 1 for i in range(n_class)]
-            z.append(tmp)
+            z.append([0 if i != yy else 1 for i in range(n_class)])
+        return xs, np.array(z)
+
+    @staticmethod
+    def gen_random(size=100, n_class=2, one_hot=True):
+        xs = np.random.randn(size, 2)
+        ys = np.random.randint(n_class, size=size).astype(np.int8)
+        if not one_hot:
+            return xs, ys
+        z = []
+        for yy in ys:
+            z.append([0 if i != yy else 1 for i in range(n_class)])
         return xs, np.array(z)
 
     @staticmethod

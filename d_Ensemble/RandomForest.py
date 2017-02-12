@@ -6,9 +6,9 @@ from Util.Util import DataUtil
 class RandomForest(ClassifierBase, metaclass=ClassifierMeta):
     RandomForestTiming = Timing()
     _cvd_trees = {
-        "id3": ID3Tree,
-        "c45": C45Tree,
-        "cart": CartTree
+        "ID3": ID3Tree,
+        "C45": C45Tree,
+        "Cart": CartTree
     }
 
     def __init__(self):
@@ -21,7 +21,7 @@ class RandomForest(ClassifierBase, metaclass=ClassifierMeta):
         return u[np.argmax(c)]
 
     @RandomForestTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, tree="cart", epoch=10, feature_bound="log", sample_weight=None, *args, **kwargs):
+    def fit(self, x, y, tree="Cart", epoch=10, feature_bound="log", sample_weight=None, *args, **kwargs):
         n_sample = len(y)
         for _ in range(epoch):
             tmp_tree = RandomForest._cvd_trees[tree](*args, **kwargs)

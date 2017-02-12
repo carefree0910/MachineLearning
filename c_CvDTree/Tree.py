@@ -13,7 +13,7 @@ class CvDBase(ClassifierBase, metaclass=ClassifierMeta):
 
     def __init__(self, whether_continuous=None, max_depth=None, node=None):
         self.nodes, self.layers, self.roots = [], [], []
-        self._max_depth = max_depth
+        self.max_depth = max_depth
         self.root = node
         self.feature_sets = []
         self.label_dic = {}
@@ -213,19 +213,14 @@ class CvDBase(ClassifierBase, metaclass=ClassifierMeta):
 class CvDMeta(type):
     def __new__(mcs, *args, **kwargs):
         name, bases, attr = args[:3]
-        _, node = bases
+        _, _node = bases
 
-        def __init__(self, whether_continuous=None, _max_depth=None, _node=None, **_kwargs):
-            tmp_node = _node if isinstance(_node, CvDNode) else node
-            CvDBase.__init__(self, whether_continuous, _max_depth, tmp_node(**_kwargs))
+        def __init__(self, whether_continuous=None, max_depth=None, node=None, **_kwargs):
+            tmp_node = node if isinstance(node, CvDNode) else _node
+            CvDBase.__init__(self, whether_continuous, max_depth, tmp_node(**_kwargs))
             self.name = name
 
-        @property
-        def max_depth(self):
-            return self._max_depth
-
         attr["__init__"] = __init__
-        attr["max_depth"] = max_depth
         return type(name, bases, attr)
 
 

@@ -49,8 +49,7 @@ def main():
     )
     _tree.visualize()
 
-    _x, _y = DataUtil.gen_xor()
-    _y = np.argmax(_y, axis=1)
+    _x, _y = DataUtil.gen_xor(one_hot=False)
     _fit_time = time.time()
     _tree = CartTree()
     _tree.fit(_x, _y, train_only=True)
