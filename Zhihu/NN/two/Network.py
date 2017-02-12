@@ -2,7 +2,8 @@ import matplotlib.pyplot as plt
 
 from Zhihu.NN.Layers import *
 from Zhihu.NN.Optimizers import *
-from Util import ProgressBar
+
+from Util.ProgressBar import ProgressBar
 
 np.random.seed(142857)  # for reproducibility
 
@@ -36,12 +37,6 @@ class NNBase:
         return "Neural Network"
 
     __repr__ = __str__
-
-    def feed_timing(self, timing):
-        if isinstance(timing, Timing):
-            self.NNTiming = timing
-            for layer in self._layers:
-                layer.feed_timing(timing)
 
     @staticmethod
     def _get_w(shape):

@@ -16,6 +16,10 @@ class ClassifierBase:
     def __getitem__(self, item):
         pass
 
+    @staticmethod
+    def acc(y, y_pred, weights):
+        pass
+
     def estimate(self, x, y):
         pass
 

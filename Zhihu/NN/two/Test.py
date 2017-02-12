@@ -1,6 +1,7 @@
-from Util import *
 from Zhihu.NN.two.Network import *
 from Zhihu.NN.Layers import *
+
+from Util.Util import DataUtil
 
 np.random.seed(142857)  # for reproducibility
 

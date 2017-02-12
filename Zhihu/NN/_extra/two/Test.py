@@ -1,5 +1,6 @@
-from Util import *
 from Zhihu.NN._extra.two.Networks import *
+
+from Util.Util import DataUtil
 
 np.random.seed(142857)  # for reproducibility
 

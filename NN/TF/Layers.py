@@ -4,7 +4,6 @@ from abc import ABCMeta, abstractmethod
 
 from NN.Errors import *
 from NN.TF.Optimizers import *
-from Util import Timing
 
 
 class Layer(metaclass=ABCMeta):

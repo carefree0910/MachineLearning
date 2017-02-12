@@ -1,7 +1,8 @@
 import numpy as np
-import matplotlib.pyplot as plt
 
-from SVM.Util import Timing
+from Util.Timing import Timing
+from Util.Bases import ClassifierBase
+from Util.Metas import ClassifierMeta
 
 np.random.seed(142857)
 
@@ -12,7 +13,7 @@ class SVMConfig:
     default_sigma = 1
 
 
-class SVM:
+class SVM(ClassifierBase, metaclass=ClassifierMeta):
     SVMTiming = Timing()
 
     def __init__(self):
@@ -20,11 +21,6 @@ class SVM:
         self._kernel = None
         self._x = self._y = None
         self._alpha = self._w = self._b = self._es = None
-
-    def __str__(self):
-        return "SVM"
-
-    __repr__ = __str__
 
     # Kernel
 
@@ -53,7 +49,7 @@ class SVM:
         con1 = self._alpha <= 0
         con2 = (0 < self._alpha) & (self._alpha < self._c)
         con3 = self._alpha >= self._c
-        y_pred = self.predict()
+        y_pred = self.predict(self._x, True)
         dis = self._y * y_pred - 1
         err1 = dis ** 2
         err2 = err1.copy()
@@ -120,15 +116,12 @@ class SVM:
 
     @SVMTiming.timeit(level=1)
     def _update_es(self):
-        self._es = self.predict() - self._y
+        self._es = self.predict(self._x, True) - self._y
 
     # API
 
-    def feed_timing(self, timing):
-        self.SVMTiming = timing
-
     @SVMTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, kernel="poly", **kwargs):
+    def fit(self, x, y, kernel="gaussian", **kwargs):
         if kernel == "poly":
             self._kernel = lambda _x, _y: SVM._poly(_x, _y, kwargs.get("p", SVMConfig.default_p))
         elif kernel == "gaussian":
@@ -147,33 +140,13 @@ class SVM:
             idx2 = self._pick_second(idx1)
             self._update_alpha(idx1, idx2)
 
-    def predict(self, x=None):
+    @SVMTiming.timeit(level=1, prefix="[API] ")
+    def predict(self, x, get_raw_results=False):
         x = self._x if x is None else np.atleast_2d(x)
         x = np.array([self._kernel(x, xi) for xi in self._x])
-        return np.sum(self._w * x.T, axis=1) + self._b
-
-    def predict_classes(self, x=None):
-        y_pred = self.predict(x)
+        y_pred = np.sum(self._w * x.T, axis=1) + self._b
+        if get_raw_results:
+            return y_pred
         y1 = y_pred > 0
         y_pred[y1], y_pred[~y1] = 1, -1
         return y_pred
-
-    def evaluate(self, x=None, y=None):
-        if x is None or y is None:
-            x, y = self._x, self._y
-        y_pred = self.predict_classes(x)
-        print("Acc: {:8.6} %".format(np.sum(y_pred == y) * 100 / len(y)))
-
-    def visualize_2d(self, x=None, y=None, plot_scale=2, plot_precision=0.01):
-        if x is None or y is None:
-            x, y = self._x, self._y
-        plot_num = int(1 / plot_precision)
-        xf = np.linspace(np.min(x) * plot_scale, np.max(x) * plot_scale, plot_num)
-        yf = np.linspace(np.min(x) * plot_scale, np.max(x) * plot_scale, plot_num)
-        input_x, input_y = np.meshgrid(xf, yf)
-        input_xs = np.c_[input_x.ravel(), input_y.ravel()]
-        output_ys_2d = self.predict_classes(input_xs).reshape(len(xf), len(yf))
-        plt.contourf(input_x, input_y, output_ys_2d, cmap=plt.cm.Spectral)
-        plt.scatter(x[:, 0], x[:, 1], c=y, s=40, cmap=plt.cm.Spectral)
-        plt.axis("off")
-        plt.show()

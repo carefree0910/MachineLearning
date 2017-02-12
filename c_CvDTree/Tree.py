@@ -130,13 +130,6 @@ class CvDBase(ClassifierBase, metaclass=ClassifierMeta):
                     _thresholds = np.delete(_thresholds, i)
         self.reduce_nodes()
 
-    @staticmethod
-    @CvDBaseTiming.timeit(level=1, prefix="[Util] ")
-    def acc(y, y_pred, weights):
-        if weights is not None:
-            return np.sum((np.array(y) == np.array(y_pred)) * weights) / len(y)
-        return np.sum(np.array(y) == np.array(y_pred)) / len(y)
-
     @CvDBaseTiming.timeit(level=3, prefix="[Util] ")
     def prune(self, x_cv, y_cv, weights):
         if self.root.is_cart:

@@ -82,7 +82,7 @@ def main():
             nn.draw_conv_series(x[:3], img_shape)
         nn.draw_results()
 
-        acc = nn.evaluate(x, y)[0]
+        acc = nn.estimate(x, y)[0]
         log += "Test set Accuracy  : {:12.6} %".format(100 * acc) + "\n"
         print("=" * 30 + "\n" + "Results\n" + "-" * 30)
         print(log)

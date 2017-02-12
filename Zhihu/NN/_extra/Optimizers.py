@@ -1,7 +1,7 @@
 import numpy as np
 from abc import ABCMeta, abstractmethod
 
-from Util import Timing
+from Util.Timing import Timing
 
 
 class Optimizers(metaclass=ABCMeta):

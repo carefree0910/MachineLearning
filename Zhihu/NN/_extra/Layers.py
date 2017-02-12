@@ -1,5 +1,4 @@
 from Zhihu.NN._extra.Optimizers import *
-from Util import Timing
 
 
 # Abstract Layers

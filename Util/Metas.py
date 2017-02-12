@@ -58,17 +58,34 @@ class ClassifierMeta(type):
             if isinstance(item, str):
                 return getattr(self, "_" + item)
 
+        def acc(y, y_pred, weights=None):
+            if weights is not None:
+                return np.sum((np.array(y) == np.array(y_pred)) * weights) / len(y)
+            return np.sum(np.array(y) == np.array(y_pred)) / len(y)
+
+        attr["_metrics"] = [acc]
+
         @clf_timing.timeit(level=1, prefix="[API] ")
-        def estimate(self, x, y):
-            print("Acc: {:8.6} %".format(100 * np.sum(self.predict(x) == np.array(y)) / len(y)))
+        def estimate(self, x, y, metrics=None, tar=0, prefix="Acc"):
+            if metrics is None:
+                metrics = self._metrics
+            else:
+                for i in range(len(metrics) - 1, -1, -1):
+                    metric = metrics[i]
+                    if isinstance(metric, str):
+                        if metric not in self._available_metrics:
+                            metrics.pop(i)
+                        else:
+                            metrics[i] = self._available_metrics[metric]
+            logs, y_pred = [], self.predict(x)
+            for metric in metrics:
+                logs.append(metric(y, y_pred))
+            if isinstance(tar, int):
+                print(prefix + ": {:12.8}".format(logs[tar]))
+            return logs
 
         def visualize2d(self, x, y, dense=100):
-            length = len(x)
-            axis = np.array([[.0] * length, [.0] * length])
-            for i, xx in enumerate(x):
-                axis[0][i] = xx[0]
-                axis[1][i] = xx[1]
-            xs, ys = np.array(x), np.array(y)
+            axis, labels = np.array(x).T, np.array(y)
 
             print("=" * 30 + "\n" + str(self))
             decision_function = lambda _xx: self.predict(_xx)
@@ -97,13 +114,19 @@ class ClassifierMeta(type):
 
             print("Drawing figures...")
             xy_xf, xy_yf = np.meshgrid(xf, yf, sparse=True)
-            per = 1 / 2
-            colors = plt.cm.rainbow([i * per for i in range(2)])
+            if labels.ndim == 1:
+                _dic = {c: i for i, c in enumerate(set(labels))}
+                n_label = len(_dic)
+                labels = np.array([_dic[label] for label in labels])
+            else:
+                n_label = labels.shape[1]
+                labels = np.argmax(labels, axis=1)
+            colors = plt.cm.rainbow([i / n_label for i in range(n_label)])[labels]
 
             plt.figure()
             plt.pcolormesh(xy_xf, xy_yf, z > 0, cmap=plt.cm.Paired)
             plt.contour(xf, yf, z, c='k-', levels=[0])
-            plt.scatter(axis[0], axis[1], c=[colors[y] for y in ys])
+            plt.scatter(axis[0], axis[1], c=colors)
             plt.xlim(x_min, x_max)
             plt.ylim(y_min, y_max)
             plt.show()

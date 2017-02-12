@@ -9,7 +9,9 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
 from NN.TF.Layers import *
-from Util import ProgressBar, VisUtil, Util
+
+from Util.ProgressBar import ProgressBar
+from Util.Util import Util, VisUtil
 
 # TODO: Visualization (Tensor Board)
 
@@ -830,9 +832,9 @@ class NNDist(NNBase):
                             self._print_metric_logs(show_loss, "test")
                     if visualize:
                         if visualize_setting is None:
-                            self.visualize_2d(x_test, y_test)
+                            self.visualize2d(x_test, y_test)
                         else:
-                            self.visualize_2d(x_test, y_test, *visualize_setting)
+                            self.visualize2d(x_test, y_test, *visualize_setting)
                     if x_test.shape[1] == 2:
                         if draw_detailed_network:
                             img = self._draw_detailed_network(weight_average=weight_average)
@@ -933,7 +935,7 @@ class NNDist(NNBase):
         return np.argmax([self._get_prediction(x, out_of_sess=True)], axis=2).T
 
     @NNTiming.timeit(level=4, prefix="[API] ")
-    def evaluate(self, x, y, metrics=None):
+    def estimate(self, x, y, metrics=None):
         x = NNDist._transfer_x(np.array(x))
         if metrics is None:
             metrics = self._metrics
@@ -951,7 +953,7 @@ class NNDist(NNBase):
         return logs
 
     @NNTiming.timeit(level=5, prefix="[API] ")
-    def visualize_2d(self, x=None, y=None, plot_scale=2, plot_precision=0.01):
+    def visualize2d(self, x=None, y=None, plot_scale=2, plot_precision=0.01):
 
         x = self._x if x is None else x
         y = self._y if y is None else y

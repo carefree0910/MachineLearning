@@ -1,12 +1,11 @@
 import tensorflow as tf
 
-from Util import Timing
+from Util.Timing import Timing
 
 # TODO: Customize Optimizer
 
 
 class Optimizers:
-
     OptTiming = Timing()
 
     def __init__(self, lr=1e-3):

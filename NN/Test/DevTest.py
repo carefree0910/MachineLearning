@@ -81,10 +81,10 @@ def main():
         nn.preview()
         nn.fit(epoch=5, lr=lr, lb=lb, verbose=verbose)
         if visualize:
-            nn.visualize_2d()
+            nn.visualize2d()
         nn.draw_results()
 
-        acc = nn.evaluate(x, y)[0]
+        acc = nn.estimate(x, y)[0]
         log += "Whole set Accuracy  : {:12.6} %".format(100 * acc) + "\n"
 
         print()

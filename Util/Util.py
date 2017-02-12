@@ -63,13 +63,13 @@ class DataUtil:
         return np.c_[x, y].astype(np.float32), z
 
     @staticmethod
-    def gen_spin(size=50, n=7, n_classes=7):
+    def gen_spin(size=50, n=7, n_classes=7, scale=4):
         xs = np.zeros((size * n, 2), dtype=np.float32)
         ys = np.zeros(size * n, dtype=np.int8)
         for i in range(n):
             ix = range(size * i, size * (i + 1))
             r = np.linspace(0.0, 1, size+1)[1:]
-            t = np.linspace(2 * i * pi / n, 2 * (i + 4) * pi / n, size) + np.random.random(size=size) * 0.1
+            t = np.linspace(2 * i * pi / n, 2 * (i + scale) * pi / n, size) + np.random.random(size=size) * 0.1
             xs[ix] = np.c_[r * np.sin(t), r * np.cos(t)]
             ys[ix] = i % n_classes
         z = []

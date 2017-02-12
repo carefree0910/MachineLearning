@@ -1,6 +1,7 @@
-from Zhihu.NN.Util import DataUtil
 from NN.Basic.Networks import *
-from CvDTree.CvDTree import *
+from c_CvDTree.Tree import *
+
+from Util.Util import DataUtil
 
 
 def cv2_example():
@@ -29,7 +30,7 @@ def visualize_tree():
 
     _tree = C45Tree()
     _tree.fit(x, y)
-    _tree.draw()
+    _tree.visualize()
 
 if __name__ == '__main__':
     cv2_example()

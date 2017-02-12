@@ -10,7 +10,9 @@ import matplotlib.cm as cm
 
 from NN.Basic.Layers import *
 from NN.Basic.Optimizers import OptFactory
-from Util import ProgressBar, VisUtil
+
+from Util.ProgressBar import ProgressBar
+from Util.Util import VisUtil
 
 np.random.seed(142857)  # for reproducibility
 
@@ -32,7 +34,6 @@ class NNConfig:
 # Neural Network
 
 class NNDist:
-
     NNTiming = Timing()
 
     def __init__(self):
@@ -883,9 +884,9 @@ class NNDist:
                     self._print_metric_logs(show_loss, "cv")
                 if visualize:
                     if visualize_setting is None:
-                        self.visualize_2d(x_test, y_test)
+                        self.visualize2d(x_test, y_test)
                     else:
-                        self.visualize_2d(x_test, y_test, *visualize_setting)
+                        self.visualize2d(x_test, y_test, *visualize_setting)
                 if x_test.shape[1] == 2:
                     if draw_network:
                         img = self._draw_network(weight_average=weight_average, activations=_activations)
@@ -991,7 +992,7 @@ class NNDist:
         return np.argmax([self._get_prediction(x)], axis=2).T
 
     @NNTiming.timeit(level=4, prefix="[API] ")
-    def evaluate(self, x, y, metrics=None):
+    def estimate(self, x, y, metrics=None):
         if metrics is None:
             metrics = self._metrics
         else:
@@ -1008,7 +1009,7 @@ class NNDist:
         return logs
 
     @NNTiming.timeit(level=5, prefix="[API] ")
-    def visualize_2d(self, x=None, y=None, plot_scale=2, plot_precision=0.01):
+    def visualize2d(self, x=None, y=None, plot_scale=2, plot_precision=0.01):
 
         x = self._x if x is None else x
         y = self._y if y is None else y

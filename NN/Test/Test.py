@@ -1,5 +1,5 @@
-from Util import *
-from NN.NN import *
+from Util.Util import DataUtil
+from NN.Basic.Networks import *
 
 np.random.seed(142857)  # for reproducibility
 
@@ -45,12 +45,12 @@ def main():
     timing_level = 1
     nn.feed_timing(timing)
 
-    x, y = DataUtil.gen_spin(n=7, n_classes=7)
+    x, y = DataUtil.gen_spin()
 
     if not load:
 
         nn.add("ReLU", (x.shape[1], 24))
-        nn.add("CrossEntropy", (y.shape[1],))
+        nn.add("Softmax", (y.shape[1],))
 
         nn.preview()
 
@@ -61,7 +61,7 @@ def main():
                do_log=do_log, verbose=verbose, visualize=visualize,
                draw_detailed_network=draw_detailed_network, weight_average=weight_average)
         nn.draw_results()
-        nn.visualize_2d()
+        nn.visualize2d()
 
         if save:
             nn.save()
@@ -72,10 +72,10 @@ def main():
         nn.preview()
         nn.feed(x, y)
         nn.fit(epoch=20, train_only=True, record_period=20, verbose=2)
-        nn.visualize_2d()
+        nn.visualize2d()
         nn.draw_results()
 
-        f1, acc, _precision, _recall = nn.evaluate(x, y, metrics=["f1", "acc", precision, recall])
+        f1, acc, _precision, _recall = nn.estimate(x, y, metrics=["f1", "acc", precision, recall])
         log += "Test set Accuracy  : {:12.6} %".format(100 * acc) + "\n"
         log += "Test set F1 Score  : {:12.6}".format(f1) + "\n"
         log += "Test set Precision : {:12.6}".format(_precision) + "\n"
