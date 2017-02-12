@@ -2,9 +2,11 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="a4743ded-d384-4ad3-a479-12cfa6f90f49" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Util/Bases.py" afterPath="$PROJECT_DIR$/Util/Bases.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Util/Metas.py" afterPath="$PROJECT_DIR$/Util/Metas.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Util/Util.py" afterPath="$PROJECT_DIR$/Util/Util.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/dictionaries/Carefree0910.xml" afterPath="$PROJECT_DIR$/.idea/dictionaries/Carefree0910.xml" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/c_CvDTree/TestTree.py" afterPath="$PROJECT_DIR$/c_CvDTree/TestTree.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/d_Ensemble/AdaBoost.py" afterPath="$PROJECT_DIR$/d_Ensemble/AdaBoost.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/d_Ensemble/TestAdaBoost.py" afterPath="$PROJECT_DIR$/d_Ensemble/TestAdaBoost.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -23,7 +25,7 @@
     <SUITE FILE_PATH="coverage/MachineLearning$Metas.coverage" NAME="Metas Coverage Results" MODIFIED="1486873854604" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Util" />
     <SUITE FILE_PATH="coverage/MachineLearning$CIFAR10.coverage" NAME="CIFAR10 Coverage Results" MODIFIED="1486875715128" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/NN/Test" />
     <SUITE FILE_PATH="coverage/MachineLearning$Mnist.coverage" NAME="Mnist Coverage Results" MODIFIED="1486875704343" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/NN/Test" />
-    <SUITE FILE_PATH="coverage/MachineLearning$TestAdaBoost.coverage" NAME="TestAdaBoost Coverage Results" MODIFIED="1486874557889" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/d_AdaBoost" />
+    <SUITE FILE_PATH="coverage/MachineLearning$TestAdaBoost.coverage" NAME="TestAdaBoost Coverage Results" MODIFIED="1486913917428" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/d_Ensemble" />
     <SUITE FILE_PATH="coverage/MachineLearning$RBF.coverage" NAME="RBF Coverage Results" MODIFIED="1482384404614" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/RegularizationNetworks" />
     <SUITE FILE_PATH="coverage/MachineLearning$RandomForest.coverage" NAME="RandomForest Coverage Results" MODIFIED="1486874371230" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/d_AdaBoost" />
     <SUITE FILE_PATH="coverage/MachineLearning$CvDTree__2_.coverage" NAME="CvDTree (2) Coverage Results" MODIFIED="1482631512373" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Zhihu/CvDTree/two" />
@@ -53,8 +55,8 @@
     <SUITE FILE_PATH="coverage/MachineLearning$pycmd.coverage" NAME="pycmd Coverage Results" MODIFIED="1482975720389" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Zhihu/Python/PyCmd" />
     <SUITE FILE_PATH="coverage/MachineLearning$progress_bar.coverage" NAME="progress_bar Coverage Results" MODIFIED="1483196587642" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Zhihu/Python/Utils" />
     <SUITE FILE_PATH="coverage/MachineLearning$CvDTree.coverage" NAME="CvDTree Coverage Results" MODIFIED="1484811076894" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Tree" />
-    <SUITE FILE_PATH="coverage/MachineLearning$TestTree.coverage" NAME="TestTree Coverage Results" MODIFIED="1486874118393" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/c_CvDTree" />
     <SUITE FILE_PATH="coverage/MachineLearning$metaclass_example.coverage" NAME="metaclass_example Coverage Results" MODIFIED="1486880133598" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Zhihu/Python" />
+    <SUITE FILE_PATH="coverage/MachineLearning$TestTree.coverage" NAME="TestTree Coverage Results" MODIFIED="1486913799611" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/c_CvDTree" />
   </component>
   <component name="CreatePatchCommitExecutor">
     <option name="PATCH_PATH" value="" />
@@ -62,21 +64,41 @@
   <component name="ExecutionTargetManager" SELECTED_TARGET="default_target" />
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="375">
-      <file leaf-file-name="metaclass_example2.py" pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/Zhihu/Python/metaclass_example2.py">
+      <file leaf-file-name="AdaBoost.py" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/d_Ensemble/AdaBoost.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="240">
-              <caret line="47" column="0" lean-forward="true" selection-start-line="47" selection-start-column="0" selection-end-line="47" selection-end-column="0" />
+            <state relative-caret-position="260">
+              <caret line="42" column="17" lean-forward="true" selection-start-line="42" selection-start-column="17" selection-end-line="42" selection-end-column="17" />
               <folding>
-                <element signature="e#232#626#0" expanded="false" />
-                <element signature="e#352#626#0" expanded="false" />
-                <element signature="e#683#762#0" expanded="false" />
-                <element signature="e#721#762#0" expanded="false" />
-                <element signature="e#815#968#0" expanded="false" />
-                <element signature="e#854#895#0" expanded="false" />
-                <element signature="e#926#968#0" expanded="false" />
-                <element signature="e#1001#1128#0" expanded="false" />
-                <element signature="e#1068#1101#0" expanded="false" />
+                <element signature="e#342#571#0" expanded="false" />
+                <element signature="e#605#690#0" expanded="false" />
+                <element signature="e#735#850#0" expanded="false" />
+                <element signature="e#896#1141#0" expanded="false" />
+                <element signature="e#946#1123#0" expanded="false" />
+                <element signature="e#1297#2167#0" expanded="false" />
+                <element signature="e#1360#1413#0" expanded="false" />
+                <element signature="e#1669#2167#0" expanded="false" />
+                <element signature="e#2256#2426#0" expanded="false" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="TestAdaBoost.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/d_Ensemble/TestAdaBoost.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="360">
+              <caret line="89" column="0" lean-forward="true" selection-start-line="89" selection-start-column="0" selection-end-line="89" selection-end-column="0" />
+              <folding>
+                <element signature="e#111#215#0" expanded="false" />
+                <element signature="e#245#389#0" expanded="false" />
+                <element signature="e#419#869#0" expanded="false" />
+                <element signature="e#540#851#0" expanded="false" />
+                <element signature="e#922#1044#0" expanded="false" />
+                <element signature="e#1103#1364#0" expanded="false" />
+                <element signature="e#1397#2913#0" expanded="false" />
+                <element signature="e#1397#1420#0" expanded="false" />
+                <element signature="e#2191#2268#0" expanded="false" />
               </folding>
             </state>
           </provider>
@@ -93,8 +115,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>with</find>
-      <find>_con_chaos_cache</find>
       <find>Cluster(</find>
       <find>self.floor</find>
       <find>floor</find>
@@ -123,6 +143,8 @@
       <find>visualize_setting</find>
       <find>visualize</find>
       <find>visualize2d</find>
+      <find>self._sample_weight</find>
+      <find>CvDTree</find>
     </findStrings>
     <replaceStrings>
       <replace>criterion</replace>
@@ -134,12 +156,6 @@
   <component name="IdeDocumentHistory">
     <option name="CHANGED_PATHS">
       <list>
-        <option value="$PROJECT_DIR$/Zhihu/CNN/Optimizers.py" />
-        <option value="$PROJECT_DIR$/b_NaiveBayes/Vectorized/Dev/GaussianNB.py" />
-        <option value="$PROJECT_DIR$/b_NaiveBayes/Vectorized/Dev/Basic.py" />
-        <option value="$PROJECT_DIR$/b_NaiveBayes/Vectorized/Dev/MultinomialNB.py" />
-        <option value="$PROJECT_DIR$/Zhihu/Python/Utils/metaclass_application.py" />
-        <option value="$PROJECT_DIR$/Zhihu/Python/timing.py" />
         <option value="$PROJECT_DIR$/Zhihu/Python/Utils/timing.py" />
         <option value="$PROJECT_DIR$/TestTiming.py" />
         <option value="$PROJECT_DIR$/Zhihu/Python/Utils/clf_metas.py" />
@@ -156,11 +172,9 @@
         <option value="$PROJECT_DIR$/b_NaiveBayes/Vectorized/GaussianNB.py" />
         <option value="$PROJECT_DIR$/b_NaiveBayes/Vectorized/MergedNB.py" />
         <option value="$PROJECT_DIR$/b_NaiveBayes/Vectorized/MultinomialNB.py" />
-        <option value="$PROJECT_DIR$/c_CvDTree/TestTree.py" />
         <option value="$PROJECT_DIR$/d_AdaBoost/TestAdaBoost.py" />
         <option value="$PROJECT_DIR$/e_SVM/SVM.py" />
         <option value="$PROJECT_DIR$/e_SVM/TestSVM.py" />
-        <option value="$PROJECT_DIR$/c_CvDTree/Tree.py" />
         <option value="$PROJECT_DIR$/d_AdaBoost/RandomForest.py" />
         <option value="$PROJECT_DIR$/d_AdaBoost/AdaBoost.py" />
         <option value="$PROJECT_DIR$/NN/TF/Layers.py" />
@@ -185,6 +199,14 @@
         <option value="$PROJECT_DIR$/Util/Bases.py" />
         <option value="$PROJECT_DIR$/Util/Metas.py" />
         <option value="$PROJECT_DIR$/Zhihu/Python/metaclass_example2.py" />
+        <option value="$PROJECT_DIR$/c_CvDTree/Tree.py" />
+        <option value="$PROJECT_DIR$/_SKlearn/Bundle.py" />
+        <option value="$PROJECT_DIR$/_SKlearn/Tree.py" />
+        <option value="$PROJECT_DIR$/b_NaiveBayes/SKNB.py" />
+        <option value="$PROJECT_DIR$/d_Ensemble/AdaBoost.py" />
+        <option value="$PROJECT_DIR$/c_CvDTree/TestTree.py" />
+        <option value="$PROJECT_DIR$/d_Ensemble/TestAdaBoost.py" />
+        <option value="$PROJECT_DIR$/_SKlearn/NaiveBayes.py" />
       </list>
     </option>
   </component>
@@ -195,9 +217,9 @@
     <sorting>DEFINITION_ORDER</sorting>
   </component>
   <component name="ProjectFrameBounds">
-    <option name="x" value="865" />
+    <option name="x" value="952" />
     <option name="y" value="38" />
-    <option name="width" value="1063" />
+    <option name="width" value="976" />
     <option name="height" value="1050" />
   </component>
   <component name="ProjectView">
@@ -239,7 +261,7 @@
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
             <PATH_ELEMENT>
-              <option name="myItemId" value="Util" />
+              <option name="myItemId" value="d_Ensemble" />
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
           </PATH>
@@ -254,21 +276,39 @@
     <property name="js.eslint.eslintPackage" value="C:\Users\Carefree0910\AppData\Roaming\npm\node_modules\eslint" />
     <property name="js-jscs-nodeInterpreter" value="C:\Program Files\nodejs\node.exe" />
   </component>
-  <component name="RunManager" selected="Python.metaclass_example2">
-    <configuration default="false" name="metaclass_example2" type="PythonConfigurationType" factoryName="Python" temporary="true">
+  <component name="RunManager" selected="Python.TestAdaBoost">
+    <configuration default="false" name="TestTree" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
       <envs>
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/Zhihu/Python" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/c_CvDTree" />
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <module name="MachineLearning" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/Zhihu/Python/metaclass_example2.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/c_CvDTree/TestTree.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <method />
+    </configuration>
+    <configuration default="false" name="TestAdaBoost" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/d_Ensemble" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="MachineLearning" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/d_Ensemble/TestAdaBoost.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <method />
@@ -487,12 +527,14 @@
       <option name="USE_KEYWORD" value="false" />
       <method />
     </configuration>
-    <list size="1">
-      <item index="0" class="java.lang.String" itemvalue="Python.metaclass_example2" />
+    <list size="2">
+      <item index="0" class="java.lang.String" itemvalue="Python.TestTree" />
+      <item index="1" class="java.lang.String" itemvalue="Python.TestAdaBoost" />
     </list>
     <recent_temporary>
-      <list size="1">
-        <item index="0" class="java.lang.String" itemvalue="Python.metaclass_example2" />
+      <list size="2">
+        <item index="0" class="java.lang.String" itemvalue="Python.TestAdaBoost" />
+        <item index="1" class="java.lang.String" itemvalue="Python.TestTree" />
       </list>
     </recent_temporary>
   </component>
@@ -522,7 +564,7 @@
     </todo-panel>
   </component>
   <component name="ToolWindowManager">
-    <frame x="865" y="38" width="1063" height="1050" extended-state="1" />
+    <frame x="952" y="38" width="976" height="1050" extended-state="0" />
     <editor active="true" />
     <layout>
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3299435" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
@@ -530,15 +572,15 @@
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32960895" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32881355" sideWeight="0.5" order="10" side_tool="false" content_ui="tabs" />
       <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.5819209" sideWeight="0.5" order="8" side_tool="false" content_ui="tabs" />
-      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.3740113" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.36723164" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Coverage" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="true" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="9" side_tool="false" content_ui="tabs" />
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32962587" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.21618626" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
       <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3273743" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
-      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.5502825" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
+      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.54972064" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
       <window_info id="Message" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Commander" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
@@ -573,84 +615,11 @@
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
-      <option name="time" value="352" />
+      <option name="time" value="353" />
     </breakpoint-manager>
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/e_SVM/Test.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://D:/Software/Dev/Anaconda/Lib/site-packages/sklearn/base.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="383">
-          <caret line="283" column="0" lean-forward="true" selection-start-line="283" selection-start-column="0" selection-end-line="283" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://D:/Software/Dev/Anaconda/Lib/site-packages/sklearn/externals/six.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="803">
-          <caret line="563" column="4" lean-forward="false" selection-start-line="563" selection-start-column="4" selection-end-line="563" selection-end-column="4" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://D:/Software/Dev/Anaconda/Lib/site-packages/sklearn/svm/classes.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="143">
-          <caret line="382" column="16" lean-forward="false" selection-start-line="382" selection-start-column="16" selection-end-line="382" selection-end-column="16" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://D:/Software/Dev/Anaconda/Lib/site-packages/sklearn/svm/base.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="9620">
-          <caret line="498" column="16" lean-forward="true" selection-start-line="498" selection-start-column="16" selection-end-line="498" selection-end-column="16" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$USER_HOME$/.PyCharm2016.3/system/python_stubs/-1336471717/numpy/core/multiarray.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="143">
-          <caret line="5669" column="4" lean-forward="false" selection-start-line="5669" selection-start-column="4" selection-end-line="5669" selection-end-column="4" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/RegularizationNetworks/RBF.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-123">
-          <caret line="4" column="0" lean-forward="true" selection-start-line="4" selection-start-column="0" selection-end-line="4" selection-end-column="0" />
-          <folding>
-            <element signature="e#272#344#0" expanded="false" />
-            <element signature="e#364#1467#0" expanded="false" />
-            <element signature="e#478#528#0" expanded="false" />
-            <element signature="e#588#635#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/NN/Errors.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding>
-            <element signature="e#33#37#0" expanded="false" />
-            <element signature="e#78#82#0" expanded="false" />
-            <element signature="e#125#129#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/NN/Playground.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
@@ -711,23 +680,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/c_CvDTree/TestTree.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="120">
-          <caret line="18" column="0" lean-forward="true" selection-start-line="18" selection-start-column="0" selection-end-line="18" selection-end-column="0" />
-          <folding>
-            <element signature="e#284#554#0" expanded="false" />
-            <element signature="e#467#554#0" expanded="false" />
-            <element signature="e#573#3775#0" expanded="false" />
-            <element signature="e#573#649#0" expanded="false" />
-            <element signature="e#3512#3621#0" expanded="false" />
-            <marker date="1486823390291" expanded="false" signature="575:1297" ph="..." />
-            <marker date="1486823390291" expanded="false" signature="1305:2260" ph="..." />
-            <marker date="1486823390291" expanded="false" signature="2268:2935" ph="..." />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/d_AdaBoost/RandomForest.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="120">
@@ -768,64 +720,6 @@
         <state relative-caret-position="120">
           <caret line="6" column="0" lean-forward="true" selection-start-line="6" selection-start-column="0" selection-end-line="6" selection-end-column="0" />
           <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/c_CvDTree/Tree.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="60">
-          <caret line="10" column="56" lean-forward="false" selection-start-line="10" selection-start-column="56" selection-end-line="10" selection-end-column="56" />
-          <folding>
-            <element signature="e#238#8630#0" expanded="false" />
-            <element signature="e#348#598#0" expanded="false" />
-            <element signature="e#657#1125#0" expanded="false" />
-            <element signature="e#824#948#0" expanded="false" />
-            <element signature="e#1329#2609#0" expanded="false" />
-            <element signature="e#1646#2327#0" expanded="false" />
-            <element signature="e#1908#2127#0" expanded="false" />
-            <element signature="e#2354#2455#0" expanded="false" />
-            <element signature="e#2700#2819#0" expanded="false" />
-            <element signature="e#2755#2819#0" expanded="false" />
-            <element signature="e#2901#2986#0" expanded="false" />
-            <element signature="e#3053#4311#0" expanded="false" />
-            <element signature="e#3155#3272#0" expanded="false" />
-            <element signature="e#3201#3272#0" expanded="false" />
-            <element signature="e#3525#4283#0" expanded="false" />
-            <element signature="e#3647#4243#0" expanded="false" />
-            <element signature="e#3743#3943#0" expanded="false" />
-            <element signature="e#3785#3943#0" expanded="false" />
-            <element signature="e#4025#4243#0" expanded="false" />
-            <element signature="e#4074#4243#0" expanded="false" />
-            <element signature="e#4383#5203#0" expanded="false" />
-            <element signature="e#4590#5175#0" expanded="false" />
-            <element signature="e#4862#4979#0" expanded="false" />
-            <element signature="e#4900#4979#0" expanded="false" />
-            <element signature="e#5053#5175#0" expanded="false" />
-            <element signature="e#5098#5175#0" expanded="false" />
-            <element signature="e#5308#5727#0" expanded="false" />
-            <element signature="e#5342#5681#0" expanded="false" />
-            <element signature="e#5400#5681#0" expanded="false" />
-            <element signature="e#5825#5872#0" expanded="false" />
-            <element signature="e#5960#6011#0" expanded="false" />
-            <element signature="e#6093#6109#0" expanded="false" />
-            <element signature="e#6274#8630#0" expanded="false" />
-            <element signature="e#6666#6776#0" expanded="false" />
-            <element signature="e#6893#7510#0" expanded="false" />
-            <element signature="e#6936#7510#0" expanded="false" />
-            <element signature="e#7223#7295#0" expanded="false" />
-            <element signature="e#7338#7419#0" expanded="false" />
-            <element signature="e#7562#8556#0" expanded="false" />
-            <element signature="e#7669#8556#0" expanded="false" />
-            <element signature="e#7811#8556#0" expanded="false" />
-            <element signature="e#8045#8556#0" expanded="false" />
-            <element signature="e#8658#9230#0" expanded="false" />
-            <element signature="e#8701#9230#0" expanded="false" />
-            <element signature="e#8860#9033#0" expanded="false" />
-            <element signature="e#9094#9116#0" expanded="false" />
-            <element signature="e#9289#9293#0" expanded="false" />
-            <element signature="e#9352#9356#0" expanded="false" />
-            <element signature="e#9417#9421#0" expanded="false" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -2029,47 +1923,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/Util/Util.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="280">
-          <caret line="187" column="0" lean-forward="true" selection-start-line="187" selection-start-column="0" selection-end-line="187" selection-end-column="0" />
-          <folding>
-            <element signature="e#255#443#0" expanded="false" />
-            <element signature="e#317#443#0" expanded="false" />
-            <element signature="e#334#373#0" expanded="false" />
-            <element signature="e#466#3938#0" expanded="false" />
-            <element signature="e#591#1746#0" expanded="false" />
-            <element signature="e#665#1065#0" expanded="false" />
-            <element signature="e#725#800#0" expanded="false" />
-            <element signature="e#853#1005#0" expanded="false" />
-            <element signature="e#893#1005#0" expanded="false" />
-            <element signature="e#1285#1416#0" expanded="false" />
-            <element signature="e#1626#1736#0" expanded="false" />
-            <element signature="e#1810#2033#0" expanded="false" />
-            <element signature="e#2113#2690#0" expanded="false" />
-            <element signature="e#2246#2532#0" expanded="false" />
-            <element signature="e#2582#2659#0" expanded="false" />
-            <element signature="e#2793#3938#0" expanded="false" />
-            <element signature="e#3065#3184#0" expanded="false" />
-            <element signature="e#3222#3474#0" expanded="false" />
-            <element signature="e#3346#3460#0" expanded="false" />
-            <element signature="e#3501#3699#0" expanded="false" />
-            <element signature="e#3514#3628#0" expanded="false" />
-            <element signature="e#3961#6872#0" expanded="false" />
-            <element signature="e#4071#4909#0" expanded="false" />
-            <element signature="e#4969#5641#0" expanded="false" />
-            <element signature="e#5111#5641#0" expanded="false" />
-            <element signature="e#5715#6001#0" expanded="false" />
-            <element signature="e#5741#5848#0" expanded="false" />
-            <element signature="e#6087#6636#0" expanded="false" />
-            <element signature="e#6310#6500#0" expanded="false" />
-            <element signature="e#6345#6500#0" expanded="false" />
-            <element signature="e#6377#6500#0" expanded="false" />
-            <element signature="e#6700#6872#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/NN/TF/Networks.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="-80">
@@ -2361,6 +2214,222 @@
             <element signature="e#926#968#0" expanded="false" />
             <element signature="e#1001#1128#0" expanded="false" />
             <element signature="e#1068#1101#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://D:/Software/Dev/Anaconda/Lib/site-packages/sklearn/naive_bayes.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-2300">
+          <caret line="49" column="11" lean-forward="true" selection-start-line="49" selection-start-column="11" selection-end-line="49" selection-end-column="11" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/_SKlearn/Bundle.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/_SKlearn/Tree.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="80">
+          <caret line="8" column="0" lean-forward="false" selection-start-line="8" selection-start-column="0" selection-end-line="8" selection-end-column="0" />
+          <folding>
+            <element signature="e#225#229#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/b_NaiveBayes/SKNB.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Util/Util.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="200">
+          <caret line="24" column="15" lean-forward="false" selection-start-line="24" selection-start-column="15" selection-end-line="24" selection-end-column="15" />
+          <folding>
+            <element signature="e#255#443#0" expanded="false" />
+            <element signature="e#317#443#0" expanded="false" />
+            <element signature="e#334#373#0" expanded="false" />
+            <element signature="e#466#3938#0" expanded="false" />
+            <element signature="e#591#1746#0" expanded="false" />
+            <element signature="e#665#1065#0" expanded="false" />
+            <element signature="e#725#800#0" expanded="false" />
+            <element signature="e#853#1005#0" expanded="false" />
+            <element signature="e#893#1005#0" expanded="false" />
+            <element signature="e#1285#1416#0" expanded="false" />
+            <element signature="e#1626#1736#0" expanded="false" />
+            <element signature="e#1810#2033#0" expanded="false" />
+            <element signature="e#2113#2690#0" expanded="false" />
+            <element signature="e#2246#2532#0" expanded="false" />
+            <element signature="e#2582#2659#0" expanded="false" />
+            <element signature="e#2793#3938#0" expanded="false" />
+            <element signature="e#3065#3184#0" expanded="false" />
+            <element signature="e#3222#3474#0" expanded="false" />
+            <element signature="e#3346#3460#0" expanded="false" />
+            <element signature="e#3501#3699#0" expanded="false" />
+            <element signature="e#3514#3628#0" expanded="false" />
+            <element signature="e#3961#6872#0" expanded="false" />
+            <element signature="e#4071#4909#0" expanded="false" />
+            <element signature="e#4969#5641#0" expanded="false" />
+            <element signature="e#5111#5641#0" expanded="false" />
+            <element signature="e#5715#6001#0" expanded="false" />
+            <element signature="e#5741#5848#0" expanded="false" />
+            <element signature="e#6087#6636#0" expanded="false" />
+            <element signature="e#6310#6500#0" expanded="false" />
+            <element signature="e#6345#6500#0" expanded="false" />
+            <element signature="e#6377#6500#0" expanded="false" />
+            <element signature="e#6700#6872#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/c_CvDTree/Tree.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="320">
+          <caret line="241" column="0" lean-forward="true" selection-start-line="241" selection-start-column="0" selection-end-line="241" selection-end-column="0" />
+          <folding>
+            <element signature="e#238#8630#0" expanded="false" />
+            <element signature="e#348#598#0" expanded="false" />
+            <element signature="e#657#1125#0" expanded="false" />
+            <element signature="e#824#948#0" expanded="false" />
+            <element signature="e#1329#2609#0" expanded="false" />
+            <element signature="e#1646#2327#0" expanded="false" />
+            <element signature="e#1908#2127#0" expanded="false" />
+            <element signature="e#2354#2455#0" expanded="false" />
+            <element signature="e#2700#2819#0" expanded="false" />
+            <element signature="e#2755#2819#0" expanded="false" />
+            <element signature="e#2901#2986#0" expanded="false" />
+            <element signature="e#3053#4311#0" expanded="false" />
+            <element signature="e#3155#3272#0" expanded="false" />
+            <element signature="e#3201#3272#0" expanded="false" />
+            <element signature="e#3525#4283#0" expanded="false" />
+            <element signature="e#3647#4243#0" expanded="false" />
+            <element signature="e#3743#3943#0" expanded="false" />
+            <element signature="e#3785#3943#0" expanded="false" />
+            <element signature="e#4025#4243#0" expanded="false" />
+            <element signature="e#4074#4243#0" expanded="false" />
+            <element signature="e#4383#5203#0" expanded="false" />
+            <element signature="e#4590#5175#0" expanded="false" />
+            <element signature="e#4862#4979#0" expanded="false" />
+            <element signature="e#4900#4979#0" expanded="false" />
+            <element signature="e#5053#5175#0" expanded="false" />
+            <element signature="e#5098#5175#0" expanded="false" />
+            <element signature="e#5308#5727#0" expanded="false" />
+            <element signature="e#5342#5681#0" expanded="false" />
+            <element signature="e#5400#5681#0" expanded="false" />
+            <element signature="e#5825#5872#0" expanded="false" />
+            <element signature="e#5960#6011#0" expanded="false" />
+            <element signature="e#6093#6109#0" expanded="false" />
+            <element signature="e#6274#8630#0" expanded="false" />
+            <element signature="e#6666#6776#0" expanded="false" />
+            <element signature="e#6893#7510#0" expanded="false" />
+            <element signature="e#6936#7510#0" expanded="false" />
+            <element signature="e#7223#7295#0" expanded="false" />
+            <element signature="e#7338#7419#0" expanded="false" />
+            <element signature="e#7562#8556#0" expanded="false" />
+            <element signature="e#7669#8556#0" expanded="false" />
+            <element signature="e#7811#8556#0" expanded="false" />
+            <element signature="e#8045#8556#0" expanded="false" />
+            <element signature="e#8658#9230#0" expanded="false" />
+            <element signature="e#8701#9230#0" expanded="false" />
+            <element signature="e#8860#9033#0" expanded="false" />
+            <element signature="e#9094#9116#0" expanded="false" />
+            <element signature="e#9289#9293#0" expanded="false" />
+            <element signature="e#9352#9356#0" expanded="false" />
+            <element signature="e#9417#9421#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/c_CvDTree/TestTree.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="180">
+          <caret line="102" column="0" lean-forward="true" selection-start-line="102" selection-start-column="0" selection-end-line="102" selection-end-column="0" />
+          <folding>
+            <element signature="e#115#2859#0" expanded="false" />
+            <element signature="e#469#578#0" expanded="false" />
+            <element signature="e#1184#1293#0" expanded="false" />
+            <element signature="e#1758#1867#0" expanded="false" />
+            <element signature="e#2597#2706#0" expanded="false" />
+            <marker date="1486913799558" expanded="false" signature="115:702" ph="..." />
+            <marker date="1486913799558" expanded="false" signature="729:1417" ph="..." />
+            <marker date="1486913799558" expanded="false" signature="1423:2021" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/d_Ensemble/RandomForest.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding>
+            <element signature="e#129#1459#0" expanded="false" />
+            <element signature="e#176#256#0" expanded="false" />
+            <element signature="e#290#306#0" expanded="false" />
+            <element signature="e#430#502#0" expanded="false" />
+            <element signature="e#675#1223#0" expanded="false" />
+            <element signature="e#736#1223#0" expanded="false" />
+            <element signature="e#969#1063#0" expanded="false" />
+            <element signature="e#1316#1459#0" expanded="false" />
+            <element signature="e#1492#2239#0" expanded="false" />
+            <element signature="e#1989#2098#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/_SKlearn/NaiveBayes.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="140">
+          <caret line="12" column="0" lean-forward="true" selection-start-line="12" selection-start-column="0" selection-end-line="12" selection-end-column="0" />
+          <folding>
+            <element signature="e#213#217#0" expanded="false" />
+            <element signature="e#308#312#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/d_Ensemble/TestAdaBoost.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="360">
+          <caret line="89" column="0" lean-forward="true" selection-start-line="89" selection-start-column="0" selection-end-line="89" selection-end-column="0" />
+          <folding>
+            <element signature="e#111#215#0" expanded="false" />
+            <element signature="e#245#389#0" expanded="false" />
+            <element signature="e#419#869#0" expanded="false" />
+            <element signature="e#540#851#0" expanded="false" />
+            <element signature="e#922#1044#0" expanded="false" />
+            <element signature="e#1103#1364#0" expanded="false" />
+            <element signature="e#1397#2913#0" expanded="false" />
+            <element signature="e#1397#1420#0" expanded="false" />
+            <element signature="e#2191#2268#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/d_Ensemble/AdaBoost.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="260">
+          <caret line="42" column="17" lean-forward="true" selection-start-line="42" selection-start-column="17" selection-end-line="42" selection-end-column="17" />
+          <folding>
+            <element signature="e#342#571#0" expanded="false" />
+            <element signature="e#605#690#0" expanded="false" />
+            <element signature="e#735#850#0" expanded="false" />
+            <element signature="e#896#1141#0" expanded="false" />
+            <element signature="e#946#1123#0" expanded="false" />
+            <element signature="e#1297#2167#0" expanded="false" />
+            <element signature="e#1360#1413#0" expanded="false" />
+            <element signature="e#1669#2167#0" expanded="false" />
+            <element signature="e#2256#2426#0" expanded="false" />
           </folding>
         </state>
       </provider>

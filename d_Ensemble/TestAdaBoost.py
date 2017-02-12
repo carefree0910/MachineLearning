@@ -1,6 +1,6 @@
 import time
 
-from d_AdaBoost.AdaBoost import *
+from d_Ensemble.AdaBoost import *
 
 from Util.Util import DataUtil
 
