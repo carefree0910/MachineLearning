@@ -24,14 +24,24 @@ class TimingMeta(type):
             if _str_val.find("function") >= 0 or _str_val.find("staticmethod") >= 0 or _str_val.find("property") >= 0:
                 attr[_name] = _timing.timeit(level=2)(_value)
 
+        def __str__(self):
+            try:
+                return self.name
+            except AttributeError:
+                return name
+
+        def __repr__(self):
+            return str(self)
+
         def feed_timing(self, timing):
             setattr(self, name + "Timing", timing)
 
         def show_timing_log(self, level=2):
             getattr(self, name + "Timing").show_timing_log(level)
 
-        attr["feed_timing"] = feed_timing
-        attr["show_timing_log"] = show_timing_log
+        for key, value in locals().items():
+            if str(value).find("function") >= 0 or str(value).find("property"):
+                attr[key] = value
 
         return type(name, bases, attr)
 
@@ -59,9 +69,13 @@ class ClassifierMeta(type):
                 return getattr(self, "_" + item)
 
         def acc(y, y_pred, weights=None):
+            if not isinstance(y, np.ndarray):
+                y = np.array(y)
+            if not isinstance(y_pred, np.ndarray):
+                y_pred = np.array(y_pred)
             if weights is not None:
-                return np.sum((np.array(y) == np.array(y_pred)) * weights) / len(y)
-            return np.sum(np.array(y) == np.array(y_pred)) / len(y)
+                return np.sum((y == y_pred) * weights) / len(y)
+            return np.sum(y == y_pred) / len(y)
 
         attr["_metrics"] = [acc]
 
@@ -78,6 +92,9 @@ class ClassifierMeta(type):
                         else:
                             metrics[i] = self._available_metrics[metric]
             logs, y_pred = [], self.predict(x)
+            y = np.array(y)
+            if y.ndim == 2:
+                y = np.argmax(y, axis=1)
             for metric in metrics:
                 logs.append(metric(y, y_pred))
             if isinstance(tar, int):
@@ -124,8 +141,7 @@ class ClassifierMeta(type):
             colors = plt.cm.rainbow([i / n_label for i in range(n_label)])[labels]
 
             plt.figure()
-            plt.pcolormesh(xy_xf, xy_yf, z > 0, cmap=plt.cm.Paired)
-            plt.contour(xf, yf, z, c='k-', levels=[0])
+            plt.pcolormesh(xy_xf, xy_yf, z, cmap=plt.cm.Paired)
             plt.scatter(axis[0], axis[1], c=colors)
             plt.xlim(x_min, x_max)
             plt.ylim(y_min, y_max)
