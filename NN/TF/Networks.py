@@ -968,12 +968,12 @@ class NNDist(NNBase):
         if self._x.shape[1] != 2:
             return
         output_ys_2d = np.argmax(self.predict(input_xs), axis=1).reshape(len(xf), len(yf))
-        output_ys_3d = self.predict(input_xs)[:, 0].reshape(len(xf), len(yf))
+        output_ys_3d = self.predict(input_xs)[..., 0].reshape(len(xf), len(yf))
 
         xf, yf = np.meshgrid(xf, yf, sparse=True)
 
         plt.contourf(input_x, input_y, output_ys_2d, cmap=cm.Spectral)
-        plt.scatter(x[:, 0], x[:, 1], c=np.argmax(y, axis=1), s=40, cmap=cm.Spectral)
+        plt.scatter(x[..., 0], x[..., 1], c=np.argmax(y, axis=1), s=40, cmap=cm.Spectral)
         plt.axis("off")
         plt.show()
 

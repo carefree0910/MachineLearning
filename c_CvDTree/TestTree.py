@@ -4,8 +4,6 @@ from c_CvDTree.Tree import *
 
 from Util.Util import DataUtil
 
-np.random.seed(31416)
-
 
 def main():
     _x, _y = DataUtil.get_dataset("balloon1.0(en)", "../_Data/balloon1.0(en).txt")

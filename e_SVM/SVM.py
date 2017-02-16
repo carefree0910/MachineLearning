@@ -4,8 +4,6 @@ from Util.Timing import Timing
 from Util.Bases import ClassifierBase
 from Util.Metas import ClassifierMeta
 
-np.random.seed(142857)
-
 
 class SVMConfig:
     default_c = 1
@@ -25,14 +23,14 @@ class SVM(ClassifierBase, metaclass=ClassifierMeta):
     # Kernel
 
     @staticmethod
-    @SVMTiming.timeit(level=1, prefix="[Private StaticMethod] ")
+    @SVMTiming.timeit(level=1, prefix="[Core] ")
     def _poly(x, y, p):
         if len(x.shape) == 1:
             return (np.sum(x * y) + 1) ** p
         return (np.sum(x * y, axis=1) + 1) ** p
 
     @staticmethod
-    @SVMTiming.timeit(level=1, prefix="[Private StaticMethod] ")
+    @SVMTiming.timeit(level=1, prefix="[Core] ")
     def _gaussian(x, y, sigma):
         if len(x.shape) == 1:
             # noinspection PyTypeChecker
@@ -121,7 +119,7 @@ class SVM(ClassifierBase, metaclass=ClassifierMeta):
     # API
 
     @SVMTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, kernel="gaussian", **kwargs):
+    def fit(self, x, y, kernel="poly", **kwargs):
         if kernel == "poly":
             self._kernel = lambda _x, _y: SVM._poly(_x, _y, kwargs.get("p", SVMConfig.default_p))
         elif kernel == "gaussian":

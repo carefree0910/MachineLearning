@@ -23,7 +23,7 @@ class ClassifierBase:
         pass
 
     @staticmethod
-    def acc(y, y_pred, weights):
+    def acc(y, y_pred, weights=None):
         pass
 
     def estimate(self, x, y):

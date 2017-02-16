@@ -165,7 +165,7 @@ class CvDNode:
     def _gen_children(self, _chaos_lst, feature_bound):
         feat, tar = self.feature_dim, self.tar
         self.is_continuous = continuous = self.wc[feat]
-        features = self._x[:, feat]
+        features = self._x[..., feat]
         _new_feats = self.feats.copy()
         if continuous:
             _mask = features < tar

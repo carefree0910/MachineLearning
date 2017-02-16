@@ -101,7 +101,7 @@ class ClassifierMeta(type):
                 print(prefix + ": {:12.8}".format(logs[tar]))
             return logs
 
-        def visualize2d(self, x, y, dense=100):
+        def visualize2d(self, x, y, dense=100, title=None):
             axis, labels = np.array(x).T, np.array(y)
 
             print("=" * 30 + "\n" + str(self))
@@ -140,7 +140,14 @@ class ClassifierMeta(type):
                 labels = np.argmax(labels, axis=1)
             colors = plt.cm.rainbow([i / n_label for i in range(n_label)])[labels]
 
+            if title is None:
+                try:
+                    title = self.title
+                except AttributeError:
+                    title = str(self)
+
             plt.figure()
+            plt.title(title)
             plt.pcolormesh(xy_xf, xy_yf, z, cmap=plt.cm.Paired)
             plt.scatter(axis[0], axis[1], c=colors)
             plt.xlim(x_min, x_max)

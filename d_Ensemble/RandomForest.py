@@ -12,7 +12,11 @@ class RandomForest(ClassifierBase, metaclass=ClassifierMeta):
     }
 
     def __init__(self):
-        self._trees = []
+        self._tree, self._trees = "", []
+
+    @property
+    def title(self):
+        return "Tree: {}; Num: {}".format(self._tree, len(self._trees))
 
     @staticmethod
     @RandomForestTiming.timeit(level=2, prefix="[StaticMethod] ")
@@ -21,10 +25,11 @@ class RandomForest(ClassifierBase, metaclass=ClassifierMeta):
         return u[np.argmax(c)]
 
     @RandomForestTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, tree="Cart", epoch=10, feature_bound="log", sample_weight=None, *args, **kwargs):
+    def fit(self, x, y, tree="Cart", epoch=10, feature_bound="log", sample_weight=None, **kwargs):
         n_sample = len(y)
+        self._tree = tree
         for _ in range(epoch):
-            tmp_tree = RandomForest._cvd_trees[tree](*args, **kwargs)
+            tmp_tree = RandomForest._cvd_trees[tree](**kwargs)
             _indices = np.random.randint(n_sample, size=n_sample)
             if sample_weight is None:
                 _local_weight = None
@@ -35,8 +40,11 @@ class RandomForest(ClassifierBase, metaclass=ClassifierMeta):
             self._trees.append(deepcopy(tmp_tree))
 
     @RandomForestTiming.timeit(level=1, prefix="[API] ")
-    def predict(self, x):
-        _matrix = np.array([_tree.predict(x) for _tree in self._trees]).T
+    def predict(self, x, bound=None):
+        if bound is None:
+            _matrix = np.array([_tree.predict(x) for _tree in self._trees]).T
+        else:
+            _matrix = np.array([_tree.predict(x) for _tree in self._trees[:bound]]).T
         return np.array([RandomForest.most_appearance(rs) for rs in _matrix])
 
 if __name__ == '__main__':
