@@ -41,9 +41,7 @@ class SVM(ClassifierBase, metaclass=ClassifierMeta):
     # SMO
 
     @SVMTiming.timeit(level=1)
-    def _pick_first(self, eps=10e-8):
-        if self._w is None:
-            self._update_w()
+    def _pick_first(self, sample_weight, eps=1e-8):
         con1 = self._alpha <= 0
         con2 = (0 < self._alpha) & (self._alpha < self._c)
         con3 = self._alpha >= self._c
@@ -56,14 +54,14 @@ class SVM(ClassifierBase, metaclass=ClassifierMeta):
         err2[~con2 | (dis == 0)] = 0
         err3[~con3 | (dis <= 0)] = 0
         err = err1 + err2 + err3
-        idx = np.argmax(err)
+        idx = np.argmax(err * sample_weight)
         if err[idx] < eps:
             return
         return idx
 
     @SVMTiming.timeit(level=1)
     def _pick_second(self, idx1):
-        idx = idx1
+        idx = np.random.randint(len(self._y))
         while idx == idx1:
             idx = np.random.randint(len(self._y))
         return idx
@@ -81,7 +79,7 @@ class SVM(ClassifierBase, metaclass=ClassifierMeta):
         return min(self._c, self._alpha[idx2] + self._alpha[idx1])
 
     @SVMTiming.timeit(level=1)
-    def _update_alpha(self, idx1, idx2):
+    def _update_alpha(self, idx1, idx2, sample_weight):
         l, h = self._get_lower_bound(idx1, idx2), self._get_upper_bound(idx1, idx2)
         x1, x2 = self._x[idx1], self._x[idx2]
         y1, y2 = self._y[idx1], self._y[idx2]
@@ -96,13 +94,14 @@ class SVM(ClassifierBase, metaclass=ClassifierMeta):
         a1_new = self._alpha[idx1] + y1 * y2 * (self._alpha[idx2] - a2_new)
         self._alpha[idx1] = a1_new
         self._alpha[idx2] = a2_new
-        self._update_w()
+        sample_weight *= len(self._y)
+        self._update_w(sample_weight)
         self._update_b(idx1, idx2, e1, e2, a1_old, a2_old, a1_new, a2_new)
-        self._update_es()
+        self._update_es(sample_weight)
 
     @SVMTiming.timeit(level=1)
-    def _update_w(self):
-        self._w = self._alpha * self._y
+    def _update_w(self, sample_weight):
+        self._w = self._alpha * self._y * sample_weight
 
     @SVMTiming.timeit(level=1)
     def _update_b(self, idx1, idx2, e1, e2, a1_old, a2_old, a1_new, a2_new):
@@ -113,38 +112,40 @@ class SVM(ClassifierBase, metaclass=ClassifierMeta):
         self._b += (b1 + b2) / 2
 
     @SVMTiming.timeit(level=1)
-    def _update_es(self):
-        self._es = self.predict(self._x, True) - self._y
+    def _update_es(self, sample_weight):
+        self._es = (self.predict(self._x, True) - self._y) * sample_weight
 
     # API
 
     @SVMTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, kernel="poly", **kwargs):
+    def fit(self, x, y, sample_weight=None, kernel="poly", epoch=1000, **kwargs):
         if kernel == "poly":
             self._kernel = lambda _x, _y: SVM._poly(_x, _y, kwargs.get("p", SVMConfig.default_p))
         elif kernel == "gaussian":
             self._kernel = lambda _x, _y: SVM._gaussian(_x, _y, kwargs.get("sigma", SVMConfig.default_sigma))
         else:
-            raise NotImplementedError("Kernel '{}' not implemented".format(kernel))
+            raise NotImplementedError("Kernel '{}' has not defined".format(kernel))
         self._c = kwargs.get("c", SVMConfig.default_c)
         self._x, self._y = np.atleast_2d(x), np.array(y)
-        self._alpha = np.zeros(len(x))
+        if sample_weight is None:
+            sample_weight = np.ones(len(y)) / len(y)
+        else:
+            sample_weight = np.array(sample_weight)
+        self._alpha, self._w = np.zeros(len(x)), np.zeros(len(x))
         self._es = -self._y
         self._b = 0
-        while True:
-            idx1 = self._pick_first()
+        for _ in range(epoch):
+            idx1 = self._pick_first(sample_weight)
             if idx1 is None:
                 return
             idx2 = self._pick_second(idx1)
-            self._update_alpha(idx1, idx2)
+            self._update_alpha(idx1, idx2, sample_weight)
 
     @SVMTiming.timeit(level=1, prefix="[API] ")
     def predict(self, x, get_raw_results=False):
         x = self._x if x is None else np.atleast_2d(x)
-        x = np.array([self._kernel(x, xi) for xi in self._x])
-        y_pred = np.sum(self._w * x.T, axis=1) + self._b
+        x = np.array([self._kernel(x, xi) for xi in self._x]).T
+        y_pred = np.sum(self._w * x, axis=1) + self._b
         if get_raw_results:
             return y_pred
-        y1 = y_pred > 0
-        y_pred[y1], y_pred[~y1] = 1, -1
-        return y_pred
+        return np.sign(y_pred)

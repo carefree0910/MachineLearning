@@ -188,5 +188,5 @@ class SubClassTimingMeta(type):
         return type(name, bases, attr)
 
 
-class SklearnCompatibleMeta(ABCMeta, ClassifierMeta):
+class SKCompatibleMeta(ABCMeta, ClassifierMeta):
     pass

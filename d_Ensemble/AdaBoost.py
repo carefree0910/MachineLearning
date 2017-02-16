@@ -3,9 +3,13 @@ from math import log
 from b_NaiveBayes.Vectorized.MultinomialNB import MultinomialNB
 from b_NaiveBayes.Vectorized.GaussianNB import GaussianNB
 from c_CvDTree.Tree import *
+from d_Ensemble.RandomForest import RandomForest
+from e_SVM.Perceptron import Perceptron
+from e_SVM.SVM import SVM
 
 from _SKlearn.NaiveBayes import *
-from _SKlearn.Tree import *
+from _SKlearn.Tree import SKTree
+from _SKlearn.SVM import SKSVM
 
 
 class AdaBoost(ClassifierBase, metaclass=ClassifierMeta):
@@ -14,12 +18,16 @@ class AdaBoost(ClassifierBase, metaclass=ClassifierMeta):
         "SKMNB": SKMultinomialNB,
         "SKGNB": SKGaussianNB,
         "SKTree": SKTree,
+        "SKSVM": SKSVM,
 
         "MNB": MultinomialNB,
         "GNB": GaussianNB,
         "ID3": ID3Tree,
         "C45": C45Tree,
-        "Cart": CartTree
+        "Cart": CartTree,
+        "RF": RandomForest,
+        "Perceptron": Perceptron,
+        "SVM": SVM
     }
 
     def __init__(self):
@@ -43,14 +51,15 @@ class AdaBoost(ClassifierBase, metaclass=ClassifierMeta):
         return rs
 
     @AdaBoostTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, clf=None, epoch=10, sample_weight=None, eps=1e-12, **kwargs):
-        if clf is None or AdaBoost._weak_clf[clf] is None:
+    def fit(self, x, y, sample_weight=None, clf=None, epoch=10, eps=1e-12, **kwargs):
+        x, y = np.atleast_2d(x), np.array(y)
+        if clf is None:
             clf = "Cart"
             kwargs = {"max_depth": 1}
         self._kwarg_cache = kwargs
         self._clf = clf
         if sample_weight is None:
-            sample_weight = np.ones(len(x)) / len(x)
+            sample_weight = np.ones(len(y)) / len(y)
         else:
             sample_weight = np.array(sample_weight)
         for _ in range(epoch):
@@ -66,7 +75,7 @@ class AdaBoost(ClassifierBase, metaclass=ClassifierMeta):
 
     @AdaBoostTiming.timeit(level=1, prefix="[API] ")
     def predict(self, x, bound=None):
-        x = np.array(x)
+        x = np.atleast_2d(x)
         rs = np.zeros(len(x))
         if bound is None:
             _clfs, _clfs_weights = self._clfs, self._clfs_weights

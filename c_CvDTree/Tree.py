@@ -35,12 +35,12 @@ class CvDBase(ClassifierBase, metaclass=ClassifierMeta):
     # Grow
 
     @CvDBaseTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, alpha=None, sample_weight=None, eps=1e-8,
+    def fit(self, x, y, sample_weight=None, alpha=None, eps=1e-8,
             cv_rate=0.2, train_only=False, feature_bound=None):
         _dic = {c: i for i, c in enumerate(set(y))}
         y = np.array([_dic[yy] for yy in y])
         self.label_dic = {value: key for key, value in _dic.items()}
-        x = np.array(x)
+        x = np.atleast_2d(x)
         self.prune_alpha = alpha if alpha is not None else x.shape[1] / 2
         if not train_only and self.root.is_cart:
             _train_num = int(len(x) * (1-cv_rate))

@@ -109,7 +109,7 @@ class CvDNode:
                 _child.mark_pruned()
 
     def fit(self, x, y, sample_weight, feature_bound=None, eps=1e-8):
-        self._x, self._y = np.array(x), np.array(y)
+        self._x, self._y = np.atleast_2d(x), np.array(y)
         self.sample_weight = sample_weight
         if self.stop1(eps):
             return
@@ -186,8 +186,12 @@ class CvDNode:
                 _new_node.criterion = self.criterion
                 setattr(self, side, _new_node)
             for _node, _feat_mask in zip([self.left_child, self.right_child], _masks):
-                _local_weights = None if self.sample_weight is None else self.sample_weight[_feat_mask]
-                tmp_data, tmp_labels = self._x[_feat_mask, :], self._y[_feat_mask]
+                if self.sample_weight is None:
+                    _local_weights = None
+                else:
+                    _local_weights = self.sample_weight[_feat_mask]
+                    _local_weights /= np.sum(_local_weights)
+                tmp_data, tmp_labels = self._x[_feat_mask, ...], self._y[_feat_mask]
                 if len(tmp_labels) == 0:
                     continue
                 _node.feats = _new_feats
@@ -196,7 +200,7 @@ class CvDNode:
             _new_feats.remove(self.feature_dim)
             for feat, _chaos in zip(self.tree.feature_sets[self.feature_dim], _chaos_lst):
                 _feat_mask = features == feat
-                tmp_x = self._x[_feat_mask, :]
+                tmp_x = self._x[_feat_mask, ...]
                 if len(tmp_x) == 0:
                     continue
                 _new_node = self.__class__(

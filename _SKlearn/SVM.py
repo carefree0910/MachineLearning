@@ -1,8 +1,8 @@
 from Util.Bases import ClassifierBase
-from Util.Metas import SklearnCompatibleMeta
+from Util.Metas import SKCompatibleMeta
 
 from sklearn.svm import SVC
 
 
-class SklearnSVM(SVC, ClassifierBase, metaclass=SklearnCompatibleMeta):
+class SKSVM(SVC, ClassifierBase, metaclass=SKCompatibleMeta):
     pass

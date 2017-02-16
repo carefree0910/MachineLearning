@@ -25,7 +25,8 @@ class RandomForest(ClassifierBase, metaclass=ClassifierMeta):
         return u[np.argmax(c)]
 
     @RandomForestTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, tree="Cart", epoch=10, feature_bound="log", sample_weight=None, **kwargs):
+    def fit(self, x, y, sample_weight=None, tree="Cart", epoch=10, feature_bound="log", **kwargs):
+        x, y = np.atleast_2d(x), np.array(y)
         n_sample = len(y)
         self._tree = tree
         for _ in range(epoch):
@@ -34,8 +35,8 @@ class RandomForest(ClassifierBase, metaclass=ClassifierMeta):
             if sample_weight is None:
                 _local_weight = None
             else:
-                _local_weight = np.array(sample_weight)
-                _local_weight /= np.sum(_local_weight)
+                _local_weight = sample_weight[_indices]
+                _local_weight /= _local_weight.sum()
             tmp_tree.fit(x[_indices], y[_indices], sample_weight=_local_weight, feature_bound=feature_bound)
             self._trees.append(deepcopy(tmp_tree))
 

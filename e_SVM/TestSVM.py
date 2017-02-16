@@ -11,8 +11,8 @@ def main():
     svm = SVM()
     # svm.fit(x, y)
     svm.fit(x, y, kernel="poly", p=16)
-    # svm.estimate(x, y)
-    # svm.visualize2d(x, y, dense=400)
+    svm.estimate(x, y)
+    svm.visualize2d(x, y, dense=400)
 
     # svm = SklearnSVM()
     # svm.fit(x, y)
