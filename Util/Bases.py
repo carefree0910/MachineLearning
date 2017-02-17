@@ -29,7 +29,10 @@ class ClassifierBase:
     def estimate(self, x, y):
         pass
 
-    def visualize2d(self, x, y, dense=100):
+    def visualize2d(self, x, y, dense=200, title=None, show_org=False):
+        pass
+
+    def visualize3d(self, x, y, dense=100, title=None, show_org=False):
         pass
 
     def feed_timing(self, timing):

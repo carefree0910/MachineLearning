@@ -74,7 +74,7 @@ class AdaBoost(ClassifierBase, metaclass=ClassifierMeta):
             self._clfs_weights.append(am)
 
     @AdaBoostTiming.timeit(level=1, prefix="[API] ")
-    def predict(self, x, bound=None):
+    def predict(self, x, bound=None, get_raw_results=False):
         x = np.atleast_2d(x)
         rs = np.zeros(len(x))
         if bound is None:
@@ -83,4 +83,6 @@ class AdaBoost(ClassifierBase, metaclass=ClassifierMeta):
             _clfs, _clfs_weights = self._clfs[:bound], self._clfs_weights[:bound]
         for clf, am in zip(_clfs, _clfs_weights):
             rs += am * clf.predict(x)
-        return np.sign(rs)
+        if not get_raw_results:
+            return np.sign(rs)
+        return rs

@@ -2,6 +2,7 @@ import numpy as np
 
 from Util.Bases import ClassifierBase
 from Util.Metas import ClassifierMeta
+from Util.Util import DataUtil
 
 
 class Perceptron(ClassifierBase, metaclass=ClassifierMeta):
@@ -24,20 +25,22 @@ class Perceptron(ClassifierBase, metaclass=ClassifierMeta):
             self._w += lr * y[_idx] * x[_idx] * sample_weight[_idx]
             self._b += lr * y[_idx] * sample_weight[_idx]
 
-    def predict(self, x):
-        return np.sign(np.sum(self._w * x, axis=1) + self._b)
+    def predict(self, x, get_raw_results=False):
+        rs = np.sum(self._w * x, axis=1) + self._b
+        if not get_raw_results:
+            return np.sign(rs)
+        return rs
 
 if __name__ == '__main__':
-    x1 = np.arange(5) * 0.1 + 0.25
-    x2 = 1 - x1
-    gap = 0.01
-    x1 = np.vstack((x1, x2)).T
-    x2 = x1 + gap
-    _x = np.vstack((x1, x2))
-    _y = np.array([-1] * 5 + [1] * 5)
+    # x1 = np.arange(5) * 0.1 + 0.25
+    # x2 = 1 - x1
+    # gap = 0.01
+    # x1 = np.vstack((x1, x2)).T
+    # x2 = x1 + gap
+    # _x = np.vstack((x1, x2))
+    # _y = np.array([-1] * 5 + [1] * 5)
+    _x, _y = DataUtil.gen_two_clusters(one_hot=False)
     perceptron = Perceptron()
     perceptron.fit(_x, _y)
     perceptron.estimate(_x, _y)
-    perceptron.visualize2d(_x, _y, dense=400)
-    print(perceptron["w"])
-    print(perceptron["b"])
+    perceptron.visualize2d(_x, _y)

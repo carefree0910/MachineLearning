@@ -2,6 +2,7 @@ import time
 import numpy as np
 from abc import ABCMeta
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 from Util.Timing import Timing
 
@@ -101,7 +102,7 @@ class ClassifierMeta(type):
                 print(prefix + ": {:12.8}".format(logs[tar]))
             return logs
 
-        def visualize2d(self, x, y, dense=100, title=None):
+        def visualize2d(self, x, y, dense=200, title=None, show_org=False):
             axis, labels = np.array(x).T, np.array(y)
 
             print("=" * 30 + "\n" + str(self))
@@ -146,12 +147,132 @@ class ClassifierMeta(type):
                 except AttributeError:
                     title = str(self)
 
+            if show_org:
+                plt.figure()
+                plt.scatter(axis[0], axis[1], c=colors)
+                plt.xlim(x_min, x_max)
+                plt.ylim(y_min, y_max)
+                plt.show()
+
             plt.figure()
             plt.title(title)
             plt.pcolormesh(xy_xf, xy_yf, z, cmap=plt.cm.Paired)
             plt.scatter(axis[0], axis[1], c=colors)
             plt.xlim(x_min, x_max)
             plt.ylim(y_min, y_max)
+            plt.show()
+
+            print("Done.")
+
+        def visualize3d(self, x, y, dense=100, title=None, show_org=False):
+            if False:
+                print(Axes3D.add_artist)
+            axis, labels = np.array(x).T, np.array(y)
+
+            print("=" * 30 + "\n" + str(self))
+            decision_function = lambda _x: self.predict(_x)
+
+            nx, ny, nz, margin = dense, dense, dense, 0.1
+            x_min, x_max = np.min(axis[0]), np.max(axis[0])
+            y_min, y_max = np.min(axis[1]), np.max(axis[1])
+            z_min, z_max = np.min(axis[2]), np.max(axis[2])
+            x_margin = max(abs(x_min), abs(x_max)) * margin
+            y_margin = max(abs(y_min), abs(y_max)) * margin
+            z_margin = max(abs(z_min), abs(z_max)) * margin
+            x_min -= x_margin
+            x_max += x_margin
+            y_min -= y_margin
+            y_max += y_margin
+            z_min -= z_margin
+            z_max += z_margin
+
+            def get_base(_nx, _ny, _nz):
+                _xf = np.linspace(x_min, x_max, _nx)
+                _yf = np.linspace(y_min, y_max, _ny)
+                _zf = np.linspace(z_min, z_max, _nz)
+                n_xf, n_yf, n_zf = np.meshgrid(_xf, _yf, _zf)
+                return _xf, _yf, _zf, np.c_[n_xf.ravel(), n_yf.ravel(), n_zf.ravel()]
+
+            xf, yf, zf, base_matrix = get_base(nx, ny, nz)
+
+            t = time.time()
+            z_xyz = decision_function(base_matrix).reshape((nx, ny, nz))
+            p_classes = decision_function(x).astype(np.int8)
+            _, _, _, base_matrix = get_base(10, 10, 10)
+            z_classes = decision_function(base_matrix).astype(np.int8)
+            print("Decision Time: {:8.6} s".format(time.time() - t))
+
+            print("Drawing figures...")
+            z_xy = np.average(z_xyz, axis=2)
+            z_yz = np.average(z_xyz, axis=1)
+            z_xz = np.average(z_xyz, axis=0)
+
+            xy_xf, xy_yf = np.meshgrid(xf, yf, sparse=True)
+            yz_xf, yz_yf = np.meshgrid(yf, zf, sparse=True)
+            xz_xf, xz_yf = np.meshgrid(xf, zf, sparse=True)
+
+            def transform_arr(arr):
+                if arr.ndim == 1:
+                    _dic = {c: i for i, c in enumerate(set(arr))}
+                    n_dim = len(_dic)
+                    arr = np.array([_dic[label] for label in arr])
+                else:
+                    n_dim = arr.shape[1]
+                    arr = np.argmax(arr, axis=1)
+                return arr, n_dim
+
+            labels, n_label = transform_arr(labels)
+            p_classes, _ = transform_arr(p_classes)
+            z_classes, _ = transform_arr(z_classes)
+            colors = plt.cm.rainbow([i / n_label for i in range(n_label)])
+
+            if title is None:
+                try:
+                    title = self.title
+                except AttributeError:
+                    title = str(self)
+
+            if show_org:
+                fig = plt.figure()
+                ax = fig.add_subplot(111, projection='3d')
+                ax.scatter(axis[0], axis[1], axis[2], c=colors[labels])
+                plt.show()
+
+            fig = plt.figure(figsize=(16, 4), dpi=100)
+            plt.title(title)
+            ax1 = fig.add_subplot(131, projection='3d')
+            ax2 = fig.add_subplot(132, projection='3d')
+            ax3 = fig.add_subplot(133, projection='3d')
+
+            ax1.set_title("Org")
+            ax2.set_title("Pred")
+            ax3.set_title("Boundary")
+
+            ax1.scatter(axis[0], axis[1], axis[2], c=colors[labels])
+            ax2.scatter(axis[0], axis[1], axis[2], c=colors[p_classes], s=15)
+            xyz_xf, xyz_yf, xyz_zf = base_matrix[..., 0], base_matrix[..., 1], base_matrix[..., 2]
+            ax3.scatter(xyz_xf, xyz_yf, xyz_zf, c=colors[z_classes], s=15)
+
+            plt.show()
+            plt.close()
+
+            fig = plt.figure(figsize=(16, 4), dpi=100)
+            ax1 = fig.add_subplot(131)
+            ax2 = fig.add_subplot(132)
+            ax3 = fig.add_subplot(133)
+
+            ax1.set_title("xy figure")
+            ax1.pcolormesh(xy_xf, xy_yf, z_xy > 0, cmap=plt.cm.Paired)
+            ax1.scatter(axis[0], axis[1], c=colors[labels])
+
+            ax2.set_title("yz figure")
+            ax2.pcolormesh(yz_xf, yz_yf, z_yz > 0, cmap=plt.cm.Paired)
+            ax2.scatter(axis[1], axis[2], c=colors[labels])
+
+            ax3.set_title("xz figure")
+            ax3.pcolormesh(xz_xf, xz_yf, z_xz > 0, cmap=plt.cm.Paired)
+            ax3.scatter(axis[0], axis[2], c=colors[labels])
+
             plt.show()
 
             print("Done.")

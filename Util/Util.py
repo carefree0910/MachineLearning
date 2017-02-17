@@ -7,7 +7,7 @@ from pylab import mpl
 mpl.rcParams['font.sans-serif'] = ['FangSong']
 mpl.rcParams['axes.unicode_minus'] = False
 
-# np.random.seed(142857)
+np.random.seed(142857)
 
 
 class Util:
@@ -91,6 +91,21 @@ class DataUtil:
         for yy in ys:
             z.append([0 if i != yy else 1 for i in range(n_class)])
         return xs, np.array(z)
+
+    @staticmethod
+    def gen_two_clusters(size=100, dim=2, dis=2, scale=1, one_hot=True):
+        center1 = (np.random.random(dim) - 0.5) * scale + dis
+        center2 = (np.random.random(dim) - 0.5) * scale - dis
+        cluster1 = (np.random.randn(size, dim) + center1) * scale
+        cluster2 = (np.random.randn(size, dim) + center2) * scale
+        data = np.vstack((cluster1, cluster2))
+        labels = np.array([1] * size + [-1] * size)
+        _indices = np.random.permutation(size * 2)
+        data, labels = data[_indices], labels[_indices]
+        if not one_hot:
+            return data, labels
+        labels = np.array([[1, 0] if label == 1 else [0, 1] for label in labels])
+        return data, labels
 
     @staticmethod
     def quantize_data(x, y, wc=None, continuous_rate=0.1, separate=False):
