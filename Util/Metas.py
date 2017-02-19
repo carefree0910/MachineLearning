@@ -102,13 +102,14 @@ class ClassifierMeta(type):
                 print(prefix + ": {:12.8}".format(logs[tar]))
             return logs
 
-        def visualize2d(self, x, y, dense=200, title=None, show_org=False):
+        def visualize2d(self, x, y, margin=0.1, dense=200,
+                        title=None, show_org=False, show_background=True, emphasize=None):
             axis, labels = np.array(x).T, np.array(y)
 
             print("=" * 30 + "\n" + str(self))
             decision_function = lambda _xx: self.predict(_xx)
 
-            nx, ny, margin = dense, dense, 0.1
+            nx, ny, margin = dense, dense, margin
             x_min, x_max = np.min(axis[0]), np.max(axis[0])
             y_min, y_max = np.min(axis[1]), np.max(axis[1])
             x_margin = max(abs(x_min), abs(x_max)) * margin
@@ -156,15 +157,22 @@ class ClassifierMeta(type):
 
             plt.figure()
             plt.title(title)
-            plt.pcolormesh(xy_xf, xy_yf, z, cmap=plt.cm.Paired)
+            if show_background:
+                plt.pcolormesh(xy_xf, xy_yf, z, cmap=plt.cm.Paired)
+            else:
+                plt.contour(xf, yf, z, c='k-', levels=[0])
             plt.scatter(axis[0], axis[1], c=colors)
+            if emphasize is not None:
+                plt.scatter(axis[0][emphasize], axis[1][emphasize], s=80,
+                            facecolors="None", zorder=10)
             plt.xlim(x_min, x_max)
             plt.ylim(y_min, y_max)
             plt.show()
 
             print("Done.")
 
-        def visualize3d(self, x, y, dense=100, title=None, show_org=False):
+        def visualize3d(self, x, y, margin=0.1, dense=100,
+                        title=None, show_org=False, show_background=True, emphasize=None):
             if False:
                 print(Axes3D.add_artist)
             axis, labels = np.array(x).T, np.array(y)
@@ -172,7 +180,7 @@ class ClassifierMeta(type):
             print("=" * 30 + "\n" + str(self))
             decision_function = lambda _x: self.predict(_x)
 
-            nx, ny, nz, margin = dense, dense, dense, 0.1
+            nx, ny, nz, margin = dense, dense, dense, margin
             x_min, x_max = np.min(axis[0]), np.max(axis[0])
             y_min, y_max = np.min(axis[1]), np.max(axis[1])
             z_min, z_max = np.min(axis[2]), np.max(axis[2])
@@ -261,17 +269,31 @@ class ClassifierMeta(type):
             ax2 = fig.add_subplot(132)
             ax3 = fig.add_subplot(133)
 
+            def _draw(_ax, _x, _xf, _y, _yf, _z):
+                if show_background:
+                    _ax.pcolormesh(_x, _y, _z > 0, cmap=plt.cm.Paired)
+                else:
+                    _ax.contour(_xf, _yf, _z, c='k-', levels=[0])
+
+            def _emphasize(_ax, axis0, axis1, _c):
+                _ax.scatter(axis0, axis1, c=_c)
+                if emphasize is not None:
+                    _ax.scatter(axis0[emphasize], axis1[emphasize], s=80,
+                                facecolors="None", zorder=10)
+
+            colors = colors[labels]
+
             ax1.set_title("xy figure")
-            ax1.pcolormesh(xy_xf, xy_yf, z_xy > 0, cmap=plt.cm.Paired)
-            ax1.scatter(axis[0], axis[1], c=colors[labels])
+            _draw(ax1, xy_xf, xf, xy_yf, yf, z_xy)
+            _emphasize(ax1, axis[0], axis[1], colors)
 
             ax2.set_title("yz figure")
-            ax2.pcolormesh(yz_xf, yz_yf, z_yz > 0, cmap=plt.cm.Paired)
-            ax2.scatter(axis[1], axis[2], c=colors[labels])
+            _draw(ax2, yz_xf, yf, yz_yf, zf, z_yz)
+            _emphasize(ax2, axis[1], axis[2], colors)
 
             ax3.set_title("xz figure")
-            ax3.pcolormesh(xz_xf, xz_yf, z_xz > 0, cmap=plt.cm.Paired)
-            ax3.scatter(axis[0], axis[2], c=colors[labels])
+            _draw(ax3, xz_xf, xf, xz_yf, zf, z_xz)
+            _emphasize(ax3, axis[0], axis[2], colors)
 
             plt.show()
 

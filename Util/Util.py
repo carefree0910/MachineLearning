@@ -7,8 +7,6 @@ from pylab import mpl
 mpl.rcParams['font.sans-serif'] = ['FangSong']
 mpl.rcParams['axes.unicode_minus'] = False
 
-np.random.seed(142857)
-
 
 class Util:
 
@@ -93,11 +91,11 @@ class DataUtil:
         return xs, np.array(z)
 
     @staticmethod
-    def gen_two_clusters(size=100, dim=2, dis=2, scale=1, one_hot=True):
-        center1 = (np.random.random(dim) - 0.5) * scale + dis
-        center2 = (np.random.random(dim) - 0.5) * scale - dis
-        cluster1 = (np.random.randn(size, dim) + center1) * scale
-        cluster2 = (np.random.randn(size, dim) + center2) * scale
+    def gen_two_clusters(size=100, n_dim=2, center=0, dis=2, scale=1, one_hot=True):
+        center1 = (np.random.random(n_dim) + center - 0.5) * scale + dis
+        center2 = (np.random.random(n_dim) + center - 0.5) * scale - dis
+        cluster1 = (np.random.randn(size, n_dim) + center1) * scale
+        cluster2 = (np.random.randn(size, n_dim) + center2) * scale
         data = np.vstack((cluster1, cluster2))
         labels = np.array([1] * size + [-1] * size)
         _indices = np.random.permutation(size * 2)
