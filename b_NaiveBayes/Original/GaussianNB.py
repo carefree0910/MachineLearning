@@ -1,12 +1,16 @@
+import matplotlib.pyplot as plt
+
 from b_NaiveBayes.Original.Basic import *
 from b_NaiveBayes.Original.MultinomialNB import MultinomialNB
 
 from Util.Util import DataUtil
-from Util.Metas import SubClassTimingMeta
+from Util.Metas import SubClassChangeNamesMeta
 
 
-class GaussianNB(NaiveBayes, metaclass=SubClassTimingMeta):
+class GaussianNB(NaiveBayes, metaclass=SubClassChangeNamesMeta):
+    GaussianNBTiming = Timing()
 
+    @GaussianNBTiming.timeit(level=1, prefix="[API] ")
     def feed_data(self, x, y, sample_weight=None):
         if sample_weight is not None:
             sample_weight = np.array(sample_weight)
@@ -23,12 +27,14 @@ class GaussianNB(NaiveBayes, metaclass=SubClassTimingMeta):
         self._cat_counter, self.label_dic = cat_counter, {i: _l for _l, i in label_dic.items()}
         self._feed_sample_weight(sample_weight)
 
+    @GaussianNBTiming.timeit(level=1, prefix="[Core] ")
     def _feed_sample_weight(self, sample_weight=None):
         if sample_weight is not None:
             local_weights = sample_weight * len(sample_weight)
             for i, label in enumerate(self._label_zip):
                 self._labelled_x[i] *= local_weights[label]
 
+    @GaussianNBTiming.timeit(level=1, prefix="[Core] ")
     def _fit(self, lb):
         n_category = len(self._cat_counter)
         p_category = self.get_prior_probability(lb)
@@ -44,6 +50,27 @@ class GaussianNB(NaiveBayes, metaclass=SubClassTimingMeta):
             return rs * p_category[tar_category]
 
         return func
+
+    def visualize(self, save=False):
+        colors = plt.cm.Paired([i / len(self.label_dic) for i in range(len(self.label_dic))])
+        colors = {_cat: _color for _cat, _color in zip(self.label_dic.values(), colors)}
+        for j in range(len(self._x)):
+            tmp_data = self._x[j]
+            x_min, x_max = np.min(tmp_data), np.max(tmp_data)
+            gap = x_max - x_min
+            tmp_x = np.linspace(x_min-0.1*gap, x_max+0.1*gap, 200)
+            title = "$j = {}$".format(j + 1)
+            plt.figure()
+            plt.title(title)
+            for c in range(len(self.label_dic)):
+                plt.plot(tmp_x, [self._data[j][c](xx) for xx in tmp_x],
+                         c=colors[self.label_dic[c]], label="class: {}".format(self.label_dic[c]))
+            plt.xlim(x_min-0.2*gap, x_max+0.2*gap)
+            plt.legend()
+            if not save:
+                plt.show()
+            else:
+                plt.savefig("d{}".format(j + 1))
 
 if __name__ == '__main__':
     import time
@@ -75,3 +102,5 @@ if __name__ == '__main__':
             learning_time + estimation_time
         )
     )
+    nb.show_timing_log()
+    nb.visualize()

@@ -3,10 +3,12 @@ from b_NaiveBayes.Vectorized.MultinomialNB import MultinomialNB
 from b_NaiveBayes.Vectorized.GaussianNB import GaussianNB
 
 from Util.Util import DataUtil
-from Util.Metas import SubClassTimingMeta
+from Util.Timing import Timing
+from Util.Metas import SubClassChangeNamesMeta
 
 
-class MergedNB(NaiveBayes, metaclass=SubClassTimingMeta):
+class MergedNB(NaiveBayes, metaclass=SubClassChangeNamesMeta):
+    MergedNBTiming = Timing()
 
     def __init__(self, whether_continuous=None):
         NaiveBayes.__init__(self)
@@ -17,6 +19,7 @@ class MergedNB(NaiveBayes, metaclass=SubClassTimingMeta):
             self._whether_continuous = np.array(whether_continuous)
             self._whether_discrete = ~self._whether_continuous
 
+    @MergedNBTiming.timeit(level=1, prefix="[API] ")
     def feed_data(self, x, y, sample_weight=None):
         if sample_weight is not None:
             sample_weight = np.array(sample_weight)
@@ -51,10 +54,12 @@ class MergedNB(NaiveBayes, metaclass=SubClassTimingMeta):
 
         self._feed_sample_weight(sample_weight)
 
+    @MergedNBTiming.timeit(level=1, prefix="[Core] ")
     def _feed_sample_weight(self, sample_weight=None):
         self._multinomial._feed_sample_weight(sample_weight)
         self._gaussian._feed_sample_weight(sample_weight)
 
+    @MergedNBTiming.timeit(level=1, prefix="[Core] ")
     def _fit(self, lb):
         self._multinomial.fit()
         self._gaussian.fit()
@@ -69,6 +74,7 @@ class MergedNB(NaiveBayes, metaclass=SubClassTimingMeta):
 
         return func
 
+    @MergedNBTiming.timeit(level=1, prefix="[Core] ")
     def _transfer_x(self, x):
         _feat_dics = self._multinomial["feat_dics"]
         idx = 0

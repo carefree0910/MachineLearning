@@ -3,11 +3,14 @@ import matplotlib.pyplot as plt
 from b_NaiveBayes.Vectorized.Basic import *
 
 from Util.Util import DataUtil
-from Util.Metas import SubClassTimingMeta
+from Util.Timing import Timing
+from Util.Metas import SubClassChangeNamesMeta
 
 
-class MultinomialNB(NaiveBayes, metaclass=SubClassTimingMeta):
+class MultinomialNB(NaiveBayes, metaclass=SubClassChangeNamesMeta):
+    MultinomialNBTiming = Timing()
 
+    @MultinomialNBTiming.timeit(level=1, prefix="[API] ")
     def feed_data(self, x, y, sample_weight=None):
         if sample_weight is not None:
             sample_weight = np.array(sample_weight)
@@ -24,6 +27,7 @@ class MultinomialNB(NaiveBayes, metaclass=SubClassTimingMeta):
         self.label_dic = label_dic
         self._feed_sample_weight(sample_weight)
 
+    @MultinomialNBTiming.timeit(level=1, prefix="[Core] ")
     def _feed_sample_weight(self, sample_weight=None):
         self._con_counter = []
         for dim, _p in enumerate(self._n_possibilities):
@@ -35,6 +39,7 @@ class MultinomialNB(NaiveBayes, metaclass=SubClassTimingMeta):
                     np.bincount(xx[dim], weights=sample_weight[label] / sample_weight[label].mean(), minlength=_p)
                     for label, xx in self._label_zip])
 
+    @MultinomialNBTiming.timeit(level=1, prefix="[Core] ")
     def _fit(self, lb):
         n_dim = len(self._n_possibilities)
         n_category = len(self._cat_counter)
@@ -56,6 +61,7 @@ class MultinomialNB(NaiveBayes, metaclass=SubClassTimingMeta):
 
         return func
 
+    @MultinomialNBTiming.timeit(level=1, prefix="[Core] ")
     def _transfer_x(self, x):
         for i, sample in enumerate(x):
             for j, char in enumerate(sample):

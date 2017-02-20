@@ -102,22 +102,22 @@ class ClassifierMeta(type):
                 print(prefix + ": {:12.8}".format(logs[tar]))
             return logs
 
-        def visualize2d(self, x, y, margin=0.1, dense=200,
+        def visualize2d(self, x, y, padding=0.1, dense=200,
                         title=None, show_org=False, show_background=True, emphasize=None):
             axis, labels = np.array(x).T, np.array(y)
 
             print("=" * 30 + "\n" + str(self))
             decision_function = lambda _xx: self.predict(_xx)
 
-            nx, ny, margin = dense, dense, margin
+            nx, ny, padding = dense, dense, padding
             x_min, x_max = np.min(axis[0]), np.max(axis[0])
             y_min, y_max = np.min(axis[1]), np.max(axis[1])
-            x_margin = max(abs(x_min), abs(x_max)) * margin
-            y_margin = max(abs(y_min), abs(y_max)) * margin
-            x_min -= x_margin
-            x_max += x_margin
-            y_min -= y_margin
-            y_max += y_margin
+            x_padding = max(abs(x_min), abs(x_max)) * padding
+            y_padding = max(abs(y_min), abs(y_max)) * padding
+            x_min -= x_padding
+            x_max += x_padding
+            y_min -= y_padding
+            y_max += y_padding
 
             def get_base(_nx, _ny):
                 _xf = np.linspace(x_min, x_max, _nx)
@@ -163,7 +163,9 @@ class ClassifierMeta(type):
                 plt.contour(xf, yf, z, c='k-', levels=[0])
             plt.scatter(axis[0], axis[1], c=colors)
             if emphasize is not None:
-                plt.scatter(axis[0][emphasize], axis[1][emphasize], s=80,
+                _indices = np.array([False] * len(axis[0]))
+                _indices[np.array(emphasize)] = True
+                plt.scatter(axis[0][_indices], axis[1][_indices], s=80,
                             facecolors="None", zorder=10)
             plt.xlim(x_min, x_max)
             plt.ylim(y_min, y_max)
@@ -171,7 +173,7 @@ class ClassifierMeta(type):
 
             print("Done.")
 
-        def visualize3d(self, x, y, margin=0.1, dense=100,
+        def visualize3d(self, x, y, padding=0.1, dense=100,
                         title=None, show_org=False, show_background=True, emphasize=None):
             if False:
                 print(Axes3D.add_artist)
@@ -180,19 +182,19 @@ class ClassifierMeta(type):
             print("=" * 30 + "\n" + str(self))
             decision_function = lambda _x: self.predict(_x)
 
-            nx, ny, nz, margin = dense, dense, dense, margin
+            nx, ny, nz, padding = dense, dense, dense, padding
             x_min, x_max = np.min(axis[0]), np.max(axis[0])
             y_min, y_max = np.min(axis[1]), np.max(axis[1])
             z_min, z_max = np.min(axis[2]), np.max(axis[2])
-            x_margin = max(abs(x_min), abs(x_max)) * margin
-            y_margin = max(abs(y_min), abs(y_max)) * margin
-            z_margin = max(abs(z_min), abs(z_max)) * margin
-            x_min -= x_margin
-            x_max += x_margin
-            y_min -= y_margin
-            y_max += y_margin
-            z_min -= z_margin
-            z_max += z_margin
+            x_padding = max(abs(x_min), abs(x_max)) * padding
+            y_padding = max(abs(y_min), abs(y_max)) * padding
+            z_padding = max(abs(z_min), abs(z_max)) * padding
+            x_min -= x_padding
+            x_max += x_padding
+            y_min -= y_padding
+            y_max += y_padding
+            z_min -= z_padding
+            z_max += z_padding
 
             def get_base(_nx, _ny, _nz):
                 _xf = np.linspace(x_min, x_max, _nx)
@@ -278,7 +280,9 @@ class ClassifierMeta(type):
             def _emphasize(_ax, axis0, axis1, _c):
                 _ax.scatter(axis0, axis1, c=_c)
                 if emphasize is not None:
-                    _ax.scatter(axis0[emphasize], axis1[emphasize], s=80,
+                    _indices = np.array([False] * len(axis[0]))
+                    _indices[np.array(emphasize)] = True
+                    _ax.scatter(axis0[_indices], axis1[_indices], s=80,
                                 facecolors="None", zorder=10)
 
             colors = colors[labels]
@@ -328,6 +332,22 @@ class SubClassTimingMeta(type):
                 continue
             if _str_val.find("function") >= 0 or _str_val.find("staticmethod") >= 0 or _str_val.find("property") >= 0:
                 attr[_name] = timing.timeit(level=2)(_value)
+        return type(name, bases, attr)
+
+
+class SubClassChangeNamesMeta(type):
+    def __new__(mcs, *args, **kwargs):
+        name, bases, attr = args[:3]
+        try:
+            timing = getattr(bases[0], bases[0].__name__ + "Timing")
+            attr[name + "Timing"] = timing
+        except AttributeError:
+            try:
+                timing = attr[name + "Timing"]
+            except KeyError:
+                timing = Timing()
+            setattr(bases[0], bases[0].__name__ + "Timing", timing)
+        timing.name = attr["name"] = name
         return type(name, bases, attr)
 
 

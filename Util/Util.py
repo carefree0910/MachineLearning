@@ -7,6 +7,8 @@ from pylab import mpl
 mpl.rcParams['font.sans-serif'] = ['FangSong']
 mpl.rcParams['axes.unicode_minus'] = False
 
+np.random.seed(142857)
+
 
 class Util:
 
@@ -97,12 +99,12 @@ class DataUtil:
         cluster1 = (np.random.randn(size, n_dim) + center1) * scale
         cluster2 = (np.random.randn(size, n_dim) + center2) * scale
         data = np.vstack((cluster1, cluster2))
-        labels = np.array([1] * size + [-1] * size)
+        labels = np.array([1] * size + [0] * size)
         _indices = np.random.permutation(size * 2)
         data, labels = data[_indices], labels[_indices]
         if not one_hot:
             return data, labels
-        labels = np.array([[1, 0] if label == 1 else [0, 1] for label in labels])
+        labels = np.array([[0, 1] if label == 1 else [1, 0] for label in labels])
         return data, labels
 
     @staticmethod

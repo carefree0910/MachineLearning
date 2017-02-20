@@ -2,11 +2,14 @@ import matplotlib.pyplot as plt
 
 from b_NaiveBayes.Vectorized.Basic import *
 
-from Util.Metas import SubClassTimingMeta
+from Util.Timing import Timing
+from Util.Metas import SubClassChangeNamesMeta
 
 
-class GaussianNB(NaiveBayes, metaclass=SubClassTimingMeta):
+class GaussianNB(NaiveBayes, metaclass=SubClassChangeNamesMeta):
+    GaussianNBTiming = Timing()
 
+    @GaussianNBTiming.timeit(level=1, prefix="[API] ")
     def feed_data(self, x, y, sample_weight=None):
         if sample_weight is not None:
             sample_weight = np.array(sample_weight)
@@ -23,12 +26,14 @@ class GaussianNB(NaiveBayes, metaclass=SubClassTimingMeta):
         self._cat_counter, self.label_dic = cat_counter, {i: _l for _l, i in label_dic.items()}
         self._feed_sample_weight(sample_weight)
 
+    @GaussianNBTiming.timeit(level=1, prefix="[Core] ")
     def _feed_sample_weight(self, sample_weight=None):
         if sample_weight is not None:
             local_weights = sample_weight * len(sample_weight)
             for i, label in enumerate(self._label_zip):
                 self._labelled_x[i] *= local_weights[label]
 
+    @GaussianNBTiming.timeit(level=1, prefix="[Core] ")
     def _fit(self, lb):
         lb = 0
         n_category = len(self._cat_counter)

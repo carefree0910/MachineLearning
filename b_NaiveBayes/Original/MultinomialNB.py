@@ -3,11 +3,13 @@ import matplotlib.pyplot as plt
 from b_NaiveBayes.Original.Basic import *
 
 from Util.Util import DataUtil
-from Util.Metas import SubClassTimingMeta
+from Util.Metas import SubClassChangeNamesMeta
 
 
-class MultinomialNB(NaiveBayes, metaclass=SubClassTimingMeta):
+class MultinomialNB(NaiveBayes, metaclass=SubClassChangeNamesMeta):
+    MultinomialNBTiming = Timing()
 
+    @MultinomialNBTiming.timeit(level=1, prefix="[API] ")
     def feed_data(self, x, y, sample_weight=None):
         if sample_weight is not None:
             sample_weight = np.array(sample_weight)
@@ -23,6 +25,7 @@ class MultinomialNB(NaiveBayes, metaclass=SubClassTimingMeta):
         self.label_dic = label_dic
         self._feed_sample_weight(sample_weight)
 
+    @MultinomialNBTiming.timeit(level=1, prefix="[Core] ")
     def _feed_sample_weight(self, sample_weight=None):
         self._con_counter = []
         for dim, _p in enumerate(self._n_possibilities):
@@ -35,6 +38,7 @@ class MultinomialNB(NaiveBayes, metaclass=SubClassTimingMeta):
                     np.bincount(xx[dim], weights=local_weights[label], minlength=_p)
                     for label, xx in self._label_zip])
 
+    @MultinomialNBTiming.timeit(level=1, prefix="[Core] ")
     def _fit(self, lb):
         n_dim = len(self._n_possibilities)
         n_category = len(self._cat_counter)
@@ -55,10 +59,34 @@ class MultinomialNB(NaiveBayes, metaclass=SubClassTimingMeta):
 
         return func
 
+    @MultinomialNBTiming.timeit(level=1, prefix="[Core] ")
     def _transfer_x(self, x):
         for j, char in enumerate(x):
             x[j] = self._feat_dics[j][char]
         return x
+
+    def visualize(self, save=False):
+        colors = plt.cm.Paired([i / len(self.label_dic) for i in range(len(self.label_dic))])
+        colors = {_cat: _color for _cat, _color in zip(self.label_dic.values(), colors)}
+        _rev_feat_dics = [{_val: _key for _key, _val in _feat_dic.items()} for _feat_dic in self._feat_dics]
+        for j in range(len(self._n_possibilities)):
+            _rev_dic = _rev_feat_dics[j]
+            sj = self._n_possibilities[j]
+            tmp_x = np.arange(1, sj + 1)
+            title = "$j = {}; S_j = {}$".format(j + 1, sj)
+            plt.figure()
+            plt.title(title)
+            for c in range(len(self.label_dic)):
+                plt.bar(tmp_x - 0.35 * c, self._data[j][c, :], width=0.35,
+                        facecolor=colors[self.label_dic[c]], edgecolor="white",
+                        label=u"class: {}".format(self.label_dic[c]))
+            plt.xticks([i for i in range(sj + 2)], [""] + [_rev_dic[i] for i in range(sj)] + [""])
+            plt.ylim(0, 1.0)
+            plt.legend()
+            if not save:
+                plt.show()
+            else:
+                plt.savefig("d{}".format(j + 1))
 
 if __name__ == '__main__':
     import time
@@ -110,20 +138,5 @@ if __name__ == '__main__':
             learning_time + estimation_time
         )
     )
-
-    _data = nb["data"]
-    colors = {"e": "lightSkyBlue", "p": "orange"}
-    for _j in range(nb["x"].shape[1]):
-        sj = nb["n_possibilities"][_j]
-        tmp_x = np.arange(1, sj + 1)
-        title = "$j = {}; S_j = {}$".format(_j + 1, sj)
-        plt.figure()
-        plt.title(title)
-        for _c in range(len(nb.label_dic)):
-            plt.bar(tmp_x - 0.35 * _c, _data[_j][_c, :], width=0.35,
-                    facecolor=colors[nb.label_dic[_c]], edgecolor="white",
-                    label="class: {}".format(nb.label_dic[_c]))
-        plt.xticks([i for i in range(sj + 2)])
-        plt.ylim(0, 1.0)
-        plt.legend()
-        plt.show()
+    nb.show_timing_log()
+    nb.visualize()
