@@ -68,7 +68,8 @@ class KernelPerceptron(KernelBase, metaclass=SubClassChangeNamesMeta):
 
 if __name__ == '__main__':
     # xs, ys = DataUtil.gen_two_clusters(center=5, dis=1, scale=2, one_hot=False)
-    xs, ys = DataUtil.gen_spin(20, 4, 2, 2, one_hot=False)
+    xs, ys = DataUtil.gen_spin(20, 6, 2, 1, one_hot=False)
+    # xs, ys = DataUtil.gen_xor(one_hot=False)
     ys[ys == 0] = -1
     perceptron = KernelPerceptron()
     # perceptron.fit(xs, ys, kernel="rbf", epoch=10 ** 5)

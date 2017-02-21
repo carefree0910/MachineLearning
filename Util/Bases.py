@@ -65,6 +65,10 @@ class KernelBase(ClassifierBase, metaclass=ClassifierMeta):
         self._kernel = self._kernel_name = self._kernel_param = None
         self._prediction_cache = self._dw_cache = self._b_cache = None
 
+    @property
+    def title(self):
+        return "{} {} ({})".format(self._kernel_name, self, self._kernel_param)
+
     # Kernel
 
     @staticmethod

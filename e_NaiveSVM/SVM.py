@@ -17,10 +17,6 @@ class SVM(KernelBase, metaclass=SubClassChangeNamesMeta):
         self._fit_args, self._fit_args_names = [1e-8], ["tol"]
         self._c = None
 
-    @property
-    def title(self):
-        return "{} {} ({})".format(self._kernel_name, self, self._kernel_param)
-
     @SVMTiming.timeit(level=1, prefix="[SMO] ")
     def _pick_first(self, tol):
         con1 = self._alpha > 0

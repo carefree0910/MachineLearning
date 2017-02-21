@@ -1,4 +1,4 @@
-from e_SVM.SVM import *
+from e_NaiveSVM.SVM import SVM
 from _SKlearn.SVM import SKSVM
 
 from Util.Util import DataUtil
@@ -6,8 +6,9 @@ from Util.Util import DataUtil
 
 def main():
 
-    x, y = DataUtil.gen_spin(20, 4, 2, 2, one_hot=False)
+    # x, y = DataUtil.gen_spin(20, 4, 2, 2, one_hot=False)
     # x, y = DataUtil.gen_two_clusters(n_dim=3, one_hot=False)
+    x, y = DataUtil.gen_xor(100, one_hot=False)
     y[y == 0] = -1
 
     svm = SVM()
