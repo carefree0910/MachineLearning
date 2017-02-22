@@ -1,5 +1,4 @@
 import numpy as np
-# import tensorflow as tf
 
 from Util.Timing import Timing
 from Util.Bases import KernelBase
@@ -10,7 +9,7 @@ class SVMConfig:
     default_c = 1
 
 
-class NaiveSVM(KernelBase, metaclass=SubClassChangeNamesMeta):
+class SVM(KernelBase, metaclass=SubClassChangeNamesMeta):
     NaiveSVMTiming = Timing()
 
     def __init__(self):
@@ -22,8 +21,7 @@ class NaiveSVM(KernelBase, metaclass=SubClassChangeNamesMeta):
     def _pick_first(self, tol):
         con1 = self._alpha > 0
         con2 = self._alpha < self._c
-        y_pred = self._predict()
-        err1 = self._y * y_pred - 1
+        err1 = self._y * self._prediction_cache - 1
         err2 = err1.copy()
         err3 = err1.copy()
         err1[con1 | (err1 >= 0)] = 0
@@ -71,23 +69,28 @@ class NaiveSVM(KernelBase, metaclass=SubClassChangeNamesMeta):
         a1_new = self._alpha[idx1] + y1 * y2 * (self._alpha[idx2] - a2_new)
         self._alpha[idx1] = a1_new
         self._alpha[idx2] = a2_new
-        self._update_w(idx1, idx2, a1_old, a2_old, a1_new, a2_new, y1, y2)
-        self._update_b(idx1, idx2, a1_old, a2_old, a1_new, a2_new, y1, y2, e1, e2)
+        self._update_dw_cache(idx1, idx2, a1_old, a2_old, a1_new, a2_new, y1, y2)
+        self._update_db_cache(idx1, idx2, a1_old, a2_old, a1_new, a2_new, y1, y2, e1, e2)
         self._update_pred_cache(idx1, idx2)
 
     @NaiveSVMTiming.timeit(level=1, prefix="[Core] ")
-    def _update_w(self, idx1, idx2, a1_old, a2_old, a1_new, a2_new, y1, y2):
+    def _update_dw_cache(self, idx1, idx2, a1_old, a2_old, a1_new, a2_new, y1, y2):
         self._dw_cache = np.array([(a1_new - a1_old) * y1, (a2_new - a2_old) * y2])
-        self._w[idx1] += self._dw_cache[0]
-        self._w[idx2] += self._dw_cache[1]
 
     @NaiveSVMTiming.timeit(level=1, prefix="[Core] ")
-    def _update_b(self, idx1, idx2, a1_old, a2_old, a1_new, a2_new, y1, y2, e1, e2):
+    def _update_db_cache(self, idx1, idx2, a1_old, a2_old, a1_new, a2_new, y1, y2, e1, e2):
         gram_12 = self._gram[idx1][idx2]
-        b1 = -e1 - y1 * self._gram[idx1][idx1] * (a1_new - a1_old) - y2 * gram_12 * (a2_new - a2_old)
-        b2 = -e2 - y1 * gram_12 * (a1_new - a1_old) - y2 * self._gram[idx2][idx2] * (a2_new - a2_old)
-        self._b_cache = self._b
-        self._b += (b1 + b2) / 2
+        da1, da2 = a1_new - a1_old, a2_new - a2_old
+        b1 = -e1 - y1 * self._gram[idx1][idx1] * da1 - y2 * gram_12 * da2
+        b2 = -e2 - y1 * gram_12 * da1 - y2 * self._gram[idx2][idx2] * da2
+        self._db_cache = (b1 + b2) / 2 - self._b
+
+    @NaiveSVMTiming.timeit(level=1, prefix="[Core] ")
+    def _update_params(self):
+        self._w = self._alpha * self._y
+        # noinspection PyTypeChecker
+        _idx = np.argmax((self._alpha != 0) & (self._alpha != self._c))
+        self._b = self._y[_idx] - np.sum(self._alpha * self._y * self._gram[_idx])
 
     @NaiveSVMTiming.timeit(level=4, prefix="[Util] ")
     def _prepare(self, **kwargs):
@@ -100,7 +103,3 @@ class NaiveSVM(KernelBase, metaclass=SubClassChangeNamesMeta):
             return True
         idx2 = self._pick_second(idx1)
         self._update_alpha(idx1, idx2)
-
-
-class SVM(KernelBase, metaclass=SubClassChangeNamesMeta):
-    pass

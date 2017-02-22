@@ -4,8 +4,8 @@ from b_NaiveBayes.Vectorized.MultinomialNB import MultinomialNB
 from b_NaiveBayes.Vectorized.GaussianNB import GaussianNB
 from c_CvDTree.Tree import *
 from d_Ensemble.RandomForest import RandomForest
-from e_NaiveSVM.Perceptron import Perceptron, KernelPerceptron
-from e_NaiveSVM.SVM import NaiveSVM
+from e_SVM.Perceptron import Perceptron, KernelPerceptron
+from e_SVM.SVM import SVM
 
 from _SKlearn.NaiveBayes import *
 from _SKlearn.Tree import SKTree
@@ -28,7 +28,7 @@ class AdaBoost(ClassifierBase, metaclass=ClassifierMeta):
         "RF": RandomForest,
         "Perceptron": Perceptron,
         "KP": KernelPerceptron,
-        "NaiveSVM": NaiveSVM
+        "NaiveSVM": SVM
     }
 
     def __init__(self):

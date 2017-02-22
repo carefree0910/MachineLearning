@@ -63,7 +63,7 @@ class KernelBase(ClassifierBase, metaclass=ClassifierMeta):
         self._x = self._y = self._gram = None
         self._w = self._b = self._alpha = None
         self._kernel = self._kernel_name = self._kernel_param = None
-        self._prediction_cache = self._dw_cache = self._b_cache = None
+        self._prediction_cache = self._dw_cache = self._db_cache = None
 
     @property
     def title(self):
@@ -82,28 +82,36 @@ class KernelBase(ClassifierBase, metaclass=ClassifierMeta):
     def _rbf(x, y, gamma):
         return np.exp(-gamma * np.sum((x[..., None, :] - y) ** 2, axis=2))
 
-    @KernelBaseTiming.timeit(level=1, prefix="[Core] ")
-    def _predict(self):
-        if self._prediction_cache is None:
-            self._prediction_cache = np.sum(self._w * self._gram, axis=1) + self._b
-        return self._prediction_cache
-
-    def _update_w(self, *args):
+    def _update_dw_cache(self, *args):
         pass
 
-    def _update_b(self, *args):
+    def _update_db_cache(self, *args):
+        pass
+
+    def _update_params(self):
         pass
 
     @KernelBaseTiming.timeit(level=1, prefix="[Core] ")
     def _update_pred_cache(self, *args):
-        self._prediction_cache += self._b - self._b_cache
-        self._prediction_cache += np.sum(self._dw_cache * self._gram[..., args], axis=1)
+        self._prediction_cache += self._db_cache
+        if len(args) == 1:
+            self._prediction_cache += self._dw_cache * self._gram[args[0]]
+        else:
+            self._prediction_cache += self._dw_cache.dot(self._gram[args, ...])
 
     def _prepare(self, **kwargs):
         pass
 
     def _fit(self, *args):
         pass
+
+    @KernelBaseTiming.timeit(level=1, prefix="[Util] ")
+    def prepare(self, x, **kwargs):
+        self._alpha, self._w, self._prediction_cache = (
+            np.zeros(len(x)), np.zeros(len(x)), np.zeros(len(x)))
+        self._gram = self._kernel(self._x, self._x)
+        self._b = 0
+        self._prepare(**kwargs)
 
     @KernelBaseTiming.timeit(level=1, prefix="[API] ")
     def fit(self, x, y, sample_weight=None, kernel="poly", epoch=10 ** 4, **kwargs):
@@ -124,10 +132,7 @@ class KernelBase(ClassifierBase, metaclass=ClassifierMeta):
             sample_weight = np.ones(len(y))
         else:
             sample_weight = np.array(sample_weight) * len(y)
-        self._alpha, self._w = np.zeros(len(x)), np.zeros(len(x))
-        self._gram = self._kernel(self._x, self._x)
-        self._b = 0
-        self._prepare(**kwargs)
+        self.prepare(x, **kwargs)
         _fit_args = []
         for _name, _arg in zip(self._fit_args_names, self._fit_args):
             if _name in kwargs:
@@ -136,11 +141,12 @@ class KernelBase(ClassifierBase, metaclass=ClassifierMeta):
         for _ in range(epoch):
             if self._fit(sample_weight, *_fit_args):
                 break
+        self._update_params()
 
     @KernelBaseTiming.timeit(level=1, prefix="[API] ")
     def predict(self, x, get_raw_results=False):
         x = self._kernel(np.atleast_2d(x), self._x)
-        y_pred = np.sum(self._w * x, axis=1) + self._b
+        y_pred = x.dot(self._w) + self._b
         if not get_raw_results:
             return np.sign(y_pred)
         return y_pred
