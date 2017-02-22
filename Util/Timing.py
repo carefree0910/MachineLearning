@@ -20,8 +20,10 @@ class Timing:
         def wrapper(func, instance, args, kwargs):
             if not Timing._enabled:
                 return func(*args, **kwargs)
+            name_flag = False
             if self.name is not None:
                 instance_name = "{:>18s}".format(self.name)
+                name_flag = True
             elif instance is not None:
                 instance_name = "{:>18s}".format(str(instance))
             else:
@@ -39,7 +41,8 @@ class Timing:
                 Timing._timings[_name] = {
                     "level": level,
                     "timing": _t,
-                    "call_time": 1
+                    "call_time": 1,
+                    "name_flag": name_flag
                 }
             return rs
 
@@ -57,7 +60,7 @@ class Timing:
         else:
             for key in sorted(self.timings.keys()):
                 timing_info = self.timings[key]
-                if self.name is not None:
+                if self.name is not None and self.timings[key]["name_flag"]:
                     key = "{:>18s}".format(self.name) + key[18:]
                 if level >= timing_info["level"]:
                     print("{:<42s} :  {:12.7} s (Call Time: {:6d})".format(

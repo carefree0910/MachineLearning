@@ -338,16 +338,27 @@ class SubClassTimingMeta(type):
 class SubClassChangeNamesMeta(type):
     def __new__(mcs, *args, **kwargs):
         name, bases, attr = args[:3]
+        attr["name"] = name
         try:
-            timing = getattr(bases[0], bases[0].__name__ + "Timing")
-            attr[name + "Timing"] = timing
-        except AttributeError:
+            init = attr["__init__"]
+        except KeyError:
+            init = None
+
+        def __init__(self, *_args, **_kwargs):
+            if callable(init):
+                init(self, *_args, **_kwargs)
             try:
-                timing = attr[name + "Timing"]
-            except KeyError:
-                timing = Timing()
-            setattr(bases[0], bases[0].__name__ + "Timing", timing)
-        timing.name = attr["name"] = name
+                timing = getattr(bases[0], bases[0].__name__ + "Timing")
+                attr[name + "Timing"] = timing
+            except AttributeError:
+                try:
+                    timing = attr[name + "Timing"]
+                except KeyError:
+                    timing = attr[name + "Timing"] = Timing()
+                setattr(bases[0], bases[0].__name__ + "Timing", timing)
+            timing.name = name
+
+        attr["__init__"] = __init__
         return type(name, bases, attr)
 
 

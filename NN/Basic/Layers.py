@@ -687,7 +687,7 @@ class CostLayer(SubLayer):
         SubLayer.__init__(self, parent, shape)
         self._available_cost_functions = {
             "MSE": CostLayer._mse,
-            "SVM": CostLayer._svm,
+            "NaiveSVM": CostLayer._svm,
             "Cross Entropy": CostLayer._cross_entropy,
             "Log Likelihood": CostLayer._log_likelihood
         }
@@ -796,10 +796,10 @@ class LayerFactory:
     }
     available_sub_layers = {
         "Dropout", "Normalize", "ConvNorm", "ConvDrop",
-        "MSE", "SVM", "Cross Entropy", "Log Likelihood"
+        "MSE", "NaiveSVM", "Cross Entropy", "Log Likelihood"
     }
     available_cost_functions = {
-        "MSE", "SVM", "Cross Entropy", "Log Likelihood"
+        "MSE", "NaiveSVM", "Cross Entropy", "Log Likelihood"
     }
     available_special_layers = {
         "Dropout": Dropout,
