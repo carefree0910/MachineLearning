@@ -79,25 +79,34 @@ class ClassifierMeta(type):
             return np.sum(y == y_pred) / len(y)
 
         attr["_metrics"] = [acc]
+        _available_metrics = {
+            "acc": acc
+        }
 
-        @clf_timing.timeit(level=1, prefix="[API] ")
-        def estimate(self, x, y, metrics=None, tar=0, prefix="Acc"):
+        def get_metrics(self, metrics=None):
             if metrics is None:
                 metrics = self._metrics
             else:
                 for i in range(len(metrics) - 1, -1, -1):
                     metric = metrics[i]
                     if isinstance(metric, str):
-                        if metric not in self._available_metrics:
+                        try:
+                            metrics[i] = _available_metrics[metric]
+                        except AttributeError:
                             metrics.pop(i)
-                        else:
-                            metrics[i] = self._available_metrics[metric]
+            return metrics
+
+        @clf_timing.timeit(level=1, prefix="[API] ")
+        def estimate(self, x, y, metrics=None, tar=None, prefix="Acc"):
+            metrics = self.get_metrics(metrics)
             logs, y_pred = [], self.predict(x)
             y = np.array(y)
             if y.ndim == 2:
                 y = np.argmax(y, axis=1)
             for metric in metrics:
                 logs.append(metric(y, y_pred))
+            if tar is None:
+                tar = 0
             if isinstance(tar, int):
                 print(prefix + ": {:12.8}".format(logs[tar]))
             return logs

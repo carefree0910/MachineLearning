@@ -57,17 +57,15 @@ if __name__ == '__main__':
     test(_x, _y, algorithm="RF", epoch=1000)
     # test(_x, _y, algorithm="SKAdaBoost")
 
-    # _x, _y, *_ = DataUtil.get_dataset("mushroom", "../_Data/mushroom.txt", tar_idx=0, quantize=True)
-    # _y[_y == 0] = -1
-    # train_num = 6000
-    # x_train = _x[:train_num]
-    # y_train = _y[:train_num]
-    # x_test = _x[train_num:]
-    # y_test = _y[train_num:]
-    #
-    # cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=1)
-    # cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=5)
-    # cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=10)
-    # cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=15)
+    train_num = 6000
+    (x_train, y_train), (x_test, y_test), *_ = DataUtil.get_dataset(
+        "mushroom", "../_Data/mushroom.txt", train_num=train_num, quantize=True, tar_idx=0)
+    y_train[y_train == 0] = -1
+    y_test[y_test == 0] = -1
+
+    cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=1)
+    cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=5)
+    cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=10)
+    cv_test(x_train, y_train, x_test, y_test, clf="MNB", epoch=15)
 
     AdaBoost().show_timing_log()

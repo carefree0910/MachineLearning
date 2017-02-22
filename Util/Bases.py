@@ -32,7 +32,10 @@ class ClassifierBase:
     def acc(y, y_pred, weights=None):
         pass
 
-    def estimate(self, x, y):
+    def get_metrics(self, metrics):
+        pass
+
+    def estimate(self, x, y, metrics=None, tar=None, prefix="Acc"):
         pass
 
     def visualize2d(self, x, y, padding=0.1, dense=200,
@@ -52,7 +55,7 @@ class ClassifierBase:
 
 class KernelConfig:
     default_c = 1
-    default_p = 4
+    default_p = 3
 
 
 class KernelBase(ClassifierBase, metaclass=ClassifierMeta):
@@ -88,9 +91,6 @@ class KernelBase(ClassifierBase, metaclass=ClassifierMeta):
     def _update_db_cache(self, *args):
         pass
 
-    def _update_params(self):
-        pass
-
     @KernelBaseTiming.timeit(level=1, prefix="[Core] ")
     def _update_pred_cache(self, *args):
         self._prediction_cache += self._db_cache
@@ -105,16 +105,9 @@ class KernelBase(ClassifierBase, metaclass=ClassifierMeta):
     def _fit(self, *args):
         pass
 
-    @KernelBaseTiming.timeit(level=1, prefix="[Util] ")
-    def prepare(self, x, **kwargs):
-        self._alpha, self._w, self._prediction_cache = (
-            np.zeros(len(x)), np.zeros(len(x)), np.zeros(len(x)))
-        self._gram = self._kernel(self._x, self._x)
-        self._b = 0
-        self._prepare(**kwargs)
-
     @KernelBaseTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, sample_weight=None, kernel="poly", epoch=10 ** 4, **kwargs):
+    def fit(self, x, y, sample_weight=None, kernel="poly", epoch=10 ** 4,
+            x_test=None, y_test=None, metrics=None, **kwargs):
         self._x, self._y = np.atleast_2d(x), np.array(y)
         if kernel == "poly":
             _p = kwargs.get("p", KernelConfig.default_p)
@@ -132,20 +125,44 @@ class KernelBase(ClassifierBase, metaclass=ClassifierMeta):
             sample_weight = np.ones(len(y))
         else:
             sample_weight = np.array(sample_weight) * len(y)
-        self.prepare(x, **kwargs)
-        _fit_args = []
+
+        self._alpha, self._w, self._prediction_cache = (
+            np.zeros(len(x)), np.zeros(len(x)), np.zeros(len(x)))
+        self._gram = self._kernel(self._x, self._x)
+        self._b = 0
+        self._prepare(**kwargs)
+
+        _fit_args, _logs = [], []
         for _name, _arg in zip(self._fit_args_names, self._fit_args):
             if _name in kwargs:
                 _arg = kwargs[_name]
             _fit_args.append(_arg)
+        if metrics is not None:
+            self.get_metrics(metrics)
+        _test_gram = None
+        if x_test is not None and y_test is not None:
+            _xv, _yv = np.atleast_2d(x_test), np.array(y_test)
+            _test_gram = self._kernel(_xv, self._x)
+        else:
+            _xv, _yv = self._x, self._y
         for _ in range(epoch):
             if self._fit(sample_weight, *_fit_args):
                 break
+            if metrics is not None:
+                _local_logs = []
+                for metric in metrics:
+                    if _test_gram is None:
+                        _local_logs.append(metric(self._y, np.sign(self._prediction_cache)))
+                    else:
+                        _local_logs.append(metric(_yv, self.predict(_test_gram, provide_gram=True)))
+                _logs.append(_local_logs)
         self._update_params()
+        return _logs
 
     @KernelBaseTiming.timeit(level=1, prefix="[API] ")
-    def predict(self, x, get_raw_results=False):
-        x = self._kernel(np.atleast_2d(x), self._x)
+    def predict(self, x, get_raw_results=False, provide_gram=False):
+        if not provide_gram:
+            x = self._kernel(np.atleast_2d(x), self._x)
         y_pred = x.dot(self._w) + self._b
         if not get_raw_results:
             return np.sign(y_pred)
