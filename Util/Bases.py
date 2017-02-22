@@ -156,7 +156,6 @@ class KernelBase(ClassifierBase, metaclass=ClassifierMeta):
                     else:
                         _local_logs.append(metric(_yv, self.predict(_test_gram, provide_gram=True)))
                 _logs.append(_local_logs)
-        self._update_params()
         return _logs
 
     @KernelBaseTiming.timeit(level=1, prefix="[API] ")

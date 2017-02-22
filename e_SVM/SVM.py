@@ -84,13 +84,8 @@ class SVM(KernelBase, metaclass=SubClassChangeNamesMeta):
         gram_12 = self._gram[idx1][idx2]
         b1 = -e1 - y1 * self._gram[idx1][idx1] * da1 - y2 * gram_12 * da2
         b2 = -e2 - y1 * gram_12 * da1 - y2 * self._gram[idx2][idx2] * da2
-        self._db_cache = (b1 + b2) / 2 - self._b
-
-    @SVMTiming.timeit(level=1, prefix="[Core] ")
-    def _update_params(self):
-        # noinspection PyTypeChecker
-        _idx = np.argmax((self._alpha != 0) & (self._alpha != self._c))
-        self._b = self._y[_idx] - np.sum(self._alpha * self._y * self._gram[_idx])
+        self._db_cache = (b1 + b2) / 2
+        self._b += self._db_cache
 
     @SVMTiming.timeit(level=4, prefix="[Util] ")
     def _prepare(self, **kwargs):
