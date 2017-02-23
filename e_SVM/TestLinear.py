@@ -6,7 +6,7 @@ from Util.Util import DataUtil
 
 def main():
 
-    x, y = DataUtil.gen_two_clusters(n_dim=2, center=5, one_hot=False)
+    x, y = DataUtil.gen_two_clusters(n_dim=2, dis=2.5, center=5, one_hot=False)
     y[y == 0] = -1
 
     svm = LinearSVM()

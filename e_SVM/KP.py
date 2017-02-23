@@ -37,31 +37,31 @@ class KernelPerceptron(KernelBase, metaclass=SubClassChangeNamesMeta):
         self._update_pred_cache(_idx)
 
 if __name__ == '__main__':
-    # xs, ys = DataUtil.gen_two_clusters(center=5, dis=1, scale=2, one_hot=False)
-    xs, ys = DataUtil.gen_spin(20, 4, 2, 2, one_hot=False)
-    # xs, ys = DataUtil.gen_xor(one_hot=False)
-    ys[ys == 0] = -1
-    perceptron = KernelPerceptron()
-    _logs = [_log[0] for _log in perceptron.fit(
-        xs, ys, kernel="rbf", metrics=["acc"], epoch=10 ** 5
-    )]
-    # perceptron.fit(xs, ys, kernel="rbf", epoch=10 ** 6)
-    # perceptron.fit(xs, ys, p=12, epoch=10 ** 5)
-    perceptron.estimate(xs, ys)
-    perceptron.visualize2d(xs, ys, dense=400)
-
-    # (x_train, y_train), (x_test, y_test), *_ = DataUtil.get_dataset(
-    #     "mushroom", "../_Data/mushroom.txt", train_num=100, quantize=True, tar_idx=0)
-    # y_train[y_train == 0] = -1
-    # y_test[y_test == 0] = -1
-    #
+    # # xs, ys = DataUtil.gen_two_clusters(center=5, dis=1, scale=2, one_hot=False)
+    # xs, ys = DataUtil.gen_spin(20, 4, 2, 2, one_hot=False)
+    # # xs, ys = DataUtil.gen_xor(one_hot=False)
+    # ys[ys == 0] = -1
     # perceptron = KernelPerceptron()
     # _logs = [_log[0] for _log in perceptron.fit(
-    #     x_train, y_train, kernel="rbf", metrics=["acc"], x_test=x_test, y_test=y_test
+    #     xs, ys, kernel="rbf", metrics=["acc"], epoch=10 ** 5
     # )]
-    # perceptron.estimate(x_train, y_train)
-    # perceptron.estimate(x_test, y_test)
-    #
+    # # perceptron.fit(xs, ys, kernel="rbf", epoch=10 ** 6)
+    # # perceptron.fit(xs, ys, p=12, epoch=10 ** 5)
+    # perceptron.estimate(xs, ys)
+    # perceptron.visualize2d(xs, ys, dense=400)
+
+    (x_train, y_train), (x_test, y_test), *_ = DataUtil.get_dataset(
+        "mushroom", "../_Data/mushroom.txt", train_num=100, quantize=True, tar_idx=0)
+    y_train[y_train == 0] = -1
+    y_test[y_test == 0] = -1
+
+    perceptron = KernelPerceptron()
+    _logs = [_log[0] for _log in perceptron.fit(
+        x_train, y_train, kernel="rbf", metrics=["acc"], x_test=x_test, y_test=y_test
+    )]
+    perceptron.estimate(x_train, y_train)
+    perceptron.estimate(x_test, y_test)
+
     plt.figure()
     plt.title(perceptron.title)
     plt.plot(range(len(_logs)), _logs)

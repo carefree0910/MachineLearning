@@ -109,7 +109,7 @@ class KernelBase(ClassifierBase, metaclass=ClassifierMeta):
         pass
 
     @KernelBaseTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, sample_weight=None, kernel="poly", epoch=10 ** 4,
+    def fit(self, x, y, sample_weight=None, kernel="rbf", epoch=10 ** 4,
             x_test=None, y_test=None, metrics=None, **kwargs):
         self._x, self._y = np.atleast_2d(x), np.array(y)
         if kernel == "poly":
@@ -120,7 +120,7 @@ class KernelBase(ClassifierBase, metaclass=ClassifierMeta):
         elif kernel == "rbf":
             _gamma = kwargs.get("gamma", 1 / self._x.shape[1])
             self._kernel_name = "RBF"
-            self._kernel_param = r"$\gamma = {}$".format(_gamma)
+            self._kernel_param = r"$\gamma = {:8.6}$".format(_gamma)
             self._kernel = lambda _x, _y: KernelBase._rbf(_x, _y, _gamma)
         else:
             raise NotImplementedError("Kernel '{}' has not defined".format(kernel))
