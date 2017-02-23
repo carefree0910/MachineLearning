@@ -5,10 +5,6 @@ from Util.Bases import KernelBase
 from Util.Metas import SubClassChangeNamesMeta
 
 
-class SVMConfig:
-    default_c = 1
-
-
 class SVM(KernelBase, metaclass=SubClassChangeNamesMeta):
     SVMTiming = Timing()
 
@@ -66,7 +62,8 @@ class SVM(KernelBase, metaclass=SubClassChangeNamesMeta):
         elif a2_new < l:
             a2_new = l
         a1_old, a2_old = self._alpha[idx1], self._alpha[idx2]
-        da1, da2 = y1 * y2 * (a2_old - a2_new), a2_new - a2_old
+        da2 = a2_new - a2_old
+        da1 = -y1 * y2 * da2
         self._alpha[idx1] += da1
         self._alpha[idx2] = a2_new
         self._update_dw_cache(idx1, idx2, da1, da2, y1, y2)
@@ -84,12 +81,12 @@ class SVM(KernelBase, metaclass=SubClassChangeNamesMeta):
         gram_12 = self._gram[idx1][idx2]
         b1 = -e1 - y1 * self._gram[idx1][idx1] * da1 - y2 * gram_12 * da2
         b2 = -e2 - y1 * gram_12 * da1 - y2 * self._gram[idx2][idx2] * da2
-        self._db_cache = (b1 + b2) / 2
+        self._db_cache = (b1 + b2) * 0.5
         self._b += self._db_cache
 
     @SVMTiming.timeit(level=4, prefix="[Util] ")
     def _prepare(self, **kwargs):
-        self._c = kwargs.get("c", SVMConfig.default_c)
+        self._c = kwargs.get("c", self._config.default_c)
 
     @SVMTiming.timeit(level=1, prefix="[Core] ")
     def _fit(self, sample_weight, tol):

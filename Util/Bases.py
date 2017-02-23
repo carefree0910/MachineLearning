@@ -62,6 +62,7 @@ class KernelBase(ClassifierBase, metaclass=ClassifierMeta):
     KernelBaseTiming = Timing()
 
     def __init__(self):
+        self._config = KernelConfig()
         self._fit_args, self._fit_args_names = None, []
         self._x = self._y = self._gram = None
         self._w = self._b = self._alpha = None
@@ -110,14 +111,14 @@ class KernelBase(ClassifierBase, metaclass=ClassifierMeta):
             x_test=None, y_test=None, metrics=None, **kwargs):
         self._x, self._y = np.atleast_2d(x), np.array(y)
         if kernel == "poly":
-            _p = kwargs.get("p", KernelConfig.default_p)
+            _p = kwargs.get("p", self._config.default_p)
             self._kernel_name = "Polynomial"
             self._kernel_param = "degree = {}".format(_p)
             self._kernel = lambda _x, _y: KernelBase._poly(_x, _y, _p)
         elif kernel == "rbf":
             _gamma = kwargs.get("gamma", 1 / self._x.shape[1])
             self._kernel_name = "RBF"
-            self._kernel_param = "gamma = {}".format(_gamma)
+            self._kernel_param = r"$\gamma = {}$".format(_gamma)
             self._kernel = lambda _x, _y: KernelBase._rbf(_x, _y, _gamma)
         else:
             raise NotImplementedError("Kernel '{}' has not defined".format(kernel))

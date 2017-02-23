@@ -8,20 +8,23 @@ from Util.Util import DataUtil
 
 def main():
 
-    # # x, y = DataUtil.gen_xor(100, one_hot=False)
+    # # # x, y = DataUtil.gen_xor(100, one_hot=False)
     # x, y = DataUtil.gen_spin(20, 4, 2, 2, one_hot=False)
     # # x, y = DataUtil.gen_two_clusters(n_dim=2, one_hot=False)
     # y[y == 0] = -1
+    # #
+    # # svm = SKSVM(max_iter=10 ** 5, tol=1e-8)
+    # # # svm = SKSVM(kernel="poly", degree=12, max_iter=10 ** 5, tol=1e-8)
+    # # svm.fit(x, y)
+    # # svm.estimate(x, y)
+    # # svm.visualize2d(x, y, padding=0.1, dense=400, emphasize=svm.support_)
     #
-    # # svm = SKSVM(max_iter=10 ** 4, tol=1e-8)
-    # svm = SKSVM(kernel="poly", degree=12, max_iter=10 ** 5, tol=1e-8)
-    # svm.fit(x, y)
-    # svm.estimate(x, y)
-    # svm.visualize2d(x, y, padding=0.1, dense=400, emphasize=svm.support_)
-    #
-    # svm = NaiveSVM()
-    # # svm.fit(x, y, kernel="rbf", epoch=10 ** 4)
-    # svm.fit(x, y, kernel="poly", p=12, epoch=10 ** 5)
+    # svm = SVM()
+    # # svm.fit(x, y, kernel="rbf", epoch=10 ** 5)
+    # # svm.fit(x, y, kernel="poly", p=12, epoch=10 ** 5)
+    # _logs = [_log[0] for _log in svm.fit(
+    #     x, y, kernel="poly", p=12, metrics=["acc"], epoch=10 ** 5
+    # )]
     # svm.estimate(x, y)
     # svm.visualize2d(x, y, padding=0.1, dense=400, emphasize=svm["alpha"] > 0)
 
