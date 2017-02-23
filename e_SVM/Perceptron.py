@@ -25,8 +25,9 @@ class Perceptron(ClassifierBase, metaclass=ClassifierMeta):
             _idx = np.argmax((y_pred != y) * sample_weight)
             if y_pred[_idx] == y[_idx]:
                 return
-            self._w += lr * y[_idx] * x[_idx] * sample_weight[_idx]
-            self._b += lr * y[_idx] * sample_weight[_idx]
+            _delta = lr * y[_idx] * sample_weight[_idx]
+            self._w += _delta * x[_idx]
+            self._b += _delta
 
     @PerceptronTiming.timeit(level=1, prefix="[API] ")
     def predict(self, x, get_raw_results=False):

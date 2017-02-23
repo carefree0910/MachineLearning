@@ -10,7 +10,7 @@ def main():
     y[y == 0] = -1
 
     svm = LinearSVM()
-    svm.fit(x, y, epoch=10 ** 5, lr=1e-4)
+    svm.fit(x, y, epoch=10 ** 5, lr=1e-3)
     svm.estimate(x, y)
     svm.visualize2d(x, y, padding=0.1, dense=400)
 
