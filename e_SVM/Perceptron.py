@@ -12,7 +12,7 @@ class Perceptron(ClassifierBase, metaclass=ClassifierMeta):
         self._w = self._b = None
 
     @PerceptronTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, sample_weight=None, lr=1, epoch=10 ** 4):
+    def fit(self, x, y, sample_weight=None, lr=0.01, epoch=10 ** 4):
         x, y = np.atleast_2d(x), np.array(y)
         if sample_weight is None:
             sample_weight = np.ones(len(y))

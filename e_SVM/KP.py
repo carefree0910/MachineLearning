@@ -32,7 +32,6 @@ class KernelPerceptron(KernelBase, metaclass=SubClassChangeNamesMeta):
         _idx = _indices[np.argmax(_err[_indices])]
         if self._prediction_cache[_idx] == self._y[_idx]:
             return True
-        self._alpha[_idx] += lr
         self._update_dw_cache(_idx, lr, sample_weight)
         self._update_db_cache(_idx, lr, sample_weight)
         self._update_pred_cache(_idx)

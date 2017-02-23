@@ -97,6 +97,8 @@ class KernelBase(ClassifierBase, metaclass=ClassifierMeta):
         self._prediction_cache += self._db_cache
         if len(args) == 1:
             self._prediction_cache += self._dw_cache * self._gram[args[0]]
+        elif len(args) == len(self._gram):
+            self._prediction_cache = self._dw_cache.dot(self._gram)
         else:
             self._prediction_cache += self._dw_cache.dot(self._gram[args, ...])
 
