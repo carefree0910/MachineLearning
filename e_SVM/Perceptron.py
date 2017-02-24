@@ -22,7 +22,9 @@ class Perceptron(ClassifierBase, metaclass=ClassifierMeta):
         self._b = 0
         for _ in range(epoch):
             y_pred = self.predict(x)
-            _idx = np.argmax((y_pred != y) * sample_weight)
+            _err = (y_pred != y) * sample_weight
+            _indices = np.random.permutation(len(y))
+            _idx = _indices[np.argmax(_err[_indices])]
             if y_pred[_idx] == y[_idx]:
                 return
             _delta = lr * y[_idx] * sample_weight[_idx]

@@ -10,7 +10,7 @@ class SVM(KernelBase, metaclass=SubClassChangeNamesMeta):
 
     def __init__(self):
         KernelBase.__init__(self)
-        self._fit_args, self._fit_args_names = [1e-8], ["tol"]
+        self._fit_args, self._fit_args_names = [1e-3], ["tol"]
         self._c = None
 
     @SVMTiming.timeit(level=1, prefix="[SMO] ")

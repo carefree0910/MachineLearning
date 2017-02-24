@@ -7,6 +7,8 @@ from pylab import mpl
 mpl.rcParams['font.sans-serif'] = ['FangSong']
 mpl.rcParams['axes.unicode_minus'] = False
 
+np.random.seed(142857)
+
 
 class Util:
 

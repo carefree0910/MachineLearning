@@ -28,7 +28,6 @@ class KernelPerceptron(KernelBase, metaclass=SubClassChangeNamesMeta):
     def _fit(self, sample_weight, lr):
         _err = (np.sign(self._prediction_cache) != self._y) * sample_weight
         _indices = np.random.permutation(len(self._y))
-        # noinspection PyTypeChecker
         _idx = _indices[np.argmax(_err[_indices])]
         if self._prediction_cache[_idx] == self._y[_idx]:
             return True
@@ -43,7 +42,7 @@ if __name__ == '__main__':
     # ys[ys == 0] = -1
     # perceptron = KernelPerceptron()
     # _logs = [_log[0] for _log in perceptron.fit(
-    #     xs, ys, kernel="rbf", metrics=["acc"], epoch=10 ** 5
+    #     xs, ys, metrics=["acc"], epoch=10 ** 5
     # )]
     # # perceptron.fit(xs, ys, kernel="rbf", epoch=10 ** 6)
     # # perceptron.fit(xs, ys, p=12, epoch=10 ** 5)

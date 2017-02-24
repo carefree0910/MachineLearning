@@ -10,20 +10,17 @@ def main():
 
     # # x, y = DataUtil.gen_xor(100, one_hot=False)
     # x, y = DataUtil.gen_spin(20, 4, 2, 2, one_hot=False)
-    # x, y = DataUtil.gen_two_clusters(n_dim=2, one_hot=False)
+    # # x, y = DataUtil.gen_two_clusters(n_dim=2, one_hot=False)
     # y[y == 0] = -1
-
-    # # svm = SKSVM(max_iter=10 ** 5, tol=1e-8)
-    # svm = SKSVM(kernel="poly", degree=12, max_iter=10 ** 5, tol=1e-8)
+    #
+    # svm = SKSVM()
+    # # svm = SKSVM(kernel="poly", degree=12)
     # svm.fit(x, y)
     # svm.estimate(x, y)
     # svm.visualize2d(x, y, padding=0.1, dense=400, emphasize=svm.support_)
-
+    #
     # svm = SVM()
-    # svm.fit(x, y, kernel="poly", p=12, epoch=10 ** 5)
-    # # _logs = [_log[0] for _log in svm.fit(
-    # #     x, y, kernel="poly", p=12, metrics=["acc"], epoch=10 ** 5
-    # # )]
+    # _logs = [_log[0] for _log in svm.fit(x, y, metrics=["acc"])]
     # svm.estimate(x, y)
     # svm.visualize2d(x, y, padding=0.1, dense=400, emphasize=svm["alpha"] > 0)
 
@@ -32,7 +29,7 @@ def main():
     y_train[y_train == 0] = -1
     y_test[y_test == 0] = -1
 
-    svm = SKSVM(kernel="poly", max_iter=10 ** 4)
+    svm = SKSVM()
     svm.fit(x_train, y_train)
     svm.estimate(x_train, y_train)
     svm.estimate(x_test, y_test)
