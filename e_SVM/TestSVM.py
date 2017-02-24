@@ -36,7 +36,7 @@ def main():
 
     svm = SVM()
     _logs = [_log[0] for _log in svm.fit(
-        x_train, y_train, kernel="poly", metrics=["acc"], x_test=x_test, y_test=y_test
+        x_train, y_train, metrics=["acc"], x_test=x_test, y_test=y_test
     )]
     # svm.fit(x_train, y_train, p=12)
     svm.estimate(x_train, y_train)

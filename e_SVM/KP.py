@@ -56,7 +56,7 @@ if __name__ == '__main__':
 
     perceptron = KernelPerceptron()
     _logs = [_log[0] for _log in perceptron.fit(
-        x_train, y_train, kernel="rbf", metrics=["acc"], x_test=x_test, y_test=y_test
+        x_train, y_train, metrics=["acc"], x_test=x_test, y_test=y_test
     )]
     perceptron.estimate(x_train, y_train)
     perceptron.estimate(x_test, y_test)

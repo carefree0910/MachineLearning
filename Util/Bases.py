@@ -35,6 +35,9 @@ class ClassifierBase:
     def get_metrics(self, metrics):
         pass
 
+    def predict(self, x, get_raw_results=False):
+        pass
+
     def estimate(self, x, y, metrics=None, tar=None, prefix="Acc"):
         pass
 

@@ -79,7 +79,7 @@ class ClassifierMeta(type):
             return np.sum(y == y_pred) / len(y)
 
         attr["_metrics"] = [acc]
-        _available_metrics = {
+        attr["_available_metrics"] = {
             "acc": acc
         }
 
@@ -91,7 +91,7 @@ class ClassifierMeta(type):
                     metric = metrics[i]
                     if isinstance(metric, str):
                         try:
-                            metrics[i] = _available_metrics[metric]
+                            metrics[i] = self._available_metrics[metric]
                         except AttributeError:
                             metrics.pop(i)
             return metrics
