@@ -78,27 +78,38 @@ class ClassifierMeta(type):
                 return np.sum((y == y_pred) * weights) / len(y)
             return np.sum(y == y_pred) / len(y)
 
-        attr["_metrics"] = [acc]
-        attr["_available_metrics"] = {
-            "acc": acc
-        }
+        try:
+            init = attr["__init__"]
+        except KeyError:
+            init = None
 
-        def get_metrics(self, metrics=None):
-            if metrics is None:
-                metrics = self._metrics
-            else:
-                for i in range(len(metrics) - 1, -1, -1):
-                    metric = metrics[i]
-                    if isinstance(metric, str):
-                        try:
-                            metrics[i] = self._available_metrics[metric]
-                        except AttributeError:
-                            metrics.pop(i)
+        def __init__(self, *_args, **_kwargs):
+            if init is not None:
+                init(self, *_args, **_kwargs)
+            self._metrics = [acc]
+            self._available_metrics = {
+                "acc": acc
+            }
+
+        def get_metrics(self, metrics):
+            if len(metrics) == 0:
+                for metric in self._metrics:
+                    metrics.append(metric)
+                return metrics
+            for i in range(len(metrics) - 1, -1, -1):
+                metric = metrics[i]
+                if isinstance(metric, str):
+                    try:
+                        metrics[i] = self._available_metrics[metric]
+                    except AttributeError:
+                        metrics.pop(i)
             return metrics
 
         @clf_timing.timeit(level=1, prefix="[API] ")
         def estimate(self, x, y, metrics=None, tar=None, prefix="Acc"):
-            metrics = self.get_metrics(metrics)
+            if metrics is None:
+                metrics = []
+            self.get_metrics(metrics)
             logs, y_pred = [], self.predict(x)
             y = np.array(y)
             if y.ndim == 2:

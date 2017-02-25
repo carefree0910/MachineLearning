@@ -1,6 +1,6 @@
 from Util.Util import DataUtil
 
-backend = "Basic"
+backend = "TF"
 
 if backend == "Basic":
     from f_NN.Basic.Networks import *
@@ -24,7 +24,7 @@ def main():
     else:
         nn.add(CrossEntropy((y.shape[1],)))
 
-    nn.fit(x, y, epoch=epoch)
+    nn.fit(x, y, epoch=epoch, verbose=2)
     nn.estimate(x, y)
     nn.visualize2d(x, y)
     nn.show_timing_log()

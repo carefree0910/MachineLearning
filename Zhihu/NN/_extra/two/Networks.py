@@ -6,8 +6,6 @@ from Zhihu.NN._extra.Optimizers import *
 from Util.Timing import Timing
 from Util.ProgressBar import ProgressBar
 
-np.random.seed(142857)  # for reproducibility
-
 
 class NNVerbose:
     NONE = 0
@@ -228,7 +226,7 @@ class NNDist:
         for counter in range(epoch):
             if self.verbose >= NNVerbose.EPOCH and counter % record_period == 0:
                 sub_bar.start()
-            for _i in range(train_repeat):
+            for _ in range(train_repeat):
                 if do_random_batch:
                     batch = np.random.choice(train_len, batch_size)
                     x_batch, y_batch = x_train[batch], y_train[batch]

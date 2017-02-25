@@ -5,8 +5,6 @@ from Zhihu.NN.Optimizers import *
 
 from Util.ProgressBar import ProgressBar
 
-np.random.seed(142857)  # for reproducibility
-
 
 class NNVerbose:
     NONE = 0

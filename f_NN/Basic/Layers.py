@@ -14,8 +14,7 @@ class Layer:
                       shape[1] = units of current layer (self)
         """
         self._shape = shape
-        self.parent = None
-        self.child = None
+        self.parent = self.child = None
 
     def feed_timing(self, timing):
         if isinstance(timing, Timing):
@@ -136,8 +135,7 @@ class Softmax(Layer):
 # Cost Layer
 
 class CostLayer(Layer):
-    # Optimization
-    _batch_range = None
+    CostLayerTiming = Timing()
 
     def __init__(self, parent, shape, cost_function="Log Likelihood"):
 
@@ -157,20 +155,17 @@ class CostLayer(Layer):
     def _derivative(self, y, delta=None):
         raise ValueError("derivative function should not be called in CostLayer")
 
+    @CostLayerTiming.timeit(level=1, prefix="[Core] ")
     def bp_first(self, y, y_pred):
-        if self._parent.name == "Sigmoid" and self.cost_function == "Cross Entropy":
+        if self._parent.name == "Sigmoid" and self._cost_function_name == "Cross Entropy":
             return y * (1 - y_pred) - (1 - y) * y_pred
-        if self.cost_function == "Log Likelihood":
+        if self._cost_function_name == "Log Likelihood":
             return -self._cost_function(y, y_pred) / 4
         return -self._cost_function(y, y_pred) * self._parent.derivative(y_pred)
 
     @property
     def calculate(self):
         return lambda y, y_pred: self._cost_function(y, y_pred, False)
-
-    @property
-    def cost_function(self):
-        return self._cost_function_name
 
     # Cost Functions
 
@@ -193,14 +188,14 @@ class CostLayer(Layer):
 
     @classmethod
     def _log_likelihood(cls, y, y_pred, diff=True, eps=1e-8):
-        if cls._batch_range is None:
-            cls._batch_range = np.arange(len(y_pred))
         y_arg_max = np.argmax(y, axis=1)
         if diff:
-            y_pred = y_pred.copy()
-            y_pred[cls._batch_range, y_arg_max] -= 1
+            y_pred[range(len(y_pred)), y_arg_max] -= 1
             return y_pred
         return np.sum(-np.log(y_pred[range(len(y_pred)), y_arg_max] + eps)) / len(y)
 
     def __str__(self):
         return self._cost_function_name
+
+    def __repr__(self):
+        return str(self)

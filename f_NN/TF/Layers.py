@@ -6,6 +6,10 @@ class Layer:
     def __init__(self, shape):
         self.shape = shape
 
+    @property
+    def name(self):
+        return str(self)
+
     def activate(self, x, w, bias=None, predict=False):
         if bias is None:
             return self._activate(tf.matmul(x, w), predict)
@@ -13,6 +17,12 @@ class Layer:
 
     def _activate(self, x, predict):
         pass
+
+    def __str__(self):
+        return self.__class__.__name__
+
+    def __repr__(self):
+        return str(self)
 
 
 # Activation Layers
