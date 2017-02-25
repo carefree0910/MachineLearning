@@ -31,7 +31,7 @@ class Optimizers:
         return str(self)
 
 
-class SGD(Optimizers, metaclass=TimingMeta):
+class MBGD(Optimizers, metaclass=TimingMeta):
     def run(self, i, dw):
         return self.lr * dw
 
@@ -101,7 +101,7 @@ class RMSProp(Optimizers, metaclass=TimingMeta):
 
 class OptFactory:
     available_optimizers = {
-        "SGD": SGD, "Momentum": Momentum, "NAG": NAG, "Adam": Adam, "RMSProp": RMSProp
+        "MBGD": MBGD, "Momentum": Momentum, "NAG": NAG, "Adam": Adam, "RMSProp": RMSProp
     }
 
     def get_optimizer_by_name(self, name, variables, lr, epoch):

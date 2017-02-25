@@ -48,7 +48,7 @@ class Optimizers(metaclass=ABCMeta):
         raise NotImplementedError("Please implement an 'update' method for your optimizer")
 
 
-class SGD(Optimizers):
+class MBGD(Optimizers):
 
     def _run(self, i, dw):
         return self.lr * dw
@@ -154,7 +154,7 @@ class RMSProp(Optimizers):
 class OptFactory:
 
     available_optimizers = {
-        "SGD": SGD, "Momentum": Momentum, "NAG": NAG, "Adam": Adam, "RMSProp": RMSProp
+        "MBGD": MBGD, "Momentum": Momentum, "NAG": NAG, "Adam": Adam, "RMSProp": RMSProp
     }
 
     def get_optimizer_by_name(self, name, variables, timing, lr, epoch):

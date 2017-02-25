@@ -84,7 +84,7 @@ class RMSProp(Optimizers):
 class OptFactory:
 
     available_optimizers = {
-        "SGD": SGD, "Momentum": Momentum, "NAG": NAG,
+        "MBGD": SGD, "Momentum": Momentum, "NAG": NAG,
         "AdaDelta": AdaDelta, "AdaGrad": AdaGrad,
         "Adam": Adam, "RMSProp": RMSProp
     }

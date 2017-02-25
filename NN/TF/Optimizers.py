@@ -31,7 +31,7 @@ class Optimizers:
         return self._opt.minimize(x, *args, **kwargs)
 
 
-class SGD(Optimizers):
+class MBGD(Optimizers):
 
     def __init__(self, lr=1e-3):
         Optimizers.__init__(self, lr)
@@ -85,7 +85,7 @@ class RMSProp(Optimizers):
 class OptFactory:
 
     available_optimizers = {
-        "SGD": SGD, "Momentum": Momentum, "NAG": NAG,
+        "MBGD": MBGD, "Momentum": Momentum, "NAG": NAG,
         "AdaDelta": AdaDelta, "AdaGrad": AdaGrad,
         "Adam": Adam, "RMSProp": RMSProp
     }

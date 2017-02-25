@@ -1,6 +1,6 @@
 from Util.Util import DataUtil
 
-backend = "TF"
+backend = "Basic"
 
 if backend == "Basic":
     from f_NN.Basic.Networks import *

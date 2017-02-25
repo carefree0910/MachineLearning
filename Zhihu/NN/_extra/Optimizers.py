@@ -150,7 +150,7 @@ class RMSProp(Optimizers):
 
 class OptFactory:
     available_optimizers = {
-        "SGD": SGD, "Momentum": Momentum, "NAG": NAG, "Adam": Adam, "RMSProp": RMSProp
+        "MBGD": SGD, "Momentum": Momentum, "NAG": NAG, "Adam": Adam, "RMSProp": RMSProp
     }
 
     def get_optimizer_by_name(self, name, variables, timing, lr, epoch):
