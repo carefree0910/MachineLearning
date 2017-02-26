@@ -3,7 +3,7 @@ import numpy as np
 from Util.Timing import Timing
 
 
-# Abstract Layers
+# Abstract Layer
 
 class Layer:
     LayerTiming = Timing()
@@ -13,54 +13,8 @@ class Layer:
         :param shape: shape[0] = units of previous layer
                       shape[1] = units of current layer (self)
         """
-        self._shape = shape
-        self.parent = self.child = None
-
-    def feed_timing(self, timing):
-        if isinstance(timing, Timing):
-            self.LayerTiming = timing
-
-    @property
-    def name(self):
-        return str(self)
-
-    @property
-    def shape(self):
-        return self._shape
-
-    @shape.setter
-    def shape(self, value):
-        self._shape = value
-
-    # Core
-
-    def derivative(self, y, delta=None):
-        return self._derivative(y, delta)
-
-    @LayerTiming.timeit(level=1, prefix="[Core] ")
-    def activate(self, x, w, bias=None, predict=False):
-        if isinstance(self, CostLayer):
-            return self._activate(x + bias, predict)
-        return self._activate(x.dot(w) + bias, predict)
-
-    @LayerTiming.timeit(level=1, prefix="[Core] ")
-    def bp(self, y, w, prev_delta):
-        if self.child is not None:
-            return prev_delta
-        return prev_delta.dot(w.T) * self._derivative(y)
-
-    def _activate(self, x, predict):
-        pass
-
-    def _derivative(self, y, delta=None):
-        pass
-
-    # Util
-
-    @staticmethod
-    @LayerTiming.timeit(level=2, prefix="[Core Util] ")
-    def safe_exp(y):
-        return np.exp(y - np.max(y, axis=1, keepdims=True))
+        self.shape = shape
+        self.child = None
 
     def __str__(self):
         return self.__class__.__name__
@@ -68,23 +22,55 @@ class Layer:
     def __repr__(self):
         return str(self)
 
+    @property
+    def name(self):
+        return str(self)
+
+    # Core
+
+    def _activate(self, x, predict):
+        pass
+
+    def derivative(self, y):
+        pass
+
+    @LayerTiming.timeit(level=1, prefix="[Core] ")
+    def activate(self, x, w, bias, predict=False):
+        if isinstance(self, CostLayer):
+            return self._activate(x, predict)
+        return self._activate(x.dot(w) + bias, predict)
+
+    @LayerTiming.timeit(level=1, prefix="[Core] ")
+    def bp(self, y, w, prev_delta):
+        if self.child is not None:
+            return prev_delta
+        return prev_delta.dot(w.T) * self.derivative(y)
+
 
 # Activation Layers
-
-class Tanh(Layer):
-    def _activate(self, x, predict):
-        return np.tanh(x)
-
-    def _derivative(self, y, delta=None):
-        return 1 - y ** 2
-
 
 class Sigmoid(Layer):
     def _activate(self, x, predict):
         return 1 / (1 + np.exp(-x))
 
-    def _derivative(self, y, delta=None):
+    def derivative(self, y):
         return y * (1 - y)
+
+
+class Tanh(Layer):
+    def _activate(self, x, predict):
+        return np.tanh(x)
+
+    def derivative(self, y):
+        return 1 - y ** 2
+
+
+class ReLU(Layer):
+    def _activate(self, x, predict):
+        return np.maximum(0, x)
+
+    def derivative(self, y):
+        return y > 0
 
 
 class ELU(Layer):
@@ -93,25 +79,17 @@ class ELU(Layer):
         _rs[_rs0] = np.exp(_rs[_rs0]) - 1
         return _rs
 
-    def _derivative(self, y, delta=None):
+    def derivative(self, y):
         _rs, _arg0 = np.zeros(y.shape), y < 0
         _rs[_arg0], _rs[~_arg0] = y[_arg0] + 1, 1
         return _rs
-
-
-class ReLU(Layer):
-    def _activate(self, x, predict):
-        return np.maximum(0, x)
-
-    def _derivative(self, y, delta=None):
-        return y > 0
 
 
 class Softplus(Layer):
     def _activate(self, x, predict):
         return np.log(1 + np.exp(x))
 
-    def _derivative(self, y, delta=None):
+    def derivative(self, y):
         return 1 / (1 + 1 / (np.exp(y) - 1))
 
 
@@ -119,16 +97,20 @@ class Identical(Layer):
     def _activate(self, x, predict):
         return x
 
-    def _derivative(self, y, delta=None):
+    def derivative(self, y):
         return 1
 
 
 class Softmax(Layer):
+    @staticmethod
+    def safe_exp(y):
+        return np.exp(y - np.max(y, axis=1, keepdims=True))
+
     def _activate(self, x, predict):
-        exp_y = Layer.safe_exp(x)
+        exp_y = Softmax.safe_exp(x)
         return exp_y / np.sum(exp_y, axis=1, keepdims=True)
 
-    def _derivative(self, y, delta=None):
+    def derivative(self, y):
         return y * (1 - y)
 
 
@@ -152,13 +134,13 @@ class CostLayer(Layer):
     def _activate(self, x, predict):
         return x
 
-    def _derivative(self, y, delta=None):
+    def derivative(self, y):
         raise ValueError("derivative function should not be called in CostLayer")
 
     @CostLayerTiming.timeit(level=1, prefix="[Core] ")
     def bp_first(self, y, y_pred):
         if self._parent.name == "Sigmoid" and self._cost_function_name == "Cross Entropy":
-            return y * (1 - y_pred) - (1 - y) * y_pred
+            return y - y_pred
         if self._cost_function_name == "Log Likelihood":
             return -self._cost_function(y, y_pred) / 4
         return -self._cost_function(y, y_pred) * self._parent.derivative(y_pred)

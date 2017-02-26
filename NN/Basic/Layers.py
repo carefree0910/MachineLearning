@@ -304,7 +304,7 @@ class ConvMeta(type):
                 prev_delta = prev_delta[0]
 
             __derivative = self.LayerTiming.timeit(level=1, name="bp", cls_name=name, prefix="[Core] ")(
-                layer._derivative)
+                layer.derivative)
             if self.is_fc_base:
                 delta = __derivative(self, y) * prev_delta.dot(w.T).reshape(y.shape)
             else:
@@ -373,7 +373,7 @@ class ConvSubMeta(type):
                 delta = delta.dot(w.T).reshape(y.shape)
             n, n_channels, height, width = delta.shape
             delta_new = delta.transpose(0, 2, 3, 1).reshape(-1, n_channels)
-            dx = sub_layer._derivative(self, None, delta_new)
+            dx = sub_layer.derivative(self, None, delta_new)
             return dx.reshape(n, height, width, n_channels).transpose(0, 3, 1, 2)
 
         def activate(self, x, w, bias=None, predict=False):

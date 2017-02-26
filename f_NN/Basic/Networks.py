@@ -39,7 +39,6 @@ class NN(ClassifierBase, metaclass=ClassifierMeta):
         self._layers.append(layer)
         if isinstance(layer, CostLayer):
             _parent.child = layer
-            self.parent = _parent
             self._add_weight((1, 1))
             self._current_dimension = _next
         else:
