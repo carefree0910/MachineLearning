@@ -6,6 +6,12 @@ class Layer:
     def __init__(self, shape):
         self.shape = shape
 
+    def __str__(self):
+        return self.__class__.__name__
+
+    def __repr__(self):
+        return str(self)
+
     @property
     def name(self):
         return str(self)
@@ -17,12 +23,6 @@ class Layer:
 
     def _activate(self, x, predict):
         pass
-
-    def __str__(self):
-        return self.__class__.__name__
-
-    def __repr__(self):
-        return str(self)
 
 
 # Activation Layers

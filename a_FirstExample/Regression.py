@@ -20,12 +20,12 @@ def get_model(deg):
     return lambda input_x=x0: np.polyval(np.polyfit(x, y, deg), input_x)
 
 
-def get_loss(deg, input_x, input_y):
+def get_cost(deg, input_x, input_y):
     return 0.5 * ((get_model(deg)(input_x) - input_y) ** 2).sum()
 
 test_set = (1, 4, 10)
 for d in test_set:
-    print(get_loss(d, x, y))
+    print(get_cost(d, x, y))
 
 plt.scatter(x, y, c="g", s=20)
 for d in test_set:

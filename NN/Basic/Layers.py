@@ -705,7 +705,7 @@ class CostLayer(SubLayer):
     def bp_first(self, y, y_pred):
         if self._root.name == "Sigmoid" and self.cost_function == "Cross Entropy":
             return y * (1 - y_pred) - (1 - y) * y_pred
-        if self.cost_function == "Log Likelihood":
+        if self._root.name == "Softmax" and  self.cost_function == "Log Likelihood":
             return -self._cost_function(y, y_pred) / 4
         return -self._cost_function(y, y_pred) * self._root.derivative(y_pred)
 

@@ -142,7 +142,7 @@ class CostLayer(Layer):
     def bp_first(self, y, y_pred):
         if self._parent.name == "Sigmoid" and self._cost_function_name == "Cross Entropy":
             return y - y_pred
-        if self._cost_function_name == "Log Likelihood":
+        if self._parent.name == "Softmax" and self._cost_function_name == "Log Likelihood":
             return -self._cost_function(y, y_pred) / 4
         return -self._cost_function(y, y_pred) * self._parent.derivative(y_pred)
 
