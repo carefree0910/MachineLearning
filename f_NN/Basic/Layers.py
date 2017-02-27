@@ -36,9 +36,8 @@ class Layer:
 
     @LayerTiming.timeit(level=1, prefix="[Core] ")
     def activate(self, x, w, bias, predict=False):
-        if isinstance(self, CostLayer):
-            return self._activate(x, predict)
-        return self._activate(x.dot(w) + bias, predict)
+        if not isinstance(self, CostLayer):
+            return self._activate(x.dot(w) + bias, predict)
 
     @LayerTiming.timeit(level=1, prefix="[Core] ")
     def bp(self, y, w, prev_delta):
@@ -70,7 +69,7 @@ class ReLU(Layer):
         return np.maximum(0, x)
 
     def derivative(self, y):
-        return y > 0
+        return y != 0
 
 
 class ELU(Layer):
@@ -80,8 +79,8 @@ class ELU(Layer):
         return _rs
 
     def derivative(self, y):
-        _rs, _arg0 = np.zeros(y.shape), y < 0
-        _rs[_arg0], _rs[~_arg0] = y[_arg0] + 1, 1
+        _rs, _indices = np.ones(y.shape), y < 0
+        _rs[_indices] = y[_indices] + 1
         return _rs
 
 
@@ -90,7 +89,7 @@ class Softplus(Layer):
         return np.log(1 + np.exp(x))
 
     def derivative(self, y):
-        return 1 / (1 + 1 / (np.exp(y) - 1))
+        return 1 - 1 / np.exp(y)
 
 
 class Identical(Layer):
@@ -120,7 +119,6 @@ class CostLayer(Layer):
     CostLayerTiming = Timing()
 
     def __init__(self, parent, shape, cost_function="Log Likelihood"):
-
         Layer.__init__(self, shape)
         self._parent = parent
         self._available_cost_functions = {
@@ -131,8 +129,11 @@ class CostLayer(Layer):
         self._cost_function_name = cost_function
         self._cost_function = self._available_cost_functions[cost_function]
 
+    def __str__(self):
+        return self._cost_function_name
+
     def _activate(self, x, predict):
-        return x
+        raise ValueError("activate function should not be called in CostLayer")
 
     def derivative(self, y):
         raise ValueError("derivative function should not be called in CostLayer")
@@ -175,9 +176,3 @@ class CostLayer(Layer):
             y_pred[range(len(y_pred)), y_arg_max] -= 1
             return y_pred
         return np.sum(-np.log(y_pred[range(len(y_pred)), y_arg_max] + eps)) / len(y)
-
-    def __str__(self):
-        return self._cost_function_name
-
-    def __repr__(self):
-        return str(self)

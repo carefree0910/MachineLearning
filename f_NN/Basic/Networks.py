@@ -28,35 +28,37 @@ class NN(ClassifierBase, metaclass=ClassifierMeta):
     # Utils
 
     @NNTiming.timeit(level=4)
-    def _add_weight(self, shape):
+    def _add_params(self, shape):
         self._weights.append(np.random.randn(*shape))
         self._bias.append(np.zeros((1, shape[1])))
 
     @NNTiming.timeit(level=4)
     def _add_layer(self, layer, *args):
-        _parent = self._layers[-1]
         _current, _next = args
-        self._layers.append(layer)
         if isinstance(layer, CostLayer):
-            _parent.child = layer
-            self._add_weight((1, 1))
-            self._current_dimension = _next
+            self._layers[-1].child = layer
+            self._weights.append(None)
+            self._bias.append(None)
         else:
-            self._add_weight((_current, _next))
+            self._add_params((_current, _next))
             self._current_dimension = _next
+        self._layers.append(layer)
 
     @NNTiming.timeit(level=4)
-    def _add_cost_layer(self):
+    def _add_cost_layer(self, name=None):
         _last_layer = self._layers[-1]
         if isinstance(_last_layer, CostLayer):
             return
-        if _last_layer.name == "Sigmoid":
-            _cost_func = "Cross Entropy"
-        elif _last_layer.name == "Softmax":
-            _cost_func = "Log Likelihood"
+        if name is not None:
+            _cost_layer = CostLayer(_last_layer, (self._current_dimension,), name)
         else:
-            _cost_func = "MSE"
-        _cost_layer = CostLayer(_last_layer, (self._current_dimension,), _cost_func)
+            if _last_layer.name == "Sigmoid":
+                _cost_func = "Cross Entropy"
+            elif _last_layer.name == "Softmax":
+                _cost_func = "Log Likelihood"
+            else:
+                _cost_func = "MSE"
+            _cost_layer = CostLayer(_last_layer, (self._current_dimension,), _cost_func)
         self.add(_cost_layer)
 
     @NNTiming.timeit(level=1)
@@ -91,9 +93,10 @@ class NN(ClassifierBase, metaclass=ClassifierMeta):
     @NNTiming.timeit(level=1)
     def _get_activations(self, x):
         _activations = [self._layers[0].activate(x, self._weights[0], self._bias[0])]
-        for i, layer in enumerate(self._layers[1:]):
+        for i, layer in enumerate(self._layers[1:-1]):
             _activations.append(layer.activate(
                 _activations[-1], self._weights[i + 1], self._bias[i + 1]))
+        _activations.append(_activations[-1])
         return _activations
 
     @NNTiming.timeit(level=4, prefix="[API] ")
@@ -140,9 +143,9 @@ class NN(ClassifierBase, metaclass=ClassifierMeta):
     def _init_optimizers(self, optimizer, lr, epoch):
         _opt_fac = OptFactory()
         self._w_optimizer = _opt_fac.get_optimizer_by_name(
-            optimizer, self._weights, lr, epoch)
+            optimizer, self._weights[:-1], lr, epoch)
         self._b_optimizer = _opt_fac.get_optimizer_by_name(
-            optimizer, self._bias, lr, epoch)
+            optimizer, self._bias[:-1], lr, epoch)
 
     @NNTiming.timeit(level=1)
     def _opt(self, i, _activation, _delta):
@@ -159,7 +162,9 @@ class NN(ClassifierBase, metaclass=ClassifierMeta):
     def add(self, layer):
         if not self._layers:
             self._layers, self._current_dimension = [layer], layer.shape[1]
-            self._add_weight(layer.shape)
+            self._add_params(layer.shape)
+        elif isinstance(layer, str):
+            self._add_cost_layer(layer)
         else:
             _next = layer.shape[0]
             layer.shape = (self._current_dimension, _next)

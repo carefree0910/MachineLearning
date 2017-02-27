@@ -127,7 +127,6 @@ class Layer(metaclass=ABCMeta):
 
 
 class SubLayer(Layer):
-
     def __init__(self, parent, shape):
         Layer.__init__(self, shape)
         self.parent = parent
@@ -429,8 +428,8 @@ class ELU(Layer):
         return _rs
 
     def _derivative(self, y, delta=None):
-        _rs, _arg0 = np.zeros(y.shape), y < 0
-        _rs[_arg0], _rs[~_arg0] = y[_arg0] + 1, 1
+        _rs, _indices = np.ones(y.shape), y < 0
+        _rs[_indices] = y[_indices] + 1
         return _rs
 
 
@@ -449,7 +448,7 @@ class Softplus(Layer):
         return np.log(1 + np.exp(x))
 
     def _derivative(self, y, delta=None):
-        return 1 / (1 + 1 / (np.exp(y) - 1))
+        return 1 - 1 / np.exp(y)
 
 
 class Identical(Layer):
