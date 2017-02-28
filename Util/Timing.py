@@ -29,7 +29,13 @@ class Timing:
             else:
                 instance_name = " " * 18 if cls_name is None else "{:>18s}".format(cls_name)
             _prefix = "{:>26s}".format(prefix)
-            func_name = "{:>28}".format(func.__name__ if name is None else name)
+            try:
+                func_name = "{:>28}".format(func.__name__ if name is None else name)
+            except AttributeError:
+                str_func = str(func)
+                _at_idx = str_func.rfind("at")
+                _dot_idx = str_func.rfind(".", None, _at_idx)
+                func_name = "{:>28}".format(str_func[_dot_idx+1:_at_idx-1])
             _name = instance_name + _prefix + func_name
             _t = time.time()
             rs = func(*args, **kwargs)

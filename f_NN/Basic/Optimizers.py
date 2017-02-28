@@ -37,11 +37,16 @@ class Momentum(Optimizer, metaclass=TimingMeta):
         self._momentum = floor
         self._step = (ceiling - floor) / epoch
         self._floor, self._ceiling = floor, ceiling
+        self._is_nesterov = False
 
     def run(self, i, dw):
+        dw *= self.lr
         velocity = self._cache
-        velocity[i] = velocity[i] * self._momentum + self.lr * dw
-        return velocity[i]
+        velocity[i] *= self._momentum
+        velocity[i] += dw
+        if not self._is_nesterov:
+            return velocity[i]
+        return self._momentum * velocity[i] + dw
 
     def update(self):
         if self._momentum < self._ceiling:
@@ -49,11 +54,19 @@ class Momentum(Optimizer, metaclass=TimingMeta):
 
 
 class NAG(Momentum, metaclass=TimingMeta):
+    def __init__(self, lr=0.01, cache=None, epoch=100, floor=0.5, ceiling=0.999):
+        Momentum.__init__(self, lr, cache, epoch, floor, ceiling)
+        self._is_nesterov = True
+
+
+class RMSProp(Optimizer, metaclass=TimingMeta):
+    def __init__(self, lr=0.01, cache=None, decay_rate=0.9, eps=1e-8):
+        Optimizer.__init__(self, lr, cache)
+        self.decay_rate, self.eps = decay_rate, eps
+
     def run(self, i, dw):
-        dw *= self.lr
-        velocity = self._cache
-        velocity[i] = self._momentum * velocity[i] + dw
-        return self._momentum * velocity[i] + dw
+        self._cache[i] = self._cache[i] * self.decay_rate + (1 - self.decay_rate) * dw ** 2
+        return self.lr * dw / (np.sqrt(self._cache[i] + self.eps))
 
 
 class Adam(Optimizer, metaclass=TimingMeta):
@@ -73,21 +86,11 @@ class Adam(Optimizer, metaclass=TimingMeta):
         return self.lr * self._cache[0][i] / (np.sqrt(self._cache[1][i] + self.eps))
 
 
-class RMSProp(Optimizer, metaclass=TimingMeta):
-    def __init__(self, lr=0.01, cache=None, decay_rate=0.9, eps=1e-8):
-        Optimizer.__init__(self, lr, cache)
-        self.decay_rate, self.eps = decay_rate, eps
-
-    def run(self, i, dw):
-        self._cache[i] = self._cache[i] * self.decay_rate + (1 - self.decay_rate) * dw ** 2
-        return self.lr * dw / (np.sqrt(self._cache[i] + self.eps))
-
-
 # Factory
 
 class OptFactory:
     available_optimizers = {
-        "MBGD": MBGD, "Momentum": Momentum, "NAG": NAG, "Adam": Adam, "RMSProp": RMSProp
+        "MBGD": MBGD, "Momentum": Momentum, "NAG": NAG, "RMSProp": RMSProp, "Adam": Adam,
     }
 
     def get_optimizer_by_name(self, name, variables, lr, epoch):

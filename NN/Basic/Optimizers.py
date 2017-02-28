@@ -5,7 +5,6 @@ from Util.Timing import Timing
 
 
 class Optimizer(metaclass=ABCMeta):
-
     OptTiming = Timing()
 
     def __init__(self, lr=0.01, cache=None):
@@ -49,7 +48,6 @@ class Optimizer(metaclass=ABCMeta):
 
 
 class MBGD(Optimizer):
-
     def _run(self, i, dw):
         return self.lr * dw
 
@@ -58,12 +56,12 @@ class MBGD(Optimizer):
 
 
 class Momentum(Optimizer):
-
     def __init__(self, lr=0.01, cache=None, epoch=100, floor=0.5, ceiling=0.999):
         Optimizer.__init__(self, lr, cache)
         self._epoch, self._floor, self._ceiling = epoch, floor, ceiling
         self._step = (ceiling - floor) / epoch
         self._momentum = floor
+        self._is_nesterov = False
 
     @property
     def epoch(self):
@@ -96,9 +94,13 @@ class Momentum(Optimizer):
         self.update_step()
 
     def _run(self, i, dw):
+        dw *= self.lr
         velocity = self._cache
-        velocity[i] = velocity[i] * self._momentum + self.lr * dw
-        return velocity[i]
+        velocity[i] *= self._momentum
+        velocity[i] += dw
+        if not self._is_nesterov:
+            return velocity[i]
+        return self._momentum * velocity[i] + dw
 
     def _update(self):
         if self._momentum < self._ceiling:
@@ -106,12 +108,23 @@ class Momentum(Optimizer):
 
 
 class NAG(Momentum):
+    def __init__(self, lr=0.01, cache=None, epoch=100, floor=0.5, ceiling=0.999):
+        Momentum.__init__(self, lr, cache, epoch, floor, ceiling)
+        self._is_nesterov = True
+
+
+class RMSProp(Optimizer):
+
+    def __init__(self, lr=0.01, cache=None, decay_rate=0.9, eps=1e-8):
+        Optimizer.__init__(self, lr, cache)
+        self.decay_rate, self.eps = decay_rate, eps
 
     def _run(self, i, dw):
-        dw *= self.lr
-        velocity = self._cache
-        velocity[i] = self._momentum * velocity[i] + dw
-        return self._momentum * velocity[i] + dw
+        self._cache[i] = self._cache[i] * self.decay_rate + (1 - self.decay_rate) * dw ** 2
+        return self.lr * dw / (np.sqrt(self._cache[i] + self.eps))
+
+    def _update(self):
+        pass
 
 
 class Adam(Optimizer):
@@ -130,20 +143,6 @@ class Adam(Optimizer):
         self._cache[0][i] = self._cache[0][i] * self.beta1 + (1 - self.beta1) * dw
         self._cache[1][i] = self._cache[1][i] * self.beta2 + (1 - self.beta2) * (dw ** 2)
         return self.lr * self._cache[0][i] / (np.sqrt(self._cache[1][i] + self.eps))
-
-    def _update(self):
-        pass
-
-
-class RMSProp(Optimizer):
-
-    def __init__(self, lr=0.01, cache=None, decay_rate=0.9, eps=1e-8):
-        Optimizer.__init__(self, lr, cache)
-        self.decay_rate, self.eps = decay_rate, eps
-
-    def _run(self, i, dw):
-        self._cache[i] = self._cache[i] * self.decay_rate + (1 - self.decay_rate) * dw ** 2
-        return self.lr * dw / (np.sqrt(self._cache[i] + self.eps))
 
     def _update(self):
         pass
