@@ -626,13 +626,13 @@ class NNDist(NNBase):
             else:
                 if self._optimizer is None:
                     self._optimizer = Adam(self._lr)
-                if isinstance(self._optimizer, Optimizers):
+                if isinstance(self._optimizer, Optimizer):
                     return
                 raise BuildNetworkError("Invalid optimizer '{}' provided".format(self._optimizer))
         if isinstance(optimizer, str):
             self._optimizer = self._optimizer_factory.get_optimizer_by_name(
                 optimizer, self.NNTiming, self._lr)
-        elif isinstance(optimizer, Optimizers):
+        elif isinstance(optimizer, Optimizer):
             self._optimizer = optimizer
         else:
             raise BuildNetworkError("Invalid optimizer '{}' provided".format(optimizer))

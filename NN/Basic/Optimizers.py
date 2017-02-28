@@ -4,7 +4,7 @@ from abc import ABCMeta, abstractmethod
 from Util.Timing import Timing
 
 
-class Optimizers(metaclass=ABCMeta):
+class Optimizer(metaclass=ABCMeta):
 
     OptTiming = Timing()
 
@@ -48,7 +48,7 @@ class Optimizers(metaclass=ABCMeta):
         raise NotImplementedError("Please implement an 'update' method for your optimizer")
 
 
-class MBGD(Optimizers):
+class MBGD(Optimizer):
 
     def _run(self, i, dw):
         return self.lr * dw
@@ -57,13 +57,13 @@ class MBGD(Optimizers):
         pass
 
 
-class Momentum(Optimizers):
+class Momentum(Optimizer):
 
     def __init__(self, lr=0.01, cache=None, epoch=100, floor=0.5, ceiling=0.999):
-        Optimizers.__init__(self, lr, cache)
+        Optimizer.__init__(self, lr, cache)
         self._epoch, self._floor, self._ceiling = epoch, floor, ceiling
         self._step = (ceiling - floor) / epoch
-        self._momentum = 0.5
+        self._momentum = floor
 
     @property
     def epoch(self):
@@ -114,10 +114,10 @@ class NAG(Momentum):
         return self._momentum * velocity[i] + dw
 
 
-class Adam(Optimizers):
+class Adam(Optimizer):
 
     def __init__(self, lr=0.01, cache=None, beta1=0.9, beta2=0.999, eps=1e-8):
-        Optimizers.__init__(self, lr, cache)
+        Optimizer.__init__(self, lr, cache)
         self.beta1, self.beta2, self.eps = beta1, beta2, eps
 
     def feed_variables(self, variables):
@@ -135,10 +135,10 @@ class Adam(Optimizers):
         pass
 
 
-class RMSProp(Optimizers):
+class RMSProp(Optimizer):
 
     def __init__(self, lr=0.01, cache=None, decay_rate=0.9, eps=1e-8):
-        Optimizers.__init__(self, lr, cache)
+        Optimizer.__init__(self, lr, cache)
         self.decay_rate, self.eps = decay_rate, eps
 
     def _run(self, i, dw):

@@ -620,11 +620,11 @@ class Normalize(SubLayer):
 
     def init_optimizers(self):
         _opt_fac = OptFactory()
-        if not isinstance(self._g_optimizer, Optimizers):
+        if not isinstance(self._g_optimizer, Optimizer):
             self._g_optimizer = _opt_fac.get_optimizer_by_name(
                 self._g_optimizer, None, self.LayerTiming, self._lr, None
             )
-        if not isinstance(self._b_optimizer, Optimizers):
+        if not isinstance(self._b_optimizer, Optimizer):
             self._b_optimizer = _opt_fac.get_optimizer_by_name(
                 self._b_optimizer, None, self.LayerTiming, self._lr, None
             )

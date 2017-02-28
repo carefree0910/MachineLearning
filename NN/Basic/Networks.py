@@ -576,10 +576,10 @@ class NNDist:
 
     @NNTiming.timeit(level=4)
     def _init_optimizer(self):
-        if not isinstance(self._w_optimizer, Optimizers):
+        if not isinstance(self._w_optimizer, Optimizer):
             self._w_optimizer = self._optimizer_factory.get_optimizer_by_name(
                 self._w_optimizer, self._weights, self.NNTiming, self._lr, self._epoch)
-        if not isinstance(self._b_optimizer, Optimizers):
+        if not isinstance(self._b_optimizer, Optimizer):
             self._b_optimizer = self._optimizer_factory.get_optimizer_by_name(
                 self._b_optimizer, self._bias, self.NNTiming, self._lr, self._epoch)
         if self._w_optimizer.name != self._b_optimizer.name:
@@ -769,7 +769,7 @@ class NNDist:
                 if not self._b_optimizer:
                     self._b_optimizer = self._optimizer_name
         self._init_optimizer()
-        assert isinstance(self._w_optimizer, Optimizers) and isinstance(self._b_optimizer, Optimizers)
+        assert isinstance(self._w_optimizer, Optimizer) and isinstance(self._b_optimizer, Optimizer)
         print()
         print("=" * 30)
         print("Optimizers")

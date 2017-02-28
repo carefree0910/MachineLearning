@@ -1,28 +1,12 @@
 import numpy as np
 
-from Util.Timing import Timing
 from Util.Metas import TimingMeta
 
 
-class Optimizers:
+class Optimizer:
     def __init__(self, lr=0.01, cache=None):
         self.lr = lr
         self._cache = cache
-
-    def feed_variables(self, variables):
-        self._cache = [
-            np.zeros(var.shape) for var in variables
-        ]
-
-    def feed_timing(self, timing):
-        if isinstance(timing, Timing):
-            setattr(self, str(self) + "Timing", timing)
-
-    def run(self, i, dw):
-        pass
-
-    def update(self):
-        pass
 
     def __str__(self):
         return self.__class__.__name__
@@ -30,21 +14,29 @@ class Optimizers:
     def __repr__(self):
         return str(self)
 
+    def feed_variables(self, variables):
+        self._cache = [
+            np.zeros(var.shape) for var in variables
+        ]
 
-class MBGD(Optimizers, metaclass=TimingMeta):
     def run(self, i, dw):
-        return self.lr * dw
+        pass
 
     def update(self):
         pass
 
 
-class Momentum(Optimizers, metaclass=TimingMeta):
+class MBGD(Optimizer, metaclass=TimingMeta):
+    def run(self, i, dw):
+        return self.lr * dw
+
+
+class Momentum(Optimizer, metaclass=TimingMeta):
     def __init__(self, lr=0.01, cache=None, epoch=100, floor=0.5, ceiling=0.999):
-        Optimizers.__init__(self, lr, cache)
-        self._epoch, self._floor, self._ceiling = epoch, floor, ceiling
+        Optimizer.__init__(self, lr, cache)
+        self._momentum = floor
         self._step = (ceiling - floor) / epoch
-        self._momentum = 0.5
+        self._floor, self._ceiling = floor, ceiling
 
     def run(self, i, dw):
         velocity = self._cache
@@ -64,9 +56,9 @@ class NAG(Momentum, metaclass=TimingMeta):
         return self._momentum * velocity[i] + dw
 
 
-class Adam(Optimizers, metaclass=TimingMeta):
+class Adam(Optimizer, metaclass=TimingMeta):
     def __init__(self, lr=0.01, cache=None, beta1=0.9, beta2=0.999, eps=1e-8):
-        Optimizers.__init__(self, lr, cache)
+        Optimizer.__init__(self, lr, cache)
         self.beta1, self.beta2, self.eps = beta1, beta2, eps
 
     def feed_variables(self, variables):
@@ -80,21 +72,15 @@ class Adam(Optimizers, metaclass=TimingMeta):
         self._cache[1][i] = self._cache[1][i] * self.beta2 + (1 - self.beta2) * (dw ** 2)
         return self.lr * self._cache[0][i] / (np.sqrt(self._cache[1][i] + self.eps))
 
-    def update(self):
-        pass
 
-
-class RMSProp(Optimizers, metaclass=TimingMeta):
+class RMSProp(Optimizer, metaclass=TimingMeta):
     def __init__(self, lr=0.01, cache=None, decay_rate=0.9, eps=1e-8):
-        Optimizers.__init__(self, lr, cache)
+        Optimizer.__init__(self, lr, cache)
         self.decay_rate, self.eps = decay_rate, eps
 
     def run(self, i, dw):
         self._cache[i] = self._cache[i] * self.decay_rate + (1 - self.decay_rate) * dw ** 2
         return self.lr * dw / (np.sqrt(self._cache[i] + self.eps))
-
-    def update(self):
-        pass
 
 
 # Factory
