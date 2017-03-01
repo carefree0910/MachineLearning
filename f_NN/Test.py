@@ -12,7 +12,7 @@ else:
 
 def main():
 
-    nn = NN()
+    nn = NaiveNN()
     epoch = 1000
 
     x, y = DataUtil.gen_spin(100, 4, 2, 6)
@@ -20,8 +20,7 @@ def main():
     nn.add(ReLU((x.shape[1], 24)))
     nn.add(ReLU((24,)))
     if backend == "Basic":
-        nn.add(Sigmoid((y.shape[1],)))
-        nn.add("Cross Entropy")
+        nn.add(Softmax((y.shape[1],)))
     else:
         nn.add(CrossEntropy((y.shape[1],)))
 

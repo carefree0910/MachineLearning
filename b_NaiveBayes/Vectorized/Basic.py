@@ -9,7 +9,6 @@ sqrt_pi = (2 * pi) ** 0.5
 
 
 class NBFunctions:
-
     @staticmethod
     def gaussian(x, mu, sigma):
         return np.exp(-(x - mu) ** 2 / (2 * sigma ** 2)) / (sqrt_pi * sigma)
