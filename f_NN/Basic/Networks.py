@@ -43,14 +43,19 @@ class NaiveNN(ClassifierBase, metaclass=ClassifierMeta):
         self._layers.append(layer)
 
     @NaiveNNTiming.timeit(level=4)
-    def _add_cost_layer(self):
+    def _add_cost_layer(self, cost_function=None):
         _last_layer = self._layers[-1]
-        if _last_layer.name == "Sigmoid":
-            _cost_func = "Cross Entropy"
-        elif _last_layer.name == "Softmax":
-            _cost_func = "Log Likelihood"
+        if isinstance(_last_layer, CostLayer):
+            return
+        if cost_function is not None:
+            _cost_func = cost_function
         else:
-            _cost_func = "MSE"
+            if _last_layer.name == "Sigmoid":
+                _cost_func = "Cross Entropy"
+            elif _last_layer.name == "Softmax":
+                _cost_func = "Log Likelihood"
+            else:
+                _cost_func = "MSE"
         _cost_layer = CostLayer(_last_layer, (self._current_dimension,), _cost_func)
         self.add(_cost_layer)
 

@@ -20,7 +20,8 @@ def main():
     nn.add(ReLU((x.shape[1], 24)))
     nn.add(ReLU((24,)))
     if backend == "Basic":
-        nn.add(Softmax((y.shape[1],)))
+        nn.add(Sigmoid((y.shape[1],)))
+        nn.add("Cross Entropy")
     else:
         nn.add(CrossEntropy((y.shape[1],)))
 
