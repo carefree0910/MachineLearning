@@ -15,24 +15,22 @@ class NNVerbose:
     DEBUG = 5
 
 
-class NN(ClassifierBase, metaclass=ClassifierMeta):
-    NNTiming = Timing()
+class NaiveNN(ClassifierBase, metaclass=ClassifierMeta):
+    NaiveNNTiming = Timing()
 
     def __init__(self):
-        self._metrics, self._metric_names, self._logs = [], [], {}
         self._layers, self._weights, self._bias = [], [], []
         self._w_optimizer = self._b_optimizer = None
         self._current_dimension = 0
-        self.verbose = None
 
     # Utils
 
-    @NNTiming.timeit(level=4)
+    @NaiveNNTiming.timeit(level=4)
     def _add_params(self, shape):
         self._weights.append(np.random.randn(*shape))
         self._bias.append(np.zeros((1, shape[1])))
 
-    @NNTiming.timeit(level=4)
+    @NaiveNNTiming.timeit(level=4)
     def _add_layer(self, layer, *args):
         _current, _next = args
         if isinstance(layer, CostLayer):
@@ -44,22 +42,99 @@ class NN(ClassifierBase, metaclass=ClassifierMeta):
             self._current_dimension = _next
         self._layers.append(layer)
 
-    @NNTiming.timeit(level=4)
-    def _add_cost_layer(self, name=None):
+    @NaiveNNTiming.timeit(level=4)
+    def _add_cost_layer(self):
         _last_layer = self._layers[-1]
-        if isinstance(_last_layer, CostLayer):
-            return
-        if name is not None:
-            _cost_layer = CostLayer(_last_layer, (self._current_dimension,), name)
+        if _last_layer.name == "Sigmoid":
+            _cost_func = "Cross Entropy"
+        elif _last_layer.name == "Softmax":
+            _cost_func = "Log Likelihood"
         else:
-            if _last_layer.name == "Sigmoid":
-                _cost_func = "Cross Entropy"
-            elif _last_layer.name == "Softmax":
-                _cost_func = "Log Likelihood"
-            else:
-                _cost_func = "MSE"
-            _cost_layer = CostLayer(_last_layer, (self._current_dimension,), _cost_func)
+            _cost_func = "MSE"
+        _cost_layer = CostLayer(_last_layer, (self._current_dimension,), _cost_func)
         self.add(_cost_layer)
+
+    @NaiveNNTiming.timeit(level=1)
+    def _get_prediction(self, x):
+        return self._get_activations(x).pop()
+
+    @NaiveNNTiming.timeit(level=1)
+    def _get_activations(self, x):
+        _activations = [self._layers[0].activate(x, self._weights[0], self._bias[0])]
+        for i, layer in enumerate(self._layers[1:-1]):
+            _activations.append(layer.activate(
+                _activations[-1], self._weights[i + 1], self._bias[i + 1]))
+        _activations.append(_activations[-1])
+        return _activations
+
+    # Optimizing Process
+
+    @NaiveNNTiming.timeit(level=4)
+    def _init_optimizers(self, optimizer, lr, epoch):
+        _opt_fac = OptFactory()
+        self._w_optimizer = _opt_fac.get_optimizer_by_name(
+            optimizer, self._weights[:-1], lr, epoch)
+        self._b_optimizer = _opt_fac.get_optimizer_by_name(
+            optimizer, self._bias[:-1], lr, epoch)
+
+    @NaiveNNTiming.timeit(level=1)
+    def _opt(self, i, _activation, _delta):
+        self._weights[i] += self._w_optimizer.run(
+            i, _activation.reshape(_activation.shape[0], -1).T.dot(_delta)
+        )
+        self._bias[i] += self._b_optimizer.run(
+            i, np.sum(_delta, axis=0, keepdims=True)
+        )
+
+    # API
+
+    @NaiveNNTiming.timeit(level=4, prefix="[API] ")
+    def add(self, layer):
+        if not self._layers:
+            self._layers, self._current_dimension = [layer], layer.shape[1]
+            self._add_params(layer.shape)
+        elif isinstance(layer, str):
+            self._add_cost_layer(layer)
+        else:
+            _next = layer.shape[0]
+            layer.shape = (self._current_dimension, _next)
+            self._add_layer(layer, self._current_dimension, _next)
+
+    @NaiveNNTiming.timeit(level=1, prefix="[API] ")
+    def fit(self, x, y, lr=0.01, optimizer="Adam", epoch=10):
+        self._add_cost_layer()
+        self._init_optimizers(optimizer, lr, epoch)
+        layer_width = len(self._layers)
+        for counter in range(epoch):
+            self._w_optimizer.update()
+            self._b_optimizer.update()
+            _activations = self._get_activations(x)
+            _deltas = [self._layers[-1].bp_first(y, _activations[-1])]
+            for i in range(-1, -len(_activations), -1):
+                _deltas.append(self._layers[i - 1].bp(
+                    _activations[i - 1], self._weights[i], _deltas[-1]
+                ))
+            for i in range(layer_width - 2, 0, -1):
+                self._opt(i, _activations[i - 1], _deltas[layer_width - i - 1])
+            self._opt(0, x, _deltas[-1])
+
+    @NaiveNNTiming.timeit(level=4, prefix="[API] ")
+    def predict(self, x, get_raw_results=False):
+        y_pred = self._get_prediction(np.atleast_2d(x))
+        if get_raw_results:
+            return y_pred
+        return np.argmax(y_pred, axis=1)
+
+
+class NN(NaiveNN):
+    NNTiming = Timing()
+
+    def __init__(self):
+        NaiveNN.__init__(self)
+        self._metrics, self._metric_names, self._logs = [], [], {}
+        self.verbose = None
+
+    # Utils
 
     @NNTiming.timeit(level=1)
     def _get_prediction(self, x, name=None, batch_size=1e6, verbose=None):
@@ -89,15 +164,6 @@ class NN(ClassifierBase, metaclass=ClassifierMeta):
             if verbose >= NNVerbose.METRICS:
                 sub_bar.update()
         return np.vstack(rs)
-
-    @NNTiming.timeit(level=1)
-    def _get_activations(self, x):
-        _activations = [self._layers[0].activate(x, self._weights[0], self._bias[0])]
-        for i, layer in enumerate(self._layers[1:-1]):
-            _activations.append(layer.activate(
-                _activations[-1], self._weights[i + 1], self._bias[i + 1]))
-        _activations.append(_activations[-1])
-        return _activations
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def _preview(self):
@@ -136,39 +202,6 @@ class NN(ClassifierBase, metaclass=ClassifierMeta):
         print("{:<16s} {:<16s}: {:12.8}".format(
             data_type, "loss", self._logs[data_type][-1][-1]))
         print("=" * 47)
-
-    # Optimizing Process
-
-    @NNTiming.timeit(level=4)
-    def _init_optimizers(self, optimizer, lr, epoch):
-        _opt_fac = OptFactory()
-        self._w_optimizer = _opt_fac.get_optimizer_by_name(
-            optimizer, self._weights[:-1], lr, epoch)
-        self._b_optimizer = _opt_fac.get_optimizer_by_name(
-            optimizer, self._bias[:-1], lr, epoch)
-
-    @NNTiming.timeit(level=1)
-    def _opt(self, i, _activation, _delta):
-        self._weights[i] += self._w_optimizer.run(
-            i, _activation.reshape(_activation.shape[0], -1).T.dot(_delta)
-        )
-        self._bias[i] += self._b_optimizer.run(
-            i, np.sum(_delta, axis=0, keepdims=True)
-        )
-
-    # API
-
-    @NNTiming.timeit(level=4, prefix="[API] ")
-    def add(self, layer):
-        if not self._layers:
-            self._layers, self._current_dimension = [layer], layer.shape[1]
-            self._add_params(layer.shape)
-        elif isinstance(layer, str):
-            self._add_cost_layer(layer)
-        else:
-            _next = layer.shape[0]
-            layer.shape = (self._current_dimension, _next)
-            self._add_layer(layer, self._current_dimension, _next)
 
     @NNTiming.timeit(level=1, prefix="[API] ")
     def fit(self, x, y, lr=0.01, epoch=10, batch_size=128, train_rate=None,
@@ -248,10 +281,3 @@ class NN(ClassifierBase, metaclass=ClassifierMeta):
                 if self.verbose >= NNVerbose.EPOCH:
                     bar.update(counter // record_period + 1)
                     sub_bar = ProgressBar(min_value=0, max_value=train_repeat * record_period - 1, name="Iteration")
-
-    @NNTiming.timeit(level=1, prefix="[API] ")
-    def predict(self, x, get_raw_results=False):
-        y_pred = self._get_prediction(np.atleast_2d(x))
-        if get_raw_results:
-            return y_pred
-        return np.argmax(y_pred, axis=1)

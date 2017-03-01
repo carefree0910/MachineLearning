@@ -108,7 +108,7 @@ class ClassifierMeta(type):
         @clf_timing.timeit(level=1, prefix="[API] ")
         def estimate(self, x, y, metrics=None, tar=None, prefix="Acc"):
             if metrics is None:
-                metrics = []
+                metrics = ["acc"]
             self.get_metrics(metrics)
             logs, y_pred = [], self.predict(x)
             y = np.array(y)
