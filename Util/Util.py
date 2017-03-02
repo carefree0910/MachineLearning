@@ -82,15 +82,15 @@ class DataUtil:
         return xs, np.array(z)
 
     @staticmethod
-    def gen_random(size=100, n_class=2, one_hot=True):
-        xs = np.random.randn(size, 2)
+    def gen_random(size=100, n_dim=2, n_class=2, one_hot=True):
+        xs = np.random.randn(size, n_dim)
         ys = np.random.randint(n_class, size=size).astype(np.int8)
         if not one_hot:
             return xs, ys
         z = []
         for yy in ys:
             z.append([0 if i != yy else 1 for i in range(n_class)])
-        return xs, np.array(z)
+        return xs, np.array(z, dtype=np.int8)
 
     @staticmethod
     def gen_two_clusters(size=100, n_dim=2, center=0, dis=2, scale=1, one_hot=True):

@@ -107,3 +107,20 @@ class ProgressBar:
         self._current = self._clock = time.time()
         self._started = True
         self._flush()
+
+if __name__ == '__main__':
+
+    def task(cost=0.5, epoch=3, name="", _sub_task=None):
+        def _sub():
+            bar = ProgressBar(max_value=epoch, name=name)
+            bar.start()
+            for _ in range(epoch):
+                time.sleep(cost)
+                if _sub_task is not None:
+                    _sub_task()
+                bar.update()
+        return _sub
+
+    task(name="Task1", _sub_task=task(
+        name="Task2", _sub_task=task(
+            name="Task3")))()
