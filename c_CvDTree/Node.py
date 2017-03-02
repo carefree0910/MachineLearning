@@ -3,8 +3,10 @@ from math import log2
 
 from c_CvDTree.Cluster import Cluster
 
+from Util.Metas import TimingMeta
 
-class CvDNode:
+
+class CvDNode(metaclass=TimingMeta):
     def __init__(self, tree=None, base=2, chaos=None,
                  depth=0, parent=None, is_root=True, prev_feat="Root"):
         self._x = self._y = None
@@ -32,13 +34,17 @@ class CvDNode:
         return self.prev_feat < other.prev_feat
 
     def __str__(self):
+        return self.__class__.__name__
+
+    __repr__ = __str__
+
+    @property
+    def info(self):
         if self.category is None:
             return "CvDNode ({}) ({} -> {})".format(
                 self._depth, self.prev_feat, self.feature_dim)
         return "CvDNode ({}) ({} -> class: {})".format(
             self._depth, self.prev_feat, self.tree.label_dic[self.category])
-
-    __repr__ = __str__
 
     @property
     def children(self):
@@ -267,7 +273,7 @@ class CvDNode:
         return np.array([self.predict_one(xx) for xx in x])
 
     def view(self, indent=4):
-        print(" " * indent * self._depth, self)
+        print(" " * indent * self._depth, self.info)
         for _node in sorted(self.children):
             _node = self.children[_node]
             if _node is not None:

@@ -1,8 +1,10 @@
 import math
 import numpy as np
 
+from Util.Metas import TimingMeta
 
-class Cluster:
+
+class Cluster(metaclass=TimingMeta):
     def __init__(self, x, y, sample_weight=None, base=2):
         self._x, self._y = x.T, y
         if sample_weight is None:
@@ -13,6 +15,11 @@ class Cluster:
         self._sample_weight = sample_weight
         self._con_chaos_cache = self._ent_cache = self._gini_cache = None
         self._base = base
+
+    def __str__(self):
+        return "Cluster"
+
+    __repr__ = __str__
 
     def ent(self, ent=None, eps=1e-12):
         if self._ent_cache is not None and ent is None:

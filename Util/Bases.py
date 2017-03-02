@@ -6,20 +6,6 @@ from mpl_toolkits.mplot3d import Axes3D
 from Util.Timing import Timing
 
 
-class TimingBase:
-    def __str__(self):
-        pass
-
-    def __repr__(self):
-        pass
-
-    def feed_timing(self, timing):
-        pass
-
-    def show_timing_log(self, level=2):
-        pass
-
-
 class ClassifierBase:
     clf_timing = Timing()
 
@@ -57,7 +43,6 @@ class ClassifierBase:
         ClassifierBase.clf_timing.show_timing_log(level)
 
     @staticmethod
-    @clf_timing.timeit(level=2, prefix="[Metric] ")
     def acc(y, y_pred, weights=None):
         if not isinstance(y, np.ndarray):
             y = np.array(y)
@@ -69,7 +54,6 @@ class ClassifierBase:
 
     # noinspection PyTypeChecker
     @staticmethod
-    @clf_timing.timeit(level=2, cls_name="NN", prefix="[Metric] ")
     def f1_score(y, y_pred):
         tp = np.sum(y * y_pred)
         if tp == 0:

@@ -11,7 +11,6 @@ np.random.seed(142857)
 
 
 class Util:
-
     @staticmethod
     def get_and_pop(dic, key, default):
         try:
@@ -20,6 +19,16 @@ class Util:
         except KeyError:
             val = default
         return val
+
+    @staticmethod
+    def callable(obj):
+        _str_obj = str(obj)
+        if callable(obj):
+            return True
+        if "<" not in _str_obj and ">" not in _str_obj:
+            return False
+        if _str_obj.find("function") >= 0 or _str_obj.find("staticmethod") >= 0:
+            return True
 
 
 class DataUtil:
@@ -138,7 +147,6 @@ class DataUtil:
 
 
 class VisUtil:
-
     @staticmethod
     def get_line_info(weight, weight_min, weight_max, weight_average, max_thickness=5):
         mask = weight >= weight_average

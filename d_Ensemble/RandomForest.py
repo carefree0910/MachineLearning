@@ -52,7 +52,7 @@ class RandomForest(ClassifierBase):
 if __name__ == '__main__':
     import time
 
-    train_num = 6000
+    train_num = 100
     (x_train, y_train), (x_test, y_test) = DataUtil.get_dataset(
         "mushroom", "../_Data/mushroom.txt", train_num=train_num, tar_idx=0)
 

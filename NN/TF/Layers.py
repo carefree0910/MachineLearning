@@ -223,7 +223,7 @@ class ConvMeta(type):
             if self._pad_flag == "VALID" and self._padding > 0:
                 _pad = [self._padding] * 2
                 x = tf.pad(x, [[0, 0], _pad, _pad, [0, 0]], "CONSTANT")
-            return self.LayerTiming.timeit(level=1, name="activate", cls_name=name, prefix="[Core] ")(
+            return self.LayerTiming.timeit(level=1, func_name="activate", cls_name=name, prefix="[Core] ")(
                 _activate)(self, x, w, bias, predict)
 
         for key, value in locals().items():
@@ -252,7 +252,7 @@ class ConvSubMeta(type):
             return sub_layer._activate(self, x, predict)
 
         def activate(self, x, w, bias=None, predict=False):
-            return self.LayerTiming.timeit(level=1, name="activate", cls_name=name, prefix="[Core] ")(
+            return self.LayerTiming.timeit(level=1, func_name="activate", cls_name=name, prefix="[Core] ")(
                 _activate)(self, x, predict)
 
         @property

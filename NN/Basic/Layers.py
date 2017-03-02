@@ -302,7 +302,7 @@ class ConvMeta(type):
             if isinstance(prev_delta, tuple):
                 prev_delta = prev_delta[0]
 
-            __derivative = self.LayerTiming.timeit(level=1, name="bp", cls_name=name, prefix="[Core] ")(
+            __derivative = self.LayerTiming.timeit(level=1, func_name="bp", cls_name=name, prefix="[Core] ")(
                 layer.derivative)
             if self.is_fc_base:
                 delta = __derivative(self, y) * prev_delta.dot(w.T).reshape(y.shape)
@@ -333,11 +333,11 @@ class ConvMeta(type):
             return dx, dw, db
 
         def activate(self, x, w, bias=None, predict=False):
-            return self.LayerTiming.timeit(level=1, name="activate", cls_name=name, prefix="[Core] ")(
+            return self.LayerTiming.timeit(level=1, func_name="activate", cls_name=name, prefix="[Core] ")(
                 _activate)(self, x, w, bias, predict)
 
         def bp(self, y, w, prev_delta):
-            return self.LayerTiming.timeit(level=1, name="bp", cls_name=name, prefix="[Core] ")(
+            return self.LayerTiming.timeit(level=1, func_name="bp", cls_name=name, prefix="[Core] ")(
                 _derivative)(self, y, w, prev_delta)
 
         for key, value in locals().items():
@@ -376,13 +376,13 @@ class ConvSubMeta(type):
             return dx.reshape(n, height, width, n_channels).transpose(0, 3, 1, 2)
 
         def activate(self, x, w, bias=None, predict=False):
-            return self.LayerTiming.timeit(level=1, name="activate", cls_name=name, prefix="[Core] ")(
+            return self.LayerTiming.timeit(level=1, func_name="activate", cls_name=name, prefix="[Core] ")(
                 _activate)(self, x, predict)
 
         def bp(self, y, w, prev_delta):
             if isinstance(prev_delta, tuple):
                 prev_delta = prev_delta[0]
-            return self.LayerTiming.timeit(level=1, name="bp", cls_name=name, prefix="[Core] ")(
+            return self.LayerTiming.timeit(level=1, func_name="bp", cls_name=name, prefix="[Core] ")(
                 _derivative)(self, y, w, prev_delta)
 
         for key, value in locals().items():

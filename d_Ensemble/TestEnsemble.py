@@ -1,5 +1,4 @@
 import time
-import numpy as np
 
 from d_Ensemble.AdaBoost import AdaBoost
 from d_Ensemble.RandomForest import RandomForest
@@ -11,8 +10,6 @@ _clf_dic = {
     "AdaBoost": AdaBoost, "RF": RandomForest,
     "SKAdaBoost": SKAdaBoost, "SKRandomForest": SKRandomForest
 }
-
-np.random.seed(142857)
 
 
 def test(x, y, algorithm="AdaBoost", clf="Cart", epoch=10, **kwargs):
@@ -54,7 +51,7 @@ if __name__ == '__main__':
     # test(_x, _y, clf="SKTree", epoch=10)
     # test(_x, _y, clf="SKTree", epoch=1000)
     # test(_x, _y, algorithm="RF", epoch=10)
-    test(_x, _y, algorithm="RF", epoch=1000)
+    test(_x, _y, algorithm="RF", epoch=10)
     # test(_x, _y, algorithm="SKAdaBoost")
 
     train_num = 6000
