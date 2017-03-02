@@ -57,9 +57,7 @@ class Timing:
     def show_timing_log(self, level=2):
         print()
         print("=" * 110 + "\n" + "Timing log\n" + "-" * 110)
-        if not self.timings:
-            print("None")
-        else:
+        if self.timings:
             for key in sorted(self.timings.keys()):
                 timing_info = self.timings[key]
                 if self.name is not None and self.timings[key]["name_flag"]:
@@ -68,3 +66,7 @@ class Timing:
                     print("{:<42s} :  {:12.7} s (Call Time: {:6d})".format(
                         key, timing_info["timing"], timing_info["call_time"]))
         print("-" * 110)
+
+    @classmethod
+    def disable(cls):
+        cls.enabled = False

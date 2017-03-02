@@ -3,10 +3,9 @@ import matplotlib.pyplot as plt
 from b_NaiveBayes.Vectorized.Basic import *
 
 from Util.Timing import Timing
-from Util.Metas import SubClassChangeNamesMeta
 
 
-class GaussianNB(NaiveBayes, metaclass=SubClassChangeNamesMeta):
+class GaussianNB(NaiveBayes):
     GaussianNBTiming = Timing()
 
     @GaussianNBTiming.timeit(level=1, prefix="[API] ")
@@ -24,10 +23,10 @@ class GaussianNB(NaiveBayes, metaclass=SubClassChangeNamesMeta):
         self._x, self._y = x.T, y
         self._labelled_x, self._label_zip = labelled_x, labels
         self._cat_counter, self.label_dic = cat_counter, {i: _l for _l, i in label_dic.items()}
-        self._feed_sample_weight(sample_weight)
+        self.feed_sample_weight(sample_weight)
 
     @GaussianNBTiming.timeit(level=1, prefix="[Core] ")
-    def _feed_sample_weight(self, sample_weight=None):
+    def feed_sample_weight(self, sample_weight=None):
         if sample_weight is not None:
             local_weights = sample_weight * len(sample_weight)
             for i, label in enumerate(self._label_zip):

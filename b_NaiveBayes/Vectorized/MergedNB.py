@@ -4,10 +4,9 @@ from b_NaiveBayes.Vectorized.GaussianNB import GaussianNB
 
 from Util.Util import DataUtil
 from Util.Timing import Timing
-from Util.Metas import SubClassChangeNamesMeta
 
 
-class MergedNB(NaiveBayes, metaclass=SubClassChangeNamesMeta):
+class MergedNB(NaiveBayes):
     MergedNBTiming = Timing()
 
     def __init__(self, whether_continuous=None):
@@ -52,12 +51,12 @@ class MergedNB(NaiveBayes, metaclass=SubClassChangeNamesMeta):
         self._gaussian._labelled_x, self._gaussian._label_zip = labelled_x, labels
         self._gaussian._cat_counter, self._gaussian.label_dic = cat_counter, label_dic
 
-        self._feed_sample_weight(sample_weight)
+        self.feed_sample_weight(sample_weight)
 
     @MergedNBTiming.timeit(level=1, prefix="[Core] ")
-    def _feed_sample_weight(self, sample_weight=None):
-        self._multinomial._feed_sample_weight(sample_weight)
-        self._gaussian._feed_sample_weight(sample_weight)
+    def feed_sample_weight(self, sample_weight=None):
+        self._multinomial.feed_sample_weight(sample_weight)
+        self._gaussian.feed_sample_weight(sample_weight)
 
     @MergedNBTiming.timeit(level=1, prefix="[Core] ")
     def _fit(self, lb):

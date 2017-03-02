@@ -3,7 +3,7 @@ from c_CvDTree.Tree import *
 from Util.Util import DataUtil
 
 
-class RandomForest(ClassifierBase, metaclass=ClassifierMeta):
+class RandomForest(ClassifierBase):
     RandomForestTiming = Timing()
     _cvd_trees = {
         "ID3": ID3Tree,
@@ -12,6 +12,7 @@ class RandomForest(ClassifierBase, metaclass=ClassifierMeta):
     }
 
     def __init__(self):
+        super(RandomForest, self).__init__()
         self._tree, self._trees = "", []
 
     @property

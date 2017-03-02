@@ -4,10 +4,9 @@ from b_NaiveBayes.Vectorized.Basic import *
 
 from Util.Util import DataUtil
 from Util.Timing import Timing
-from Util.Metas import SubClassChangeNamesMeta
 
 
-class MultinomialNB(NaiveBayes, metaclass=SubClassChangeNamesMeta):
+class MultinomialNB(NaiveBayes):
     MultinomialNBTiming = Timing()
 
     @MultinomialNBTiming.timeit(level=1, prefix="[API] ")
@@ -25,10 +24,10 @@ class MultinomialNB(NaiveBayes, metaclass=SubClassChangeNamesMeta):
         self._labelled_x, self._label_zip = labelled_x, list(zip(labels, labelled_x))
         self._cat_counter, self._feat_dics, self._n_possibilities = cat_counter, feat_dics, n_possibilities
         self.label_dic = label_dic
-        self._feed_sample_weight(sample_weight)
+        self.feed_sample_weight(sample_weight)
 
     @MultinomialNBTiming.timeit(level=1, prefix="[Core] ")
-    def _feed_sample_weight(self, sample_weight=None):
+    def feed_sample_weight(self, sample_weight=None):
         self._con_counter = []
         for dim, _p in enumerate(self._n_possibilities):
             if sample_weight is None:

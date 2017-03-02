@@ -13,7 +13,7 @@ from _SKlearn.Tree import SKTree
 from _SKlearn.SVM import SKSVM
 
 
-class AdaBoost(ClassifierBase, metaclass=ClassifierMeta):
+class AdaBoost(ClassifierBase):
     AdaBoostTiming = Timing()
     _weak_clf = {
         "SKMNB": SKMultinomialNB,
@@ -33,6 +33,7 @@ class AdaBoost(ClassifierBase, metaclass=ClassifierMeta):
     }
 
     def __init__(self):
+        super(AdaBoost, self).__init__()
         self._clf, self._clfs, self._clfs_weights = "", [], []
         self._kwarg_cache = {}
 

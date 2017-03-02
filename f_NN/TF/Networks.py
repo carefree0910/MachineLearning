@@ -4,7 +4,6 @@ from f_NN.TF.Layers import *
 from f_NN.TF.Optimizers import *
 
 from Util.Bases import ClassifierBase
-from Util.Metas import ClassifierMeta
 from Util.Timing import Timing
 from Util.ProgressBar import ProgressBar
 
@@ -18,13 +17,17 @@ class NNVerbose:
     DEBUG = 5
 
 
-class NN(ClassifierBase, metaclass=ClassifierMeta):
+class NN(ClassifierBase):
     NNTiming = Timing()
 
     def __init__(self):
+        super(NN, self).__init__()
         self._layers = []
         self._optimizer = None
         self._current_dimension = 0
+        self._available_metrics = {
+            key: value for key, value in zip(["acc", "f1-score"], [NN.acc, NN.f1_score])
+        }
         self._metrics, self._metric_names, self._logs = [], [], {}
 
         self._tfx = self._tfy = None
@@ -203,12 +206,10 @@ class NN(ClassifierBase, metaclass=ClassifierMeta):
             bar.start()
 
         with self._sess.as_default() as sess:
-
             self._cost = self._get_rs(self._tfx, self._tfy)
             self._y_pred = self._get_rs(self._tfx)
             self._train_step = self._optimizer.minimize(self._cost)
             sess.run(tf.global_variables_initializer())
-
             sub_bar = ProgressBar(min_value=0, max_value=train_repeat * record_period - 1, name="Iteration")
             for counter in range(epoch):
                 if self.verbose >= NNVerbose.EPOCH and counter % record_period == 0:

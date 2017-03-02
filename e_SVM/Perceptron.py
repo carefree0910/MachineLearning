@@ -1,14 +1,14 @@
 import numpy as np
 
 from Util.Bases import ClassifierBase
-from Util.Metas import ClassifierMeta
 from Util.Timing import Timing
 
 
-class Perceptron(ClassifierBase, metaclass=ClassifierMeta):
+class Perceptron(ClassifierBase):
     PerceptronTiming = Timing()
 
     def __init__(self):
+        super(Perceptron, self).__init__()
         self._w = self._b = None
 
     @PerceptronTiming.timeit(level=1, prefix="[API] ")

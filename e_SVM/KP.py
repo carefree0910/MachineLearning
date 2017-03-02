@@ -2,12 +2,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from Util.Bases import KernelBase
-from Util.Metas import SubClassChangeNamesMeta
 from Util.Timing import Timing
 from Util.Util import DataUtil
 
 
-class KernelPerceptron(KernelBase, metaclass=SubClassChangeNamesMeta):
+class KernelPerceptron(KernelBase):
     KernelPerceptronTiming = Timing()
 
     def __init__(self):

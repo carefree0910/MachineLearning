@@ -3,7 +3,6 @@ from math import pi, exp
 
 from Util.Timing import Timing
 from Util.Bases import ClassifierBase
-from Util.Metas import ClassifierMeta
 
 sqrt_pi = (2 * pi) ** 0.5
 
@@ -29,10 +28,11 @@ class NBFunctions:
         return [func(_c=c) for c in range(n_category)]
 
 
-class NaiveBayes(ClassifierBase, metaclass=ClassifierMeta):
+class NaiveBayes(ClassifierBase):
     NaiveBayesTiming = Timing()
 
     def __init__(self):
+        super(NaiveBayes, self).__init__()
         self._x = self._y = None
         self._data = self._func = None
         self._n_possibilities = None
@@ -43,7 +43,7 @@ class NaiveBayes(ClassifierBase, metaclass=ClassifierMeta):
     def feed_data(self, x, y, sample_weight=None):
         pass
 
-    def _feed_sample_weight(self, sample_weight=None):
+    def feed_sample_weight(self, sample_weight=None):
         pass
 
     @NaiveBayesTiming.timeit(level=2, prefix="[API] ")

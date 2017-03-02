@@ -1,14 +1,14 @@
 import numpy as np
 
 from Util.Bases import ClassifierBase
-from Util.Metas import ClassifierMeta
 from Util.Timing import Timing
 
 
-class LinearSVM(ClassifierBase, metaclass=ClassifierMeta):
+class LinearSVM(ClassifierBase):
     LinearSVMTiming = Timing()
 
     def __init__(self):
+        super(LinearSVM, self).__init__()
         self._w = self._b = None
 
     @LinearSVMTiming.timeit(level=1, prefix="[API] ")

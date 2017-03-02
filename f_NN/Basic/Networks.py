@@ -4,7 +4,7 @@ from f_NN.Basic.Layers import *
 from f_NN.Basic.Optimizers import *
 
 from Util.Bases import ClassifierBase
-from Util.Metas import ClassifierMeta, SubClassChangeNamesMeta
+from Util.Metas import SubClassChangeNamesMeta
 from Util.ProgressBar import ProgressBar
 
 
@@ -17,10 +17,11 @@ class NNVerbose:
     DEBUG = 5
 
 
-class NaiveNN(ClassifierBase, metaclass=ClassifierMeta):
+class NaiveNN(ClassifierBase):
     NaiveNNTiming = Timing()
 
     def __init__(self):
+        super(NaiveNN, self).__init__()
         self._layers, self._weights, self._bias = [], [], []
         self._w_optimizer = self._b_optimizer = None
         self._current_dimension = 0
@@ -137,7 +138,7 @@ class NN(NaiveNN, metaclass=SubClassChangeNamesMeta):
     NNTiming = Timing()
 
     def __init__(self):
-        NaiveNN.__init__(self)
+        super(NN, self).__init__()
         self._available_metrics = {
             key: value for key, value in zip(["acc", "f1-score"], [NN.acc, NN.f1_score])
         }
@@ -145,17 +146,6 @@ class NN(NaiveNN, metaclass=SubClassChangeNamesMeta):
         self.verbose = None
 
     # Utils
-
-    # noinspection PyTypeChecker
-    @staticmethod
-    @NNTiming.timeit(level=2, cls_name="NN", prefix="[Metric] ")
-    def f1_score(y, y_pred):
-        tp = np.sum(y * y_pred)
-        if tp == 0:
-            return .0
-        fp = np.sum((1 - y) * y_pred)
-        fn = np.sum(y * (1 - y_pred))
-        return 2 * tp / (2 * tp + fn + fp)
 
     @NNTiming.timeit(level=1)
     def _get_prediction(self, x, name=None, batch_size=1e6, verbose=None):

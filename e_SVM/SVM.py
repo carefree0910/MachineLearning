@@ -2,10 +2,9 @@ import numpy as np
 
 from Util.Timing import Timing
 from Util.Bases import KernelBase
-from Util.Metas import SubClassChangeNamesMeta
 
 
-class SVM(KernelBase, metaclass=SubClassChangeNamesMeta):
+class SVM(KernelBase):
     SVMTiming = Timing()
 
     def __init__(self):

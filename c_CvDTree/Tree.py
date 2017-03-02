@@ -5,13 +5,13 @@ from c_CvDTree.Node import *
 
 from Util.Timing import Timing
 from Util.Bases import ClassifierBase
-from Util.Metas import ClassifierMeta
 
 
-class CvDBase(ClassifierBase, metaclass=ClassifierMeta):
+class CvDBase(ClassifierBase):
     CvDBaseTiming = Timing()
 
     def __init__(self, whether_continuous=None, max_depth=None, node=None):
+        super(CvDBase, self).__init__()
         self.nodes, self.layers, self.roots = [], [], []
         self.max_depth = max_depth
         self.root = node
@@ -150,7 +150,7 @@ class CvDBase(ClassifierBase, metaclass=ClassifierMeta):
         return self.label_dic[self.root.predict_one(x)]
 
     @CvDBaseTiming.timeit(level=3, prefix="[API] ")
-    def predict(self, x):
+    def predict(self, x, get_raw_results=False):
         return np.array([self.predict_one(xx) for xx in x])
 
     @CvDBaseTiming.timeit(level=3, prefix="[API] ")
@@ -218,7 +218,7 @@ class CvDMeta(type):
         def __init__(self, whether_continuous=None, max_depth=None, node=None, **_kwargs):
             tmp_node = node if isinstance(node, CvDNode) else _node
             CvDBase.__init__(self, whether_continuous, max_depth, tmp_node(**_kwargs))
-            self.name = name
+            self._name = name
 
         attr["__init__"] = __init__
         return type(name, bases, attr)
