@@ -988,9 +988,9 @@ class NNDist(NNBase):
             plt.show()
 
     def draw_results(self):
-        metrics_log, loss_log = {}, {}
+        metrics_log, cost_log = {}, {}
         for key, value in sorted(self._logs.items()):
-            metrics_log[key], loss_log[key] = value[:-1], value[-1]
+            metrics_log[key], cost_log[key] = value[:-1], value[-1]
 
         for i, name in enumerate(sorted(self._metric_names)):
             plt.figure()
@@ -1003,8 +1003,8 @@ class NNDist(NNBase):
             plt.close()
 
         plt.figure()
-        plt.title("Loss")
-        for key, loss in sorted(loss_log.items()):
+        plt.title("Cost")
+        for key, loss in sorted(cost_log.items()):
             xs = np.arange(len(loss)) + 1
             plt.plot(xs, loss, label="Data Type: {}".format(key))
         plt.legend()

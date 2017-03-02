@@ -69,6 +69,7 @@ class ClassifierMeta(type):
             if isinstance(item, str):
                 return getattr(self, "_" + item)
 
+        @clf_timing.timeit(level=2, prefix="[Metric] ")
         def acc(y, y_pred, weights=None):
             if not isinstance(y, np.ndarray):
                 y = np.array(y)
@@ -86,10 +87,12 @@ class ClassifierMeta(type):
         def __init__(self, *_args, **_kwargs):
             if init is not None:
                 init(self, *_args, **_kwargs)
-            self._metrics = [acc]
-            self._available_metrics = {
-                "acc": acc
-            }
+            if "_metrics" not in attr or not self._metrics:
+                self._metrics = [acc]
+            if "_available_metrics" not in attr or not self._available_metrics:
+                self._available_metrics = {
+                    "acc": acc
+                }
 
         def get_metrics(self, metrics):
             if len(metrics) == 0:

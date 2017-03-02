@@ -3,11 +3,11 @@ import wrapt
 
 
 class Timing:
-    _timings = {}
-    _enabled = False
+    timings = {}
+    enabled = False
 
     def __init__(self, enabled=True):
-        Timing._enabled = enabled
+        Timing.enabled = enabled
         self.name = None
 
     def __str__(self):
@@ -18,7 +18,7 @@ class Timing:
     def timeit(self, level=0, name=None, cls_name=None, prefix="[Method] "):
         @wrapt.decorator
         def wrapper(func, instance, args, kwargs):
-            if not Timing._enabled:
+            if not Timing.enabled:
                 return func(*args, **kwargs)
             name_flag = False
             if self.name is not None:
@@ -41,10 +41,10 @@ class Timing:
             rs = func(*args, **kwargs)
             _t = time.time() - _t
             try:
-                Timing._timings[_name]["timing"] += _t
-                Timing._timings[_name]["call_time"] += 1
+                Timing.timings[_name]["timing"] += _t
+                Timing.timings[_name]["call_time"] += 1
             except KeyError:
-                Timing._timings[_name] = {
+                Timing.timings[_name] = {
                     "level": level,
                     "timing": _t,
                     "call_time": 1,
@@ -53,10 +53,6 @@ class Timing:
             return rs
 
         return wrapper
-
-    @property
-    def timings(self):
-        return self._timings
 
     def show_timing_log(self, level=2):
         print()

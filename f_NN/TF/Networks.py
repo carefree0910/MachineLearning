@@ -1,3 +1,5 @@
+import matplotlib.pyplot as plt
+
 from f_NN.TF.Layers import *
 from f_NN.TF.Optimizers import *
 
@@ -235,6 +237,27 @@ class NN(ClassifierBase, metaclass=ClassifierMeta):
                     if self.verbose >= NNVerbose.EPOCH:
                         bar.update(counter // record_period + 1)
                         sub_bar = ProgressBar(min_value=0, max_value=train_repeat * record_period - 1, name="Iteration")
+
+    def draw_logs(self):
+        metrics_log, cost_log = {}, {}
+        for key, value in sorted(self._logs.items()):
+            metrics_log[key], cost_log[key] = value[:-1], value[-1]
+        for i, name in enumerate(sorted(self._metric_names)):
+            plt.figure()
+            plt.title("Metric Type: {}".format(name))
+            for key, log in sorted(metrics_log.items()):
+                xs = np.arange(len(log[i])) + 1
+                plt.plot(xs, log[i], label="Data Type: {}".format(key))
+            plt.legend(loc=4)
+            plt.show()
+            plt.close()
+        plt.figure()
+        plt.title("Cost")
+        for key, loss in sorted(cost_log.items()):
+            xs = np.arange(len(loss)) + 1
+            plt.plot(xs, loss, label="Data Type: {}".format(key))
+        plt.legend()
+        plt.show()
 
     @NNTiming.timeit(level=1, prefix="[API] ")
     def predict(self, x, get_raw_results=False):

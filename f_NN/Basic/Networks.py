@@ -1,3 +1,5 @@
+import matplotlib.pyplot as plt
+
 from f_NN.Basic.Layers import *
 from f_NN.Basic.Optimizers import *
 
@@ -136,10 +138,24 @@ class NN(NaiveNN, metaclass=SubClassChangeNamesMeta):
 
     def __init__(self):
         NaiveNN.__init__(self)
+        self._available_metrics = {
+            key: value for key, value in zip(["acc", "f1-score"], [NN.acc, NN.f1_score])
+        }
         self._metrics, self._metric_names, self._logs = [], [], {}
         self.verbose = None
 
     # Utils
+
+    # noinspection PyTypeChecker
+    @staticmethod
+    @NNTiming.timeit(level=2, cls_name="NN", prefix="[Metric] ")
+    def f1_score(y, y_pred):
+        tp = np.sum(y * y_pred)
+        if tp == 0:
+            return .0
+        fp = np.sum((1 - y) * y_pred)
+        fn = np.sum(y * (1 - y_pred))
+        return 2 * tp / (2 * tp + fn + fp)
 
     @NNTiming.timeit(level=1)
     def _get_prediction(self, x, name=None, batch_size=1e6, verbose=None):
@@ -163,9 +179,9 @@ class NN(NaiveNN, metaclass=SubClassChangeNamesMeta):
         while count < len(x):
             count += single_batch
             if count >= len(x):
-                rs.append(self._get_activations(x[count - single_batch:], predict=True).pop())
+                rs.append(self._get_activations(x[count - single_batch:]).pop())
             else:
-                rs.append(self._get_activations(x[count - single_batch:count], predict=True).pop())
+                rs.append(self._get_activations(x[count - single_batch:count]).pop())
             if verbose >= NNVerbose.METRICS:
                 sub_bar.update()
         return np.vstack(rs)
@@ -221,7 +237,7 @@ class NN(NaiveNN, metaclass=SubClassChangeNamesMeta):
         if train_rate is not None:
             train_rate = float(train_rate)
             train_len = int(len(x) * train_rate)
-            shuffle_suffix = np.random.permutation(int(len(x)))
+            shuffle_suffix = np.random.permutation(len(x))
             x, y = x[shuffle_suffix], y[shuffle_suffix]
             x_train, y_train = x[:train_len], y[:train_len]
             x_test, y_test = x[train_len:], y[train_len:]
@@ -286,3 +302,24 @@ class NN(NaiveNN, metaclass=SubClassChangeNamesMeta):
                 if self.verbose >= NNVerbose.EPOCH:
                     bar.update(counter // record_period + 1)
                     sub_bar = ProgressBar(min_value=0, max_value=train_repeat * record_period - 1, name="Iteration")
+
+    def draw_logs(self):
+        metrics_log, cost_log = {}, {}
+        for key, value in sorted(self._logs.items()):
+            metrics_log[key], cost_log[key] = value[:-1], value[-1]
+        for i, name in enumerate(sorted(self._metric_names)):
+            plt.figure()
+            plt.title("Metric Type: {}".format(name))
+            for key, log in sorted(metrics_log.items()):
+                xs = np.arange(len(log[i])) + 1
+                plt.plot(xs, log[i], label="Data Type: {}".format(key))
+            plt.legend(loc=4)
+            plt.show()
+            plt.close()
+        plt.figure()
+        plt.title("Cost")
+        for key, loss in sorted(cost_log.items()):
+            xs = np.arange(len(loss)) + 1
+            plt.plot(xs, loss, label="Data Type: {}".format(key))
+        plt.legend()
+        plt.show()
