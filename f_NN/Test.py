@@ -30,7 +30,7 @@ def main():
     nn.estimate(x, y)
     nn.visualize2d(x, y)
     nn.show_timing_log()
-    nn.draw_logs()
+    # nn.draw_logs()
 
 if __name__ == '__main__':
     main()

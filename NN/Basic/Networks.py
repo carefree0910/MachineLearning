@@ -14,8 +14,6 @@ from NN.Basic.Optimizers import OptFactory
 from Util.ProgressBar import ProgressBar
 from Util.Util import VisUtil
 
-np.random.seed(142857)  # for reproducibility
-
 
 class NNVerbose:
     NONE = 0
@@ -256,10 +254,8 @@ class NNDist:
         _last_layer = self._layers[-1]
         _last_layer_root = _last_layer.root
         if not isinstance(_last_layer, CostLayer):
-            if _last_layer_root.name == "Sigmoid":
+            if _last_layer_root.name == "Sigmoid" or _last_layer_root.name == "Softmax":
                 self._cost_layer = "Cross Entropy"
-            elif _last_layer_root.name == "Softmax":
-                self._cost_layer = "Log Likelihood"
             else:
                 self._cost_layer = "MSE"
             self.add(self._cost_layer)

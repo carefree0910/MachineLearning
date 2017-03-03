@@ -52,10 +52,8 @@ class NaiveNN(ClassifierBase):
         if cost_function is not None:
             _cost_func = cost_function
         else:
-            if _last_layer.name == "Sigmoid":
+            if _last_layer.name == "Sigmoid" or _last_layer.name == "Softmax":
                 _cost_func = "Cross Entropy"
-            elif _last_layer.name == "Softmax":
-                _cost_func = "Log Likelihood"
             else:
                 _cost_func = "MSE"
         _cost_layer = CostLayer(_last_layer, (self._current_dimension,), _cost_func)
@@ -87,7 +85,7 @@ class NaiveNN(ClassifierBase):
     @NaiveNNTiming.timeit(level=1)
     def _opt(self, i, _activation, _delta):
         self._weights[i] += self._w_optimizer.run(
-            i, _activation.reshape(_activation.shape[0], -1).T.dot(_delta)
+            i, _activation.T.dot(_delta)
         )
         self._bias[i] += self._b_optimizer.run(
             i, np.sum(_delta, axis=0, keepdims=True)

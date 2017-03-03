@@ -93,7 +93,7 @@ class OptFactory:
         "MBGD": MBGD, "Momentum": Momentum, "NAG": NAG, "RMSProp": RMSProp, "Adam": Adam,
     }
 
-    def get_optimizer_by_name(self, name, variables, lr, epoch):
+    def get_optimizer_by_name(self, name, variables, lr, epoch=100):
         try:
             _optimizer = self.available_optimizers[name](lr)
             if variables is not None:

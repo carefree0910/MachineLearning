@@ -118,13 +118,12 @@ class Softmax(Layer):
 class CostLayer(Layer):
     CostLayerTiming = Timing()
 
-    def __init__(self, parent, shape, cost_function="Log Likelihood"):
+    def __init__(self, parent, shape, cost_function="MSE"):
         Layer.__init__(self, shape)
         self._parent = parent
         self._available_cost_functions = {
             "MSE": CostLayer._mse,
-            "Cross Entropy": CostLayer._cross_entropy,
-            "Log Likelihood": CostLayer._log_likelihood
+            "Cross Entropy": CostLayer._cross_entropy
         }
         self._cost_function_name = cost_function
         self._cost_function = self._available_cost_functions[cost_function]
@@ -140,10 +139,8 @@ class CostLayer(Layer):
 
     @CostLayerTiming.timeit(level=1, prefix="[Core] ")
     def bp_first(self, y, y_pred):
-        if self._parent.name == "Sigmoid" and self._cost_function_name == "Cross Entropy":
+        if self._cost_function_name == "Cross Entropy" and (self._parent.name == "Sigmoid" or "Softmax"):
             return y - y_pred
-        if self._parent.name == "Softmax" and self._cost_function_name == "Log Likelihood":
-            return -self._cost_function(y, y_pred) / 4
         return -self._cost_function(y, y_pred) * self._parent.derivative(y_pred)
 
     @property
@@ -161,18 +158,10 @@ class CostLayer(Layer):
         return 0.5 * np.average((y - y_pred) ** 2)
 
     @staticmethod
-    def _cross_entropy(y, y_pred, diff=True):
+    def _cross_entropy(y, y_pred, diff=True, eps=1e-8):
         if diff:
-            return -y / y_pred + (1 - y) / (1 - y_pred)
+            return -y / (y_pred + eps) + (1 - y) / (1 - y_pred + eps)
         assert_string = "y or y_pred should be np.ndarray in cost function"
         assert isinstance(y, np.ndarray) or isinstance(y_pred, np.ndarray), assert_string
         # noinspection PyTypeChecker
-        return np.average(-y * np.log(y_pred) - (1 - y) * np.log(1 - y_pred))
-
-    @classmethod
-    def _log_likelihood(cls, y, y_pred, diff=True, eps=1e-8):
-        y_arg_max = np.argmax(y, axis=1)
-        if diff:
-            y_pred[range(len(y_pred)), y_arg_max] -= 1
-            return y_pred
-        return np.sum(-np.log(y_pred[range(len(y_pred)), y_arg_max] + eps)) / len(y)
+        return np.average(-y * np.log(y_pred + eps) - (1 - y) * np.log(1 - y_pred + eps))

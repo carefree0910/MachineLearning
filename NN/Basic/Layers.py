@@ -93,9 +93,7 @@ class Layer:
         if self.is_fc:
             x = x.reshape(x.shape[0], -1)
         if self.is_sub_layer:
-            if bias is None:
-                return self._activate(x, predict)
-            return self._activate(x + bias, predict)
+            return self._activate(x, predict)
         if bias is None:
             return self._activate(x.dot(w), predict)
         return self._activate(x.dot(w) + bias, predict)
@@ -369,7 +367,7 @@ class ConvSubMeta(type):
                 delta = delta.dot(w.T).reshape(y.shape)
             n, n_channels, height, width = delta.shape
             delta_new = delta.transpose(0, 2, 3, 1).reshape(-1, n_channels)
-            dx = sub_layer.derivative(self, None, delta_new)
+            dx = sub_layer.derivative(self)
             return dx.reshape(n, height, width, n_channels).transpose(0, 3, 1, 2)
 
         # noinspection PyUnusedLocal
@@ -679,9 +677,8 @@ class CostLayer(SubLayer):
         SubLayer.__init__(self, parent, shape)
         self._available_cost_functions = {
             "MSE": CostLayer._mse,
-            "NaiveSVM": CostLayer._svm,
-            "Cross Entropy": CostLayer._cross_entropy,
-            "Log Likelihood": CostLayer._log_likelihood
+            "SVM": CostLayer._svm,
+            "Cross Entropy": CostLayer._cross_entropy
         }
 
         if cost_function not in self._available_cost_functions:
@@ -696,10 +693,8 @@ class CostLayer(SubLayer):
         raise LayerError("derivative function should not be called in CostLayer")
 
     def bp_first(self, y, y_pred):
-        if self._root.name == "Sigmoid" and self.cost_function == "Cross Entropy":
-            return y * (1 - y_pred) - (1 - y) * y_pred
-        if self._root.name == "Softmax" and self.cost_function == "Log Likelihood":
-            return -self._cost_function(y, y_pred) / 4
+        if self._cost_function_name == "Cross Entropy" and (self._root.name == "Sigmoid" or "Softmax"):
+            return y - y_pred
         return -self._cost_function(y, y_pred) * self._root.derivative(y_pred)
 
     @property
@@ -755,17 +750,6 @@ class CostLayer(SubLayer):
         # noinspection PyTypeChecker
         return np.average(-y * np.log(y_pred) - (1 - y) * np.log(1 - y_pred))
 
-    @classmethod
-    def _log_likelihood(cls, y, y_pred, diff=True, eps=1e-8):
-        if cls._batch_range is None:
-            cls._batch_range = np.arange(len(y_pred))
-        y_arg_max = np.argmax(y, axis=1)
-        if diff:
-            y_pred = y_pred.copy()
-            y_pred[cls._batch_range, y_arg_max] -= 1
-            return y_pred
-        return np.sum(-np.log(y_pred[range(len(y_pred)), y_arg_max] + eps)) / len(y)
-
     def __str__(self):
         return self._cost_function_name
 
@@ -787,10 +771,10 @@ class LayerFactory:
     }
     available_sub_layers = {
         "Dropout", "Normalize", "ConvNorm", "ConvDrop",
-        "MSE", "NaiveSVM", "Cross Entropy", "Log Likelihood"
+        "MSE", "SVM", "Cross Entropy"
     }
     available_cost_functions = {
-        "MSE", "NaiveSVM", "Cross Entropy", "Log Likelihood"
+        "MSE", "SVM", "Cross Entropy"
     }
     available_special_layers = {
         "Dropout": Dropout,
