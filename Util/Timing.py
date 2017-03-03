@@ -21,7 +21,7 @@ class Timing:
             if not cls.enabled:
                 return func(*args, **kwargs)
             if instance is not None:
-                instance_name = "{:>18s}".format(str(instance))
+                instance_name = "{:>18s}".format(instance.__class__.__name__)
             else:
                 instance_name = " " * 18 if cls_name is None else "{:>18s}".format(cls_name)
             _prefix = "{:>26s}".format(prefix)
@@ -70,9 +70,6 @@ if __name__ == '__main__':
 
         def __init__(self, rate):
             self.rate = rate
-
-        def __str__(self):
-            return self.__class__.__name__
 
         @timing.timeit()
         def test(self, cost=0.1, epoch=3):
