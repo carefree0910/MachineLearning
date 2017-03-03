@@ -2,9 +2,7 @@ import matplotlib.pyplot as plt
 
 from Zhihu.CNN.Layers import *
 from Zhihu.CNN.Optimizers import *
-from Util import ProgressBar
-
-np.random.seed(142857)  # for reproducibility
+from Util.ProgressBar import ProgressBar
 
 
 class NNVerbose:

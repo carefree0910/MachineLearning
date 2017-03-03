@@ -1,12 +1,13 @@
 import tkinter as tk
 import tkinter.messagebox as tkm
 
-from Dictionary import *
+from Zhihu.Python.Utils.Dictionary.Dictionary import *
 
 DISPLAY_RECITE_NUM = 3
 DATA_PATH = "Data/Song/"
 
 
+# noinspection PyUnusedLocal
 class GUI(tk.Frame):
 
     @staticmethod

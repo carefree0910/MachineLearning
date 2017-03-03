@@ -14,11 +14,11 @@ class Timing:
 
     __repr__ = __str__
 
-    @staticmethod
-    def timeit(level=0, func_name=None, cls_name=None, prefix="[Method] "):
+    @classmethod
+    def timeit(cls, level=0, func_name=None, cls_name=None, prefix="[Method] "):
         @wrapt.decorator
         def wrapper(func, instance, args, kwargs):
-            if not Timing.enabled:
+            if not cls.enabled:
                 return func(*args, **kwargs)
             if instance is not None:
                 instance_name = "{:>18s}".format(str(instance))
@@ -37,10 +37,10 @@ class Timing:
             rs = func(*args, **kwargs)
             _t = time.time() - _t
             try:
-                Timing.timings[_name]["timing"] += _t
-                Timing.timings[_name]["call_time"] += 1
+                cls.timings[_name]["timing"] += _t
+                cls.timings[_name]["call_time"] += 1
             except KeyError:
-                Timing.timings[_name] = {
+                cls.timings[_name] = {
                     "level": level,
                     "timing": _t,
                     "call_time": 1
@@ -48,12 +48,13 @@ class Timing:
             return rs
         return wrapper
 
-    def show_timing_log(self, level=2):
+    @classmethod
+    def show_timing_log(cls, level=2):
         print()
         print("=" * 110 + "\n" + "Timing log\n" + "-" * 110)
-        if self.timings:
-            for key in sorted(self.timings.keys()):
-                timing_info = self.timings[key]
+        if cls.timings:
+            for key in sorted(cls.timings.keys()):
+                timing_info = cls.timings[key]
                 if level >= timing_info["level"]:
                     print("{:<42s} :  {:12.7} s (Call Time: {:6d})".format(
                         key, timing_info["timing"], timing_info["call_time"]))
@@ -62,3 +63,42 @@ class Timing:
     @classmethod
     def disable(cls):
         cls.enabled = False
+
+if __name__ == '__main__':
+    class Test:
+        timing = Timing()
+
+        def __init__(self, rate):
+            self.rate = rate
+
+        def __str__(self):
+            return self.__class__.__name__
+
+        @timing.timeit()
+        def test(self, cost=0.1, epoch=3):
+            for _ in range(epoch):
+                self._test(cost * self.rate)
+
+        @timing.timeit(prefix="[Core] ")
+        def _test(self, cost):
+            time.sleep(cost)
+
+    class Test1(Test):
+        def __init__(self):
+            Test.__init__(self, 1)
+
+    class Test2(Test):
+        def __init__(self):
+            Test.__init__(self, 2)
+
+    class Test3(Test):
+        def __init__(self):
+            Test.__init__(self, 3)
+
+    test1 = Test1()
+    test2 = Test2()
+    test3 = Test3()
+    test1.test()
+    test2.test()
+    test3.test()
+    test1.timing.show_timing_log()

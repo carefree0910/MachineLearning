@@ -2,8 +2,6 @@ import pickle
 
 from Zhihu.CNN.one.Network import *
 
-np.random.seed(142857)  # for reproducibility
-
 
 def main():
 

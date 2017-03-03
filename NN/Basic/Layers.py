@@ -10,7 +10,7 @@ except ImportError:
 
 # Abstract Layers
 
-class Layer(metaclass=ABCMeta):
+class Layer:
 
     LayerTiming = Timing()
 
@@ -110,11 +110,9 @@ class Layer(metaclass=ABCMeta):
             return self._derivative(y, prev_delta.dot(w.T) * self._root.derivative(y))
         return prev_delta.dot(w.T) * self._derivative(y)
 
-    @abstractmethod
     def _activate(self, x, predict):
         pass
 
-    @abstractmethod
     def _derivative(self, y, delta=None):
         pass
 
@@ -260,7 +258,6 @@ class ConvPoolLayer(ConvLayer):
 
 
 class ConvMeta(type):
-
     def __new__(mcs, *args, **kwargs):
         name, bases, attr = args[:3]
         conv_layer, layer = bases
@@ -327,6 +324,7 @@ class ConvMeta(type):
                     for f in range(n_filters):
                         for j in range(self.out_h):
                             for k in range(self.out_w):
+                                # noinspection PyTypeChecker
                                 dx_padded[i, :, j * sd:filter_height + j * sd, k * sd:filter_width + k * sd] += (
                                     self.w_cache[f] * delta[i, f, j, k])
                 dx = dx_padded[:, :, p:-p, p:-p] if p > 0 else dx_padded
@@ -348,7 +346,6 @@ class ConvMeta(type):
 
 
 class ConvSubMeta(type):
-
     def __new__(mcs, *args, **kwargs):
         name, bases, attr = args[:3]
         conv_layer, sub_layer = bases
@@ -375,6 +372,7 @@ class ConvSubMeta(type):
             dx = sub_layer.derivative(self, None, delta_new)
             return dx.reshape(n, height, width, n_channels).transpose(0, 3, 1, 2)
 
+        # noinspection PyUnusedLocal
         def activate(self, x, w, bias=None, predict=False):
             return self.LayerTiming.timeit(level=1, func_name="activate", cls_name=name, prefix="[Core] ")(
                 _activate)(self, x, predict)
@@ -390,14 +388,6 @@ class ConvSubMeta(type):
                 attr[key] = value
 
         return type(name, bases, attr)
-
-
-class ConvLayerMeta(ABCMeta, ConvMeta):
-    pass
-
-
-class ConvSubLayerMeta(ABCMeta, ConvSubMeta):
-    pass
 
 
 # Activation Layers
@@ -472,31 +462,31 @@ class Softmax(Layer):
 
 # Convolution Layers
 
-class ConvTanh(ConvLayer, Tanh, metaclass=ConvLayerMeta):
+class ConvTanh(ConvLayer, Tanh, metaclass=ConvMeta):
     pass
 
 
-class ConvSigmoid(ConvLayer, Sigmoid, metaclass=ConvLayerMeta):
+class ConvSigmoid(ConvLayer, Sigmoid, metaclass=ConvMeta):
     pass
 
 
-class ConvELU(ConvLayer, ELU, metaclass=ConvLayerMeta):
+class ConvELU(ConvLayer, ELU, metaclass=ConvMeta):
     pass
 
 
-class ConvReLU(ConvLayer, ReLU, metaclass=ConvLayerMeta):
+class ConvReLU(ConvLayer, ReLU, metaclass=ConvMeta):
     pass
 
 
-class ConvSoftplus(ConvLayer, Softplus, metaclass=ConvLayerMeta):
+class ConvSoftplus(ConvLayer, Softplus, metaclass=ConvMeta):
     pass
 
 
-class ConvIdentical(ConvLayer, Identical, metaclass=ConvLayerMeta):
+class ConvIdentical(ConvLayer, Identical, metaclass=ConvMeta):
     pass
 
 
-class ConvSoftmax(ConvLayer, Softmax, metaclass=ConvLayerMeta):
+class ConvSoftmax(ConvLayer, Softmax, metaclass=ConvMeta):
     pass
 
 
@@ -545,6 +535,7 @@ class MaxPool(ConvPoolLayer):
             dout_newaxis = delta[:, :, :, None, :, None]
             dout_broadcast, _ = np.broadcast_arrays(dout_newaxis, dx_reshaped)
             dx_reshaped[mask] = dout_broadcast[mask]
+            # noinspection PyTypeChecker
             dx_reshaped /= np.sum(mask, axis=(3, 5), keepdims=True)
             dx = dx_reshaped.reshape(self.x_cache.shape)
         elif method == "original":
@@ -557,6 +548,7 @@ class MaxPool(ConvPoolLayer):
                     for k in range(self.out_h):
                         for l in range(self.out_w):
                             window = self.x_cache[i, j, k*sd:pool_height+k*sd, l*sd:pool_width+l*sd]
+                            # noinspection PyTypeChecker
                             dx[i, j, k*sd:pool_height+k*sd, l*sd:pool_width+l*sd] = (
                                 window == np.max(window)) * delta[i, j, k, l]
         else:
@@ -631,6 +623,7 @@ class Normalize(SubLayer):
         self._g_optimizer.feed_variables([self.gamma])
         self._b_optimizer.feed_variables([self.beta])
 
+    # noinspection PyTypeChecker
     def _activate(self, x, predict):
         if self.running_mean is None or self.running_var is None:
             self.running_mean, self.running_var = np.zeros(x.shape[1]), np.zeros(x.shape[1])
@@ -666,11 +659,11 @@ class Normalize(SubLayer):
         return delta - dx
 
 
-class ConvDrop(ConvLayer, Dropout, metaclass=ConvSubLayerMeta):
+class ConvDrop(ConvLayer, Dropout, metaclass=ConvSubMeta):
     pass
 
 
-class ConvNorm(ConvLayer, Normalize, metaclass=ConvSubLayerMeta):
+class ConvNorm(ConvLayer, Normalize, metaclass=ConvSubMeta):
     pass
 
 
@@ -705,7 +698,7 @@ class CostLayer(SubLayer):
     def bp_first(self, y, y_pred):
         if self._root.name == "Sigmoid" and self.cost_function == "Cross Entropy":
             return y * (1 - y_pred) - (1 - y) * y_pred
-        if self._root.name == "Softmax" and  self.cost_function == "Log Likelihood":
+        if self._root.name == "Softmax" and self.cost_function == "Log Likelihood":
             return -self._cost_function(y, y_pred) / 4
         return -self._cost_function(y, y_pred) * self._root.derivative(y_pred)
 
@@ -759,8 +752,7 @@ class CostLayer(SubLayer):
     def _cross_entropy(y, y_pred, diff=True):
         if diff:
             return -y / y_pred + (1 - y) / (1 - y_pred)
-        assert_string = "y or y_pred should be np.ndarray in cost function"
-        assert isinstance(y, np.ndarray) or isinstance(y_pred, np.ndarray), assert_string
+        # noinspection PyTypeChecker
         return np.average(-y * np.log(y_pred) - (1 - y) * np.log(1 - y_pred))
 
     @classmethod

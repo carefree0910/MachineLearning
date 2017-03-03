@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from Util import Timing
+from Util.Timing import Timing
 
 
 class Optimizers:

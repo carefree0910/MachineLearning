@@ -6,6 +6,11 @@ from mpl_toolkits.mplot3d import Axes3D
 from Util.Timing import Timing
 
 
+class TimingBase:
+    def show_timing_log(self):
+        pass
+
+
 class ClassifierBase:
     clf_timing = Timing()
 

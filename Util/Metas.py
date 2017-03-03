@@ -9,11 +9,6 @@ class TimingMeta(type):
         name, bases, attr = args[:3]
         timing = Timing()
 
-        def __init__(self, *_args, **_kwargs):
-            if "__init__" in attr:
-                attr["__init__"](*_args, **_kwargs)
-            timing.name = self.__class__.__name__
-
         for _name, _value in attr.items():
             if "__" in _name or "timing" in _name or "estimate" in _name:
                 continue

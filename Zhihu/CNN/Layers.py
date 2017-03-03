@@ -3,7 +3,7 @@ import tensorflow as tf
 from math import ceil
 from abc import ABCMeta, abstractmethod
 
-from Util import Timing
+from Util.Timing import Timing
 
 
 class Layer(metaclass=ABCMeta):

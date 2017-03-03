@@ -1,12 +1,11 @@
 import numpy as np
 from math import ceil
-from abc import ABCMeta, abstractmethod
 
 from NN.Errors import *
 from NN.TF.Optimizers import *
 
 
-class Layer(metaclass=ABCMeta):
+class Layer:
     LayerTiming = Timing()
 
     def __init__(self, shape):
@@ -78,7 +77,6 @@ class Layer(metaclass=ABCMeta):
             return self._activate(tf.matmul(x, w), predict)
         return self._activate(tf.matmul(x, w) + bias, predict)
 
-    @abstractmethod
     def _activate(self, x, predict):
         pass
 
@@ -96,7 +94,6 @@ class SubLayer(Layer):
             _root = _root.parent
         return _root
 
-    @abstractmethod
     def get_params(self):
         pass
 
@@ -203,7 +200,6 @@ class ConvPoolLayer(ConvLayer):
         raise NotImplementedError("Please implement activation function for " + self.name)
 
 
-# noinspection PyUnusedLocal,PyProtectedMember
 class ConvMeta(type):
     def __new__(mcs, *args, **kwargs):
         name, bases, attr = args[:3]
@@ -233,7 +229,6 @@ class ConvMeta(type):
         return type(name, bases, attr)
 
 
-# noinspection PyUnusedLocal,PyProtectedMember
 class ConvSubMeta(type):
     def __new__(mcs, *args, **kwargs):
         name, bases, attr = args[:3]
@@ -251,6 +246,7 @@ class ConvSubMeta(type):
         def _activate(self, x, predict):
             return sub_layer._activate(self, x, predict)
 
+        # noinspection PyUnusedLocal
         def activate(self, x, w, bias=None, predict=False):
             return self.LayerTiming.timeit(level=1, func_name="activate", cls_name=name, prefix="[Core] ")(
                 _activate)(self, x, predict)
@@ -264,14 +260,6 @@ class ConvSubMeta(type):
                 attr[key] = value
 
         return type(name, bases, attr)
-
-
-class ConvLayerMeta(ABCMeta, ConvMeta):
-    pass
-
-
-class ConvSubLayerMeta(ABCMeta, ConvSubMeta):
-    pass
 
 
 # Activation Layers
@@ -313,31 +301,31 @@ class CF0910(Layer):
 
 # Convolution Layers
 
-class ConvTanh(ConvLayer, Tanh, metaclass=ConvLayerMeta):
+class ConvTanh(ConvLayer, Tanh, metaclass=ConvMeta):
     pass
 
 
-class ConvSigmoid(ConvLayer, Sigmoid, metaclass=ConvLayerMeta):
+class ConvSigmoid(ConvLayer, Sigmoid, metaclass=ConvMeta):
     pass
 
 
-class ConvELU(ConvLayer, ELU, metaclass=ConvLayerMeta):
+class ConvELU(ConvLayer, ELU, metaclass=ConvMeta):
     pass
 
 
-class ConvReLU(ConvLayer, ReLU, metaclass=ConvLayerMeta):
+class ConvReLU(ConvLayer, ReLU, metaclass=ConvMeta):
     pass
 
 
-class ConvSoftplus(ConvLayer, Softplus, metaclass=ConvLayerMeta):
+class ConvSoftplus(ConvLayer, Softplus, metaclass=ConvMeta):
     pass
 
 
-class ConvIdentical(ConvLayer, Identical, metaclass=ConvLayerMeta):
+class ConvIdentical(ConvLayer, Identical, metaclass=ConvMeta):
     pass
 
 
-class ConvCF0910(ConvLayer, CF0910, metaclass=ConvLayerMeta):
+class ConvCF0910(ConvLayer, CF0910, metaclass=ConvMeta):
     pass
 
 
@@ -416,11 +404,11 @@ class Normalize(SubLayer):
         return tf.nn.batch_normalization(x, self.tf_rm, self.tf_rv, self.tf_beta, self.tf_gamma, self._eps)
 
 
-class ConvDrop(ConvLayer, Dropout, metaclass=ConvSubLayerMeta):
+class ConvDrop(ConvLayer, Dropout, metaclass=ConvSubMeta):
     pass
 
 
-class ConvNorm(ConvLayer, Normalize, metaclass=ConvSubLayerMeta):
+class ConvNorm(ConvLayer, Normalize, metaclass=ConvSubMeta):
     pass
 
 

@@ -614,6 +614,7 @@ class NNDist:
     @NNTiming.timeit(level=4, prefix="[API] ")
     def add(self, layer, *args, **kwargs):
         if isinstance(layer, str):
+            # noinspection PyTypeChecker
             self._add_layer(layer, *args, **kwargs)
         else:
             if not isinstance(layer, Layer):

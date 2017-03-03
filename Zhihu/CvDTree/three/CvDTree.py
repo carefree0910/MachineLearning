@@ -14,6 +14,7 @@ class Cluster:
         if sample_weights is None:
             self._counters = np.bincount(labels)
         else:
+            # noinspection PyTypeChecker
             self._counters = np.bincount(labels, weights=sample_weights * len(sample_weights))
         self._sample_weights = sample_weights
         self._labels = np.array(labels)

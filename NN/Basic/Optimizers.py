@@ -1,10 +1,9 @@
 import numpy as np
-from abc import ABCMeta, abstractmethod
 
 from Util.Timing import Timing
 
 
-class Optimizer(metaclass=ABCMeta):
+class Optimizer:
     OptTiming = Timing()
 
     def __init__(self, lr=0.01, cache=None):
@@ -34,7 +33,6 @@ class Optimizer(metaclass=ABCMeta):
     def run(self, i, dw):
         return self._run(i, dw)
 
-    @abstractmethod
     def _run(self, i, dw):
         raise NotImplementedError("Please implement a 'feed' method for your optimizer")
 
@@ -42,7 +40,6 @@ class Optimizer(metaclass=ABCMeta):
     def update(self):
         return self._update()
 
-    @abstractmethod
     def _update(self):
         raise NotImplementedError("Please implement an 'update' method for your optimizer")
 

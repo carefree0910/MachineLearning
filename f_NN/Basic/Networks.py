@@ -4,7 +4,6 @@ from f_NN.Basic.Layers import *
 from f_NN.Basic.Optimizers import *
 
 from Util.Bases import ClassifierBase
-from Util.Metas import SubClassChangeNamesMeta
 from Util.ProgressBar import ProgressBar
 
 
@@ -134,7 +133,7 @@ class NaiveNN(ClassifierBase):
         return np.argmax(y_pred, axis=1)
 
 
-class NN(NaiveNN, metaclass=SubClassChangeNamesMeta):
+class NN(NaiveNN):
     NNTiming = Timing()
 
     def __init__(self):

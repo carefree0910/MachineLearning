@@ -1,16 +1,16 @@
 import numpy as np
 
 from Util.Bases import ClassifierBase, TimingBase
-from Util.Metas import ClassifierMeta, SubClassTimingMeta, TimingMeta
+from Util.Metas import SubClassTimingMeta, TimingMeta
 from Util.Timing import Timing
 
 
-class T1234(ClassifierBase, metaclass=ClassifierMeta):
+class T1234(ClassifierBase):
     T1234Timing = Timing()
 
     @staticmethod
     @T1234Timing.timeit(level=1, prefix="[API] ")
-    def predict(x):
+    def predict(self, x, get_raw_results=False):
         y_pred = np.zeros(len(x))
         x_axis, y_axis = x.T
         x_lt_0, y_lt_0 = x_axis < 0, y_axis < 0
