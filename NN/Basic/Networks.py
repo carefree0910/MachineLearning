@@ -39,7 +39,7 @@ class NNDist:
         self._layer_names, self._layer_shapes, self._layer_params = [], [], []
         self._lr, self._epoch, self._regularization_param = 0, 0, 0
         self._w_optimizer, self._b_optimizer, self._optimizer_name = None, None, ""
-        self.verbose = 0
+        self.verbose = 1
 
         self._whether_apply_bias = False
         self._current_dimension = 0
@@ -86,6 +86,7 @@ class NNDist:
         self._layer_names, self._layer_shapes, self._layer_params = [], [], []
         self._lr, self._epoch, self._regularization_param = 0, 0, 0
         self._w_optimizer, self._b_optimizer, self._optimizer_name = None, None, ""
+        self.verbose = 1
 
         self._whether_apply_bias = False
         self._current_dimension = 0
@@ -739,7 +740,7 @@ class NNDist:
     @NNTiming.timeit(level=1, prefix="[API] ")
     def fit(self,
             x=None, y=None, x_test=None, y_test=None,
-            batch_size=512, record_period=1, train_only=True,
+            batch_size=256, record_period=1, train_only=True,
             optimizer=None, w_optimizer=None, b_optimizer=None,
             lr=0.01, lb=0.01, epoch=20, weight_scale=1, apply_bias=True,
             show_loss=True, metrics=None, do_log=True, verbose=None,

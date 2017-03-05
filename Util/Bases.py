@@ -16,8 +16,7 @@ class ClassifierBase:
 
     def __init__(self, *args, **kwargs):
         self._title = self._name = None
-        self._metrics = [ClassifierBase.acc]
-        self._available_metrics = {
+        self._metrics, self._available_metrics = [], {
             "acc": ClassifierBase.acc
         }
 

@@ -15,8 +15,6 @@ from Util.Util import Util, VisUtil
 
 # TODO: Visualization (Tensor Board)
 
-np.random.seed(142857)  # for reproducibility
-
 
 class NNVerbose:
     NONE = 0
@@ -44,7 +42,7 @@ class NNBase:
         self._w_stds, self._b_inits = [], []
         self._optimizer = None
         self._data_size = 0
-        self.verbose = 0
+        self.verbose = 1
 
         self._current_dimension = 0
 
@@ -109,7 +107,7 @@ class NNBase:
         return tf.Variable(initial, name="b")
 
     @NNTiming.timeit(level=4)
-    def _add_weight(self, shape, conv_channel=None, fc_shape=None):
+    def _add_params(self, shape, conv_channel=None, fc_shape=None):
         if fc_shape is not None:
             w_shape = (fc_shape, shape[1])
             b_shape = shape[1],
@@ -163,11 +161,12 @@ class NNBase:
             layer.is_sub_layer = True
             self.parent = _parent
             self._layers.append(layer)
-            if not isinstance(layer, ConvLayer):
-                self._tf_weights.append(tf.Variable(np.eye(_current)))
-                self._tf_bias.append(tf.zeros([1, _current]))
-            else:
-                self._add_param_placeholder()
+            # if not isinstance(layer, ConvLayer):
+            #     self._tf_weights.append(tf.Variable(np.eye(_current)))
+            #     self._tf_bias.append(tf.zeros([1, _current]))
+            # else:
+            #     self._add_param_placeholder()
+            self._add_param_placeholder()
             self._current_dimension = _next
         else:
             fc_shape, conv_channel, last_layer = None, None, self._layers[-1]
@@ -181,7 +180,7 @@ class NNBase:
                     last_layer.is_fc_base = True
                     fc_shape = last_layer.out_h * last_layer.out_w * last_layer.n_filters
             self._layers.append(layer)
-            self._add_weight((_current, _next), conv_channel, fc_shape)
+            self._add_params((_current, _next), conv_channel, fc_shape)
             self._current_dimension = _next
         self._update_layer_information(layer)
 
@@ -244,9 +243,9 @@ class NNBase:
                 self._layers, self._current_dimension = [layer], layer.shape[1]
                 self._update_layer_information(layer)
                 if isinstance(layer, ConvLayer):
-                    self._add_weight(layer.shape, layer.n_channels)
+                    self._add_params(layer.shape, layer.n_channels)
                 else:
-                    self._add_weight(layer.shape)
+                    self._add_params(layer.shape)
             else:
                 if len(layer.shape) > 2:
                     raise BuildLayerError("Invalid Layer provided (shape should be {}, {} found)".format(
@@ -733,7 +732,7 @@ class NNDist(NNBase):
     def fit(self,
             x=None, y=None, x_test=None, y_test=None,
             lr=0.01, lb=0.01, epoch=20, weight_scale=1, apply_bias=True,
-            batch_size=512, record_period=1, train_only=False, optimizer=None,
+            batch_size=256, record_period=1, train_only=False, optimizer=None,
             show_loss=True, metrics=None, do_log=True, verbose=None,
             visualize=False, visualize_setting=None,
             draw_detailed_network=False, weight_average=None):
@@ -1047,6 +1046,8 @@ class NNPipe:
 
     def __init__(self, num):
         self._nn_lst = [NNBase() for _ in range(num)]
+        for _nn in self._nn_lst:
+            _nn.verbose = 0
         self._initialized = [False] * num
 
     def __getitem__(self, item):

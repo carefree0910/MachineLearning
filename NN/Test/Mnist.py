@@ -1,6 +1,6 @@
 from NN.NN import *
 
-np.random.seed(142857)  # for reproducibility
+from Util.Util import DataUtil
 
 
 def main():
@@ -22,18 +22,33 @@ def main():
     timing = Timing(enabled=True)
     timing_level = 1
 
-    import pickle
-
-    with open("../Data/mini_mnist.dat", "rb") as file:
-        x, y = pickle.load(file)
-
-    # x = x.reshape(len(x), 1, 28, 28)
-    x = x.reshape(len(x), -1)
+    x, y = DataUtil.get_dataset("mnist", "../../_Data/mnist.txt", quantized=True, one_hot=True)
 
     if not load:
 
-        nn.add("ReLU", (x.shape[1], 400))
-        nn.add("CrossEntropy", (y.shape[1], ))
+        # nn.add("ReLU", (x.shape[1], 24))
+        # nn.add("ReLU", (24, ))
+        # nn.add("CrossEntropy", (y.shape[1], ))
+
+        x = x.reshape(len(x), 1, 28, 28)
+        nn.add("ConvReLU", (x.shape[1:], (32, 3, 3)))
+        nn.add("ConvReLU", ((32, 3, 3),))
+        nn.add("MaxPool", ((3, 3),), 2)
+        nn.add("ConvNorm")
+        nn.add("ConvDrop")
+        nn.add("ConvReLU", ((64, 3, 3),), std=0.01)
+        nn.add("ConvReLU", ((64, 3, 3),), std=0.01)
+        nn.add("AvgPool", ((3, 3),), 2)
+        nn.add("ConvNorm")
+        nn.add("ConvDrop")
+        nn.add("ConvReLU", ((32, 3, 3),))
+        nn.add("ConvReLU", ((32, 3, 3),))
+        nn.add("AvgPool", ((3, 3),), 2)
+        nn.add("ReLU", (512,))
+        nn.add("ReLU", (64,))
+        nn.add("Normalize")
+        nn.add("Dropout")
+        nn.add("CrossEntropy", (y.shape[1],))
 
         nn.optimizer = "Adam"
 

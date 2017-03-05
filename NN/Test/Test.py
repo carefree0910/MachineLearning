@@ -1,8 +1,6 @@
 from Util.Util import DataUtil
 from NN.Basic.Networks import *
 
-np.random.seed(142857)  # for reproducibility
-
 
 def main():
 

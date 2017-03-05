@@ -105,7 +105,6 @@ class ConvPoolLayer(ConvLayer):
         raise NotImplementedError("Please implement activation function for {}".format(str(self)))
 
 
-# noinspection PyUnusedLocal,PyProtectedMember
 class ConvMeta(type):
     def __new__(mcs, *args, **kwargs):
         name, bases, attr = args[:3]

@@ -1,6 +1,6 @@
 from NN.NN import *
 
-np.random.seed(142857)  # for reproducibility
+from Util.Util import DataUtil
 
 
 def main():
@@ -25,13 +25,11 @@ def main():
     timing = Timing(enabled=True)
     timing_level = 1
 
-    import pickle
-
-    with open("../Data/mini_cifar10.dat", "rb") as file:
-        x, y = pickle.load(file)
+    x, y = DataUtil.get_dataset("cifar10", "../../_Data/cifar10.txt", quantized=True, one_hot=True)
 
     draw = True
     img_shape = (3, 32, 32)
+    x = x.reshape(len(x), *img_shape)
 
     if not load:
 

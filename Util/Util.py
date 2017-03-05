@@ -33,10 +33,11 @@ class Util:
 
 class DataUtil:
     @staticmethod
-    def get_dataset(name, path, train_num=None, tar_idx=None, shuffle=True, quantize=False, **kwargs):
+    def get_dataset(name, path, train_num=None, tar_idx=None, shuffle=True,
+                    quantize=False, quantized=False, one_hot=False, **kwargs):
         x = []
         with open(path, "r", encoding="utf8") as file:
-            if name == "mushroom" or "balloon" in name:
+            if (name == "mushroom") or ("balloon" in name) or ("mnist" in name) or ("cifar" in name):
                 for sample in file:
                     x.append(sample.strip().split(","))
             elif name == "bank1.0":
@@ -49,12 +50,28 @@ class DataUtil:
             np.random.shuffle(x)
         tar_idx = -1 if tar_idx is None else tar_idx
         y = np.array([xx.pop(tar_idx) for xx in x])
-        x = np.array(x)
-        if not quantize:
+        if quantized:
+            x = np.array(x, dtype=np.float32)
+            if one_hot:
+                z = []
+                y = y.astype(np.int8)
+                for yy in y:
+                    z.append([0 if i != yy else 1 for i in range(np.max(y) + 1)])
+                y = np.array(z, dtype=np.int8)
+            else:
+                y = y.astype(np.int8)
+        else:
+            x = np.array(x)
+        if quantized or not quantize:
             if train_num is None:
                 return x, y
             return (x[:train_num], y[:train_num]), (x[train_num:], y[train_num:])
         x, y, wc, features, feat_dics, label_dic = DataUtil.quantize_data(x, y, **kwargs)
+        if one_hot:
+            z = []
+            for yy in y:
+                z.append([0 if i != yy else 1 for i in range(len(label_dic))])
+            y = np.array(z)
         if train_num is None:
             return x, y, wc, features, feat_dics, label_dic
         return (
