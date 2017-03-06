@@ -32,12 +32,23 @@ class Util:
 
 
 class DataUtil:
+    naive_sets = {
+        "mushroom", "balloon", "mnist", "cifar", "test"
+    }
+
+    @staticmethod
+    def is_naive(name):
+        for naive_dataset in DataUtil.naive_sets:
+            if name in naive_dataset:
+                return True
+        return False
+
     @staticmethod
     def get_dataset(name, path, train_num=None, tar_idx=None, shuffle=True,
                     quantize=False, quantized=False, one_hot=False, **kwargs):
         x = []
         with open(path, "r", encoding="utf8") as file:
-            if (name == "mushroom") or ("balloon" in name) or ("mnist" in name) or ("cifar" in name) or ("Test" in name):
+            if DataUtil.is_naive(name):
                 for sample in file:
                     x.append(sample.strip().split(","))
             elif name == "bank1.0":

@@ -7,7 +7,7 @@ from Util.Util import DataUtil
 
 def main():
     # _x, _y = DataUtil.get_dataset("balloon1.0(en)", "../_Data/balloon1.0(en).txt")
-    _x, _y = DataUtil.get_dataset("Test", "../_Data/Test.txt")
+    _x, _y = DataUtil.get_dataset("test", "../_Data/test.txt")
     _fit_time = time.time()
     _tree = CartTree(whether_continuous=[False] * 4)
     _tree.fit(_x, _y, train_only=True)
