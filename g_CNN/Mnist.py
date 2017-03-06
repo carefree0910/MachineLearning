@@ -6,7 +6,7 @@ from Util.Util import DataUtil
 def main():
 
     nn = NN()
-    epoch = 50
+    epoch = 10
 
     x, y = DataUtil.get_dataset("mnist", "../_Data/mnist.txt", quantized=True, one_hot=True)
 
@@ -29,8 +29,8 @@ def main():
     nn.add("ConvReLU", ((32, 3, 3),))
     nn.add("AvgPool", ((3, 3),), 2)
     nn.add("ReLU", (512,))
-    nn.add("ReLU", (64,))
-    nn.add("Normalize")
+    nn.add("Identical", (64,))
+    nn.add("Normalize", activation="ReLU")
     nn.add("Dropout")
     nn.add("CrossEntropy", (y.shape[1],))
 

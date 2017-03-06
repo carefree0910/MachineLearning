@@ -52,7 +52,7 @@ class NN(ClassifierBase):
                 return self._y_pred.eval(feed_dict={self._tfx: x})
             with self._sess.as_default():
                 x = x.astype(np.float32)
-                return self._get_rs(x, predict=True).eval(feed_dict={self._tfx: x})
+                return self._get_rs(x).eval(feed_dict={self._tfx: x})
         epoch = int(len(x) / single_batch)
         if not len(x) % single_batch:
             epoch += 1
@@ -63,7 +63,7 @@ class NN(ClassifierBase):
         if not out_of_sess:
             rs = [self._y_pred.eval(feed_dict={self._tfx: x[:single_batch]})]
         else:
-            rs = [self._get_rs(x[:single_batch], predict=True)]
+            rs = [self._get_rs(x[:single_batch])]
         count = single_batch
         if verbose >= NNVerbose.METRICS:
             sub_bar.update()
@@ -73,12 +73,12 @@ class NN(ClassifierBase):
                 if not out_of_sess:
                     rs.append(self._y_pred.eval(feed_dict={self._tfx: x[count - single_batch:]}))
                 else:
-                    rs.append(self._get_rs(x[count - single_batch:], predict=True))
+                    rs.append(self._get_rs(x[count - single_batch:]))
             else:
                 if not out_of_sess:
                     rs.append(self._y_pred.eval(feed_dict={self._tfx: x[count - single_batch:count]}))
                 else:
-                    rs.append(self._get_rs(x[count - single_batch:count], predict=True))
+                    rs.append(self._get_rs(x[count - single_batch:count]))
             if verbose >= NNVerbose.METRICS:
                 sub_bar.update()
         if out_of_sess:
@@ -290,8 +290,8 @@ class NN(ClassifierBase):
             self._preview()
 
         with self._sess.as_default() as sess:
+            self._y_pred = self._get_rs(self._tfx)
             self._cost = self._get_rs(self._tfx, self._tfy)
-            self._y_pred = self._get_rs(self._tfx, predict=True)
             self._train_step = self._optimizer.minimize(self._cost)
             sess.run(tf.global_variables_initializer())
             sub_bar = ProgressBar(min_value=0, max_value=train_repeat * record_period - 1, name="Iteration")

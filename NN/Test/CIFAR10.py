@@ -7,7 +7,7 @@ def main():
     log = ""
 
     nn = NNDist()
-    save = True
+    save = False
     load = False
     show_loss = True
     train_only = False
@@ -47,8 +47,8 @@ def main():
         nn.add("ConvReLU", ((32, 3, 3),))
         nn.add("AvgPool", ((3, 3),), 2)
         nn.add("ReLU", (512, ))
-        nn.add("ReLU", (64, ))
-        nn.add("Normalize")
+        nn.add("Identical", (64, ))
+        nn.add("Normalize", activation="ReLU")
         nn.add("Dropout")
         nn.add("CrossEntropy", (y.shape[1], ))
 

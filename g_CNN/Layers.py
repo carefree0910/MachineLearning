@@ -293,9 +293,9 @@ class Dropout(SubLayer):
 
 
 class Normalize(SubLayer):
-    def __init__(self, parent, shape, eps=1e-8, momentum=0.9):
+    def __init__(self, parent, shape, activation="ReLU", eps=1e-8, momentum=0.9):
         SubLayer.__init__(self, parent, shape)
-        self._eps = eps
+        self._eps, self._activation = eps, activation
         self.rm = self.rv = None
         self.tf_rm = self.tf_rv = None
         self.tf_gamma = tf.Variable(tf.ones(self.shape[1]), name="norm_scale")
@@ -316,7 +316,7 @@ class Normalize(SubLayer):
             }
 
     def get_params(self):
-        return self._eps, self._momentum
+        return self._activation, self._eps, self._momentum
 
     # noinspection PyTypeChecker
     def _activate(self, x, predict):
@@ -329,8 +329,14 @@ class Normalize(SubLayer):
             _rm = tf.assign(self.tf_rm, self._momentum * self.tf_rm + (1 - self._momentum) * _sm)
             _rv = tf.assign(self.tf_rv, self._momentum * self.tf_rv + (1 - self._momentum) * _sv)
             with tf.control_dependencies([_rm, _rv]):
-                return tf.nn.batch_normalization(x, _sm, _sv, self.tf_beta, self.tf_gamma, self._eps)
-        return tf.nn.batch_normalization(x, self.tf_rm, self.tf_rv, self.tf_beta, self.tf_gamma, self._eps)
+                _norm = tf.nn.batch_normalization(x, _sm, _sv, self.tf_beta, self.tf_gamma, self._eps)
+        else:
+            _norm = tf.nn.batch_normalization(x, self.tf_rm, self.tf_rv, self.tf_beta, self.tf_gamma, self._eps)
+        if self._activation == "ReLU":
+            return tf.nn.relu(_norm)
+        if self._activation == "Sigmoid":
+            return tf.nn.sigmoid(_norm)
+        return _norm
 
 
 class ConvDrop(ConvLayer, Dropout, metaclass=ConvSubLayerMeta):
@@ -353,7 +359,7 @@ class CostLayer(Layer):
 
 class CrossEntropy(CostLayer):
     def _activate(self, x, y):
-        return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(x, y))
+        return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=x, labels=y))
 
 
 class MSE(CostLayer):
@@ -387,9 +393,9 @@ class LayerFactory:
     }
     special_layer_default_params = {
         "Dropout": (0.5,),
-        "Normalize": (1e-8, 0.9),
+        "Normalize": ("Identical", 1e-8, 0.9),
         "ConvDrop": (0.5,),
-        "ConvNorm": (1e-8, 0.9)
+        "ConvNorm": ("Identical", 1e-8, 0.9)
     }
 
     def get_main_layer_by_name(self, name, *args, **kwargs):
