@@ -37,7 +37,7 @@ class DataUtil:
                     quantize=False, quantized=False, one_hot=False, **kwargs):
         x = []
         with open(path, "r", encoding="utf8") as file:
-            if (name == "mushroom") or ("balloon" in name) or ("mnist" in name) or ("cifar" in name):
+            if (name == "mushroom") or ("balloon" in name) or ("mnist" in name) or ("cifar" in name) or ("Test" in name):
                 for sample in file:
                     x.append(sample.strip().split(","))
             elif name == "bank1.0":
