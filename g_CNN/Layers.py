@@ -8,9 +8,10 @@ from Util.Timing import Timing
 class Layer:
     LayerTiming = Timing
 
-    def __init__(self, shape):
+    def __init__(self, shape, **kwargs):
         self.shape = shape
         self.is_fc = self.is_sub_layer = False
+        self.apply_bias = kwargs.get("apply_bias", True)
 
     def __str__(self):
         return self.__class__.__name__
@@ -32,7 +33,7 @@ class Layer:
             x = tf.reshape(x, [-1, int(np.prod(x.get_shape()[1:]))])
         if self.is_sub_layer:
             return self._activate(x, predict)
-        if bias is None:
+        if not self.apply_bias:
             return self._activate(tf.matmul(x, w), predict)
         return self._activate(tf.matmul(x, w) + bias, predict)
 

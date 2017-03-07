@@ -14,6 +14,8 @@ from NN.Basic.Optimizers import OptFactory
 from Util.ProgressBar import ProgressBar
 from Util.Util import VisUtil
 
+# Deprecated Version
+
 
 class NNVerbose:
     NONE = 0
@@ -202,7 +204,8 @@ class NNDist:
         if not self._layers and isinstance(layer, str):
             _layer = self._layer_factory.handle_str_main_layers(layer, *args, **kwargs)
             if _layer:
-                self.add(_layer); return
+                self.add(_layer)
+                return
         _parent = self._layers[-1]
         if isinstance(_parent, CostLayer):
             raise BuildLayerError("Adding layer after CostLayer is not permitted")
@@ -211,7 +214,8 @@ class NNDist:
                 layer, _parent, self._current_dimension, *args, **kwargs
             )
             if shape is None:
-                self.add(layer); return
+                self.add(layer)
+                return
             _current, _next = shape
         else:
             _current, _next = args
@@ -817,7 +821,8 @@ class NNDist:
         weight_trace = [[[org] for org in weight] for weight in self._weights]
         sub_bar = ProgressBar(min_value=0, max_value=train_repeat * record_period - 1, name="Iteration")
         for counter in range(epoch):
-            self._w_optimizer.update(); self._b_optimizer.update()
+            self._w_optimizer.update()
+            self._b_optimizer.update()
             _xs, _activations = [], []
             if self.verbose >= NNVerbose.EPOCH and counter % record_period == 0:
                 sub_bar.start()

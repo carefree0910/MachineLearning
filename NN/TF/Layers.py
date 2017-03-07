@@ -8,7 +8,7 @@ from NN.TF.Optimizers import *
 class Layer:
     LayerTiming = Timing()
 
-    def __init__(self, shape):
+    def __init__(self, shape, **kwargs):
         """
         :param shape: shape[0] = units of previous layer
                       shape[1] = units of current layer (self)
@@ -18,6 +18,7 @@ class Layer:
         self.is_fc = False
         self.is_fc_base = False
         self.is_sub_layer = False
+        self.apply_bias = kwargs.get("apply_bias", True)
 
     def __str__(self):
         return self.__class__.__name__
@@ -54,7 +55,8 @@ class Layer:
 
     @property
     def info(self):
-        return "Layer  :  {:<10s} - {}".format(self.name, self.shape[1])
+        return "Layer  :  {:<10s} - {}{}".format(
+            self.name, self.shape[1], " (apply_bias: False)" if not self.apply_bias else "")
 
     def get_special_params(self, sess):
         pass
@@ -70,10 +72,10 @@ class Layer:
         if self.is_fc:
             x = tf.reshape(x, [-1, int(np.prod(x.get_shape()[1:]))])
         if self.is_sub_layer:
-            if bias is None:
+            if not self.apply_bias:
                 return self._activate(x, predict)
             return self._activate(x + bias, predict)
-        if bias is None:
+        if not self.apply_bias:
             return self._activate(tf.matmul(x, w), predict)
         return self._activate(tf.matmul(x, w) + bias, predict)
 
@@ -200,6 +202,7 @@ class ConvPoolLayer(ConvLayer):
         raise NotImplementedError("Please implement activation function for " + self.name)
 
 
+# noinspection PyProtectedMember
 class ConvMeta(type):
     def __new__(mcs, *args, **kwargs):
         name, bases, attr = args[:3]
@@ -212,7 +215,7 @@ class ConvMeta(type):
             return tf.nn.conv2d(x, w, strides=[self._stride] * 4, padding=self._pad_flag)
 
         def _activate(self, x, w, bias, predict):
-            res = self._conv(x, w) + bias if bias is not None else self._conv(x, w)
+            res = self._conv(x, w) + bias if self.apply_bias else self._conv(x, w)
             return layer._activate(self, res, predict)
 
         def activate(self, x, w, bias=None, predict=False):
@@ -229,6 +232,7 @@ class ConvMeta(type):
         return type(name, bases, attr)
 
 
+# noinspection PyProtectedMember
 class ConvSubMeta(type):
     def __new__(mcs, *args, **kwargs):
         name, bases, attr = args[:3]

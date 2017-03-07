@@ -99,7 +99,7 @@ class NN(ClassifierBase):
         return tf.Variable(initial, name="b")
 
     @NNTiming.timeit(level=4)
-    def _add_params(self, shape, conv_channel=None, fc_shape=None):
+    def _add_params(self, shape, conv_channel=None, fc_shape=None, apply_bias=True):
         if fc_shape is not None:
             w_shape = (fc_shape, shape[1])
             b_shape = shape[1],
@@ -113,7 +113,10 @@ class NN(ClassifierBase):
             w_shape = shape
             b_shape = shape[1],
         self._tf_weights.append(self._get_w(w_shape))
-        self._tf_bias.append(self._get_b(b_shape))
+        if apply_bias:
+            self._tf_bias.append(self._get_b(b_shape))
+        else:
+            self._tf_bias.append(None)
 
     @NNTiming.timeit(level=4)
     def _add_param_placeholder(self):
@@ -156,7 +159,7 @@ class NN(ClassifierBase):
                     last_layer.is_fc_base = True
                     fc_shape = last_layer.out_h * last_layer.out_w * last_layer.n_filters
             self._layers.append(layer)
-            self._add_params((_current, _next), conv_channel, fc_shape)
+            self._add_params((_current, _next), conv_channel, fc_shape, layer.apply_bias)
             self._current_dimension = _next
 
     @NNTiming.timeit(level=1)
@@ -221,7 +224,7 @@ class NN(ClassifierBase):
                     ) for _layer in self._layers[:-1]]
                 ) + "\nCost   :  {:<10s}".format(self._layers[-1].name)
             )
-        print("=" * 30 + "\n" + "Structure\n" + "-" * 30 + "\n" + rs + "\n" + "=" * 30)
+        print("\n" + "=" * 30 + "\n" + "Structure\n" + "-" * 30 + "\n" + rs + "\n" + "=" * 30)
         print("Optimizer")
         print("-" * 30)
         print(self._optimizer)
@@ -235,9 +238,9 @@ class NN(ClassifierBase):
             if not self._layers:
                 self._layers, self._current_dimension = [layer], layer.shape[1]
                 if isinstance(layer, ConvLayer):
-                    self._add_params(layer.shape, layer.n_channels)
+                    self._add_params(layer.shape, layer.n_channels, apply_bias=layer.apply_bias)
                 else:
-                    self._add_params(layer.shape)
+                    self._add_params(layer.shape, apply_bias=layer.apply_bias)
             else:
                 if len(layer.shape) == 2:
                     _current, _next = layer.shape

@@ -105,7 +105,7 @@ class NNBase:
         return tf.Variable(initial, name="b")
 
     @NNTiming.timeit(level=4)
-    def _add_params(self, shape, conv_channel=None, fc_shape=None):
+    def _add_params(self, shape, conv_channel=None, fc_shape=None, apply_bias=True):
         if fc_shape is not None:
             w_shape = (fc_shape, shape[1])
             b_shape = shape[1],
@@ -119,7 +119,10 @@ class NNBase:
             w_shape = shape
             b_shape = shape[1],
         self._tf_weights.append(self._get_w(w_shape))
-        self._tf_bias.append(self._get_b(b_shape))
+        if apply_bias:
+            self._tf_bias.append(self._get_b(b_shape))
+        else:
+            self._tf_bias.append(None)
 
     @NNTiming.timeit(level=4)
     def _add_param_placeholder(self):
@@ -178,7 +181,7 @@ class NNBase:
                     last_layer.is_fc_base = True
                     fc_shape = last_layer.out_h * last_layer.out_w * last_layer.n_filters
             self._layers.append(layer)
-            self._add_params((_current, _next), conv_channel, fc_shape)
+            self._add_params((_current, _next), conv_channel, fc_shape, layer.apply_bias)
             self._current_dimension = _next
         self._update_layer_information(layer)
 
@@ -241,9 +244,9 @@ class NNBase:
                 self._layers, self._current_dimension = [layer], layer.shape[1]
                 self._update_layer_information(layer)
                 if isinstance(layer, ConvLayer):
-                    self._add_params(layer.shape, layer.n_channels)
+                    self._add_params(layer.shape, layer.n_channels, apply_bias=layer.apply_bias)
                 else:
-                    self._add_params(layer.shape)
+                    self._add_params(layer.shape, apply_bias=layer.apply_bias)
             else:
                 if len(layer.shape) > 2:
                     raise BuildLayerError("Invalid Layer provided (shape should be {}, {} found)".format(
@@ -734,7 +737,7 @@ class NNDist(NNBase):
     @NNTiming.timeit(level=1, prefix="[API] ")
     def fit(self,
             x=None, y=None, x_test=None, y_test=None,
-            lr=0.01, lb=0.01, epoch=20, weight_scale=1, apply_bias=True,
+            lr=0.01, lb=0.01, epoch=20, weight_scale=1,
             batch_size=256, record_period=1, train_only=False, optimizer=None,
             show_loss=True, metrics=None, do_log=False, verbose=None,
             visualize=False, visualize_setting=None,
@@ -791,8 +794,6 @@ class NNDist(NNBase):
             self._init_train_step(sess)
             for weight in self._tf_weights:
                 weight *= weight_scale
-            if not apply_bias:
-                self._tf_bias = [None] * len(self._tf_bias)
 
             sub_bar = ProgressBar(min_value=0, max_value=train_repeat * record_period - 1, name="Iteration")
             for counter in range(epoch):

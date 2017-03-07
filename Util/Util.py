@@ -39,7 +39,7 @@ class DataUtil:
     @staticmethod
     def is_naive(name):
         for naive_dataset in DataUtil.naive_sets:
-            if name in naive_dataset:
+            if naive_dataset in name:
                 return True
         return False
 
