@@ -1,4 +1,5 @@
-from NN.NN import *
+# from NN.NN import *
+from NN.Dev.Networks import *
 
 from Util.Util import DataUtil
 

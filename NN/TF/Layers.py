@@ -18,7 +18,8 @@ class Layer:
         self.is_fc = False
         self.is_fc_base = False
         self.is_sub_layer = False
-        self.apply_bias = kwargs.get("apply_bias", True)
+        self.apply_bias = kwargs["apply_bias"]
+        self.position = kwargs["position"]
 
     def __str__(self):
         return self.__class__.__name__
@@ -84,8 +85,8 @@ class Layer:
 
 
 class SubLayer(Layer):
-    def __init__(self, parent, shape):
-        Layer.__init__(self, shape)
+    def __init__(self, parent, shape, **kwargs):
+        Layer.__init__(self, shape, **kwargs)
         self.parent = parent
         self.description = ""
 
@@ -114,7 +115,7 @@ class SubLayer(Layer):
 class ConvLayer(Layer):
     LayerTiming = Timing()
 
-    def __init__(self, shape, stride=1, padding="SAME", parent=None):
+    def __init__(self, shape, stride=1, padding="SAME", parent=None, **kwargs):
         """
         :param shape:    shape[0] = shape of previous layer           c x h x w
                          shape[1] = shape of current layer's weight   f x c x h x w
@@ -124,7 +125,7 @@ class ConvLayer(Layer):
         if parent is not None:
             _parent = parent.root if parent.is_sub_layer else parent
             shape, stride, padding = _parent.shape, _parent.stride, _parent.padding
-        Layer.__init__(self, shape)
+        Layer.__init__(self, shape, **kwargs)
         self._stride = stride
         if isinstance(padding, str):
             if padding.upper() == "VALID":
@@ -208,8 +209,8 @@ class ConvMeta(type):
         name, bases, attr = args[:3]
         conv_layer, layer = bases
 
-        def __init__(self, shape, stride=1, padding="SAME"):
-            conv_layer.__init__(self, shape, stride, padding)
+        def __init__(self, shape, stride=1, padding="SAME", **_kwargs):
+            conv_layer.__init__(self, shape, stride, padding, **_kwargs)
 
         def _conv(self, x, w):
             return tf.nn.conv2d(x, w, strides=[self._stride] * 4, padding=self._pad_flag)
@@ -239,7 +240,7 @@ class ConvSubMeta(type):
         conv_layer, sub_layer = bases
 
         def __init__(self, parent, shape, *_args, **_kwargs):
-            conv_layer.__init__(self, None, parent=parent)
+            conv_layer.__init__(self, None, parent=parent, **_kwargs)
             self.out_h, self.out_w = parent.out_h, parent.out_w
             sub_layer.__init__(self, parent, shape, *_args, **_kwargs)
             self._shape = ((shape[0][0], self.out_h, self.out_w), shape[0])
@@ -348,13 +349,12 @@ class AvgPool(ConvPoolLayer):
 # Special Layers
 
 class Dropout(SubLayer):
-    def __init__(self, parent, shape, drop_prob=None):
+    def __init__(self, parent, shape, drop_prob=0.5, **kwargs):
         if drop_prob < 0 or drop_prob >= 1:
             raise BuildLayerError("(Dropout) Probability of Dropout should be a positive float smaller than 1")
-        SubLayer.__init__(self, parent, shape)
-        if drop_prob is None:
-            drop_prob = tf.constant(0.5, dtype=tf.float32)
-        self._prob = 1 - drop_prob
+        SubLayer.__init__(self, parent, shape, **kwargs)
+        _drop_prob = tf.constant(drop_prob, dtype=tf.float32)
+        self._prob = 1 - _drop_prob
         self._one = tf.constant(1, dtype=tf.float32)
         self.description = "(Drop prob: {})".format(drop_prob)
 
@@ -368,8 +368,8 @@ class Dropout(SubLayer):
 
 
 class Normalize(SubLayer):
-    def __init__(self, parent, shape, activation="ReLU", eps=1e-8, momentum=0.9):
-        SubLayer.__init__(self, parent, shape)
+    def __init__(self, parent, shape, activation="Identical", eps=1e-8, momentum=0.9, **kwargs):
+        SubLayer.__init__(self, parent, shape, **kwargs)
         self._eps, self._activation = eps, activation
         self.rm = self.rv = None
         self.tf_rm = self.tf_rv = None
@@ -425,9 +425,6 @@ class ConvNorm(ConvLayer, Normalize, metaclass=ConvSubMeta):
 # Cost Layers
 
 class CostLayer(Layer):
-    def __init__(self, shape):
-        Layer.__init__(self, shape)
-
     @property
     def info(self):
         return "Cost   :  {:<10s}".format(self.name)
@@ -476,12 +473,6 @@ class LayerFactory:
         "ConvDrop": ConvDrop,
         "ConvNorm": ConvNorm
     }
-    special_layer_default_params = {
-        "Dropout": (0.5,),
-        "Normalize": ("Identical", 1e-8, 0.9),
-        "ConvDrop": (0.5,),
-        "ConvNorm": ("Identical", 1e-8, 0.9)
-    }
 
     def handle_str_main_layers(self, name, *args, **kwargs):
         if name not in self.available_special_layers:
@@ -497,10 +488,9 @@ class LayerFactory:
         if _layer:
             return _layer, None
         _current, _next = parent.shape[1], current_dimension
-        layer_param = self.special_layer_default_params[name]
         _layer = self.available_special_layers[name]
-        if args or kwargs:
+        if args:
             _layer = _layer(parent, (_current, _next), *args, **kwargs)
         else:
-            _layer = _layer(parent, (_current, _next), *layer_param)
+            _layer = _layer(parent, (_current, _next), **kwargs)
         return _layer, (_current, _next)

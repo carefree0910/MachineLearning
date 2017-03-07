@@ -223,6 +223,11 @@ class NNBase:
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def add(self, layer, *args, **kwargs):
+
+        # Init kwargs
+        kwargs["apply_bias"] = kwargs.get("apply_bias", True)
+        kwargs["position"] = kwargs.get("position", len(self._layers) + 1)
+
         self._w_stds.append(Util.get_and_pop(kwargs, "std", 0.1))
         self._b_inits.append(Util.get_and_pop(kwargs, "init", 0.1))
         if Util.get_and_pop(kwargs, "pop_last_init", False):

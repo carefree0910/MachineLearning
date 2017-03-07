@@ -8,7 +8,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
-from NN.TF.Layers import *
+from NN.Dev.Layers import *
 
 from Util.ProgressBar import ProgressBar
 from Util.Util import Util, VisUtil
@@ -54,7 +54,7 @@ class NNBase:
 
         self._tfx = self._tfy = None
         self._tf_weights, self._tf_bias = [], []
-        self._loss = self._y_pred = self._activations = None
+        self._loss = self._l2_loss = self._y_pred = self._activations = None
 
         self._loaded = False
         self._train_step = None
@@ -105,7 +105,22 @@ class NNBase:
         return tf.Variable(initial, name="b")
 
     @NNTiming.timeit(level=4)
-    def _add_params(self, shape, conv_channel=None, fc_shape=None, apply_bias=True):
+    def _get_tb_name(self, layer):
+        return "{}_{}".format(layer.position, layer.name)
+
+    @staticmethod
+    @NNTiming.timeit(level=4)
+    def _summary_var(var):
+        with tf.name_scope("summaries"):
+            mean = tf.reduce_mean(var)
+            tf.summary.scalar("mean", mean)
+            with tf.name_scope("std"):
+                stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+            tf.summary.scalar("std", stddev)
+
+    # noinspection PyTypeChecker
+    @NNTiming.timeit(level=4)
+    def _add_params(self, layer, shape, conv_channel=None, fc_shape=None, apply_bias=True):
         if fc_shape is not None:
             w_shape = (fc_shape, shape[1])
             b_shape = shape[1],
@@ -118,11 +133,20 @@ class NNBase:
         else:
             w_shape = shape
             b_shape = shape[1],
-        self._tf_weights.append(self._get_w(w_shape))
+        _new_w = self._get_w(w_shape)
+        _new_b = self._get_b(b_shape) if apply_bias else None
+        self._tf_weights.append(_new_w)
         if apply_bias:
-            self._tf_bias.append(self._get_b(b_shape))
+            self._tf_bias.append(_new_b)
         else:
             self._tf_bias.append(None)
+        if not isinstance(layer, SubLayer):
+            with tf.name_scope(self._get_tb_name(layer)):
+                with tf.name_scope("weight"):
+                    NNDist._summary_var(_new_w)
+                if layer.apply_bias:
+                    with tf.name_scope("bias"):
+                        NNDist._summary_var(_new_b)
 
     @NNTiming.timeit(level=4)
     def _add_param_placeholder(self):
@@ -162,11 +186,6 @@ class NNBase:
             layer.is_sub_layer = True
             self.parent = _parent
             self._layers.append(layer)
-            # if not isinstance(layer, ConvLayer):
-            #     self._tf_weights.append(tf.Variable(np.eye(_current)))
-            #     self._tf_bias.append(tf.zeros([1, _current]))
-            # else:
-            #     self._add_param_placeholder()
             self._add_param_placeholder()
             self._current_dimension = _next
         else:
@@ -181,7 +200,7 @@ class NNBase:
                     last_layer.is_fc_base = True
                     fc_shape = last_layer.out_h * last_layer.out_w * last_layer.n_filters
             self._layers.append(layer)
-            self._add_params((_current, _next), conv_channel, fc_shape, layer.apply_bias)
+            self._add_params(layer, (_current, _next), conv_channel, fc_shape, layer.apply_bias)
             self._current_dimension = _next
         self._update_layer_information(layer)
 
@@ -223,6 +242,11 @@ class NNBase:
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def add(self, layer, *args, **kwargs):
+
+        # Init kwargs
+        kwargs["apply_bias"] = kwargs.get("apply_bias", True)
+        kwargs["position"] = kwargs.get("position", len(self._layers) + 1)
+
         self._w_stds.append(Util.get_and_pop(kwargs, "std", 0.1))
         self._b_inits.append(Util.get_and_pop(kwargs, "init", 0.1))
         if Util.get_and_pop(kwargs, "pop_last_init", False):
@@ -244,9 +268,9 @@ class NNBase:
                 self._layers, self._current_dimension = [layer], layer.shape[1]
                 self._update_layer_information(layer)
                 if isinstance(layer, ConvLayer):
-                    self._add_params(layer.shape, layer.n_channels, apply_bias=layer.apply_bias)
+                    self._add_params(layer, layer.shape, layer.n_channels, apply_bias=layer.apply_bias)
                 else:
-                    self._add_params(layer.shape, apply_bias=layer.apply_bias)
+                    self._add_params(layer, layer.shape, apply_bias=layer.apply_bias)
             else:
                 if len(layer.shape) > 2:
                     raise BuildLayerError("Invalid Layer provided (shape should be {}, {} found)".format(
@@ -482,11 +506,9 @@ class NNDist(NNBase):
     def _get_l2_loss(self, lb):
         if lb <= 0:
             return 0
-        _l2_loss = lb * tf.reduce_sum([tf.nn.l2_loss(_w) for i, _w in enumerate(self._tf_weights)
-                                       if not isinstance(self._layers[i], SubLayer)])
-        with tf.name_scope("loss"):
-            tf.summary.scalar("l2 loss", _l2_loss)
-        return _l2_loss
+        return lb * tf.reduce_sum(
+            [tf.nn.l2_loss(_w) for i, _w in enumerate(self._tf_weights)
+             if not isinstance(self._layers[i], SubLayer)])
 
     @NNTiming.timeit(level=1)
     def _get_acts(self, x):
@@ -789,11 +811,21 @@ class NNDist(NNBase):
 
             # Session
             self._y_pred = self.get_rs(self._tfx)
-            self._loss = self.get_rs(self._tfx, self._tfy) + self._get_l2_loss(lb)
+            self._l2_loss = self._get_l2_loss(lb)
+            self._loss = self.get_rs(self._tfx, self._tfy) + self._l2_loss
             self._activations = self._get_activations(self._tfx)
             self._init_train_step(sess)
             for weight in self._tf_weights:
                 weight *= weight_scale
+
+            # Log
+            merge_op = tf.summary.merge_all()
+            writer = tf.summary.FileWriter("Logs", sess.graph)
+            writer.add_graph(sess.graph)
+            with tf.name_scope("Global_Summaries"):
+                tf.summary.scalar("l2 loss", self._l2_loss)
+                tf.summary.scalar("loss", self._loss)
+                tf.summary.scalar("lr", self._lr)
 
             sub_bar = ProgressBar(min_value=0, max_value=train_repeat * record_period - 1, name="Iteration")
             for counter in range(epoch):
@@ -807,6 +839,10 @@ class NNDist(NNBase):
                         x_batch, y_batch = x_train, y_train
                     feed_dict = {self._tfx: x_batch, self._tfy: y_batch}
                     self._train_step.run(feed_dict=feed_dict)
+
+                    summary = sess.run(merge_op, feed_dict=feed_dict)
+                    writer.add_summary(summary, counter*train_repeat+i)
+
                     if self.verbose >= NNVerbose.DEBUG:
                         pass
                     if self.verbose >= NNVerbose.EPOCH:
