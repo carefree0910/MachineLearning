@@ -7,6 +7,7 @@ from math import sqrt
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+from tensorflow.python import pywrap_tensorflow
 
 from NN.TF.Layers import *
 
@@ -101,11 +102,10 @@ class NNBase:
 
     @NNTiming.timeit(level=4)
     def _get_b(self, shape):
-        initial = tf.constant(self._b_inits[-1], shape=shape)
-        return tf.Variable(initial, name="b")
+        return tf.Variable(np.zeros(shape, dtype=np.float32) + self._b_inits[-1], name="b")
 
     @NNTiming.timeit(level=4)
-    def _add_params(self, shape, conv_channel=None, fc_shape=None, apply_bias=True):
+    def _add_params(self, shape, conv_channel=None, fc_shape=None):
         if fc_shape is not None:
             w_shape = (fc_shape, shape[1])
             b_shape = shape[1],
@@ -119,10 +119,7 @@ class NNBase:
             w_shape = shape
             b_shape = shape[1],
         self._tf_weights.append(self._get_w(w_shape))
-        if apply_bias:
-            self._tf_bias.append(self._get_b(b_shape))
-        else:
-            self._tf_bias.append(None)
+        self._tf_bias.append(self._get_b(b_shape))
 
     @NNTiming.timeit(level=4)
     def _add_param_placeholder(self):
@@ -181,7 +178,7 @@ class NNBase:
                     last_layer.is_fc_base = True
                     fc_shape = last_layer.out_h * last_layer.out_w * last_layer.n_filters
             self._layers.append(layer)
-            self._add_params((_current, _next), conv_channel, fc_shape, layer.apply_bias)
+            self._add_params((_current, _next), conv_channel, fc_shape)
             self._current_dimension = _next
         self._update_layer_information(layer)
 
@@ -213,12 +210,12 @@ class NNBase:
                     else:
                         if not isinstance(layer, NNPipe):
                             return layer.activate(_cache, self._tf_weights[i + 1], self._tf_bias[i + 1], predict)
-                        return layer.get_rs(_cache)
+                        return layer.get_rs(_cache, predict)
                 predict = y
             if not isinstance(layer, NNPipe):
                 _cache = layer.activate(_cache, self._tf_weights[i + 1], self._tf_bias[i + 1], predict)
             else:
-                _cache = layer.get_rs(_cache)
+                _cache = layer.get_rs(_cache, predict)
         return _cache
 
     @NNTiming.timeit(level=4, prefix="[API] ")
@@ -249,9 +246,9 @@ class NNBase:
                 self._layers, self._current_dimension = [layer], layer.shape[1]
                 self._update_layer_information(layer)
                 if isinstance(layer, ConvLayer):
-                    self._add_params(layer.shape, layer.n_channels, apply_bias=layer.apply_bias)
+                    self._add_params(layer.shape, layer.n_channels)
                 else:
-                    self._add_params(layer.shape, apply_bias=layer.apply_bias)
+                    self._add_params(layer.shape)
             else:
                 if len(layer.shape) > 2:
                     raise BuildLayerError("Invalid Layer provided (shape should be {}, {} found)".format(
@@ -883,16 +880,16 @@ class NNDist(NNBase):
                 }
             }
             pickle.dump(_dic, file)
-
         _saver = tf.train.Saver()
         save_path = _saver.save(self._sess, _dir)
+
         print()
         print("=" * 30)
         print("Model saved in file: ", save_path)
         print("=" * 30)
 
     @NNTiming.timeit(level=2, prefix="[API] ")
-    def load(self, path):
+    def load(self, path="Models/Model"):
         self.initialize()
         try:
             with open(path + ".nn", "rb") as file:
@@ -1109,4 +1106,4 @@ class NNPipe:
 
     @NNTiming.timeit(level=1, prefix="[API] ")
     def get_rs(self, x, predict):
-        return tf.concat(3, [_nn.get_rs(x, predict=predict, pipe=True) for _nn in self._nn_lst])
+        return tf.concat([_nn.get_rs(x, predict=predict, pipe=True) for _nn in self._nn_lst], 3)

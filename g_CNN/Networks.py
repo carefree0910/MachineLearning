@@ -95,8 +95,7 @@ class NN(ClassifierBase):
     @staticmethod
     @NNTiming.timeit(level=4)
     def _get_b(shape):
-        initial = tf.constant(0.1, shape=shape)
-        return tf.Variable(initial, name="b")
+        return tf.Variable(np.zeros(shape, dtype=np.float32) + 0.1, name="b")
 
     @NNTiming.timeit(level=4)
     def _add_params(self, shape, conv_channel=None, fc_shape=None, apply_bias=True):

@@ -101,8 +101,7 @@ class NNBase:
 
     @NNTiming.timeit(level=4)
     def _get_b(self, shape):
-        initial = tf.constant(self._b_inits[-1], shape=shape)
-        return tf.Variable(initial, name="b")
+        return tf.Variable(np.zeros(shape, dtype=np.float32) + self._b_inits[-1], name="b")
 
     @NNTiming.timeit(level=4)
     def _get_tb_name(self, layer):
@@ -923,7 +922,7 @@ class NNDist(NNBase):
         print("=" * 30)
 
     @NNTiming.timeit(level=2, prefix="[API] ")
-    def load(self, path):
+    def load(self, path="Models/Model"):
         self.initialize()
         try:
             with open(path + ".nn", "rb") as file:

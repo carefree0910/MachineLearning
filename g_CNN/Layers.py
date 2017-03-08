@@ -317,7 +317,7 @@ class Normalize(SubLayer):
             }
 
     def get_params(self):
-        return self._activation, self._eps, self._momentum
+        return self._activation, self._activation, self._eps, self._momentum
 
     # noinspection PyTypeChecker
     def _activate(self, x, predict):

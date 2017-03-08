@@ -353,13 +353,13 @@ class Dropout(SubLayer):
         if drop_prob < 0 or drop_prob >= 1:
             raise BuildLayerError("(Dropout) Probability of Dropout should be a positive float smaller than 1")
         SubLayer.__init__(self, parent, shape, **kwargs)
-        _drop_prob = tf.constant(drop_prob, dtype=tf.float32)
-        self._prob = 1 - _drop_prob
+        self._drop_prob = drop_prob
+        self._prob = 1 - tf.constant(self._drop_prob, dtype=tf.float32)
         self._one = tf.constant(1, dtype=tf.float32)
         self.description = "(Drop prob: {})".format(drop_prob)
 
     def get_params(self):
-        return 1 - self._prob,
+        return self._drop_prob,
 
     def _activate(self, x, predict):
         if not predict:
