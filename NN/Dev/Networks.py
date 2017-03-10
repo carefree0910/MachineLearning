@@ -825,15 +825,11 @@ class NNDist(NNBase):
         img = None
 
         with self._sess.as_default() as sess:
-            # Session
-            with tf.name_scope("Prediction Flow"):
-                self._y_pred = self.get_rs(self._tfx)
-            with tf.name_scope("Loss"):
-                self._l2_loss = self._get_l2_loss(lb)
-                with tf.name_scope("Loss Flow"):
-                    self._loss = self.get_rs(self._tfx, self._tfy) + self._l2_loss
-            with tf.name_scope("Activation Flow"):
-                self._activations = self._get_activations(self._tfx)
+            self._activations = self._get_activations(self._tfx)
+            self._y_pred = self.get_rs(self._tfx)
+            _l2_loss = self._get_l2_loss(lb)
+            self._loss = self.get_rs(self._tfx, self._tfy) + _l2_loss
+            self._init_train_step(sess)
             self._init_train_step(sess)
             for weight in self._tf_weights:
                 weight *= weight_scale
@@ -936,6 +932,26 @@ class NNDist(NNBase):
         _saver = tf.train.Saver()
         _saver.save(self._sess, _dir)
         graph_io.write_graph(self._sess.graph, os.path.join(path, name), "Model.pb", False)
+        with tf.name_scope("OutputFlow"):
+            self.get_rs(self._tfx)
+        _output = ""
+        for op in self._sess.graph.get_operations()[::-1]:
+            if "OutputFlow" in op.name:
+                _output = op.name
+                break
+        with open(os.path.join(path, name, "IO.txt"), "w") as file:
+            file.write("\n".join([
+                "Input  : Entry:Placeholder:0",
+                "Output : {}:0".format(_output)
+            ]))
+        graph_io.write_graph(self._sess.graph, os.path.join(path, name), "Cache.pb", False)
+        freeze_graph.freeze_graph(
+            os.path.join(path, name, "Cache.pb"),
+            "", True, os.path.join(path, name, "Model"),
+            _output, "save/restore_all", "save/Const:0",
+            os.path.join(path, name, "Frozen.pb"), True, ""
+        )
+        os.remove(os.path.join(path, name, "Cache.pb"))
 
         print()
         print("=" * 30)
