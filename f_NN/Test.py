@@ -17,7 +17,7 @@ def main():
 
     # nn.disable_timing()
     nn.fit(x, y, epoch=epoch, train_rate=0.8, metrics=["acc"])
-    nn.estimate(x, y)
+    nn.evaluate(x, y)
     nn.visualize2d(x, y)
     nn.show_timing_log()
     nn.draw_logs()

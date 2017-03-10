@@ -10,7 +10,7 @@ class TimingMeta(type):
         timing = Timing()
 
         for _name, _value in attr.items():
-            if "__" in _name or "timing" in _name or "estimate" in _name:
+            if "__" in _name or "timing" in _name or "evaluate" in _name:
                 continue
             if Util.callable(_value):
                 attr[_name] = timing.timeit(level=2)(_value)
@@ -27,7 +27,7 @@ class SubClassTimingMeta(type):
         name, bases, attr = args[:3]
         timing = Timing()
         for _name, _value in attr.items():
-            if "__" in _name or "timing" in _name or "estimate" in _name:
+            if "__" in _name or "timing" in _name or "evaluate" in _name:
                 continue
             if Util.callable(_value):
                 attr[_name] = timing.timeit(level=2)(_value)

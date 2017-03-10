@@ -19,7 +19,7 @@ def test(x, y, algorithm="AdaBoost", clf="Cart", epoch=10, **kwargs):
     else:
         ensemble.fit(x, y, None, clf, epoch, **kwargs)
     ensemble.visualize2d(x, y)
-    ensemble.estimate(x, y)
+    ensemble.evaluate(x, y)
 
 
 def cv_test(x, y, xt, yt, algorithm="AdaBoost", clf="Cart", epoch=10, **kwargs):
@@ -29,7 +29,7 @@ def cv_test(x, y, xt, yt, algorithm="AdaBoost", clf="Cart", epoch=10, **kwargs):
     _t = time.time()
     ensemble = _clf_dic[algorithm]()
     ensemble.fit(x, y, None, clf, epoch, **kwargs)
-    ensemble.estimate(xt, yt)
+    ensemble.evaluate(xt, yt)
     print("Time cost: {:8.6} s".format(time.time() - _t))
 
 if __name__ == '__main__':

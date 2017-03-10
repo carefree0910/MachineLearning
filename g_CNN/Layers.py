@@ -351,11 +351,8 @@ class ConvNorm(ConvLayer, Normalize, metaclass=ConvSubLayerMeta):
 # Cost Layers
 
 class CostLayer(Layer):
-    def _activate(self, x, y):
-        pass
-
     def calculate(self, y, y_pred):
-        return self._activate(y.astype(np.float32), y_pred)
+        return self._activate(y_pred, y)
 
 
 class CrossEntropy(CostLayer):

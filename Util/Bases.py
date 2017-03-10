@@ -1,4 +1,5 @@
 import time
+import math
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -84,7 +85,7 @@ class ClassifierBase:
         pass
 
     @clf_timing.timeit(level=1, prefix="[API] ")
-    def estimate(self, x, y, metrics=None, tar=None, prefix="Acc"):
+    def evaluate(self, x, y, metrics=None, tar=None, prefix="Acc"):
         if metrics is None:
             metrics = ["acc"]
         self.get_metrics(metrics)
@@ -99,6 +100,91 @@ class ClassifierBase:
         if isinstance(tar, int):
             print(prefix + ": {:12.8}".format(logs[tar]))
         return logs
+
+    def scatter2d(self, x, y, padding=0.5, title=None):
+        axis, labels = np.array(x).T, np.array(y)
+
+        print("=" * 30 + "\n" + str(self))
+        x_min, x_max = np.min(axis[0]), np.max(axis[0])
+        y_min, y_max = np.min(axis[1]), np.max(axis[1])
+        x_padding = max(abs(x_min), abs(x_max)) * padding
+        y_padding = max(abs(y_min), abs(y_max)) * padding
+        x_min -= x_padding
+        x_max += x_padding
+        y_min -= y_padding
+        y_max += y_padding
+
+        if labels.ndim == 1:
+            _dic = {c: i for i, c in enumerate(set(labels))}
+            n_label = len(_dic)
+            labels = np.array([_dic[label] for label in labels])
+        else:
+            n_label = labels.shape[1]
+            labels = np.argmax(labels, axis=1)
+        colors = plt.cm.rainbow([i / n_label for i in range(n_label)])[labels]
+
+        if title is None:
+            title = self.title
+
+        _indices = [labels == i for i in range(np.max(labels) + 1)]
+        _scatters = []
+        plt.figure()
+        plt.title(title)
+        for _index in _indices:
+            _scatters.append(plt.scatter(axis[0][_index], axis[1][_index], c=colors[_index]))
+        plt.legend(_scatters, ["$c_{}$".format("{" + str(i) + "}") for i in range(len(_scatters))],
+                   ncol=math.ceil(math.sqrt(len(_scatters))), fontsize=8)
+        plt.xlim(x_min, x_max)
+        plt.ylim(y_min, y_max)
+        plt.show()
+
+        print("Done.")
+
+    def scatter3d(self, x, y, padding=0.1, title=None):
+        axis, labels = np.array(x).T, np.array(y)
+
+        print("=" * 30 + "\n" + str(self))
+        x_min, x_max = np.min(axis[0]), np.max(axis[0])
+        y_min, y_max = np.min(axis[1]), np.max(axis[1])
+        z_min, z_max = np.min(axis[2]), np.max(axis[2])
+        x_padding = max(abs(x_min), abs(x_max)) * padding
+        y_padding = max(abs(y_min), abs(y_max)) * padding
+        z_padding = max(abs(z_min), abs(z_max)) * padding
+        x_min -= x_padding
+        x_max += x_padding
+        y_min -= y_padding
+        y_max += y_padding
+        z_min -= z_padding
+        z_max += z_padding
+
+        def transform_arr(arr):
+            if arr.ndim == 1:
+                _dic = {c: i for i, c in enumerate(set(arr))}
+                n_dim = len(_dic)
+                arr = np.array([_dic[label] for label in arr])
+            else:
+                n_dim = arr.shape[1]
+                arr = np.argmax(arr, axis=1)
+            return arr, n_dim
+
+        if title is None:
+            try:
+                title = self.title
+            except AttributeError:
+                title = str(self)
+
+        labels, n_label = transform_arr(labels)
+        colors = plt.cm.rainbow([i / n_label for i in range(n_label)])[labels]
+        _indices = [labels == i for i in range(n_label)]
+        _scatters = []
+        fig = plt.figure()
+        plt.title(title)
+        ax = fig.add_subplot(111, projection='3d')
+        for _index in _indices:
+            _scatters.append(ax.scatter(axis[0][_index], axis[1][_index], axis[2][_index], c=colors[_index]))
+        ax.legend(_scatters, ["$c_{}$".format("{" + str(i) + "}") for i in range(len(_scatters))],
+                  ncol=math.ceil(math.sqrt(len(_scatters))), fontsize=8)
+        plt.show()
 
     def visualize2d(self, x, y, padding=0.1, dense=200,
                     title=None, show_org=False, show_background=True, emphasize=None):

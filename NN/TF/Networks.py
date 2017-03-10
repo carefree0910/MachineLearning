@@ -2,12 +2,11 @@ import os
 import cv2
 import time
 import pickle
-import platform
 from math import sqrt
-from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-from tensorflow.python import pywrap_tensorflow
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from tensorflow.python.framework import graph_io
 
 from NN.TF.Layers import *
 
@@ -292,14 +291,18 @@ class NNBase:
             rs = (
                 "Input  :  {:<10s} - {}\n".format("Dimension", self._layers[0].shape[0]) +
                 "\n".join([_layer.info for _layer in self._layers]))
-        print("=" * 30 + "\n" + "Structure\n" + "-" * 30 + "\n" + rs)
+        print("=" * 30 + "\n" + "Structure\n" + "-" * 30 + "\n" + rs + "\n" + "-" * 30)
         if verbose >= 1:
             print("Initial Values\n" + "-" * 30)
             print("\n".join(["({:^16s}) w_std: {:8.6} ; b_init: {:8.6}".format(
-                _batch[0].name, *_batch[1:]) if not isinstance(_batch[0], NNPipe) else "({:^16s}) ({:^3d})".format(
+                _batch[0].name, float(_batch[1]), float(_batch[2])) if not isinstance(
+                _batch[0], NNPipe) else "({:^16s}) ({:^3d})".format(
                 "Pipe", len(_batch[0]["nn_lst"])
             ) for _batch in zip(self._layers, self._w_stds, self._b_inits) if not isinstance(
-                _batch[0], SubLayer) and not isinstance(_batch[0], ConvPoolLayer)]))
+                _batch[0], SubLayer) and not isinstance(
+                _batch[0], CostLayer) and not isinstance(
+                _batch[0], ConvPoolLayer)])
+            )
         if verbose >= 2:
             for _layer in self._layers:
                 if isinstance(_layer, NNPipe):
@@ -650,6 +653,16 @@ class NNDist(NNBase):
             _layer.init()
 
     @NNTiming.timeit(level=4)
+    def _init_structure(self, verbose):
+        x_shape = self._layers[0].shape[0]
+        if isinstance(x_shape, int):
+            x_shape = x_shape,
+        y_shape = self._layers[-1].shape[1]
+        x_placeholder, y_placeholder = np.zeros((1, *x_shape)), np.zeros((1, y_shape))
+        self.fit(x_placeholder, y_placeholder, epoch=0, train_only=True, verbose=verbose)
+        self._transferred_flags["train"] = False
+
+    @NNTiming.timeit(level=4)
     def _init_train_step(self, sess):
         if not self._loaded:
             self._train_step = self._optimizer.minimize(self._loss)
@@ -765,8 +778,11 @@ class NNDist(NNBase):
         train_repeat = int(train_len / batch_size) + 1
         self._feed_data(x_train, y_train)
 
-        self._tfx = tf.placeholder(tf.float32, shape=[None, *x.shape[1:]])
+        with tf.name_scope("Entry"):
+            self._tfx = tf.placeholder(tf.float32, shape=[None, *x.shape[1:]])
         self._tfy = tf.placeholder(tf.float32, shape=[None, y.shape[1]])
+        if epoch <= 0:
+            return
 
         self._metrics = ["acc"] if metrics is None else metrics
         for i, metric in enumerate(self._metrics):
@@ -790,9 +806,14 @@ class NNDist(NNBase):
         with self._sess.as_default() as sess:
 
             # Session
-            self._y_pred = self.get_rs(self._tfx)
-            self._loss = self.get_rs(self._tfx, self._tfy) + self._get_l2_loss(lb)
-            self._activations = self._get_activations(self._tfx)
+            with tf.name_scope("Prediction Flow"):
+                self._y_pred = self.get_rs(self._tfx)
+            with tf.name_scope("Loss"):
+                self._l2_loss = self._get_l2_loss(lb)
+                with tf.name_scope("Loss Flow"):
+                    self._loss = self.get_rs(self._tfx, self._tfy) + self._l2_loss
+            with tf.name_scope("Activation Flow"):
+                self._activations = self._get_activations(self._tfx)
             self._init_train_step(sess)
             for weight in self._tf_weights:
                 weight *= weight_scale
@@ -848,11 +869,10 @@ class NNDist(NNBase):
     @NNTiming.timeit(level=2, prefix="[API] ")
     def save(self, path=None, name=None, overwrite=True):
         path = "Models" if path is None else path
-        name = "Model" if name is None else name
-        if not os.path.exists(path):
-            os.mkdir(path)
-        slash = "\\" if platform.system() == "Windows" else "/"
-        _dir = path + slash + name
+        name = "Cache" if name is None else name
+        if not os.path.exists(os.path.join(path, name)):
+            os.makedirs(os.path.join(path, name))
+        _dir = os.path.join(path, name, "Model")
         if os.path.isfile(_dir):
             if not overwrite:
                 _count = 1
@@ -881,16 +901,23 @@ class NNDist(NNBase):
             }
             pickle.dump(_dic, file)
         _saver = tf.train.Saver()
-        save_path = _saver.save(self._sess, _dir)
+        _saver.save(self._sess, _dir)
+        graph_io.write_graph(self._sess.graph, os.path.join(path, name), "Model.pb", False)
 
         print()
         print("=" * 30)
-        print("Model saved in file: ", save_path)
+        print("Model saved in folder: ", os.path.join(path, name))
         print("=" * 30)
 
     @NNTiming.timeit(level=2, prefix="[API] ")
-    def load(self, path="Models/Model"):
+    def load(self, path=None, verbose=2):
+
+        # Reset Graph
+        tf.reset_default_graph()
+
         self.initialize()
+        if path is None:
+            path = os.path.join("Models", "Cache", "Model")
         try:
             with open(path + ".nn", "rb") as file:
                 _dic = pickle.load(file)
@@ -913,6 +940,7 @@ class NNDist(NNBase):
 
         _saver = tf.train.Saver()
         _saver.restore(self._sess, path)
+        self._init_structure(verbose)
 
         print()
         print("=" * 30)
@@ -932,7 +960,7 @@ class NNDist(NNBase):
         return np.argmax([self._get_prediction(x, out_of_sess=True)], axis=2).T
 
     @NNTiming.timeit(level=4, prefix="[API] ")
-    def estimate(self, x, y, metrics=None):
+    def evaluate(self, x, y, metrics=None):
         x = NNDist._transfer_x(np.array(x))
         if metrics is None:
             metrics = self._metrics

@@ -995,7 +995,7 @@ class NNDist:
         return np.argmax([self._get_prediction(x)], axis=2).T
 
     @NNTiming.timeit(level=4, prefix="[API] ")
-    def estimate(self, x, y, metrics=None):
+    def evaluate(self, x, y, metrics=None):
         if metrics is None:
             metrics = self._metrics
         else:

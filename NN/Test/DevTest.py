@@ -79,7 +79,7 @@ def main():
             nn.visualize2d()
         nn.draw_results()
 
-        acc = nn.estimate(x, y)[0]
+        acc = nn.evaluate(x, y)[0]
         log += "Whole set Accuracy  : {:12.6} %".format(100 * acc) + "\n"
 
         print()

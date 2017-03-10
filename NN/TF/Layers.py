@@ -429,11 +429,8 @@ class CostLayer(Layer):
     def info(self):
         return "Cost   :  {:<10s}".format(self.name)
 
-    def _activate(self, x, y):
-        pass
-
     def calculate(self, y, y_pred):
-        return self._activate(y, y_pred)
+        return self._activate(y_pred, y)
 
 
 class CrossEntropy(CostLayer):

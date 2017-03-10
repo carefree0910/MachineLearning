@@ -11,12 +11,12 @@ def main():
 
     svm = LinearSVM()
     svm.fit(x, y, epoch=10 ** 5, lr=1e-3)
-    svm.estimate(x, y)
+    svm.evaluate(x, y)
     svm.visualize2d(x, y, padding=0.1, dense=400)
 
     perceptron = Perceptron()
     perceptron.fit(x, y)
-    perceptron.estimate(x, y)
+    perceptron.evaluate(x, y)
     perceptron.visualize2d(x, y)
 
     perceptron.show_timing_log()

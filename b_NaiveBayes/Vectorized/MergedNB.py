@@ -108,8 +108,8 @@ if __name__ == '__main__':
     learning_time = time.time() - learning_time
 
     estimation_time = time.time()
-    nb.estimate(x_train, y_train)
-    nb.estimate(x_test, y_test)
+    nb.evaluate(x_train, y_train)
+    nb.evaluate(x_test, y_test)
     estimation_time = time.time() - estimation_time
 
     print(

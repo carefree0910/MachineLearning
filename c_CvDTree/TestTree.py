@@ -14,7 +14,7 @@ def main():
     _fit_time = time.time() - _fit_time
     _tree.view()
     _estimate_time = time.time()
-    _tree.estimate(_x, _y)
+    _tree.evaluate(_x, _y)
     _estimate_time = time.time() - _estimate_time
     print(
         "Model building  : {:12.6} s\n"
@@ -35,8 +35,8 @@ def main():
     _fit_time = time.time() - _fit_time
     _tree.view()
     _estimate_time = time.time()
-    _tree.estimate(x_train, y_train)
-    _tree.estimate(x_test, y_test)
+    _tree.evaluate(x_train, y_train)
+    _tree.evaluate(x_test, y_test)
     _estimate_time = time.time() - _estimate_time
     print(
         "Model building  : {:12.6} s\n"
@@ -55,7 +55,7 @@ def main():
     _fit_time = time.time() - _fit_time
     _tree.view()
     _estimate_time = time.time()
-    _tree.estimate(_x, _y)
+    _tree.evaluate(_x, _y)
     _estimate_time = time.time() - _estimate_time
     print(
         "Model building  : {:12.6} s\n"
@@ -82,7 +82,7 @@ def main():
     _fit_time = time.time() - _fit_time
     _tree.view()
     _estimate_time = time.time()
-    _tree.estimate(x_test, y_test)
+    _tree.evaluate(x_test, y_test)
     _estimate_time = time.time() - _estimate_time
     print(
         "Model building  : {:12.6} s\n"

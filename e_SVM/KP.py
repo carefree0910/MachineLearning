@@ -45,7 +45,7 @@ if __name__ == '__main__':
     # )]
     # # perceptron.fit(xs, ys, kernel="rbf", epoch=10 ** 6)
     # # perceptron.fit(xs, ys, p=12, epoch=10 ** 5)
-    # perceptron.estimate(xs, ys)
+    # perceptron.evaluate(xs, ys)
     # perceptron.visualize2d(xs, ys, dense=400)
 
     (x_train, y_train), (x_test, y_test), *_ = DataUtil.get_dataset(
@@ -57,8 +57,8 @@ if __name__ == '__main__':
     _logs = [_log[0] for _log in perceptron.fit(
         x_train, y_train, metrics=["acc"], x_test=x_test, y_test=y_test
     )]
-    perceptron.estimate(x_train, y_train)
-    perceptron.estimate(x_test, y_test)
+    perceptron.evaluate(x_train, y_train)
+    perceptron.evaluate(x_test, y_test)
 
     plt.figure()
     plt.title(perceptron.title)

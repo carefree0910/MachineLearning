@@ -16,12 +16,12 @@ def main():
     # svm = SKSVM()
     # # svm = SKSVM(kernel="poly", degree=12)
     # svm.fit(x, y)
-    # svm.estimate(x, y)
+    # svm.evaluate(x, y)
     # svm.visualize2d(x, y, padding=0.1, dense=400, emphasize=svm.support_)
     #
     # svm = SVM()
     # _logs = [_log[0] for _log in svm.fit(x, y, metrics=["acc"])]
-    # svm.estimate(x, y)
+    # svm.evaluate(x, y)
     # svm.visualize2d(x, y, padding=0.1, dense=400, emphasize=svm["alpha"] > 0)
 
     (x_train, y_train), (x_test, y_test), *_ = DataUtil.get_dataset(
@@ -31,16 +31,16 @@ def main():
 
     svm = SKSVM()
     svm.fit(x_train, y_train)
-    svm.estimate(x_train, y_train)
-    svm.estimate(x_test, y_test)
+    svm.evaluate(x_train, y_train)
+    svm.evaluate(x_test, y_test)
 
     svm = SVM()
     _logs = [_log[0] for _log in svm.fit(
         x_train, y_train, metrics=["acc"], x_test=x_test, y_test=y_test
     )]
     # svm.fit(x_train, y_train, p=12)
-    svm.estimate(x_train, y_train)
-    svm.estimate(x_test, y_test)
+    svm.evaluate(x_train, y_train)
+    svm.evaluate(x_test, y_test)
 
     plt.figure()
     plt.title(svm.title)

@@ -93,7 +93,7 @@ if __name__ == '__main__':
     # nb.fit(_x, _y)
     # learning_time = time.time() - learning_time
     # estimation_time = time.time()
-    # nb.estimate(_x, _y)
+    # nb.evaluate(_x, _y)
     # estimation_time = time.time() - estimation_time
     # print(
     #     "Model building  : {:12.6} s\n"
@@ -119,8 +119,8 @@ if __name__ == '__main__':
     nb.fit(x_train, y_train)
     learning_time = time.time() - learning_time
     estimation_time = time.time()
-    nb.estimate(x_train, y_train)
-    nb.estimate(x_test, y_test)
+    nb.evaluate(x_train, y_train)
+    nb.evaluate(x_test, y_test)
     estimation_time = time.time() - estimation_time
     print(
         "Data cleaning   : {:12.6} s\n"

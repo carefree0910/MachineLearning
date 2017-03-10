@@ -29,7 +29,7 @@ def main():
     show_loss = True
     train_only = True
     visualize = False
-    draw_detailed_network = False
+    draw_detailed_network = True
     weight_average = None
     verbose = 1
 
@@ -73,7 +73,7 @@ def main():
         nn.visualize2d()
         nn.draw_results()
 
-        f1, acc, _precision, _recall = nn.estimate(x, y, metrics=["f1", "acc", precision, recall])
+        f1, acc, _precision, _recall = nn.evaluate(x, y, metrics=["f1", "acc", precision, recall])
         log += "Test set Accuracy  : {:12.6} %".format(100 * acc) + "\n"
         log += "Test set F1 Score  : {:12.6}".format(f1) + "\n"
         log += "Test set Precision : {:12.6}".format(_precision) + "\n"

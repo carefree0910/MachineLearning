@@ -61,8 +61,8 @@ if __name__ == '__main__':
     forest.fit(x_train, y_train)
     learning_time = time.time() - learning_time
     estimation_time = time.time()
-    forest.estimate(x_train, y_train)
-    forest.estimate(x_test, y_test)
+    forest.evaluate(x_train, y_train)
+    forest.evaluate(x_test, y_test)
     estimation_time = time.time() - estimation_time
     print(
         "Model building  : {:12.6} s\n"

@@ -17,7 +17,7 @@ def main():
 
     lr = 0.001
     lb = 0.001
-    epoch = 0
+    epoch = 1
     record_period = 1
     weight_scale = 0.001
     optimizer = "Adam"
@@ -33,7 +33,6 @@ def main():
     x = x.reshape(len(x), *img_shape)
 
     if not load:
-
         nn.add("ConvReLU", (x.shape[1:], (32, 3, 3)))
         nn.add("ConvReLU", ((32, 3, 3),))
         nn.add("MaxPool", ((3, 3),), 2)
@@ -81,7 +80,7 @@ def main():
             nn.draw_conv_series(x[:3], img_shape)
         nn.draw_results()
 
-        acc = nn.estimate(x, y)[0]
+        acc = nn.evaluate(x, y)[0]
         log += "Test set Accuracy  : {:12.6} %".format(100 * acc) + "\n"
         print("=" * 30 + "\n" + "Results\n" + "-" * 30)
         print(log)
