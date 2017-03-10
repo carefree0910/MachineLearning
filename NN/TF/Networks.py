@@ -7,6 +7,7 @@ import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from tensorflow.python.framework import graph_io
+from tensorflow.python.tools import freeze_graph
 
 from NN.TF.Layers import *
 
@@ -896,6 +897,26 @@ class NNDist(NNBase):
         _saver = tf.train.Saver()
         _saver.save(self._sess, _dir)
         graph_io.write_graph(self._sess.graph, os.path.join(path, name), "Model.pb", False)
+        with tf.name_scope("OutputFlow"):
+            self.get_rs(self._tfx)
+        _output = ""
+        for op in self._sess.graph.get_operations()[::-1]:
+            if "OutputFlow" in op.name:
+                _output = op.name
+                break
+        with open(os.path.join(path, name, "IO.txt"), "w") as file:
+            file.write("\n".join([
+                "Input  : Entry:Placeholder:0",
+                "Output : {}:0".format(_output)
+            ]))
+        graph_io.write_graph(self._sess.graph, os.path.join(path, name), "Cache.pb", False)
+        freeze_graph.freeze_graph(
+            os.path.join(path, name, "Cache.pb"),
+            "", True, os.path.join(path, name, "Model"),
+            _output, "save/restore_all", "save/Const:0",
+            os.path.join(path, name, "Frozen.pb"), True, ""
+        )
+        os.remove(os.path.join(path, name, "Cache.pb"))
 
         print()
         print("=" * 30)
