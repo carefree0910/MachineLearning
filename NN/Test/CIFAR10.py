@@ -9,7 +9,7 @@ def main():
 
     nn = NNDist()
     save = True
-    load = True
+    load = False
     show_loss = True
     train_only = False
     do_log = True
@@ -17,7 +17,7 @@ def main():
 
     lr = 0.001
     lb = 0.001
-    epoch = 1
+    epoch = 20
     record_period = 1
     weight_scale = 0.001
     optimizer = "Adam"

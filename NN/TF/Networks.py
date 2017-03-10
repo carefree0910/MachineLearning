@@ -804,20 +804,13 @@ class NNDist(NNBase):
         img = None
 
         with self._sess.as_default() as sess:
-
-            # Session
-            with tf.name_scope("Prediction Flow"):
-                self._y_pred = self.get_rs(self._tfx)
-            with tf.name_scope("Loss"):
-                self._l2_loss = self._get_l2_loss(lb)
-                with tf.name_scope("Loss Flow"):
-                    self._loss = self.get_rs(self._tfx, self._tfy) + self._l2_loss
-            with tf.name_scope("Activation Flow"):
-                self._activations = self._get_activations(self._tfx)
+            self._activations = self._get_activations(self._tfx)
+            self._y_pred = self.get_rs(self._tfx)
+            _l2_loss = self._get_l2_loss(lb)
+            self._loss = self.get_rs(self._tfx, self._tfy) + _l2_loss
             self._init_train_step(sess)
             for weight in self._tf_weights:
                 weight *= weight_scale
-
             sub_bar = ProgressBar(min_value=0, max_value=train_repeat * record_period - 1, name="Iteration")
             for counter in range(epoch):
                 if self.verbose >= NNVerbose.EPOCH and counter % record_period == 0:
