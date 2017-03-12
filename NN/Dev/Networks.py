@@ -7,6 +7,7 @@ import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from tensorflow.python.framework import graph_io
+from tensorflow.python.tools import freeze_graph
 
 from NN.Dev.Layers import *
 
@@ -828,7 +829,8 @@ class NNDist(NNBase):
             self._activations = self._get_activations(self._tfx)
             self._y_pred = self.get_rs(self._tfx)
             _l2_loss = self._get_l2_loss(lb)
-            self._loss = self.get_rs(self._tfx, self._tfy) + _l2_loss
+            with tf.name_scope("MainFlow"):
+                self._loss = self.get_rs(self._tfx, self._tfy) + _l2_loss
             self._init_train_step(sess)
             self._init_train_step(sess)
             for weight in self._tf_weights:
@@ -836,10 +838,10 @@ class NNDist(NNBase):
 
             # Log
             merge_op = tf.summary.merge_all()
-            writer = tf.summary.FileWriter("Logs", sess.graph)
+            writer = tf.summary.FileWriter("tbLogs", sess.graph)
             writer.add_graph(sess.graph)
             with tf.name_scope("Global_Summaries"):
-                tf.summary.scalar("l2 loss", self._l2_loss)
+                tf.summary.scalar("l2 loss", _l2_loss)
                 tf.summary.scalar("loss", self._loss)
                 tf.summary.scalar("lr", self._lr)
 
@@ -967,6 +969,8 @@ class NNDist(NNBase):
         self.initialize()
         if path is None:
             path = os.path.join("Models", "Cache", "Model")
+        else:
+            path = os.path.join(path, "Model")
         try:
             with open(path + ".nn", "rb") as file:
                 _dic = pickle.load(file)

@@ -932,6 +932,8 @@ class NNDist(NNBase):
         self.initialize()
         if path is None:
             path = os.path.join("Models", "Cache", "Model")
+        else:
+            path = os.path.join(path, "Model")
         try:
             with open(path + ".nn", "rb") as file:
                 _dic = pickle.load(file)
