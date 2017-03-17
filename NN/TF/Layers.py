@@ -124,7 +124,7 @@ class ConvLayer(Layer):
         """
         if parent is not None:
             _parent = parent.root if parent.is_sub_layer else parent
-            shape, stride, padding = _parent.shape, _parent.stride, _parent.padding
+            shape = _parent.shape
         Layer.__init__(self, shape, **kwargs)
         self._stride = stride
         if isinstance(padding, str):

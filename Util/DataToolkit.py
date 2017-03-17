@@ -112,6 +112,11 @@ class DataToolkit:
         stats.probplot(self._data, dist="norm", plot=plt)
         plt.show()
 
+    def box_plot(self):
+        plt.figure()
+        plt.boxplot(self._data, vert=False, showmeans=True)
+        plt.show()
+
 if __name__ == '__main__':
     toolkit = DataToolkit([
         53, 70.2, 84.3, 55.3, 78.5, 63.5, 71.4, 53.4, 82.5, 67.3, 69.5, 73, 55.7, 85.8, 95.4, 51.1, 74.4,
@@ -133,3 +138,4 @@ if __name__ == '__main__':
     print("max      : ", toolkit.max)
     toolkit.draw_histogram()
     toolkit.qq_plot()
+    toolkit.box_plot()

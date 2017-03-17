@@ -14,7 +14,7 @@ from NN.Basic.Optimizers import OptFactory
 from Util.ProgressBar import ProgressBar
 from Util.Util import VisUtil
 
-# Deprecated Version
+# Deprecated Pure Numpy Version
 
 
 class NNVerbose:
@@ -744,7 +744,7 @@ class NNDist:
     @NNTiming.timeit(level=1, prefix="[API] ")
     def fit(self,
             x=None, y=None, x_test=None, y_test=None,
-            batch_size=256, record_period=1, train_only=True,
+            batch_size=256, record_period=1, train_only=False,
             optimizer=None, w_optimizer=None, b_optimizer=None,
             lr=0.01, lb=0.01, epoch=20, weight_scale=1, apply_bias=True,
             show_loss=True, metrics=None, do_log=True, verbose=None,

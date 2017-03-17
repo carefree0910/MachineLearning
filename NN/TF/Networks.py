@@ -14,6 +14,8 @@ from NN.TF.Layers import *
 from Util.ProgressBar import ProgressBar
 from Util.Util import Util, VisUtil
 
+# TODO: Saving NNPipe
+
 
 class NNVerbose:
     NONE = 0
@@ -129,6 +131,10 @@ class NNBase:
     @NNTiming.timeit(level=4)
     def _add_layer(self, layer, *args, **kwargs):
         if not self._layers and isinstance(layer, str):
+            if layer.lower() == "pipe":
+                self._layers.append(NNPipe(args[0]))
+                self._add_param_placeholder()
+                return
             _layer = self._layer_factory.handle_str_main_layers(layer, *args, **kwargs)
             if _layer:
                 self.add(_layer, pop_last_init=True)
@@ -137,7 +143,7 @@ class NNBase:
         if isinstance(_parent, CostLayer):
             raise BuildLayerError("Adding layer after CostLayer is not permitted")
         if isinstance(_parent, NNPipe):
-            self._current_dimension = _parent.shape
+            self._current_dimension = _parent.shape[1]
         if isinstance(layer, str):
             if layer.lower() == "pipe":
                 self._layers.append(NNPipe(args[0]))
@@ -159,11 +165,6 @@ class NNBase:
             layer.is_sub_layer = True
             self.parent = _parent
             self._layers.append(layer)
-            # if not isinstance(layer, ConvLayer):
-            #     self._tf_weights.append(tf.Variable(np.eye(_current)))
-            #     self._tf_bias.append(tf.zeros([1, _current]))
-            # else:
-            #     self._add_param_placeholder()
             self._add_param_placeholder()
             self._current_dimension = _next
         else:
@@ -197,12 +198,15 @@ class NNBase:
     def get_rs(self, x, y=None, predict=False, pipe=False):
         if y is None:
             predict = True
-        _cache = self._layers[0].activate(x, self._tf_weights[0], self._tf_bias[0], predict)
+        if not isinstance(self._layers[0], NNPipe):
+            _cache = self._layers[0].activate(x, self._tf_weights[0], self._tf_bias[0], predict)
+        else:
+            _cache = self._layers[0].get_rs(x, predict)
         for i, layer in enumerate(self._layers[1:]):
             if i == len(self._layers) - 2:
                 if y is None:
                     if not pipe:
-                        if isinstance(self._layers[-2], ConvLayer):
+                        if NNDist._is_conv(self._layers[i]):
                             _cache = tf.reshape(_cache, [-1, int(np.prod(_cache.get_shape()[1:]))])
                         if self._tf_bias[-1] is not None:
                             return tf.matmul(_cache, self._tf_weights[-1]) + self._tf_bias[-1]
@@ -261,7 +265,7 @@ class NNBase:
                             raise BuildLayerError("Invalid SubLayer provided (shape[1] should be {}, {} found)".format(
                                 self._current_dimension, _next
                             ))
-                    elif not isinstance(layer, ConvLayer) and _current != self._current_dimension:
+                    elif not NNDist._is_conv(layer) and _current != self._current_dimension:
                         raise BuildLayerError("Invalid Layer provided (shape[0] should be {}, {} found)".format(
                             self._current_dimension, _current
                         ))
@@ -274,12 +278,17 @@ class NNBase:
                     raise LayerError("Invalid Layer provided (invalid shape '{}' found)".format(layer.shape))
 
     @NNTiming.timeit(level=4, prefix="[API] ")
-    def add_pipe_layer(self, idx, layer, shape, *args, **kwargs):
+    def add_pipe_layer(self, idx, layer, shape=None, *args, **kwargs):
         _last_layer = self._layers[-1]
-        _last_parent = self._layers[-2]
+        if len(self._layers) == 1:
+            _last_parent = None
+        else:
+            _last_parent = self._layers[-2]
         if not isinstance(_last_layer, NNPipe):
             raise BuildLayerError("Adding pipe layers to a non-NNPipe object is not allowed")
         if not _last_layer.initialized[idx] and len(shape) == 1:
+            if _last_parent is None:
+                raise BuildLayerError("Adding pipe layers at first without input shape is not allowed")
             _dim = (_last_parent.n_filters, _last_parent.out_h, _last_parent.out_w)
             shape = (_dim, shape[0])
         _last_layer.add(idx, layer, shape, *args, **kwargs)
@@ -466,10 +475,13 @@ class NNDist(NNBase):
 
     @NNTiming.timeit(level=4)
     def _get_activations(self, x, predict=False):
-        _activations = [self._layers[0].activate(x, self._tf_weights[0], self._tf_bias[0], predict)]
+        if not isinstance(self._layers[0], NNPipe):
+            _activations = [self._layers[0].activate(x, self._tf_weights[0], self._tf_bias[0], predict)]
+        else:
+            _activations = [self._layers[0].get_rs(x, predict)]
         for i, layer in enumerate(self._layers[1:]):
             if i == len(self._layers) - 2:
-                if isinstance(self._layers[i], ConvLayer):
+                if NNDist._is_conv(self._layers[i]):
                     _activations[-1] = tf.reshape(
                         _activations[-1], [-1, int(np.prod(_activations[-1].get_shape()[1:]))])
                 if self._tf_bias[-1] is not None:
@@ -726,8 +738,6 @@ class NNDist(NNBase):
                 train_len = int(len(x) * training_scale)
                 x_train, y_train = x[:train_len], y[:train_len]
                 x_test, y_test = x[train_len:], y[train_len:]
-            elif x_test is None or y_test is None:
-                raise BuildNetworkError("Please provide test sets if you want to split data on your own")
             else:
                 x_train, y_train = x, y
                 if not self._transferred_flags["test"]:
@@ -1091,6 +1101,8 @@ class NNPipe:
         for _nn in self._nn_lst:
             _nn.verbose = 0
         self._initialized = [False] * num
+        self.is_sub_layer = False
+        self.parent = None
 
     def __getitem__(self, item):
         if isinstance(item, str):
@@ -1108,7 +1120,7 @@ class NNPipe:
 
     @property
     def n_filters(self):
-        return sum([_nn["current_dimension"][0] for _nn in self._nn_lst])
+        return sum([_nn["layers"][-1].n_filters for _nn in self._nn_lst])
 
     @property
     def out_h(self):
@@ -1120,12 +1132,13 @@ class NNPipe:
 
     @property
     def shape(self):
-        return self.n_filters, self.out_h, self.out_w
+        # TODO: modify shape[0] to be the correct one
+        return (self.n_filters, self.out_h, self.out_w), (self.n_filters, self.out_h, self.out_w)
 
     @property
     def info(self):
         return "Pipe ({:^3d})".format(len(self._nn_lst)) + " " * 65 + "- out: {}".format(
-            self.shape)
+            self.shape[1])
 
     @property
     def initialized(self):
@@ -1145,7 +1158,10 @@ class NNPipe:
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def add(self, idx, layer, shape, *args, **kwargs):
-        self._nn_lst[idx].add(layer, shape, *args, **kwargs)
+        if shape is None:
+            self._nn_lst[idx].add(layer, *args, **kwargs)
+        else:
+            self._nn_lst[idx].add(layer, shape, *args, **kwargs)
         self._initialized[idx] = True
 
     @NNTiming.timeit(level=1, prefix="[API] ")

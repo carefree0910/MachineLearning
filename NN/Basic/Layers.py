@@ -748,7 +748,7 @@ class CostLayer(SubLayer):
         if diff:
             return -y / y_pred + (1 - y) / (1 - y_pred)
         # noinspection PyTypeChecker
-        return np.average(-y * np.log(y_pred) - (1 - y) * np.log(1 - y_pred))
+        return np.average(-y * np.log(np.maximum(y_pred, 1e-12)) - (1 - y) * np.log(np.maximum(1 - y_pred, 1e-12)))
 
     def __str__(self):
         return self._cost_function_name
