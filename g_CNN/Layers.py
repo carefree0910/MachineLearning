@@ -5,6 +5,8 @@ from math import ceil
 from Util.Timing import Timing
 
 
+# Abstract Layers
+
 class Layer:
     LayerTiming = Timing
 
@@ -47,19 +49,12 @@ class SubLayer(Layer):
         self.parent = parent
         self.description = ""
 
-    def get_params(self):
-        pass
-
     @property
     def root(self):
         _root = self.parent
         while _root.parent:
             _root = _root.parent
         return _root
-
-    @property
-    def params(self):
-        return self.get_params()
 
     @property
     def info(self):
@@ -192,10 +187,6 @@ class ConvSubLayerMeta(type):
             return self.LayerTiming.timeit(level=1, func_name="activate", cls_name=name, prefix="[Core] ")(
                 _activate)(self, x, predict)
 
-        @property
-        def params(self):
-            return sub_layer.get_params(self)
-
         for key, value in locals().items():
             if str(value).find("function") >= 0 or str(value).find("property"):
                 attr[key] = value
@@ -281,16 +272,12 @@ class Dropout(SubLayer):
             raise ValueError("(Dropout) Probability of Dropout should be a positive float smaller than 1")
         SubLayer.__init__(self, parent, shape)
         self._prob = tf.constant(1 - drop_prob, dtype=tf.float32)
-        self._one = tf.constant(1, dtype=tf.float32)
         self.description = "(Drop prob: {})".format(drop_prob)
-
-    def get_params(self):
-        return 1 - self._prob,
 
     def _activate(self, x, predict):
         if not predict:
             return tf.nn.dropout(x, self._prob)
-        return tf.nn.dropout(x, self._one)
+        return x
 
 
 class Normalize(SubLayer):
@@ -303,21 +290,6 @@ class Normalize(SubLayer):
         self.tf_beta = tf.Variable(tf.zeros(self.shape[1]), name="norm_beta")
         self._momentum = momentum
         self.description = "(eps: {}, momentum: {})".format(eps, momentum)
-
-    def init(self):
-        if self.rm is not None:
-            self.tf_rm = tf.Variable(self.rm, trainable=False, name="norm_mean")
-        if self.rv is not None:
-            self.tf_rv = tf.Variable(self.rv, trainable=False, name="norm_var")
-
-    def get_special_params(self, sess):
-        with sess.as_default():
-            return {
-                "rm": self.tf_rm.eval(), "rv": self.tf_rv.eval(),
-            }
-
-    def get_params(self):
-        return self._activation, self._activation, self._eps, self._momentum
 
     # noinspection PyTypeChecker
     def _activate(self, x, predict):

@@ -92,7 +92,7 @@ class DataToolkit:
 
     @property
     def trimean(self):
-        return 0.25 * (self.q1 + self.q3) + 0.5 * self.mean
+        return 0.25 * (self.q1 + self.q3) + 0.5 * self.med
 
     @property
     def loval(self):
