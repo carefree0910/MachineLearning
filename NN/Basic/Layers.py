@@ -647,12 +647,12 @@ class Normalize(SubLayer):
         dx1 = dx_normalized * sample_std_inv
         dx2 = 2.0 / n * ds_var * x_mu
         dx = dx1 + dx2 + 1.0 / n * ds_mean
-        dg = -np.sum(delta * self.x_normalized_cache, axis=0)
-        db = -np.sum(delta, axis=0)
+        dg = np.sum(delta * self.x_normalized_cache, axis=0)
+        db = np.sum(delta, axis=0)
         self.gamma += self._g_optimizer.run(0, dg)
         self.beta += self._b_optimizer.run(0, db)
         self._g_optimizer.update(); self._b_optimizer.update()
-        return delta - dx
+        return dx
 
 
 class ConvDrop(ConvLayer, Dropout, metaclass=ConvSubMeta):
