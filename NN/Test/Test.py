@@ -1,5 +1,5 @@
 from Util.Util import DataUtil
-from NN.Basic.Networks import *
+from NN.TF.Networks import *
 
 
 def main():
@@ -29,7 +29,7 @@ def main():
     show_loss = True
     train_only = True
     visualize = False
-    draw_detailed_network = True
+    draw_detailed_network = False
     weight_average = None
     verbose = 1
 
@@ -48,13 +48,13 @@ def main():
     if not load:
 
         nn.add("ReLU", (x.shape[1], 24))
-        nn.add("Softmax", (y.shape[1],))
+        nn.add("CrossEntropy", (y.shape[1],))
 
         nn.preview()
 
         nn.fit(x, y, lr=lr, lb=lb,
                epoch=epoch, record_period=record_period, batch_size=batch_size,
-               metrics=["acc", "f1", precision, recall],
+               # metrics=["acc", "f1", precision, recall],
                show_loss=show_loss, train_only=train_only,
                do_log=do_log, verbose=verbose, visualize=visualize,
                draw_detailed_network=draw_detailed_network, weight_average=weight_average)

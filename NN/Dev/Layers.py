@@ -470,7 +470,7 @@ class LayerFactory:
         "ConvNorm": ConvNorm
     }
 
-    def handle_str_main_layers(self, name, *args, **kwargs):
+    def get_root_layer_by_name(self, name, *args, **kwargs):
         if name not in self.available_special_layers:
             if name in self.available_root_layers:
                 name = self.available_root_layers[name]
@@ -480,7 +480,7 @@ class LayerFactory:
         return None
 
     def get_layer_by_name(self, name, parent, current_dimension, *args, **kwargs):
-        _layer = self.handle_str_main_layers(name, *args, **kwargs)
+        _layer = self.get_root_layer_by_name(name, *args, **kwargs)
         if _layer:
             return _layer, None
         _current, _next = parent.shape[1], current_dimension

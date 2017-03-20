@@ -125,7 +125,7 @@ class NN(ClassifierBase):
     @NNTiming.timeit(level=4)
     def _add_layer(self, layer, *args, **kwargs):
         if not self._layers and isinstance(layer, str):
-            _layer = self._layer_factory.get_main_layer_by_name(layer, *args, **kwargs)
+            _layer = self._layer_factory.get_root_layer_by_name(layer, *args, **kwargs)
             if _layer:
                 self.add(_layer)
                 return
@@ -162,21 +162,16 @@ class NN(ClassifierBase):
             self._current_dimension = _next
 
     @NNTiming.timeit(level=1)
-    def _get_rs(self, x, y=None, predict=False):
-        if y is None:
-            predict = True
+    def _get_rs(self, x, predict=True):
         _cache = self._layers[0].activate(x, self._tf_weights[0], self._tf_bias[0], predict)
         for i, layer in enumerate(self._layers[1:]):
             if i == len(self._layers) - 2:
-                if y is None:
-                    if isinstance(self._layers[-2], ConvLayer):
-                        _cache = tf.reshape(_cache, [-1, int(np.prod(_cache.get_shape()[1:]))])
-                    if self._tf_bias[-1] is not None:
-                        return tf.matmul(_cache, self._tf_weights[-1]) + self._tf_bias[-1]
-                    return tf.matmul(_cache, self._tf_weights[-1])
-                predict = y
+                if isinstance(self._layers[-2], ConvLayer):
+                    _cache = tf.reshape(_cache, [-1, int(np.prod(_cache.get_shape()[1:]))])
+                if self._tf_bias[-1] is not None:
+                    return tf.matmul(_cache, self._tf_weights[-1]) + self._tf_bias[-1]
+                return tf.matmul(_cache, self._tf_weights[-1])
             _cache = layer.activate(_cache, self._tf_weights[i + 1], self._tf_bias[i + 1], predict)
-        return _cache
 
     @NNTiming.timeit(level=2)
     def _append_log(self, x, y, y_classes, name, out_of_sess=False):
@@ -249,7 +244,7 @@ class NN(ClassifierBase):
                 self._add_layer(layer, _current, _next)
 
     @NNTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, lr=0.01, epoch=10, batch_size=256, train_rate=None,
+    def fit(self, x, y, lr=0.001, epoch=10, batch_size=256, train_rate=None,
             optimizer="Adam", metrics=None, record_period=100, verbose=1, preview=True):
 
         x = NN._transfer_x(x)
@@ -292,8 +287,8 @@ class NN(ClassifierBase):
             self._preview()
 
         with self._sess.as_default() as sess:
-            self._y_pred = self._get_rs(self._tfx)
-            self._cost = self._get_rs(self._tfx, self._tfy)
+            self._y_pred = self._get_rs(self._tfx, predict=False)
+            self._cost = self._layers[-1].calculate(self._tfy, self._y_pred)
             self._train_step = self._optimizer.minimize(self._cost)
             sess.run(tf.global_variables_initializer())
             sub_bar = ProgressBar(min_value=0, max_value=train_repeat * record_period - 1, name="Iteration")

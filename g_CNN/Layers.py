@@ -67,25 +67,25 @@ class ConvLayer(Layer):
     def __init__(self, shape, stride=1, padding="SAME", parent=None):
         """
         :param shape:    shape[0] = shape of previous layer           c x h x w
-                         shape[1] = shape of current layer's weight   f x c x h x w
+                         shape[1] = shape of current layer's weight   f x h x w
         :param stride:   stride
         :param padding:  zero-padding
         :param parent:   parent
         """
         if parent is not None:
             _parent = parent.root if parent.is_sub_layer else parent
-            shape, stride, padding = _parent.shape, _parent.stride, _parent.padding
+            shape = _parent.shape
         Layer.__init__(self, shape)
-        self._stride = stride
+        self.stride = stride
         if isinstance(padding, str):
             if padding.upper() == "VALID":
-                self._padding = 0
-                self._pad_flag = "VALID"
+                self.padding = 0
+                self.pad_flag = "VALID"
             else:
-                self._padding = self._pad_flag = "SAME"
+                self.padding = self.pad_flag = "SAME"
         else:
-            self._padding = int(padding)
-            self._pad_flag = "VALID"
+            self.padding = int(padding)
+            self.pad_flag = "VALID"
         self.parent = parent
         if len(shape) == 1:
             self.n_channels = self.n_filters = self.out_h = self.out_w = None
@@ -96,24 +96,12 @@ class ConvLayer(Layer):
         self.shape = shape
         self.n_channels, height, width = shape[0]
         self.n_filters, filter_height, filter_width = shape[1]
-        if self._pad_flag == "VALID":
-            self.out_h = ceil((height - filter_height + 1) / self._stride)
-            self.out_w = ceil((width - filter_width + 1) / self._stride)
+        if self.pad_flag == "VALID":
+            self.out_h = ceil((height - filter_height + 1) / self.stride)
+            self.out_w = ceil((width - filter_width + 1) / self.stride)
         else:
-            self.out_h = ceil(height / self._stride)
-            self.out_w = ceil(width / self._stride)
-
-    @property
-    def stride(self):
-        return self._stride
-
-    @property
-    def padding(self):
-        return self._padding
-
-    @property
-    def pad_flag(self):
-        return self._pad_flag
+            self.out_h = ceil(height / self.stride)
+            self.out_w = ceil(width / self.stride)
 
 
 class ConvPoolLayer(ConvLayer):
@@ -126,12 +114,12 @@ class ConvPoolLayer(ConvLayer):
     @LayerTiming.timeit(level=1, prefix="[Core] ")
     def activate(self, x, w, bias=None, predict=False):
         pool_height, pool_width = self.shape[1][1:]
-        if self._pad_flag == "VALID" and self._padding > 0:
-            _pad = [self._padding] * 2
+        if self.pad_flag == "VALID" and self.padding > 0:
+            _pad = [self.padding] * 2
             x = tf.pad(x, [[0, 0], _pad, _pad, [0, 0]], "CONSTANT")
         return self._activate(None)(
             x, ksize=[1, pool_height, pool_width, 1],
-            strides=[1, self._stride, self._stride, 1], padding=self._pad_flag)
+            strides=[1, self.stride, self.stride, 1], padding=self.pad_flag)
 
     def _activate(self, x, *args):
         raise NotImplementedError("Please implement activation function for {}".format(str(self)))
@@ -146,15 +134,15 @@ class ConvLayerMeta(type):
             conv_layer.__init__(self, shape, stride, padding)
 
         def _conv(self, x, w):
-            return tf.nn.conv2d(x, w, strides=[self._stride] * 4, padding=self._pad_flag)
+            return tf.nn.conv2d(x, w, strides=[self.stride] * 4, padding=self.pad_flag)
 
         def _activate(self, x, w, bias, predict):
             res = self._conv(x, w) + bias
             return layer._activate(self, res, predict)
 
         def activate(self, x, w, bias=None, predict=False):
-            if self._pad_flag == "VALID" and self._padding > 0:
-                _pad = [self._padding] * 2
+            if self.pad_flag == "VALID" and self.padding > 0:
+                _pad = [self.padding] * 2
                 x = tf.pad(x, [[0, 0], _pad, _pad, [0, 0]], "CONSTANT")
             return _activate(self, x, w, bias, predict)
 
@@ -174,7 +162,7 @@ class ConvSubLayerMeta(type):
             conv_layer.__init__(self, None, parent=parent)
             self.out_h, self.out_w = parent.out_h, parent.out_w
             sub_layer.__init__(self, parent, shape, *_args, **_kwargs)
-            self._shape = ((shape[0][0], self.out_h, self.out_w), shape[0])
+            self.shape = ((shape[0][0], self.out_h, self.out_w), shape[0])
             if name == "ConvNorm":
                 self.tf_gamma = tf.Variable(tf.ones(self.n_filters), name="norm_scale")
                 self.tf_beta = tf.Variable(tf.zeros(self.n_filters), name="norm_beta")
@@ -284,7 +272,6 @@ class Normalize(SubLayer):
     def __init__(self, parent, shape, activation="ReLU", eps=1e-8, momentum=0.9):
         SubLayer.__init__(self, parent, shape)
         self._eps, self._activation = eps, activation
-        self.rm = self.rv = None
         self.tf_rm = self.tf_rv = None
         self.tf_gamma = tf.Variable(tf.ones(self.shape[1]), name="norm_scale")
         self.tf_beta = tf.Variable(tf.zeros(self.shape[1]), name="norm_beta")
@@ -368,7 +355,7 @@ class LayerFactory:
         "ConvNorm": ("Identical", 1e-8, 0.9)
     }
 
-    def get_main_layer_by_name(self, name, *args, **kwargs):
+    def get_root_layer_by_name(self, name, *args, **kwargs):
         if name not in self.available_special_layers:
             if name in self.available_root_layers:
                 layer = self.available_root_layers[name]
@@ -378,7 +365,7 @@ class LayerFactory:
         return None
 
     def get_layer_by_name(self, name, parent, current_dimension, *args, **kwargs):
-        _layer = self.get_main_layer_by_name(name, *args, **kwargs)
+        _layer = self.get_root_layer_by_name(name, *args, **kwargs)
         if _layer:
             return _layer, None
         _current, _next = parent.shape[1], current_dimension

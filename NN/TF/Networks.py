@@ -135,7 +135,7 @@ class NNBase:
                 self._layers.append(NNPipe(args[0]))
                 self._add_param_placeholder()
                 return
-            _layer = self._layer_factory.handle_str_main_layers(layer, *args, **kwargs)
+            _layer = self._layer_factory.get_root_layer_by_name(layer, *args, **kwargs)
             if _layer:
                 self.add(_layer, pop_last_init=True)
                 return
@@ -195,32 +195,27 @@ class NNBase:
         return isinstance(layer, ConvLayer) or isinstance(layer, NNPipe)
 
     @NNTiming.timeit(level=1, prefix="[API] ")
-    def get_rs(self, x, y=None, predict=False, pipe=False):
-        if y is None:
-            predict = True
+    def get_rs(self, x, predict=True, pipe=False):
         if not isinstance(self._layers[0], NNPipe):
             _cache = self._layers[0].activate(x, self._tf_weights[0], self._tf_bias[0], predict)
         else:
             _cache = self._layers[0].get_rs(x, predict)
         for i, layer in enumerate(self._layers[1:]):
             if i == len(self._layers) - 2:
-                if y is None:
-                    if not pipe:
-                        if NNDist._is_conv(self._layers[i]):
-                            _cache = tf.reshape(_cache, [-1, int(np.prod(_cache.get_shape()[1:]))])
-                        if self._tf_bias[-1] is not None:
-                            return tf.matmul(_cache, self._tf_weights[-1]) + self._tf_bias[-1]
-                        return tf.matmul(_cache, self._tf_weights[-1])
-                    else:
-                        if not isinstance(layer, NNPipe):
-                            return layer.activate(_cache, self._tf_weights[i + 1], self._tf_bias[i + 1], predict)
-                        return layer.get_rs(_cache, predict)
-                predict = y
+                if not pipe:
+                    if NNDist._is_conv(self._layers[i]):
+                        _cache = tf.reshape(_cache, [-1, int(np.prod(_cache.get_shape()[1:]))])
+                    if self._tf_bias[-1] is not None:
+                        return tf.matmul(_cache, self._tf_weights[-1]) + self._tf_bias[-1]
+                    return tf.matmul(_cache, self._tf_weights[-1])
+                else:
+                    if not isinstance(layer, NNPipe):
+                        return layer.activate(_cache, self._tf_weights[i + 1], self._tf_bias[i + 1], predict)
+                    return layer.get_rs(_cache, predict)
             if not isinstance(layer, NNPipe):
                 _cache = layer.activate(_cache, self._tf_weights[i + 1], self._tf_bias[i + 1], predict)
             else:
                 _cache = layer.get_rs(_cache, predict)
-        return _cache
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def add(self, layer, *args, **kwargs):
@@ -815,10 +810,11 @@ class NNDist(NNBase):
         img = None
 
         with self._sess.as_default() as sess:
-            self._activations = self._get_activations(self._tfx)
-            self._y_pred = self.get_rs(self._tfx)
+            with tf.name_scope("ActivationFlow"):
+                self._activations = self._get_activations(self._tfx)
+            self._y_pred = self._activations[-1]
             _l2_loss = self._get_l2_loss(lb)
-            self._loss = self.get_rs(self._tfx, self._tfy) + _l2_loss
+            self._loss = self._layers[-1].calculate(self._tfy, self._y_pred) + _l2_loss
             self._init_train_step(sess)
             for weight in self._tf_weights:
                 weight *= weight_scale
