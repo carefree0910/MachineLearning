@@ -39,10 +39,6 @@ class NaiveNN(ClassifierBase):
         self._current_dimension = _next
         self._layers.append(layer)
 
-    @NaiveNNTiming.timeit(level=4)
-    def _add_cost_layer(self, cost_function=None):
-        self.add(CostLayer((self._current_dimension,), cost_function))
-
     @NaiveNNTiming.timeit(level=1)
     def _get_prediction(self, x):
         return self._get_activations(x).pop()
@@ -81,16 +77,13 @@ class NaiveNN(ClassifierBase):
         if not self._layers:
             self._layers, self._current_dimension = [layer], layer.shape[1]
             self._add_params(layer.shape)
-        elif isinstance(layer, str):
-            self._add_cost_layer(layer)
         else:
             _next = layer.shape[0]
             layer.shape = (self._current_dimension, _next)
             self._add_layer(layer, self._current_dimension, _next)
 
     @NaiveNNTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, lr=0.01, optimizer="Adam", epoch=10):
-        self._add_cost_layer()
+    def fit(self, x, y, lr=0.001, optimizer="Adam", epoch=10):
         self._init_optimizers(optimizer, lr, epoch)
         layer_width = len(self._layers)
         for counter in range(epoch):
@@ -102,7 +95,7 @@ class NaiveNN(ClassifierBase):
                 _deltas.append(self._layers[i - 1].bp(
                     _activations[i - 1], self._weights[i], _deltas[-1]
                 ))
-            for i in range(layer_width - 2, 0, -1):
+            for i in range(layer_width - 1, 0, -1):
                 self._opt(i, _activations[i - 1], _deltas[layer_width - i - 1])
             self._opt(0, x, _deltas[-1])
 
@@ -195,7 +188,7 @@ class NN(NaiveNN):
         print("=" * 47)
 
     @NNTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, lr=0.01, epoch=10, batch_size=256, train_rate=None,
+    def fit(self, x, y, lr=0.001, epoch=10, batch_size=256, train_rate=None,
             optimizer="Adam", metrics=None, record_period=100, verbose=1):
         self.verbose = verbose
         self._init_optimizers(optimizer, lr, epoch)

@@ -642,11 +642,8 @@ class ConvNorm(ConvLayer, Normalize, metaclass=ConvSubMeta):
 # Cost Layer
 
 class CostLayer(Layer):
-    # Optimization
-    _batch_range = None
-
     def __init__(self, shape, cost_function="MSE", transform=None):
-        Layer.__init__(self, shape)
+        super(CostLayer, self).__init__(shape)
         self._available_cost_functions = {
             "MSE": CostLayer._mse,
             "SVM": CostLayer._svm,
@@ -659,13 +656,16 @@ class CostLayer(Layer):
         if cost_function not in self._available_cost_functions:
             raise LayerError("Cost function '{}' not implemented".format(cost_function))
         self._cost_function_name = cost_function
+        self._cost_function = self._available_cost_functions[cost_function]
         if transform is None and cost_function == "CrossEntropy":
             self._transform = "Softmax"
             self._transform_function = CostLayer._softmax
         else:
             self._transform = transform
             self._transform_function = self._available_transform_functions.get(transform, None)
-        self._cost_function = self._available_cost_functions[cost_function]
+
+    def __str__(self):
+        return self._cost_function_name
 
     def _activate(self, x, predict):
         if self._transform_function is None:
@@ -679,8 +679,10 @@ class CostLayer(Layer):
         if self._cost_function_name == "CrossEntropy" and (
                 self._transform == "Softmax" or self._transform == "Sigmoid"):
             return y - y_pred
-        # TODO: Support bp with transform function (define derivative for transform function)
-        return -self._cost_function(y, y_pred)
+        dy = -self._cost_function(y, y_pred)
+        if self._transform_function is None:
+            return dy
+        return dy * self._transform_function(y_pred, diff=True)
 
     @property
     def calculate(self):
@@ -705,13 +707,17 @@ class CostLayer(Layer):
     # Transform Functions
 
     @staticmethod
-    def _softmax(x):
-        exp_x = Layer.safe_exp(x)
-        return exp_x / np.sum(exp_x, axis=1, keepdims=True)
+    def _softmax(y, diff=False):
+        if diff:
+            return y * (1 - y)
+        exp_y = CostLayer.safe_exp(y)
+        return exp_y / np.sum(exp_y, axis=1, keepdims=True)
 
     @staticmethod
-    def _sigmoid(x):
-        return 1 / (1 + np.exp(-x))
+    def _sigmoid(y, diff=False):
+        if diff:
+            return y * (1 - y)
+        return 1 / (1 + np.exp(-y))
 
     # Cost Functions
 
@@ -745,9 +751,6 @@ class CostLayer(Layer):
             return -y / y_pred + (1 - y) / (1 - y_pred)
         # noinspection PyTypeChecker
         return np.average(-y * np.log(np.maximum(y_pred, 1e-12)) - (1 - y) * np.log(np.maximum(1 - y_pred, 1e-12)))
-
-    def __str__(self):
-        return self._cost_function_name
 
     
 # Factory

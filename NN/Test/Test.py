@@ -24,7 +24,7 @@ def main():
 
     nn = NNDist()
     save = False
-    load = False
+    load = True
     do_log = True
     show_loss = True
     train_only = True
@@ -46,7 +46,6 @@ def main():
     x, y = DataUtil.gen_spin()
 
     if not load:
-
         nn.add("ReLU", (x.shape[1], 24))
         nn.add("CrossEntropy", (y.shape[1],))
 
@@ -63,10 +62,8 @@ def main():
 
         if save:
             nn.save()
-
     else:
-
-        nn.load("Models/Model")
+        nn.load()
         nn.preview()
         nn.feed(x, y)
         nn.fit(epoch=20, train_only=True, record_period=20, verbose=2)

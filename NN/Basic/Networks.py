@@ -2,7 +2,6 @@ import os
 import cv2
 import time
 import pickle
-import platform
 from math import sqrt, ceil
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
@@ -912,14 +911,12 @@ class NNDist:
 
     @NNTiming.timeit(level=2, prefix="[API] ")
     def save(self, path=None, name=None, overwrite=True):
-
-        path = "Models" if path is None else path
+        path = os.path.join("Models", "Cache") if path is None else os.path.join("Models", path)
         name = "Model.nn" if name is None else name
         if not os.path.exists(path):
-            os.mkdir(path)
-        slash = "\\" if platform.system() == "Windows" else "/"
+            os.makedirs(path)
 
-        _dir = path + slash + name
+        _dir = os.path.join(path, name)
         if not overwrite and os.path.isfile(_dir):
             _count = 1
             _new_dir = _dir + "({})".format(_count)
@@ -949,7 +946,7 @@ class NNDist:
             }, file)
 
     @NNTiming.timeit(level=2, prefix="[API] ")
-    def load(self, path):
+    def load(self, path=os.path.join("Models", "Cache", "Model.nn")):
         self.initialize()
         try:
             with open(path, "rb") as file:
