@@ -11,7 +11,6 @@ except ImportError:
 # Abstract Layers
 
 class Layer:
-
     LayerTiming = Timing()
 
     def __init__(self, shape):
@@ -148,7 +147,6 @@ class SubLayer(Layer):
 
 
 class ConvLayer(Layer):
-
     LayerTiming = Timing()
 
     def __init__(self, shape, stride=1, padding=0):
@@ -203,7 +201,6 @@ class ConvLayer(Layer):
 
 
 class ConvPoolLayer(ConvLayer):
-
     LayerTiming = Timing()
 
     def __init__(self, shape, stride=1, padding=0):
@@ -392,7 +389,6 @@ class ConvSubMeta(type):
 # Activation Layers
 
 class Tanh(Layer):
-
     def _activate(self, x, predict):
         return np.tanh(x)
 
@@ -401,7 +397,6 @@ class Tanh(Layer):
 
 
 class Sigmoid(Layer):
-
     def _activate(self, x, predict):
         return 1 / (1 + np.exp(-x))
 
@@ -410,7 +405,6 @@ class Sigmoid(Layer):
 
 
 class ELU(Layer):
-
     def _activate(self, x, predict):
         _rs, _rs0 = x.copy(), x < 0
         _rs[_rs0] = np.exp(_rs[_rs0]) - 1
@@ -423,7 +417,6 @@ class ELU(Layer):
 
 
 class ReLU(Layer):
-
     def _activate(self, x, predict):
         return np.maximum(0, x)
 
@@ -432,7 +425,6 @@ class ReLU(Layer):
 
 
 class Softplus(Layer):
-
     def _activate(self, x, predict):
         return np.log(1 + np.exp(x))
 
@@ -441,22 +433,11 @@ class Softplus(Layer):
 
 
 class Identical(Layer):
-
     def _activate(self, x, predict):
         return x
 
     def _derivative(self, y, delta=None):
         return 1
-
-
-class Softmax(Layer):
-
-    def _activate(self, x, predict):
-        exp_y = Layer.safe_exp(x)
-        return exp_y / np.sum(exp_y, axis=1, keepdims=True)
-
-    def _derivative(self, y, delta=None):
-        return y * (1 - y)
 
 
 # Convolution Layers
@@ -485,14 +466,9 @@ class ConvIdentical(ConvLayer, Identical, metaclass=ConvMeta):
     pass
 
 
-class ConvSoftmax(ConvLayer, Softmax, metaclass=ConvMeta):
-    pass
-
-
 # Pooling Layers
 
 class MaxPool(ConvPoolLayer):
-
     def _activate(self, x, *args):
         self.x_cache = x
         sd = self._stride
@@ -558,7 +534,6 @@ class MaxPool(ConvPoolLayer):
 # Special Layer
 
 class Dropout(SubLayer):
-
     def __init__(self, parent, shape, prob=0.5):
         if prob < 0 or prob >= 1:
             raise BuildLayerError("Probability of Dropout should be a positive float smaller than 1")
@@ -577,7 +552,6 @@ class Dropout(SubLayer):
 
 
 class Normalize(SubLayer):
-
     def __init__(self, parent, shape, lr=0.001, eps=1e-8, momentum=0.9, optimizers=None):
         SubLayer.__init__(self, parent, shape)
         self.sample_mean, self.sample_var = None, None
@@ -668,7 +642,6 @@ class ConvNorm(ConvLayer, Normalize, metaclass=ConvSubMeta):
 # Cost Layer
 
 class CostLayer(Layer):
-
     # Optimization
     _batch_range = None
 
@@ -780,15 +753,12 @@ class CostLayer(Layer):
 # Factory
 
 class LayerFactory:
-    
     available_root_layers = {
         "Tanh": Tanh, "Sigmoid": Sigmoid,
         "ELU": ELU, "ReLU": ReLU, "Softplus": Softplus,
-        "Softmax": Softmax,
         "Identical": Identical,
         "ConvTanh": ConvTanh, "ConvSigmoid": ConvSigmoid,
         "ConvELU": ConvELU, "ConvReLU": ConvReLU, "ConvSoftplus": ConvSoftplus,
-        "ConvSoftmax": ConvSoftmax,
         "ConvIdentical": ConvIdentical,
         "MaxPool": MaxPool,
         "MSE": CostLayer, "SVM": CostLayer, "CrossEntropy": CostLayer
