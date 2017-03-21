@@ -1,5 +1,5 @@
 from Util.Util import DataUtil
-from NN.TF.Networks import *
+from NN.Basic.Networks import *
 
 
 def main():

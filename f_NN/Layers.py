@@ -36,8 +36,7 @@ class Layer:
 
     @LayerTiming.timeit(level=1, prefix="[Core] ")
     def activate(self, x, w, bias, predict=False):
-        if not isinstance(self, CostLayer):
-            return self._activate(x.dot(w) + bias, predict)
+        return self._activate(x.dot(w) + bias, predict)
 
     @LayerTiming.timeit(level=1, prefix="[Core] ")
     def bp(self, y, w, prev_delta):
@@ -100,52 +99,80 @@ class Identical(Layer):
         return 1
 
 
-class Softmax(Layer):
-    @staticmethod
-    def safe_exp(y):
-        return np.exp(y - np.max(y, axis=1, keepdims=True))
-
-    def _activate(self, x, predict):
-        exp_y = Softmax.safe_exp(x)
-        return exp_y / np.sum(exp_y, axis=1, keepdims=True)
-
-    def derivative(self, y):
-        return y * (1 - y)
-
-
 # Cost Layer
 
 class CostLayer(Layer):
-    CostLayerTiming = Timing()
 
-    def __init__(self, parent, shape, cost_function="MSE"):
+    # Optimization
+    _batch_range = None
+
+    def __init__(self, shape, cost_function="MSE", transform=None):
         Layer.__init__(self, shape)
-        self._parent = parent
         self._available_cost_functions = {
             "MSE": CostLayer._mse,
-            "Cross Entropy": CostLayer._cross_entropy
+            "SVM": CostLayer._svm,
+            "CrossEntropy": CostLayer._cross_entropy
+        }
+        self._available_transform_functions = {
+            "Softmax": CostLayer._softmax,
+            "Sigmoid": CostLayer._sigmoid
         }
         self._cost_function_name = cost_function
+        if transform is None and cost_function == "CrossEntropy":
+            self._transform = "Softmax"
+            self._transform_function = CostLayer._softmax
+        else:
+            self._transform = transform
+            self._transform_function = self._available_transform_functions.get(transform, None)
         self._cost_function = self._available_cost_functions[cost_function]
 
-    def __str__(self):
-        return self._cost_function_name
-
     def _activate(self, x, predict):
-        raise ValueError("activate function should not be called in CostLayer")
+        if self._transform_function is None:
+            return x
+        return self._transform_function(x)
 
-    def derivative(self, y):
-        raise ValueError("derivative function should not be called in CostLayer")
+    def _derivative(self, y, delta=None):
+        pass
 
-    @CostLayerTiming.timeit(level=1, prefix="[Core] ")
     def bp_first(self, y, y_pred):
-        if self._cost_function_name == "Cross Entropy" and (self._parent.name == "Sigmoid" or "Softmax"):
+        if self._cost_function_name == "CrossEntropy" and (
+                self._transform == "Softmax" or self._transform == "Sigmoid"):
             return y - y_pred
-        return -self._cost_function(y, y_pred) * self._parent.derivative(y_pred)
+        # TODO: Support bp with transform function (define derivative for transform function)
+        return -self._cost_function(y, y_pred)
 
     @property
     def calculate(self):
         return lambda y, y_pred: self._cost_function(y, y_pred, False)
+
+    @property
+    def cost_function(self):
+        return self._cost_function_name
+
+    @cost_function.setter
+    def cost_function(self, value):
+        self._cost_function_name = value
+        self._cost_function = self._available_cost_functions[value]
+
+    def set_cost_function_derivative(self, func, name=None):
+        name = "Custom Cost Function" if name is None else name
+        self._cost_function_name = name
+        self._cost_function = func
+
+    # Transform Functions
+
+    @staticmethod
+    def safe_exp(x):
+        return np.exp(x - np.max(x, axis=1, keepdims=True))
+
+    @staticmethod
+    def _softmax(x):
+        exp_x = CostLayer.safe_exp(x)
+        return exp_x / np.sum(exp_x, axis=1, keepdims=True)
+
+    @staticmethod
+    def _sigmoid(x):
+        return 1 / (1 + np.exp(-x))
 
     # Cost Functions
 
@@ -158,10 +185,27 @@ class CostLayer(Layer):
         return 0.5 * np.average((y - y_pred) ** 2)
 
     @staticmethod
-    def _cross_entropy(y, y_pred, diff=True, eps=1e-8):
+    def _svm(y, y_pred, diff=True):
+        n, y = y_pred.shape[0], np.argmax(y, axis=1)
+        correct_class_scores = y_pred[np.arange(n), y]
+        margins = np.maximum(0, y_pred - correct_class_scores[:, None] + 1.0)
+        margins[np.arange(n), y] = 0
+        loss = np.sum(margins) / n
+        num_pos = np.sum(margins > 0, axis=1)
+        if not diff:
+            return loss
+        dx = np.zeros_like(y_pred)
+        dx[margins > 0] = 1
+        dx[np.arange(n), y] -= num_pos
+        dx /= n
+        return dx
+
+    @staticmethod
+    def _cross_entropy(y, y_pred, diff=True):
         if diff:
-            return -y / (y_pred + eps) + (1 - y) / (1 - y_pred + eps)
-        assert_string = "y or y_pred should be np.ndarray in cost function"
-        assert isinstance(y, np.ndarray) or isinstance(y_pred, np.ndarray), assert_string
+            return -y / y_pred + (1 - y) / (1 - y_pred)
         # noinspection PyTypeChecker
-        return np.average(-y * np.log(y_pred + eps) - (1 - y) * np.log(1 - y_pred + eps))
+        return np.average(-y * np.log(np.maximum(y_pred, 1e-12)) - (1 - y) * np.log(np.maximum(1 - y_pred, 1e-12)))
+
+    def __str__(self):
+        return self._cost_function_name

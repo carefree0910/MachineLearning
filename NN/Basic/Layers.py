@@ -5,7 +5,7 @@ try:
     from NN.Basic.CFunc.core import col2im_6d_cython
 except ImportError:
     print("Cython codes are not compiled, naive cnn bp algorithm will be used.")
-    col2im_6d_cython = lambda *args, **kwargs: np.array([])
+    col2im_6d_cython = lambda *_args, **_kwargs: np.array([])
 
 
 # Abstract Layers
@@ -24,7 +24,6 @@ class Layer:
         self.child = None
         self.is_fc = False
         self.is_fc_base = False
-        self.is_last_root = False
         self.is_sub_layer = False
         self._last_sub_layer = None
 
@@ -255,6 +254,7 @@ class ConvPoolLayer(ConvLayer):
         return self._derivative(y, w, prev_delta)
 
 
+# noinspection PyProtectedMember
 class ConvMeta(type):
     def __new__(mcs, *args, **kwargs):
         name, bases, attr = args[:3]
@@ -343,6 +343,7 @@ class ConvMeta(type):
         return type(name, bases, attr)
 
 
+# noinspection PyProtectedMember
 class ConvSubMeta(type):
     def __new__(mcs, *args, **kwargs):
         name, bases, attr = args[:3]
@@ -366,7 +367,7 @@ class ConvSubMeta(type):
             if self.is_fc_base:
                 delta = delta.dot(w.T).reshape(y.shape)
             n, n_channels, height, width = delta.shape
-            delta_new = delta.transpose(0, 2, 3, 1).reshape(-1, n_channels)
+            # delta_new = delta.transpose(0, 2, 3, 1).reshape(-1, n_channels)
             dx = sub_layer.derivative(self)
             return dx.reshape(n, height, width, n_channels).transpose(0, 3, 1, 2)
 
@@ -651,7 +652,8 @@ class Normalize(SubLayer):
         db = np.sum(delta, axis=0)
         self.gamma += self._g_optimizer.run(0, dg)
         self.beta += self._b_optimizer.run(0, db)
-        self._g_optimizer.update(); self._b_optimizer.update()
+        self._g_optimizer.update()
+        self._b_optimizer.update()
         return dx
 
 
@@ -665,35 +667,47 @@ class ConvNorm(ConvLayer, Normalize, metaclass=ConvSubMeta):
 
 # Cost Layer
 
-class CostLayer(SubLayer):
+class CostLayer(Layer):
 
     # Optimization
     _batch_range = None
 
-    def __init__(self, parent, shape, cost_function="MSE"):
-
-        SubLayer.__init__(self, parent, shape)
+    def __init__(self, shape, cost_function="MSE", transform=None):
+        Layer.__init__(self, shape)
         self._available_cost_functions = {
             "MSE": CostLayer._mse,
             "SVM": CostLayer._svm,
-            "Cross Entropy": CostLayer._cross_entropy
+            "CrossEntropy": CostLayer._cross_entropy
         }
-
+        self._available_transform_functions = {
+            "Softmax": CostLayer._softmax,
+            "Sigmoid": CostLayer._sigmoid
+        }
         if cost_function not in self._available_cost_functions:
             raise LayerError("Cost function '{}' not implemented".format(cost_function))
         self._cost_function_name = cost_function
+        if transform is None and cost_function == "CrossEntropy":
+            self._transform = "Softmax"
+            self._transform_function = CostLayer._softmax
+        else:
+            self._transform = transform
+            self._transform_function = self._available_transform_functions.get(transform, None)
         self._cost_function = self._available_cost_functions[cost_function]
 
     def _activate(self, x, predict):
-        return x
+        if self._transform_function is None:
+            return x
+        return self._transform_function(x)
 
     def _derivative(self, y, delta=None):
         raise LayerError("derivative function should not be called in CostLayer")
 
     def bp_first(self, y, y_pred):
-        if self._cost_function_name == "Cross Entropy" and (self._root.name == "Sigmoid" or "Softmax"):
+        if self._cost_function_name == "CrossEntropy" and (
+                self._transform == "Softmax" or self._transform == "Sigmoid"):
             return y - y_pred
-        return -self._cost_function(y, y_pred) * self._root.derivative(y_pred)
+        # TODO: Support bp with transform function (define derivative for transform function)
+        return -self._cost_function(y, y_pred)
 
     @property
     def calculate(self):
@@ -714,6 +728,17 @@ class CostLayer(SubLayer):
         name = "Custom Cost Function" if name is None else name
         self._cost_function_name = name
         self._cost_function = func
+
+    # Transform Functions
+
+    @staticmethod
+    def _softmax(x):
+        exp_x = Layer.safe_exp(x)
+        return exp_x / np.sum(exp_x, axis=1, keepdims=True)
+
+    @staticmethod
+    def _sigmoid(x):
+        return 1 / (1 + np.exp(-x))
 
     # Cost Functions
 
@@ -765,14 +790,14 @@ class LayerFactory:
         "ConvELU": ConvELU, "ConvReLU": ConvReLU, "ConvSoftplus": ConvSoftplus,
         "ConvSoftmax": ConvSoftmax,
         "ConvIdentical": ConvIdentical,
-        "MaxPool": MaxPool
+        "MaxPool": MaxPool,
+        "MSE": CostLayer, "SVM": CostLayer, "CrossEntropy": CostLayer
     }
     available_sub_layers = {
-        "Dropout", "Normalize", "ConvNorm", "ConvDrop",
-        "MSE", "SVM", "Cross Entropy"
+        "Dropout", "Normalize", "ConvNorm", "ConvDrop"
     }
     available_cost_functions = {
-        "MSE", "SVM", "Cross Entropy"
+        "MSE", "SVM", "CrossEntropy"
     }
     available_special_layers = {
         "Dropout": Dropout,
@@ -787,9 +812,11 @@ class LayerFactory:
         "ConvNorm": (0.001, 1e-8, 0.9)
     }
 
-    def handle_str_main_layers(self, name, *args, **kwargs):
+    def get_root_layer_by_name(self, name, *args, **kwargs):
         if name not in self.available_sub_layers:
             if name in self.available_root_layers:
+                if name in self.available_cost_functions:
+                    kwargs["cost_function"] = name
                 name = self.available_root_layers[name]
             else:
                 raise BuildNetworkError("Undefined layer '{}' found".format(name))
@@ -797,17 +824,14 @@ class LayerFactory:
         return None
     
     def get_layer_by_name(self, name, parent, current_dimension, *args, **kwargs):
-        _layer = self.handle_str_main_layers(name, *args, **kwargs)
+        _layer = self.get_root_layer_by_name(name, *args, **kwargs)
         if _layer:
             return _layer, None
         _current, _next = parent.shape[1], current_dimension
-        if name in self.available_cost_functions:
-            _layer = CostLayer(parent, (_current, _next), name)
+        layer_param = self.special_layer_default_params[name]
+        _layer = self.available_special_layers[name]
+        if args or kwargs:
+            _layer = _layer(parent, (_current, _next), *args, **kwargs)
         else:
-            layer_param = self.special_layer_default_params[name]
-            _layer = self.available_special_layers[name]
-            if args or kwargs:
-                _layer = _layer(parent, (_current, _next), *args, **kwargs)
-            else:
-                _layer = _layer(parent, (_current, _next), *layer_param)
+            _layer = _layer(parent, (_current, _next), *layer_param)
         return _layer, (_current, _next)

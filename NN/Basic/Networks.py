@@ -202,7 +202,7 @@ class NNDist:
     @NNTiming.timeit(level=4)
     def _add_layer(self, layer, *args, **kwargs):
         if not self._layers and isinstance(layer, str):
-            _layer = self._layer_factory.handle_str_main_layers(layer, *args, **kwargs)
+            _layer = self._layer_factory.get_root_layer_by_name(layer, *args, **kwargs)
             if _layer:
                 self.add(_layer)
                 return
@@ -220,15 +220,10 @@ class NNDist:
         else:
             _current, _next = args
         if isinstance(layer, SubLayer):
-            if not isinstance(layer, CostLayer) and _current != _parent.shape[1]:
-                raise BuildLayerError("Output shape should be identical with input shape "
-                                      "if chosen SubLayer is not a CostLayer")
             _parent.child = layer
             layer.is_sub_layer = True
             layer.root = layer.root
             layer.root.last_sub_layer = layer
-            if isinstance(layer, CostLayer):
-                layer.root.is_last_root = True
             self.parent = _parent
             self._layers.append(layer)
             if not isinstance(layer, ConvLayer):
@@ -260,7 +255,7 @@ class NNDist:
         _last_layer_root = _last_layer.root
         if not isinstance(_last_layer, CostLayer):
             if _last_layer_root.name == "Sigmoid" or _last_layer_root.name == "Softmax":
-                self._cost_layer = "Cross Entropy"
+                self._cost_layer = "CrossEntropy"
             else:
                 self._cost_layer = "MSE"
             self.add(self._cost_layer)
@@ -778,11 +773,8 @@ class NNDist:
         print("-" * 30)
         print("w: {}\nb: {}".format(self._w_optimizer, self._b_optimizer))
         print("-" * 30)
-
         if not self._layers:
             raise BuildNetworkError("Please provide layers before fitting data")
-        self._add_cost_layer()
-
         if y.shape[1] != self._current_dimension:
             raise BuildNetworkError("Output layer's shape should be {}, {} found".format(
                 self._current_dimension, y.shape[1]))

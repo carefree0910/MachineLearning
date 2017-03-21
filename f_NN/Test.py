@@ -13,7 +13,7 @@ def main():
 
     nn.add(ReLU((x.shape[1], 24)))
     nn.add(ReLU((24, )))
-    nn.add(Softmax((y.shape[1],)))
+    nn.add(CostLayer((y.shape[1],), "CrossEntropy"))
 
     # nn.disable_timing()
     nn.fit(x, y, epoch=epoch, train_rate=0.8, metrics=["acc"])
