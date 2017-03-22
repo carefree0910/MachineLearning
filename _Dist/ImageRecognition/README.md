@@ -1,16 +1,24 @@
-# 图像分类
+# Image Recognition
 
-将“世界杯”、“地球”、……等文件夹放在 _Data 文件夹中、并将想要测试的图片放在 Test 文件夹中后、运行 Main.py 即可
-+ 程序会将 _Data 文件夹中的文件夹重命名为 “0000”、“0001”、……，这是因为 Tensorflow 框架貌似不认非 ASCII 码的路径
-+ 在处理完一遍 _Data 文件夹中的所有图片后，程序会在 _Data 文件夹中生成一个 _Cache 文件夹并把图片处理结果储存在其中；如果想要在新的训练集上训练的话、就需要把它和 Models/Predictors 里的 v3 文件夹删掉
-    + 这样做是为了让用户可以尝试使用 v3 提取出来的特征来训练自己想训练的分类器
-+ 如果 Test 文件夹为空的话、程序会自动从 _Data 文件夹中随机**剪切** 200 张图片到 Test 文件夹里
+Dependency: numpy, matplotlib, Tensorflow, cv2(For visualization) 
 
-程序中只有 Main.py 能够运行、其它程序都是开发过程所用；它们的依赖文件太大、所以我没有放进来
++ Inception-v3 model for this project can be downloaded here: http://download.tensorflow.org/models/image/imagenet/inception-v3-2016-03-01.tar.gz
++ Extract the zipped file and put Inception-v3 model (which should be renamed from 'inception-v3-2016-03-01.pb' to 'Model.pb') to 'Models/Extractor/v3' folder
++ Put your training set **FOLDERS** into '_Data' folder, please use English names for your folders to ensure that cv2 works correctly
+    + Each folder name should be treated as the 'label' of the pictures contained in the folder
++ Put your test set **PICTURES** into 'Test' folder
+    + If possible, provide a **ONE-HOT** answer naming '_answer.npy' into 'Test' folder as well for better visualization
+    + If you don't want to struggling for these, just leave 'Test' folder empty (Reference the Notice below)
++ Run 'Main.py'!
 
-程序依赖：numpy、sklearn、matplotlib、Tensorflow
+## Notice That:
++ If 'Test' folder remains empty when the program is running, 200 pictures will be **MOVED** from '_Data' folder to 'Test' folder if 'gen_test' FLAG is True
++ After processing all images in '_Data' folder, a '_Cache' folder which contains 'features.npy' and 'labels.npy' (shuffled) will be generated
+    + If you want to train on new dataset, '_Cache' folder should be deleted
+    + You can train your own classifier using 'features.npy' and 'labels.npy'
++ After the program is done, a Predictor will be stored in 'Models/Predictors/v3' folder. If you want to train on new dataset, this folder should be deleted
 
-命令行参数说明：
+--args:
 
 parser.add_argument(
 
@@ -26,14 +34,6 @@ parser.add_argument(
     type=str,
     default="Test",
     help="Path to test set"
-)
-
-parser.add_argument(
-
-    "--model",
-    type=str,
-    default="v3",
-    help="Model used to extract & predict"
 )
 
 parser.add_argument(
@@ -57,5 +57,5 @@ parser.add_argument(
     "--overview",
     type=bool,
     default=True,
-    help="Whether overview"
+    help="Whether use cv2 to overview"
 )
