@@ -352,7 +352,7 @@ class Pipeline:
                 Pipeline._delete_cache(images_dir)
             print("-" * 30)
             print("Done")
-        print("Time cost: {:8.6} s".format(time.time() - _t))
+        print("(Test) Time cost: {:8.6} s".format(time.time() - _t))
         if overview:
             print("-" * 30)
             print("Visualizing results...")

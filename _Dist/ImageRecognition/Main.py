@@ -1,6 +1,8 @@
 import os
 import sys
+import time
 import shutil
+import imghdr
 import argparse
 import numpy as np
 import tensorflow as tf
@@ -13,9 +15,10 @@ def fetch_data(name="_Data"):
     _img_paths, labels = [], []
     data_folder_lst = os.listdir(name)
     for i in range(len(data_folder_lst)-1, -1, -1):
-        if data_folder_lst[i] == "_Cache":
+        if not os.path.isdir(os.path.join(name, data_folder_lst[i])):
             data_folder_lst.pop(i)
-            break
+        elif data_folder_lst[i] == "_Cache":
+            data_folder_lst.pop(i)
     label_dic_dir = os.path.join(name, "_Cache", "LABEL_DIC")
     if not os.path.isfile(label_dic_dir):
         if not os.path.isdir(os.path.join(name, "_Cache")):
@@ -33,7 +36,9 @@ def fetch_data(name="_Data"):
 
 def main(_):
     if FLAGS.gen_test:
-        if len(os.listdir("Test")) != 0:
+        test_list = [file for file in os.listdir("Test") if imghdr.what(
+            os.path.join("Test", file)) is not None]
+        if test_list:
             print("Test set already exists")
         else:
             print("Generating Test set...")
@@ -48,6 +53,7 @@ def main(_):
             print("Done")
     predictor_dir = os.path.join("Models", "Predictors", FLAGS.model, "Model.pb")
     if not os.path.isfile(predictor_dir):
+        _t = time.time()
         print("Predictor not found, training with images in '_Data' folder...")
         if not os.path.isfile("_Data/_Cache/features.npy") or not os.path.isfile("_Data/_Cache/labels.npy"):
             _img_paths, labels = fetch_data()
@@ -62,6 +68,9 @@ def main(_):
             np.save("_Data/_Cache/labels", labels)
         else:
             features, labels = np.load("_Data/_Cache/features.npy"), np.load("_Data/_Cache/labels.npy")
+        print("=" * 30)
+        print("Training Neural Network...")
+        print("=" * 30)
         nn = NNDist()
         nn.add("ReLU", (features.shape[1], 1024), std=0.001, init=0)
         nn.add("Normalize")
@@ -82,6 +91,8 @@ def main(_):
         print("Removing 'Cache' folder...")
         shutil.rmtree(os.path.join("Models", "Cache"))
         print("Done")
+        print("-" * 30)
+        print("(Train) Time cost: {:8.6} s".format(time.time() - _t))
     pipeline = Pipeline()
     pipeline.run(FLAGS.images_dir, FLAGS.image_shape, FLAGS.model,
                  FLAGS.delete_cache, FLAGS.extract_only, FLAGS.visualize_only, FLAGS.overview, FLAGS.verbose)
