@@ -7,8 +7,8 @@ Dependency: numpy, matplotlib, Tensorflow, cv2(For visualization)
 + Put your training set **FOLDERS** into '_Data' folder, please use English names for your folders to ensure that cv2 works correctly
     + Each folder name should be treated as the 'label' of the pictures contained in the folder
 + Put your test set **PICTURES** into 'Test' folder
-    + If possible, provide a **ONE-HOT** answer naming '_answer.npy' into 'Test' folder as well for better visualization
-    + If you don't want to struggling for these, just leave 'Test' folder empty (Reference the Notice below)
+    + If possible, put a **ONE-HOT** answer naming '_answer.npy' into 'Test' folder as well for better visualization
+    + If you don't want to struggle for these, just leave 'Test' folder empty (Reference the Notice below)
 + Run 'Main.py'!
 
 ## Notice That:
