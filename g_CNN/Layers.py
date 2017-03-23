@@ -58,7 +58,7 @@ class SubLayer(Layer):
 
     @property
     def info(self):
-        return "Layer  :  {:<10s} - {} {}".format(self.name, self.shape[1], self.description)
+        return "Layer  :  {:<16s} - {} {}".format(self.name, self.shape[1], self.description)
 
 
 class ConvLayer(Layer):

@@ -56,7 +56,7 @@ class Layer:
 
     @property
     def info(self):
-        return "Layer  :  {:<10s} - {}{}".format(
+        return "Layer  :  {:<16s} - {}{}".format(
             self.name, self.shape[1], " (apply_bias: False)" if not self.apply_bias else "")
 
     def get_special_params(self, sess):
@@ -106,7 +106,7 @@ class SubLayer(Layer):
 
     @property
     def info(self):
-        return "Layer  :  {:<10s} - {} {}".format(self.name, self.shape[1], self.description)
+        return "Layer  :  {:<16s} - {} {}".format(self.name, self.shape[1], self.description)
 
     def _activate(self, x, predict):
         raise NotImplementedError("Please implement activation function for " + self.name)
@@ -171,7 +171,7 @@ class ConvLayer(Layer):
 
     @property
     def info(self):
-        return "Layer  :  {:<10s} - {:<14s} - strides: {:2d} - padding: {:6s}{} - out: {}".format(
+        return "Layer  :  {:<16s} - {:<14s} - strides: {:2d} - padding: {:6s}{} - out: {}".format(
             self.name, str(self.shape[1]), self.stride, self.pad_flag,
             " " * 5 if self.pad_flag == "SAME" else " ({:2d})".format(self.padding),
             (self.n_filters, self.out_h, self.out_w)
@@ -426,7 +426,7 @@ class ConvNorm(ConvLayer, Normalize, metaclass=ConvSubMeta):
 class CostLayer(Layer):
     @property
     def info(self):
-        return "Cost   :  {:<10s}".format(self.name)
+        return "Cost   :  {:<16s}".format(self.name)
 
     def calculate(self, y, y_pred):
         return self._activate(y_pred, y)

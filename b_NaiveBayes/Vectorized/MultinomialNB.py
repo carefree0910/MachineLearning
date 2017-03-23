@@ -44,7 +44,7 @@ class MultinomialNB(NaiveBayes):
         n_category = len(self._cat_counter)
         p_category = self.get_prior_probability(lb)
 
-        data = [None] * n_dim
+        data = [[] for _ in range(n_dim)]
         for dim, n_possibilities in enumerate(self._n_possibilities):
             data[dim] = [
                 [(self._con_counter[dim][c][p] + lb) / (self._cat_counter[c] + lb * n_possibilities)

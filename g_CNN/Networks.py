@@ -162,9 +162,10 @@ class NN(ClassifierBase):
             self._current_dimension = _next
 
     @NNTiming.timeit(level=1)
-    def _get_rs(self, x, predict=True):
+    def _get_rs(self, x, predict=True, idx=-1):
         _cache = self._layers[0].activate(x, self._tf_weights[0], self._tf_bias[0], predict)
-        for i, layer in enumerate(self._layers[1:]):
+        idx = idx + 1 if idx >= 0 else len(self._layers) + idx + 1
+        for i, layer in enumerate(self._layers[1:idx]):
             if i == len(self._layers) - 2:
                 if isinstance(self._layers[-2], ConvLayer):
                     _cache = tf.reshape(_cache, [-1, int(np.prod(_cache.get_shape()[1:]))])
@@ -172,6 +173,7 @@ class NN(ClassifierBase):
                     return tf.matmul(_cache, self._tf_weights[-1]) + self._tf_bias[-1]
                 return tf.matmul(_cache, self._tf_weights[-1])
             _cache = layer.activate(_cache, self._tf_weights[i + 1], self._tf_bias[i + 1], predict)
+        return _cache
 
     @NNTiming.timeit(level=2)
     def _append_log(self, x, y, y_classes, name, out_of_sess=False):

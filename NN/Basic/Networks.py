@@ -685,10 +685,10 @@ class NNDist:
             rs = (
                 "Input  :  {:<10s} - {}\n".format("Dimension", self._layers[0].shape[0]) +
                 "\n".join([
-                    "Layer  :  {:<10s} - {} {}".format(
+                    "Layer  :  {:<16s} - {} {}".format(
                         _layer.name, _layer.shape[1], _layer.description
                     ) if isinstance(_layer, SubLayer) else
-                    "Layer  :  {:<10s} - {:<14s} - strides: {:2d} - padding: {:2d} - out: {}".format(
+                    "Layer  :  {:<16s} - {:<14s} - strides: {:2d} - padding: {:2d} - out: {}".format(
                         _layer.name, str(_layer.shape[1]), _layer.stride, _layer.padding,
                         (_layer.n_filters, _layer.out_h, _layer.out_w)
                     ) if isinstance(_layer, ConvLayer) else "Layer  :  {:<10s} - {}".format(

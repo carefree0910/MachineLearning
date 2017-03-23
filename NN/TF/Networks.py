@@ -14,7 +14,7 @@ from NN.TF.Layers import *
 from Util.ProgressBar import ProgressBar
 from Util.Util import Util, VisUtil
 
-# TODO: Saving NNPipe
+# TODO: Saving NNPipe; Add 'idx' param to 'get_rs' method
 
 
 class NNVerbose:
