@@ -1,5 +1,5 @@
 [1]:https://github.com/carefree0910/ImageRecognition/tree/master
-[2]:http://download.tensorflow.org/models/image/imagenet/inception-v3-2016-03-01.tar.gz "Inception-v3"
+[2]:https://storage.googleapis.com/download.tensorflow.org/models/inception_dec_2015.zip "Inception-v3"
 
 # Image Recognition
 
