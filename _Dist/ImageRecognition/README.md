@@ -8,7 +8,7 @@ Dependency: numpy, matplotlib, Tensorflow, cv2(For visualization)
 A Stand-alone version for this project can be found [here][1]
 
 + Inception-v3 model for this project can be downloaded [here][2]
-+ Extract the zipped file and put Inception-v3 model (which should be renamed from 'inception-v3-2016-03-01.pb' to 'Model.pb') to 'Models/Extractor/v3' folder
++ Extract the zipped file and put Inception-v3 model (which should be renamed from 'tensorflow_inception_graph.pb' to 'Model.pb') to 'Models/Extractor/v3' folder
 + Put your training set **FOLDERS** into '_Data' folder, please use English names for your folders to ensure that cv2 works correctly
     + Each folder name should be treated as the 'label' of the pictures contained in the folder
 + Put your test set **PICTURES** into 'Test' folder
