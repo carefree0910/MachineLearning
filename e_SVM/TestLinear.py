@@ -1,5 +1,5 @@
 from e_SVM.Perceptron import Perceptron
-from e_SVM.LinearSVM import LinearSVM
+from e_SVM.LinearSVM import LinearSVM, TFLinearSVM
 
 from Util.Util import DataUtil
 
@@ -10,7 +10,12 @@ def main():
     y[y == 0] = -1
 
     svm = LinearSVM()
-    svm.fit(x, y, epoch=10 ** 5, lr=1e-3)
+    svm.fit(x, y)
+    svm.evaluate(x, y)
+    svm.visualize2d(x, y, padding=0.1, dense=400)
+
+    svm = TFLinearSVM()
+    svm.fit(x, y)
     svm.evaluate(x, y)
     svm.visualize2d(x, y, padding=0.1, dense=400)
 

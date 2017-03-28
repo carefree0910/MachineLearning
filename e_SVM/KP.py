@@ -1,9 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from Util.Bases import KernelBase
-from Util.Timing import Timing
 from Util.Util import DataUtil
+from Util.Timing import Timing
+from Util.Bases import KernelBase
 
 
 class KernelPerceptron(KernelBase):

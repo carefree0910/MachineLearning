@@ -8,6 +8,8 @@ from e_SVM.Perceptron import Perceptron
 from e_SVM.KP import KernelPerceptron
 from e_SVM.SVM import SVM
 
+from Util.ProgressBar import ProgressBar
+
 from _SKlearn.NaiveBayes import *
 from _SKlearn.Tree import SKTree
 from _SKlearn.SVM import SKSVM
@@ -65,6 +67,8 @@ class AdaBoost(ClassifierBase):
             sample_weight = np.ones(len(y)) / len(y)
         else:
             sample_weight = np.array(sample_weight)
+        bar = ProgressBar(max_value=epoch, name="AdaBoost")
+        bar.start()
         for _ in range(epoch):
             tmp_clf = AdaBoost._weak_clf[clf](**kwargs)
             tmp_clf.fit(x, y, sample_weight=sample_weight)
@@ -75,6 +79,7 @@ class AdaBoost(ClassifierBase):
             sample_weight /= np.sum(sample_weight)
             self._clfs.append(deepcopy(tmp_clf))
             self._clfs_weights.append(am)
+            bar.update()
 
     @AdaBoostTiming.timeit(level=1, prefix="[API] ")
     def predict(self, x, bound=None, get_raw_results=False):

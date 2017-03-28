@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 from Util.Timing import Timing
+from Util.ProgressBar import ProgressBar
 
 
 class TimingBase:
@@ -481,8 +482,11 @@ class KernelBase(ClassifierBase):
             _test_gram = self._kernel(_xv, self._x)
         else:
             _xv, _yv = self._x, self._y
+        bar = ProgressBar(max_value=epoch, name=str(self))
+        bar.start()
         for _ in range(epoch):
             if self._fit(sample_weight, *_fit_args):
+                bar.update(epoch)
                 break
             if metrics is not None:
                 _local_logs = []
@@ -492,6 +496,7 @@ class KernelBase(ClassifierBase):
                     else:
                         _local_logs.append(metric(_yv, self.predict(_test_gram, provide_gram=True)))
                 _logs.append(_local_logs)
+            bar.update()
         return _logs
 
     @KernelBaseTiming.timeit(level=1, prefix="[API] ")

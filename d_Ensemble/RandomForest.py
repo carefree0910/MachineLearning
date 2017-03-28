@@ -1,6 +1,7 @@
 from c_CvDTree.Tree import *
 
 from Util.Util import DataUtil
+from Util.ProgressBar import ProgressBar
 
 
 class RandomForest(ClassifierBase):
@@ -30,6 +31,8 @@ class RandomForest(ClassifierBase):
         x, y = np.atleast_2d(x), np.array(y)
         n_sample = len(y)
         self._tree = tree
+        bar = ProgressBar(max_value=epoch, name="RF")
+        bar.start()
         for _ in range(epoch):
             tmp_tree = RandomForest._cvd_trees[tree](**kwargs)
             _indices = np.random.randint(n_sample, size=n_sample)
@@ -40,6 +43,7 @@ class RandomForest(ClassifierBase):
                 _local_weight /= _local_weight.sum()
             tmp_tree.fit(x[_indices], y[_indices], sample_weight=_local_weight, feature_bound=feature_bound)
             self._trees.append(deepcopy(tmp_tree))
+            bar.update()
 
     @RandomForestTiming.timeit(level=1, prefix="[API] ")
     def predict(self, x, bound=None):
