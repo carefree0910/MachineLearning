@@ -74,7 +74,6 @@ class TFLinearSVM(ClassifierBase):
                 bar.update(epoch)
                 break
             bar.update()
-            print(_l)
 
     @TFLinearSVMTiming.timeit(level=1, prefix="[API] ")
     def predict(self, x, get_raw_results=False, out_of_sess=True):

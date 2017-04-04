@@ -389,6 +389,7 @@ class ClassifierBase:
 class KernelConfig:
     default_c = 1
     default_p = 3
+    default_lr = 0.001
 
 
 class KernelBase(ClassifierBase):
@@ -396,6 +397,7 @@ class KernelBase(ClassifierBase):
 
     def __init__(self):
         super(KernelBase, self).__init__()
+        self._do_log = True
         self._config = KernelConfig()
         self._fit_args, self._fit_args_names = None, []
         self._x = self._y = self._gram = None
@@ -436,7 +438,7 @@ class KernelBase(ClassifierBase):
         else:
             self._prediction_cache += self._dw_cache.dot(self._gram[args, ...])
 
-    def _prepare(self, **kwargs):
+    def _prepare(self, sample_weight, **kwargs):
         pass
 
     def _fit(self, *args):
@@ -467,41 +469,44 @@ class KernelBase(ClassifierBase):
             np.zeros(len(x)), np.zeros(len(x)), np.zeros(len(x)))
         self._gram = self._kernel(self._x, self._x)
         self._b = 0
-        self._prepare(**kwargs)
+        self._prepare(sample_weight, **kwargs)
 
         _fit_args, _logs = [], []
         for _name, _arg in zip(self._fit_args_names, self._fit_args):
             if _name in kwargs:
                 _arg = kwargs[_name]
             _fit_args.append(_arg)
-        if metrics is not None:
-            self.get_metrics(metrics)
-        _test_gram = None
-        if x_test is not None and y_test is not None:
-            _xv, _yv = np.atleast_2d(x_test), np.array(y_test)
-            _test_gram = self._kernel(_xv, self._x)
+        if self._do_log:
+            if metrics is not None:
+                self.get_metrics(metrics)
+            _test_gram = None
+            if x_test is not None and y_test is not None:
+                _xv, _yv = np.atleast_2d(x_test), np.array(y_test)
+                _test_gram = self._kernel(_xv, self._x)
+            else:
+                _xv, _yv = self._x, self._y
         else:
-            _xv, _yv = self._x, self._y
+            _yv = _test_gram = None
         bar = ProgressBar(max_value=epoch, name=str(self))
         bar.start()
         for _ in range(epoch):
             if self._fit(sample_weight, *_fit_args):
                 bar.update(epoch)
                 break
-            if metrics is not None:
+            if self._do_log and  metrics is not None:
                 _local_logs = []
                 for metric in metrics:
                     if _test_gram is None:
                         _local_logs.append(metric(self._y, np.sign(self._prediction_cache)))
                     else:
-                        _local_logs.append(metric(_yv, self.predict(_test_gram, provide_gram=True)))
+                        _local_logs.append(metric(_yv, self.predict(_test_gram, gram_provided=True)))
                 _logs.append(_local_logs)
             bar.update()
         return _logs
 
     @KernelBaseTiming.timeit(level=1, prefix="[API] ")
-    def predict(self, x, get_raw_results=False, provide_gram=False):
-        if not provide_gram:
+    def predict(self, x, get_raw_results=False, gram_provided=False):
+        if not gram_provided:
             x = self._kernel(np.atleast_2d(x), self._x)
         y_pred = x.dot(self._w) + self._b
         if not get_raw_results:

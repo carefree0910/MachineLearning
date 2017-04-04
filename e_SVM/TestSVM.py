@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 
-from e_SVM.SVM import SVM
+from e_SVM.SVM import SVM, TFSVM
 from _SKlearn.SVM import SKSVM
 
 from Util.Util import DataUtil
@@ -9,8 +9,8 @@ from Util.Util import DataUtil
 def main():
 
     # # x, y = DataUtil.gen_xor(100, one_hot=False)
-    # x, y = DataUtil.gen_spin(20, 4, 2, 2, one_hot=False)
-    # # x, y = DataUtil.gen_two_clusters(n_dim=2, one_hot=False)
+    # # x, y = DataUtil.gen_spin(20, 4, 2, 2, one_hot=False)
+    # x, y = DataUtil.gen_two_clusters(n_dim=2, one_hot=False)
     # y[y == 0] = -1
     #
     # svm = SKSVM()
@@ -18,6 +18,11 @@ def main():
     # svm.fit(x, y)
     # svm.evaluate(x, y)
     # svm.visualize2d(x, y, padding=0.1, dense=400, emphasize=svm.support_)
+    #
+    # svm = TFSVM()
+    # svm.fit(x, y, lr=0.0001)
+    # svm.evaluate(x, y)
+    # svm.visualize2d(x, y, padding=0.1, dense=400)
     #
     # svm = SVM()
     # _logs = [_log[0] for _log in svm.fit(x, y, metrics=["acc"])]
@@ -34,11 +39,22 @@ def main():
     svm.evaluate(x_train, y_train)
     svm.evaluate(x_test, y_test)
 
+    svm = TFSVM()
+    _logs = [_log[0] for _log in svm.fit(
+        x_train, y_train, metrics=["acc"], x_test=x_test, y_test=y_test
+    )]
+    svm.evaluate(x_train, y_train)
+    svm.evaluate(x_test, y_test)
+
+    plt.figure()
+    plt.title(svm.title)
+    plt.plot(range(len(_logs)), _logs)
+    plt.show()
+
     svm = SVM()
     _logs = [_log[0] for _log in svm.fit(
         x_train, y_train, metrics=["acc"], x_test=x_test, y_test=y_test
     )]
-    # svm.fit(x_train, y_train, p=12)
     svm.evaluate(x_train, y_train)
     svm.evaluate(x_test, y_test)
 
