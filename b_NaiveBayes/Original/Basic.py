@@ -31,14 +31,16 @@ class NBFunctions:
 class NaiveBayes(ClassifierBase):
     NaiveBayesTiming = Timing()
 
-    def __init__(self):
-        super(NaiveBayes, self).__init__()
+    def __init__(self, **kwargs):
+        super(NaiveBayes, self).__init__(**kwargs)
         self._x = self._y = None
         self._data = self._func = None
         self._n_possibilities = None
         self._labelled_x = self._label_zip = None
         self._cat_counter = self._con_counter = None
         self.label_dic = self._feat_dics = None
+
+        self._params["lb"] = kwargs.get("lb", 1)
 
     def feed_data(self, x, y, sample_weight=None):
         pass
@@ -52,7 +54,11 @@ class NaiveBayes(ClassifierBase):
                 for _c_num in self._cat_counter]
 
     @NaiveBayesTiming.timeit(level=2, prefix="[API] ")
-    def fit(self, x=None, y=None, sample_weight=None, lb=1):
+    def fit(self, x=None, y=None, sample_weight=None, lb=None):
+        if sample_weight is None:
+            sample_weight = self._params["sw"]
+        if lb is None:
+            lb = self._params["lb"]
         if x is not None and y is not None:
             self.feed_data(x, y, sample_weight)
         self._func = self._fit(lb)
@@ -62,7 +68,7 @@ class NaiveBayes(ClassifierBase):
 
     @NaiveBayesTiming.timeit(level=1, prefix="[API] ")
     def predict_one(self, x, get_raw_result=False):
-        if isinstance(x, np.ndarray):
+        if type(x) is np.ndarray:
             x = x.tolist()
         else:
             x = x[:]

@@ -9,13 +9,15 @@ from Util.Timing import Timing
 class MergedNB(NaiveBayes):
     MergedNBTiming = Timing()
 
-    def __init__(self, whether_continuous):
-        NaiveBayes.__init__(self)
+    def __init__(self, **kwargs):
+        super(MergedNB, self).__init__(**kwargs)
         self._multinomial, self._gaussian = MultinomialNB(), GaussianNB()
-        if whether_continuous is None:
+
+        wc = kwargs.get("whether_continuous")
+        if wc is None:
             self._whether_discrete = self._whether_continuous = None
         else:
-            self._whether_continuous = np.array(whether_continuous)
+            self._whether_continuous = np.array(wc)
             self._whether_discrete = ~self._whether_continuous
 
     @MergedNBTiming.timeit(level=1, prefix="[API] ")
@@ -115,7 +117,7 @@ if __name__ == '__main__':
         "bank1.0", "../../_Data/bank1.0.txt", train_num=train_num)
     data_time = time.time() - data_time
     learning_time = time.time()
-    nb = MergedNB(_whether_continuous)
+    nb = MergedNB(whether_continuous=_whether_continuous)
     nb.fit(x_train, y_train)
     learning_time = time.time() - learning_time
     estimation_time = time.time()

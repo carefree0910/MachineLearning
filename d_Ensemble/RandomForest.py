@@ -12,9 +12,13 @@ class RandomForest(ClassifierBase):
         "Cart": CartTree
     }
 
-    def __init__(self):
-        super(RandomForest, self).__init__()
+    def __init__(self, **kwargs):
+        super(RandomForest, self).__init__(**kwargs)
         self._tree, self._trees = "", []
+
+        self._params["tree"] = kwargs.get("tree", "Cart")
+        self._params["epoch"] = kwargs.get("epoch", 10)
+        self._params["feature_bound"] = kwargs.get("feature_bound", "log")
 
     @property
     def title(self):
@@ -27,7 +31,15 @@ class RandomForest(ClassifierBase):
         return u[np.argmax(c)]
 
     @RandomForestTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, sample_weight=None, tree="Cart", epoch=10, feature_bound="log", **kwargs):
+    def fit(self, x, y, sample_weight=None, tree=None, epoch=None, feature_bound=None, **kwargs):
+        if sample_weight is None:
+            sample_weight = self._params["sw"]
+        if tree is None:
+            tree = self._params["tree"]
+        if epoch is None:
+            epoch = self._params["epoch"]
+        if feature_bound is None:
+            feature_bound = self._params["feature_bound"]
         x, y = np.atleast_2d(x), np.array(y)
         n_sample = len(y)
         self._tree = tree

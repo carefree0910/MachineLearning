@@ -9,7 +9,7 @@ def main():
     nn = NN()
     epoch = 1000
 
-    x, y = DataUtil.gen_spin(120, 4, 2, 6)
+    x, y = DataUtil.gen_spin(120, 7, 7, 4)
 
     nn.add(ReLU((x.shape[1], 24)))
     nn.add(ReLU((24, )))

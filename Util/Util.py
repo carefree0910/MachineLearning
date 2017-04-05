@@ -152,7 +152,7 @@ class DataUtil:
             xt = x.T
         features = [set(feat) for feat in xt]
         if wc is None:
-            wc = np.array([len(feat) >= continuous_rate * len(y) for feat in features])
+            wc = np.array([len(feat) >= int(continuous_rate * len(y)) for feat in features])
         else:
             wc = np.array(wc)
         feat_dics = [{_l: i for i, _l in enumerate(feats)} if not wc[i] else None

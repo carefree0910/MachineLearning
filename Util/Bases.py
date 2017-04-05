@@ -16,10 +16,13 @@ class TimingBase:
 class ClassifierBase:
     clf_timing = Timing()
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         self._title = self._name = None
         self._metrics, self._available_metrics = [], {
             "acc": ClassifierBase.acc
+        }
+        self._params = {
+            "sw": kwargs.get("sample_weight", None)
         }
 
     def __str__(self):
@@ -395,15 +398,23 @@ class KernelConfig:
 class KernelBase(ClassifierBase):
     KernelBaseTiming = Timing()
 
-    def __init__(self):
-        super(KernelBase, self).__init__()
+    def __init__(self, **kwargs):
+        super(KernelBase, self).__init__(**kwargs)
         self._do_log = True
-        self._config = KernelConfig()
         self._fit_args, self._fit_args_names = None, []
         self._x = self._y = self._gram = None
         self._w = self._b = self._alpha = None
         self._kernel = self._kernel_name = self._kernel_param = None
         self._prediction_cache = self._dw_cache = self._db_cache = None
+
+        self._params["kernel"] = kwargs.get("kernel", "rbf")
+        self._params["epoch"] = kwargs.get("epoch", 10 ** 4)
+        self._params["x_test"] = kwargs.get("x_test", None)
+        self._params["y_test"] = kwargs.get("y_test", None)
+        self._params["metrics"] = kwargs.get("metrics", None)
+        self._params["c"] = kwargs.get("c", 1)
+        self._params["p"] = kwargs.get("p", 3)
+        self._params["lr"] = kwargs.get("lr", 0.001)
 
     @property
     def title(self):
@@ -445,11 +456,23 @@ class KernelBase(ClassifierBase):
         pass
 
     @KernelBaseTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, sample_weight=None, kernel="rbf", epoch=10 ** 4,
+    def fit(self, x, y, sample_weight=None, kernel=None, epoch=None,
             x_test=None, y_test=None, metrics=None, **kwargs):
+        if sample_weight is None:
+            sample_weight = self._params["sw"]
+        if kernel is None:
+            kernel = self._params["kernel"]
+        if epoch is None:
+            epoch = self._params["epoch"]
+        if x_test is None:
+            x_test = self._params["x_test"]
+        if y_test is None:
+            y_test = self._params["y_test"]
+        if metrics is None:
+            metrics = self._params["metrics"]
         self._x, self._y = np.atleast_2d(x), np.array(y)
         if kernel == "poly":
-            _p = kwargs.get("p", self._config.default_p)
+            _p = kwargs.get("p", self._params["p"])
             self._kernel_name = "Polynomial"
             self._kernel_param = "degree = {}".format(_p)
             self._kernel = lambda _x, _y: KernelBase._poly(_x, _y, _p)
@@ -493,7 +516,7 @@ class KernelBase(ClassifierBase):
             if self._fit(sample_weight, *_fit_args):
                 bar.update(epoch)
                 break
-            if self._do_log and  metrics is not None:
+            if self._do_log and metrics is not None:
                 _local_logs = []
                 for metric in metrics:
                     if _test_gram is None:

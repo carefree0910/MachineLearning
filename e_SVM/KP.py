@@ -9,8 +9,8 @@ from Util.Bases import KernelBase
 class KernelPerceptron(KernelBase):
     KernelPerceptronTiming = Timing()
 
-    def __init__(self):
-        KernelBase.__init__(self)
+    def __init__(self, **kwargs):
+        super(KernelPerceptron, self).__init__(**kwargs)
         self._fit_args, self._fit_args_names = [0.01], ["lr"]
 
     @KernelPerceptronTiming.timeit(level=1, prefix="[Core] ")

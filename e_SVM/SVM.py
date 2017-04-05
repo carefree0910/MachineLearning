@@ -8,8 +8,8 @@ from Util.Bases import KernelBase
 class SVM(KernelBase):
     SVMTiming = Timing()
 
-    def __init__(self):
-        KernelBase.__init__(self)
+    def __init__(self, **kwargs):
+        super(SVM, self).__init__(**kwargs)
         self._fit_args, self._fit_args_names = [1e-3], ["tol"]
         self._c = None
 
@@ -24,7 +24,6 @@ class SVM(KernelBase):
         err2[(~con1 | ~con2) | (err2 == 0)] = 0
         err3[con2 | (err3 <= 0)] = 0
         err = err1 ** 2 + err2 ** 2 + err3 ** 2
-        # noinspection PyTypeChecker
         idx = np.argmax(err)
         if err[idx] < tol:
             return
@@ -86,7 +85,7 @@ class SVM(KernelBase):
 
     @SVMTiming.timeit(level=4, prefix="[Util] ")
     def _prepare(self, sample_weight, **kwargs):
-        self._c = kwargs.get("c", self._config.default_c)
+        self._c = kwargs.get("c", self._params["c"])
 
     @SVMTiming.timeit(level=1, prefix="[Core] ")
     def _fit(self, sample_weight, tol):
@@ -103,12 +102,12 @@ class TFSVM(KernelBase):
     def __init__(self):
         super(TFSVM, self).__init__()
         self._fit_args, self._fit_args_names = [1e-3], ["tol"]
-        self._lr = self._cost = self._train_step = None
+        self._cost = self._train_step = None
         self._sess = tf.Session()
         self._do_log = False
 
     def _prepare(self, sample_weight, **kwargs):
-        self._lr = kwargs.get("lr", self._config.default_lr)
+        lr = kwargs.get("lr", self._params["lr"])
         sample_weight = tf.constant(sample_weight, dtype=tf.float32, name="sample_weight")
         x, y = tf.constant(self._x, dtype=tf.float32), tf.constant(self._y, dtype=tf.float32)
         self._gram = tf.constant(self._kernel(self._x, self._x), dtype=tf.float32, name="gram")
@@ -118,7 +117,7 @@ class TFSVM(KernelBase):
         self._cost = tf.reduce_sum(tf.maximum(1 - y * y_pred, 0) * sample_weight) + 0.5 * tf.matmul(
             self._w, tf.matmul(self._gram, self._w, transpose_b=True)
         )[0][0]
-        self._train_step = tf.train.AdamOptimizer(learning_rate=self._lr).minimize(self._cost)
+        self._train_step = tf.train.AdamOptimizer(learning_rate=lr).minimize(self._cost)
         self._sess.run(tf.global_variables_initializer())
 
     @TFSVMTiming.timeit(level=1, prefix="[API] ")

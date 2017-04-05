@@ -19,11 +19,15 @@ class NNVerbose:
 class NaiveNN(ClassifierBase):
     NaiveNNTiming = Timing()
 
-    def __init__(self):
-        super(NaiveNN, self).__init__()
+    def __init__(self, **kwargs):
+        super(NaiveNN, self).__init__(**kwargs)
         self._layers, self._weights, self._bias = [], [], []
         self._w_optimizer = self._b_optimizer = None
         self._current_dimension = 0
+
+        self._params["lr"] = kwargs.get("lr", 0.001)
+        self._params["epoch"] = kwargs.get("epoch", 10)
+        self._params["optimizer"] = kwargs.get("optimizer", "Adam")
 
     # Utils
 
@@ -83,7 +87,13 @@ class NaiveNN(ClassifierBase):
             self._add_layer(layer, self._current_dimension, _next)
 
     @NaiveNNTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, lr=0.001, optimizer="Adam", epoch=10):
+    def fit(self, x, y, lr=None, epoch=None, optimizer=None):
+        if lr is None:
+            lr = self._params["lr"]
+        if epoch is None:
+            epoch = self._params["epoch"]
+        if optimizer is None:
+            optimizer = self._params["optimizer"]
         self._init_optimizers(optimizer, lr, epoch)
         layer_width = len(self._layers)
         for counter in range(epoch):
@@ -110,13 +120,19 @@ class NaiveNN(ClassifierBase):
 class NN(NaiveNN):
     NNTiming = Timing()
 
-    def __init__(self):
-        super(NN, self).__init__()
+    def __init__(self, **kwargs):
+        super(NN, self).__init__(**kwargs)
         self._available_metrics = {
             key: value for key, value in zip(["acc", "f1-score"], [NN.acc, NN.f1_score])
         }
         self._metrics, self._metric_names, self._logs = [], [], {}
         self.verbose = None
+
+        self._params["batch_size"] = kwargs.get("batch_size", 256)
+        self._params["train_rate"] = kwargs.get("train_rate", None)
+        self._params["metrics"] = kwargs.get("metrics", None)
+        self._params["record_period"] = kwargs.get("record_period", 100)
+        self._params["verbose"] = kwargs.get("verbose", 1)
 
     # Utils
 
@@ -124,7 +140,8 @@ class NN(NaiveNN):
     def _get_prediction(self, x, name=None, batch_size=1e6, verbose=None):
         if verbose is None:
             verbose = self.verbose
-        single_batch = int(batch_size / np.prod(x.shape[1:]))
+        single_batch = batch_size / np.prod(x.shape[1:])  # type: float
+        single_batch = int(single_batch)
         if not single_batch:
             single_batch = 1
         if single_batch >= len(x):
@@ -188,8 +205,24 @@ class NN(NaiveNN):
         print("=" * 47)
 
     @NNTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, lr=0.001, epoch=10, batch_size=256, train_rate=None,
-            optimizer="Adam", metrics=None, record_period=100, verbose=1):
+    def fit(self, x, y, lr=None, epoch=None, batch_size=None, train_rate=None,
+            optimizer=None, metrics=None, record_period=None, verbose=None):
+        if lr is None:
+            lr = self._params["lr"]
+        if epoch is None:
+            epoch = self._params["epoch"]
+        if optimizer is None:
+            optimizer = self._params["optimizer"]
+        if batch_size is None:
+            batch_size = self._params["batch_size"]
+        if train_rate is None:
+            train_rate = self._params["train_rate"]
+        if metrics is None:
+            metrics = self._params["metrics"]
+        if record_period is None:
+            record_period = self._params["record_period"]
+        if verbose is None:
+            verbose = self._params["verbose"]
         self.verbose = verbose
         self._init_optimizers(optimizer, lr, epoch)
         layer_width = len(self._layers)

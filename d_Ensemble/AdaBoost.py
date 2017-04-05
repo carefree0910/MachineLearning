@@ -34,10 +34,14 @@ class AdaBoost(ClassifierBase):
         "SVM": SVM
     }
 
-    def __init__(self):
-        super(AdaBoost, self).__init__()
+    def __init__(self, **kwargs):
+        super(AdaBoost, self).__init__(**kwargs)
         self._clf, self._clfs, self._clfs_weights = "", [], []
         self._kwarg_cache = {}
+
+        self._params["clf"] = kwargs.get("clf", None)
+        self._params["epoch"] = kwargs.get("epoch", 10)
+        self._params["eps"] = kwargs.get("eps", 1e-12)
 
     @property
     def params(self):
@@ -56,7 +60,15 @@ class AdaBoost(ClassifierBase):
         return rs
 
     @AdaBoostTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, sample_weight=None, clf=None, epoch=10, eps=1e-12, **kwargs):
+    def fit(self, x, y, sample_weight=None, clf=None, epoch=None, eps=None, **kwargs):
+        if sample_weight is None:
+            sample_weight = self._params["sw"]
+        if clf is None:
+            clf = self._params["clf"]
+        if epoch is None:
+            epoch = self._params["epoch"]
+        if eps is None:
+            eps = self._params["eps"]
         x, y = np.atleast_2d(x), np.array(y)
         if clf is None:
             clf = "Cart"

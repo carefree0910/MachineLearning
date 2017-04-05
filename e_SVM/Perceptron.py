@@ -8,12 +8,21 @@ from Util.ProgressBar import ProgressBar
 class Perceptron(ClassifierBase):
     PerceptronTiming = Timing()
 
-    def __init__(self):
-        super(Perceptron, self).__init__()
+    def __init__(self, **kwargs):
+        super(Perceptron, self).__init__(**kwargs)
         self._w = self._b = None
 
+        self._params["lr"] = kwargs.get("lr", 0.01)
+        self._params["epoch"] = kwargs.get("epoch", 10 ** 4)
+
     @PerceptronTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, sample_weight=None, lr=0.01, epoch=10 ** 4):
+    def fit(self, x, y, sample_weight=None, lr=None, epoch=None):
+        if sample_weight is None:
+            sample_weight = self._params["sw"]
+        if lr is None:
+            lr = self._params["lr"]
+        if epoch is None:
+            epoch = self._params["epoch"]
         x, y = np.atleast_2d(x), np.array(y)
         if sample_weight is None:
             sample_weight = np.ones(len(y))

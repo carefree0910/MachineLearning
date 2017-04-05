@@ -9,12 +9,27 @@ from Util.ProgressBar import ProgressBar
 class LinearSVM(ClassifierBase):
     LinearSVMTiming = Timing()
 
-    def __init__(self):
-        super(LinearSVM, self).__init__()
+    def __init__(self, **kwargs):
+        super(LinearSVM, self).__init__(**kwargs)
         self._w = self._b = None
 
+        self._params["c"] = kwargs.get("c", 1)
+        self._params["lr"] = kwargs.get("lr", 0.001)
+        self._params["epoch"] = kwargs.get("epoch", 10 ** 4)
+        self._params["tol"] = kwargs.get("tol", 1e-3)
+
     @LinearSVMTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, sample_weight=None, c=1, lr=0.001, epoch=10 ** 4, tol=1e-3):
+    def fit(self, x, y, sample_weight=None, c=None, lr=None, epoch=None, tol=None):
+        if sample_weight is None:
+            sample_weight = self._params["sw"]
+        if c is None:
+            c = self._params["c"]
+        if lr is None:
+            lr = self._params["lr"]
+        if epoch is None:
+            epoch = self._params["epoch"]
+        if tol is None:
+            tol = self._params["tol"]
         x, y = np.atleast_2d(x), np.array(y)
         if sample_weight is None:
             sample_weight = np.ones(len(y))
@@ -48,13 +63,28 @@ class LinearSVM(ClassifierBase):
 class TFLinearSVM(ClassifierBase):
     TFLinearSVMTiming = Timing()
 
-    def __init__(self):
-        super(TFLinearSVM, self).__init__()
+    def __init__(self, **kwargs):
+        super(TFLinearSVM, self).__init__(**kwargs)
         self._w = self._b = None
         self._sess = tf.Session()
 
+        self._params["c"] = kwargs.get("c", 1)
+        self._params["lr"] = kwargs.get("lr", 0.001)
+        self._params["epoch"] = kwargs.get("epoch", 10 ** 4)
+        self._params["tol"] = kwargs.get("tol", 1e-3)
+
     @TFLinearSVMTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, sample_weight=None, lr=0.001, epoch=10 ** 4, tol=1e-3):
+    def fit(self, x, y, sample_weight=None, c=None, lr=None, epoch=None, tol=None):
+        if sample_weight is None:
+            sample_weight = self._params["sw"]
+        if c is None:
+            c = self._params["c"]
+        if lr is None:
+            lr = self._params["lr"]
+        if epoch is None:
+            epoch = self._params["epoch"]
+        if tol is None:
+            tol = self._params["tol"]
         if sample_weight is None:
             sample_weight = tf.constant(np.ones(len(y)), dtype=tf.float32, name="sample_weight")
         else:
@@ -63,7 +93,7 @@ class TFLinearSVM(ClassifierBase):
         self._w = tf.Variable(np.zeros(x.shape[1]), dtype=tf.float32, name="w")
         self._b = tf.Variable(0., dtype=tf.float32, name="b")
         y_pred = self.predict(x, True, False)
-        cost = tf.reduce_sum(tf.maximum(1 - y * y_pred, 0) * sample_weight) + tf.nn.l2_loss(self._w)
+        cost = tf.reduce_sum(tf.maximum(1 - y * y_pred, 0) * sample_weight) + c * tf.nn.l2_loss(self._w)
         train_step = tf.train.AdamOptimizer(learning_rate=lr).minimize(cost)
         self._sess.run(tf.global_variables_initializer())
         bar = ProgressBar(max_value=epoch, name="TFLinearSVM")

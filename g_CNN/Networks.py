@@ -20,8 +20,8 @@ class NNVerbose:
 class NN(ClassifierBase):
     NNTiming = Timing()
 
-    def __init__(self):
-        super(NN, self).__init__()
+    def __init__(self, **kwargs):
+        super(NN, self).__init__(**kwargs)
         self._layers = []
         self._optimizer = None
         self._current_dimension = 0
@@ -40,11 +40,22 @@ class NN(ClassifierBase):
 
         self._layer_factory = LayerFactory()
 
+        self._params["lr"] = kwargs.get("lr", 0.001)
+        self._params["epoch"] = kwargs.get("epoch", 10)
+        self._params["optimizer"] = kwargs.get("optimizer", "Adam")
+        self._params["batch_size"] = kwargs.get("batch_size", 256)
+        self._params["train_rate"] = kwargs.get("train_rate", None)
+        self._params["metrics"] = kwargs.get("metrics", None)
+        self._params["record_period"] = kwargs.get("record_period", 100)
+        self._params["verbose"] = kwargs.get("verbose", 1)
+        self._params["preview"] = kwargs.get("preview", True)
+
     @NNTiming.timeit(level=1)
     def _get_prediction(self, x, name=None, batch_size=1e6, verbose=None, out_of_sess=False):
         if verbose is None:
             verbose = self.verbose
-        single_batch = int(batch_size / np.prod(x.shape[1:]))
+        single_batch = batch_size / np.prod(x.shape[1:])  # type: float
+        single_batch = int(single_batch)
         if not single_batch:
             single_batch = 1
         if single_batch >= len(x):
@@ -168,7 +179,8 @@ class NN(ClassifierBase):
         for i, layer in enumerate(self._layers[1:idx]):
             if i == len(self._layers) - 2:
                 if isinstance(self._layers[-2], ConvLayer):
-                    _cache = tf.reshape(_cache, [-1, int(np.prod(_cache.get_shape()[1:]))])
+                    _shape = np.prod(_cache.get_shape()[1:])  # type: int
+                    _cache = tf.reshape(_cache, [-1, _shape])
                 if self._tf_bias[-1] is not None:
                     return tf.matmul(_cache, self._tf_weights[-1]) + self._tf_bias[-1]
                 return tf.matmul(_cache, self._tf_weights[-1])
@@ -246,8 +258,26 @@ class NN(ClassifierBase):
                 self._add_layer(layer, _current, _next)
 
     @NNTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, lr=0.001, epoch=10, batch_size=256, train_rate=None,
-            optimizer="Adam", metrics=None, record_period=100, verbose=1, preview=True):
+    def fit(self, x, y, lr=None, epoch=None, batch_size=None, train_rate=None,
+            optimizer=None, metrics=None, record_period=None, verbose=None, preview=None):
+        if lr is None:
+            lr = self._params["lr"]
+        if epoch is None:
+            epoch = self._params["epoch"]
+        if optimizer is None:
+            optimizer = self._params["optimizer"]
+        if batch_size is None:
+            batch_size = self._params["batch_size"]
+        if train_rate is None:
+            train_rate = self._params["train_rate"]
+        if metrics is None:
+            metrics = self._params["metrics"]
+        if record_period is None:
+            record_period = self._params["record_period"]
+        if verbose is None:
+            verbose = self._params["verbose"]
+        if preview is None:
+            preview = self._params["preview"]
 
         x = NN._transfer_x(x)
         self.verbose = verbose

@@ -10,8 +10,8 @@ from Util.Bases import ClassifierBase
 class CvDBase(ClassifierBase):
     CvDBaseTiming = Timing()
 
-    def __init__(self, whether_continuous=None, max_depth=None, node=None):
-        super(CvDBase, self).__init__()
+    def __init__(self, whether_continuous=None, max_depth=None, node=None, **kwargs):
+        super(CvDBase, self).__init__(**kwargs)
         self.nodes, self.layers, self.roots = [], [], []
         self.max_depth = max_depth
         self.root = node
@@ -20,13 +20,19 @@ class CvDBase(ClassifierBase):
         self.prune_alpha = 1
         self.whether_continuous = whether_continuous
 
+        self._params["alpha"] = kwargs.get("alpha", None)
+        self._params["eps"] = kwargs.get("eps", 1e-8)
+        self._params["cv_rate"] = kwargs.get("cv_rate", 0.2)
+        self._params["train_only"] = kwargs.get("train_only", False)
+        self._params["feature_bound"] = kwargs.get("feature_bound", None)
+
     def feed_data(self, x, continuous_rate=0.2):
         xt = x.T
         self.feature_sets = [set(dimension) for dimension in xt]
         data_len, data_dim = x.shape
         if self.whether_continuous is None:
             self.whether_continuous = np.array(
-                [len(feat) >= continuous_rate * data_len for feat in self.feature_sets])
+                [len(feat) >= int(continuous_rate * data_len) for feat in self.feature_sets])
         else:
             self.whether_continuous = np.array(self.whether_continuous)
         self.root.feats = [i for i in range(x.shape[1])]
@@ -35,8 +41,20 @@ class CvDBase(ClassifierBase):
     # Grow
 
     @CvDBaseTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, sample_weight=None, alpha=None, eps=1e-8,
-            cv_rate=0.2, train_only=False, feature_bound=None):
+    def fit(self, x, y, sample_weight=None, alpha=None, eps=None,
+            cv_rate=None, train_only=None, feature_bound=None):
+        if sample_weight is None:
+            sample_weight = self._params["sw"]
+        if alpha is None:
+            alpha = self._params["alpha"]
+        if eps is None:
+            eps = self._params["eps"]
+        if cv_rate is None:
+            cv_rate = self._params["cv_rate"]
+        if train_only is None:
+            train_only = self._params["train_only"]
+        if feature_bound is None:
+            feature_bound = self._params["feature_bound"]
         _dic = {c: i for i, c in enumerate(set(y))}
         y = np.array([_dic[yy] for yy in y])
         self.label_dic = {value: key for key, value in _dic.items()}
@@ -90,7 +108,7 @@ class CvDBase(ClassifierBase):
         while True:
             if self.root.height == 1:
                 break
-            p = np.argmax(_mask)
+            p = np.argmax(_mask)  # type: int
             if _mask[p]:
                 _tmp_nodes[p].prune()
                 for i, node in enumerate(_tmp_nodes):
@@ -118,7 +136,7 @@ class CvDBase(ClassifierBase):
             self.roots.append(root_copy)
             if self.root.height == 1:
                 break
-            p = np.argmin(_thresholds)
+            p = np.argmin(_thresholds)  # type: int
             _tmp_nodes[p].prune()
             for i, node in enumerate(_tmp_nodes):
                 if node.affected:
@@ -135,7 +153,7 @@ class CvDBase(ClassifierBase):
         if self.root.is_cart:
             if x_cv is not None and y_cv is not None:
                 self._cart_prune()
-                _arg = np.argmax([CvDBase.acc(y_cv, tree.predict(x_cv), weights) for tree in self.roots])
+                _arg = np.argmax([CvDBase.acc(y_cv, tree.predict(x_cv), weights) for tree in self.roots])  # type: int
                 _tar_root = self.roots[_arg]
                 self.nodes = []
                 _tar_root.feed_tree(self)
