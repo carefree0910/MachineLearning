@@ -191,7 +191,7 @@ class ClassifierBase:
         plt.show()
 
     def visualize2d(self, x, y, padding=0.1, dense=200,
-                    title=None, show_org=False, show_background=True, emphasize=None):
+                    title=None, show_org=False, show_background=True, emphasize=None, extra=None):
         axis, labels = np.array(x).T, np.array(y)
 
         print("=" * 30 + "\n" + str(self))
@@ -252,6 +252,8 @@ class ClassifierBase:
             _indices[np.array(emphasize)] = True
             plt.scatter(axis[0][_indices], axis[1][_indices], s=80,
                         facecolors="None", zorder=10)
+        if extra is not None:
+            plt.scatter(*np.array(extra).T, s=80, zorder=25, facecolors="red")
         plt.xlim(x_min, x_max)
         plt.ylim(y_min, y_max)
         plt.show()
@@ -259,7 +261,7 @@ class ClassifierBase:
         print("Done.")
 
     def visualize3d(self, x, y, padding=0.1, dense=100,
-                    title=None, show_org=False, show_background=True, emphasize=None):
+                    title=None, show_org=False, show_background=True, emphasize=None, extra=None):
         if False:
             print(Axes3D.add_artist)
         axis, labels = np.array(x).T, np.array(y)
@@ -320,6 +322,10 @@ class ClassifierBase:
         p_classes, _ = transform_arr(p_classes)
         z_classes, _ = transform_arr(z_classes)
         colors = plt.cm.rainbow([i / n_label for i in range(n_label)])
+        if extra is not None:
+            ex0, ex1, ex2 = np.array(extra).T
+        else:
+            ex0 = ex1 = ex2 = None
 
         if title is None:
             try:
@@ -345,6 +351,8 @@ class ClassifierBase:
 
         ax1.scatter(axis[0], axis[1], axis[2], c=colors[labels])
         ax2.scatter(axis[0], axis[1], axis[2], c=colors[p_classes], s=15)
+        if extra is not None:
+            ax2.scatter(ex0, ex1, ex2, s=80, zorder=25, facecolors="red")
         xyz_xf, xyz_yf, xyz_zf = base_matrix[..., 0], base_matrix[..., 1], base_matrix[..., 2]
         ax3.scatter(xyz_xf, xyz_yf, xyz_zf, c=colors[z_classes], s=15)
 
@@ -370,19 +378,24 @@ class ClassifierBase:
                 _ax.scatter(axis0[_indices], axis1[_indices], s=80,
                             facecolors="None", zorder=10)
 
+        def _extra(_ax, axis0, axis1, _c, _ex0, _ex1):
+            _emphasize(_ax, axis0, axis1, _c)
+            if extra is not None:
+                _ax.scatter(_ex0, _ex1, s=80, zorder=25, facecolors="red")
+
         colors = colors[labels]
 
         ax1.set_title("xy figure")
         _draw(ax1, xy_xf, xf, xy_yf, yf, z_xy)
-        _emphasize(ax1, axis[0], axis[1], colors)
+        _extra(ax1, axis[0], axis[1], colors, ex0, ex1)
 
         ax2.set_title("yz figure")
         _draw(ax2, yz_xf, yf, yz_yf, zf, z_yz)
-        _emphasize(ax2, axis[1], axis[2], colors)
+        _extra(ax2, axis[1], axis[2], colors, ex1, ex2)
 
         ax3.set_title("xz figure")
         _draw(ax3, xz_xf, xf, xz_yf, zf, z_xz)
-        _emphasize(ax3, axis[0], axis[2], colors)
+        _extra(ax3, axis[0], axis[2], colors, ex0, ex2)
 
         plt.show()
 
