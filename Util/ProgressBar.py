@@ -25,6 +25,8 @@ class ProgressBar:
             print("Progress bar not started yet.")
             return False
         if self._terminated:
+            if self._counter == self._min:
+                self._counter = self._min + 1
             self._cost = time.time() - self._clock
             tmp_hour = int(self._cost / 3600)
             tmp_min = int((self._cost - tmp_hour * 3600) / 60)
@@ -36,7 +38,7 @@ class ProgressBar:
             print(
                 "\r" + "##{}({:d} : {:d} -> {:d}) Task Finished. "
                        "Time Cost: {:3d} h {:3d} min {:6.4} s; Average: {:3d} h {:3d} min {:6.4} s ".format(
-                            self._bar_name, self._task_length, self._min, self._max,
+                            self._bar_name, self._task_length, self._min, self._counter - self._min,
                             tmp_hour, tmp_min, tmp_sec, tmp_avg_hour, tmp_avg_min, tmp_avg_sec
                         ) + " ##\n", end=""
             )
@@ -106,6 +108,10 @@ class ProgressBar:
             return
         self._current = self._clock = time.time()
         self._started = True
+        self._flush()
+
+    def terminate(self):
+        self._terminated = True
         self._flush()
 
 if __name__ == '__main__':
