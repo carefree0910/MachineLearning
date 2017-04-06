@@ -92,7 +92,7 @@ plt.show()
 
 # Example3: RBFN Regression with BFGS & Armijo using "Automatic Differentiation"
 # "RBFN" represents "Radial Basis Function Network". Typically, we use Gaussian Function for this example
-class Sigma(Function):
+class RBFN(Function):
     def __init__(self, mat, y, mat_cv, y_cv, centers, x0=10, n=1, **kwargs):
         super(Sigma, self).__init__(n, **kwargs)
         self._mat_high_dim = np.atleast_2d(mat)[:, None, ...]
@@ -120,7 +120,7 @@ class Sigma(Function):
 class RBFNRegressor(RegressorBase):
     def __init__(self, opt, line_search=None, **kwargs):
         super(RBFNRegressor, self).__init__(**kwargs)
-        self._func = Sigma
+        self._func = RBFN
         self._sigma2 = self._centers = None
         self._line_search = line_search
         self._opt_cache = self._func_cache = None
