@@ -41,14 +41,12 @@ class LogisticRegression(Function):
         self._dot_cache = self._x.dot(x)
         self._exp_dot_cache = np.exp(self._dot_cache)
         self._pi = self._exp_dot_cache / (1 + self._exp_dot_cache)
-        if dtype == "all":
-            self._grad_cache = self._x.T.dot(self._pi - self._y)
 
     def loss(self, x):
         return np.log(1 + self._exp_dot_cache).sum() - self._dot_cache.dot(self._y)
 
     def grad(self, x):
-        return self._grad_cache
+        return self._x.T.dot(self._pi - self._y)
 
     def hessian(self, x):
         grad = self._pi * (1 - self._pi)  # type: np.ndarray
@@ -94,7 +92,7 @@ plt.show()
 # "RBFN" represents "Radial Basis Function Network". Typically, we use Gaussian Function for this example
 class RBFN(Function):
     def __init__(self, mat, y, mat_cv, y_cv, centers, x0=10, n=1, **kwargs):
-        super(Sigma, self).__init__(n, **kwargs)
+        super(RBFN, self).__init__(n, **kwargs)
         self._mat_high_dim = np.atleast_2d(mat)[:, None, ...]
         self._mat_cv_high_dim = np.atleast_2d(mat_cv)[:, None, ...]
         self._y, self._y_cv = np.array(y), np.array(y_cv)
