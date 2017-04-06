@@ -25,7 +25,7 @@ class LogisticRegression(Function):
         super(LogisticRegression, self).__init__(n, **kwargs)
         self._x, self._y = np.atleast_2d(x), np.array(y)
         self._beta = self._pi = None
-        self._dot_cache = self._exp_dot_cache = self._grad_cache = None
+        self._dot_cache = self._exp_dot_cache = None
 
     @property
     def x0(self):
