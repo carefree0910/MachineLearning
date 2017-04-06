@@ -13,7 +13,7 @@ class TimingBase:
         pass
 
 
-class ClassifierBase:
+class ModelBase:
     clf_timing = Timing()
 
     def __init__(self, **kwargs):
@@ -45,65 +45,11 @@ class ClassifierBase:
 
     @staticmethod
     def disable_timing():
-        ClassifierBase.clf_timing.disable()
+        ModelBase.clf_timing.disable()
 
     @staticmethod
     def show_timing_log(level=2):
-        ClassifierBase.clf_timing.show_timing_log(level)
-
-    @staticmethod
-    def acc(y, y_pred, weights=None):
-        if not isinstance(y, np.ndarray):
-            y = np.array(y)
-        if not isinstance(y_pred, np.ndarray):
-            y_pred = np.array(y_pred)
-        if weights is not None:
-            return np.sum((y == y_pred) * weights) / len(y)
-        return np.sum(y == y_pred) / len(y)
-
-    # noinspection PyTypeChecker
-    @staticmethod
-    def f1_score(y, y_pred):
-        tp = np.sum(y * y_pred)
-        if tp == 0:
-            return .0
-        fp = np.sum((1 - y) * y_pred)
-        fn = np.sum(y * (1 - y_pred))
-        return 2 * tp / (2 * tp + fn + fp)
-
-    def get_metrics(self, metrics):
-        if len(metrics) == 0:
-            for metric in self._metrics:
-                metrics.append(metric)
-            return metrics
-        for i in range(len(metrics) - 1, -1, -1):
-            metric = metrics[i]
-            if isinstance(metric, str):
-                try:
-                    metrics[i] = self._available_metrics[metric]
-                except AttributeError:
-                    metrics.pop(i)
-        return metrics
-
-    def predict(self, x, get_raw_results=False):
-        pass
-
-    @clf_timing.timeit(level=1, prefix="[API] ")
-    def evaluate(self, x, y, metrics=None, tar=None, prefix="Acc"):
-        if metrics is None:
-            metrics = ["acc"]
-        self.get_metrics(metrics)
-        logs, y_pred = [], self.predict(x)
-        y = np.array(y)
-        if y.ndim == 2:
-            y = np.argmax(y, axis=1)
-        for metric in metrics:
-            logs.append(metric(y, y_pred))
-        if tar is None:
-            tar = 0
-        if isinstance(tar, int):
-            print(prefix + ": {:12.8}".format(logs[tar]))
-        return logs
+        ModelBase.clf_timing.show_timing_log(level)
 
     def scatter2d(self, x, y, padding=0.5, title=None):
         axis, labels = np.array(x).T, np.array(y)
@@ -189,6 +135,64 @@ class ClassifierBase:
         ax.legend(_scatters, ["$c_{}$".format("{" + str(i) + "}") for i in range(len(_scatters))],
                   ncol=math.ceil(math.sqrt(len(_scatters))), fontsize=8)
         plt.show()
+
+
+class ClassifierBase(ModelBase):
+    clf_timing = Timing()
+
+    @staticmethod
+    def acc(y, y_pred, weights=None):
+        if not isinstance(y, np.ndarray):
+            y = np.array(y)
+        if not isinstance(y_pred, np.ndarray):
+            y_pred = np.array(y_pred)
+        if weights is not None:
+            return np.sum((y == y_pred) * weights) / len(y)
+        return np.sum(y == y_pred) / len(y)
+
+    # noinspection PyTypeChecker
+    @staticmethod
+    def f1_score(y, y_pred):
+        tp = np.sum(y * y_pred)
+        if tp == 0:
+            return .0
+        fp = np.sum((1 - y) * y_pred)
+        fn = np.sum(y * (1 - y_pred))
+        return 2 * tp / (2 * tp + fn + fp)
+
+    def get_metrics(self, metrics):
+        if len(metrics) == 0:
+            for metric in self._metrics:
+                metrics.append(metric)
+            return metrics
+        for i in range(len(metrics) - 1, -1, -1):
+            metric = metrics[i]
+            if isinstance(metric, str):
+                try:
+                    metrics[i] = self._available_metrics[metric]
+                except AttributeError:
+                    metrics.pop(i)
+        return metrics
+
+    def predict(self, x, get_raw_results=False):
+        pass
+
+    @clf_timing.timeit(level=1, prefix="[API] ")
+    def evaluate(self, x, y, metrics=None, tar=None, prefix="Acc"):
+        if metrics is None:
+            metrics = ["acc"]
+        self.get_metrics(metrics)
+        logs, y_pred = [], self.predict(x)
+        y = np.array(y)
+        if y.ndim == 2:
+            y = np.argmax(y, axis=1)
+        for metric in metrics:
+            logs.append(metric(y, y_pred))
+        if tar is None:
+            tar = 0
+        if isinstance(tar, int):
+            print(prefix + ": {:12.8}".format(logs[tar]))
+        return logs
 
     def visualize2d(self, x, y, padding=0.1, dense=200,
                     title=None, show_org=False, show_background=True, emphasize=None, extra=None):
@@ -402,12 +406,6 @@ class ClassifierBase:
         print("Done.")
 
 
-class KernelConfig:
-    default_c = 1
-    default_p = 3
-    default_lr = 0.001
-
-
 class KernelBase(ClassifierBase):
     KernelBaseTiming = Timing()
 
@@ -548,3 +546,39 @@ class KernelBase(ClassifierBase):
         if not get_raw_results:
             return np.sign(y_pred)
         return y_pred
+
+
+class RegressorBase(ModelBase):
+    def predict(self, x):
+        return x
+
+    def visualize2d(self, x, y, padding=0.1, dense=400, title=None):
+        x, y = np.array(x).ravel(), np.array(y)
+
+        print("=" * 30 + "\n" + str(self))
+
+        x_min, x_max = np.min(x), np.max(x)
+        y_min, y_max = np.min(y), np.max(y)
+        x_padding = max(abs(x_min), abs(x_max)) * padding
+        x_min -= x_padding
+        x_max += x_padding
+
+        t = time.time()
+        x_base = np.linspace(x_min, x_max, dense)
+        y_pred = self.predict(x_base[..., None])
+        print("Decision Time: {:8.6} s".format(time.time() - t))
+
+        print("Drawing figures...")
+
+        if title is None:
+            title = self.title
+
+        plt.figure()
+        plt.title(title)
+        plt.scatter(x, y, c="g", s=20)
+        plt.plot(x_base, y_pred)
+        plt.xlim(x_min, x_max)
+        plt.ylim(y_min, y_max)
+        plt.show()
+
+        print("Done.")

@@ -116,7 +116,7 @@ class ProgressBar:
 
 if __name__ == '__main__':
 
-    def task(cost=0.5, epoch=3, name="", _sub_task=None):
+    def task(cost=0.25, epoch=3, name="", _sub_task=None):
         def _sub():
             bar = ProgressBar(max_value=epoch, name=name)
             bar.start()
