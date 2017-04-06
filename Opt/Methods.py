@@ -236,6 +236,9 @@ class Optimizer:
         The framework for general optimizers
         :param func        : Should be a SubClass of class 'Function' defined in Functions.py  
         :param line_search : Should be a SubClass of class 'LineSearch' defined above
+        :param kwargs      : May contain two parameters:
+                     epoch : Maximum iteration for optimization  ; default: 1000
+                     eps   : Tolerance                           ; default: 1e-8
         """
         assert isinstance(func, Function)
         assert line_search is None or isinstance(line_search, LineSearch)
