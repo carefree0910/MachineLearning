@@ -132,12 +132,14 @@ class RBFNRegressor(RegressorBase):
     def rbf(self, x, s):
         return np.sum(np.exp(-(x[:, None, ...] - self._centers) ** 2 / s), axis=2)
 
-    def fit(self, x, y, x_cv, y_cv, n_centers=None):
+    def fit(self, x, y, x_cv, y_cv, n_centers=None, n_centers_rate=None):
         if n_centers is None:
             if self._params["n_centers"] is not None:
                 n_centers = int(self._params["n_centers"])
             else:
-                n_centers = int(self._params["n_centers_rate"] * len(x))
+                if n_centers_rate is None:
+                    n_centers_rate = self._params["n_centers_rate"]
+                n_centers = int(n_centers_rate * len(x))
         k_means = KMeans(n_clusters=n_centers)
         k_means.fit(x)
         self._centers = k_means["centers"]
