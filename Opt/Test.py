@@ -19,7 +19,7 @@ print(np.linalg.norm(_x))
 
 
 # Example2: Logistic Regression with Newton & scipy's Strong Wolfe
-# (However this naive version will sometimes encounter overflow / underflow in exp)
+# However this naive version will sometimes encounter overflow / underflow in exp
 class LogisticRegression(Function):
     def __init__(self, n, x, y, **kwargs):
         super(LogisticRegression, self).__init__(n, **kwargs)
@@ -55,28 +55,11 @@ class LogisticRegression(Function):
         return self._x.T.dot(np.diag(grad)).dot(self._x)
 
 
-# Always use initial point as the optimal result
-class LR0(ClassifierBase):
-    def __init__(self, **kwargs):
-        super(LR0, self).__init__(**kwargs)
-        self._func = LogisticRegression
-        self._beta = self._func_cache = None
-
-    def fit(self, x, y):
-        self._func_cache = self._func(x.shape[1], x, y)
-        self._beta = self._func_cache.x0
-
-    def predict(self, x, get_raw_results=False):
-        pi = 1 / (1 + np.exp(-np.atleast_2d(x).dot(self._beta)))
-        if get_raw_results:
-            return pi
-        return (pi >= 0.5).astype(np.double)
-
-
-# Perform optimization with given algorithms
-class LR(LR0):
+class LR(ClassifierBase):
     def __init__(self, opt, line_search=None, **kwargs):
         super(LR, self).__init__(**kwargs)
+        self._func = LogisticRegression
+        self._beta = self._func_cache = None
         self._line_search = line_search
         self._opt_cache = None
         self._opt = opt
@@ -88,13 +71,13 @@ class LR(LR0):
         self._opt_cache.opt()
         self._beta = self._func_cache._beta
 
+    def predict(self, x, get_raw_results=False):
+        pi = 1 / (1 + np.exp(-np.atleast_2d(x).dot(self._beta)))
+        if get_raw_results:
+            return pi
+        return (pi >= 0.5).astype(np.double)
+
 data, labels = DataUtil.gen_two_clusters(one_hot=False)
-lr = LR0()
-lr.fit(data, labels)
-lr.evaluate(data, labels)
-lr["func_cache"].refresh_cache(lr["beta"])
-print("Loss:", lr["func_cache"].loss(lr["beta"]))
-lr.visualize2d(data, labels, dense=400)
 lr = LR(Newton)
 lr.fit(data, labels)
 lr.evaluate(data, labels)
@@ -143,13 +126,19 @@ class RBFNRegressor(RegressorBase):
         self._opt_cache = self._func_cache = None
         self._opt = opt
 
+        self._params["n_centers"] = kwargs.get("n_centers", None)
+        self._params["n_centers_rate"] = kwargs.get("n_centers_rate", 0.75)
+
     def rbf(self, x, s):
         return np.sum(np.exp(-(x[:, None, ...] - self._centers) ** 2 / s), axis=2)
 
-    def fit(self, x, y, x_cv, y_cv, n_clusters=None):
-        if n_clusters is None:
-            n_clusters = int(0.5 * len(x))
-        k_means = KMeans(n_clusters=n_clusters)
+    def fit(self, x, y, x_cv, y_cv, n_centers=None):
+        if n_centers is None:
+            if self._params["n_centers"] is not None:
+                n_centers = int(self._params["n_centers"])
+            else:
+                n_centers = int(self._params["n_centers_rate"] * len(x))
+        k_means = KMeans(n_clusters=n_centers)
         k_means.fit(x)
         self._centers = k_means["centers"]
         self._func_cache = self._func(x, y, x_cv, y_cv, self._centers)
@@ -163,7 +152,7 @@ class RBFNRegressor(RegressorBase):
         return k_mat.dot(alpha)
 
 data = np.linspace(0, 20, 100)[..., None]
-labels = data.ravel() ** 2 + np.random.rand(100) * 10
+labels = data.ravel() ** 2 + np.random.rand(100) * 25
 indices = np.random.permutation(len(data))
 data, labels = data[indices], labels[indices]
 rbfn = RBFNRegressor(BFGS, Armijo)
