@@ -231,7 +231,7 @@ class StrongWolfe(LineSearch):
 # Optimizer Frameworks
 
 class Optimizer:
-    def __init__(self, func, line_search=None):
+    def __init__(self, func, line_search=None, **kwargs):
         """
         The framework for general optimizers
         :param func        : Should be a SubClass of class 'Function' defined in Functions.py  
@@ -245,6 +245,10 @@ class Optimizer:
         self.log = []
         self.feva = self.iter = 0
         self.success = np.zeros(2, dtype=np.int)
+        self._params = {
+            "epoch": kwargs.get("epoch", OptConfig.epoch),
+            "eps": kwargs.get("eps", OptConfig.eps),
+        }
 
     @staticmethod
     def solve(a, y, negative=True):
@@ -290,13 +294,17 @@ class Optimizer:
         """ Method that returns the opt direction. Should be overwritten by SubClasses"""
         return self._d
 
-    def opt(self, epoch=OptConfig.epoch, eps=OptConfig.eps):
+    def opt(self, epoch=None, eps=None):
         """
         Main procedure of opt
         :param epoch : Maximum iteration ; default: 1000
         :param eps   : Tolerance         ; default: 1e-8
         :return      : x*, f*, n_iter, feva
         """
+        if epoch is None:
+            epoch = self._params["epoch"]
+        if eps is None:
+            eps = self._params["eps"]
         self._func.refresh_cache(self._x)
         self._loss_cache, self._grad_cache = self.func(0), self.func(1)
         bar = ProgressBar(max_value=epoch, name="Opt")
