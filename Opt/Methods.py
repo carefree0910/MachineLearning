@@ -310,10 +310,10 @@ class Optimizer:
                         break
                     self.log.append(self._loss_cache)
                 except RuntimeWarning as err:
-                    print(err)
+                    print("\n", err, "\n")
                     break
                 except np.linalg.linalg.LinAlgError as err:
-                    print(err)
+                    print("\n", err, "\n")
                     break
             bar.update()
         bar.update()
@@ -332,24 +332,33 @@ class Optimizer:
 
     def _line_search_update(self):
         """ Proceed line search with x & d """
-        if self._search is not None:
-            alpha, feva, success_flag, self._loss_cache, self._grad_cache = self._search.step(
-                self._x, self.get_d())
-            self.success += success_flag
-        elif not scipy_flag:
-            feva, alpha = 0, 1
-        else:
-            def f(x):
-                self._func.refresh_cache(x, dtype="loss")
-                return self._func.loss(x)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("error")
+            try:
+                if self._search is not None:
+                    alpha, feva, success_flag, self._loss_cache, self._grad_cache = self._search.step(
+                        self._x, self.get_d())
+                    self.success += success_flag
+                elif not scipy_flag:
+                    feva, alpha = 0, 1
+                else:
+                    def f(x):
+                        self._func.refresh_cache(x, dtype="loss")
+                        return self._func.loss(x)
 
-            def g(x):
-                self._func.refresh_cache(x)
-                return self._func.grad(x)
+                    def g(x):
+                        self._func.refresh_cache(x)
+                        return self._func.grad(x)
 
-            alpha, feva, _, self._loss_cache, old_f, self._grad_cache = optimize.line_search(
-                f, g, self._x, self.get_d()
-            )
+                    alpha, feva, _, self._loss_cache, old_f, self._grad_cache = optimize.line_search(
+                        f, g, self._x, self.get_d()
+                    )
+            except RuntimeWarning:
+                feva = 0
+                if self._search is not None:
+                    alpha = self._search._params["floor"]
+                else:
+                    alpha = 0.01
         self._x += alpha * self._d
         self.feva += feva
         self._d = None
