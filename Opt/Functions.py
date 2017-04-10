@@ -29,7 +29,12 @@ class Function:
 
     @property
     def bounds(self):
-        """ Should return the bounds """
+        """ Should return the bounds. Format:
+            [[min, max],
+             [min, max],
+             ...,
+             [min, max]]
+        """
         return
 
     def grad(self, x):

@@ -256,7 +256,11 @@ class Optimizer:
     @staticmethod
     def solve(a, y, negative=True):
         """
-        A wrapper for solving linear system 'ax = y' using cholesky decompose (not sparse) or spsolve (if sparse)
+        A wrapper for solving linear system 'ax = y' using:
+            1) np.linalg.solve (if scipy is not available)
+            2) cholesky decompose (if scipy is available and a is not sparse)
+            3) spsolve (if scipy is available a is sparse)
+        If scipy is available and matrix a is not sparse and is not positive definite, LinAlgError will be thrown
         :param a        : 'a'
         :param y        : 'y'
         :param negative : If True, we'll solve '-ax = y' instead
@@ -401,7 +405,7 @@ class Newton(Optimizer):
     def get_d(self):
         if self._d is None:
             self._grad_cache = self.func(1)
-            self._d = Optimizer.solve(self.func(2), self._grad_cache)
+            self._d = np.linalg.solve(self.func(2), self._grad_cache)
         return self._d
 
 
@@ -535,3 +539,20 @@ class BFGS(DFP):
         super(BFGS, self)._update_mat()
         self._s, self._y = self._y, self._s
         self._method = "H" if self._method == "B" else "B"
+
+
+# Scipy Optimizer
+
+class ScipyOpt:
+    def __init__(self, func):
+        self._func = func
+
+    def opt(self):
+        if not scipy_flag:
+            raise ValueError("Scipy is not available")
+
+        def f(_x):
+            self._func.refresh_cache(_x)
+            return self._func.loss(_x), self._func.grad(_x)
+        result = optimize.minimize(f, self._func.x0, jac=True, method="L-BFGS-B", bounds=self._func.bounds)
+        return result.x, result.fun, result.nit, result.nfev

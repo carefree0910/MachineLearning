@@ -18,7 +18,7 @@ print(f, n_iter, n_feva)
 print(np.linalg.norm(_x))
 
 
-# Example2: Logistic Regression with Newton & scipy's Strong Wolfe
+# Example2: Logistic Regression with LM & scipy's Strong Wolfe
 # However this naive version will sometimes encounter overflow / underflow in exp
 class LogisticRegression(Function):
     def __init__(self, n, x, y, **kwargs):
@@ -76,7 +76,7 @@ class LR(ClassifierBase):
         return (pi >= 0.5).astype(np.double)
 
 data, labels = DataUtil.gen_two_clusters(one_hot=False)
-lr = LR(Newton)
+lr = LR(LM)
 lr.fit(data, labels)
 lr.evaluate(data, labels)
 lr["func_cache"].refresh_cache(lr["beta"])
@@ -159,3 +159,69 @@ rbfn = RBFNRegressor(BFGS, Armijo)
 cv_idx, test_idx = 70, 85
 rbfn.fit(data[:cv_idx], labels[:cv_idx], data[cv_idx:test_idx], labels[cv_idx:test_idx])
 rbfn.visualize2d(data, labels, padding=1)
+
+
+# Example4: Naive 3-Layer Neural Network with GradientDescent & Wolfe using "Automatic Differentiation"
+# Structure: Input -> ReLU (12 units) -> Sigmoid + Cross Entropy (no bias)
+class NNFunc(Function):
+    def __init__(self, x, y, n_hidden=12, **kwargs):
+        self._x, self._y = np.atleast_2d(x), np.array(y)
+        if len(self._y.shape) == 1:
+            self._y = np.array(self._y[..., None] == np.arange(np.max(self._y)), dtype=np.double)
+        n_input, n_output = self._x.shape[1], self._y.shape[1]
+        super(NNFunc, self).__init__(n_input * n_hidden + n_hidden * n_output, **kwargs)
+        self._dims, self._cut_idx = (n_input, n_hidden, n_output), n_input * n_hidden
+        self.mat1 = self.mat2 = None
+
+    def loss(self, x):
+        mat1 = x[:self._cut_idx].reshape(self._dims[:2])
+        mat2 = x[self._cut_idx:].reshape(self._dims[1:])
+        y_raw = np.maximum(0, self._x.dot(mat1)).dot(mat2)
+        y_pred = 1 / (1 + np.exp(-y_raw))
+        self.mat1, self.mat2 = mat1, mat2
+        return np.average(
+            -self._y * np.log(np.maximum(y_pred, 1e-12)) - (1 - self._y) * np.log(np.maximum(1 - y_pred, 1e-12)))
+
+
+class NN(ClassifierBase):
+    def __init__(self, opt, line_search=None, **kwargs):
+        super(NN, self).__init__(**kwargs)
+        self._func = NNFunc
+        self._mat1 = self._mat2 = None
+        self._line_search = line_search
+        self._opt_cache = self._func_cache = None
+        self._opt = opt
+
+        self._params["n_hidden"] = kwargs.get("n_hidden", 24)
+        self._params["use_scipy"] = kwargs.get("use_scipy", False)
+
+    def fit(self, x, y, n_hidden=None, use_scipy=None):
+        if n_hidden is None:
+            n_hidden = self._params["n_hidden"]
+        if use_scipy is None:
+            use_scipy = self._params["use_scipy"]
+        self._func_cache = self._func(x, y, n_hidden)
+        if not use_scipy:
+            line_search = None if self._line_search is None else self._line_search(self._func_cache)
+            self._opt_cache = self._opt(self._func_cache, line_search)
+        else:
+            self._opt_cache = ScipyOpt(self._func_cache)
+        self._opt_cache.opt()
+        self._mat1, self._mat2 = self._func_cache.mat1, self._func_cache.mat2
+
+    def predict(self, x, get_raw_results=False):
+        y_raw = np.maximum(0, np.atleast_2d(x).dot(self._mat1)).dot(self._mat2)
+        y_pred = 1 / (1 + np.exp(-y_raw))  # type: np.ndarray
+        if get_raw_results:
+            return y_pred
+        return np.argmax(y_pred, axis=1)
+
+data, labels = DataUtil.gen_xor()
+nn = NN(GradientDescent, Wolfe)
+nn.fit(data, labels)
+nn.evaluate(data, labels)
+nn.visualize2d(data, labels)
+# Draw Training Curve
+plt.figure()
+plt.plot(np.arange(len(nn["opt_cache"].log))+1, nn["opt_cache"].log)
+plt.show()

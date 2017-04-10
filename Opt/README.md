@@ -8,4 +8,4 @@ Support "Automatic Differentiation" using [Five-point stencil][1]
 
 Implemented with numpy, but scipy will be helpful
 
-Examples (e.g. Logistic Regression, RBFN Regression) could be found in Test.py
+Examples (e.g. Logistic Regression, RBFN Regression, Neural Network) could be found in Test.py
