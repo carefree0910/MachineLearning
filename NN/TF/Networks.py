@@ -912,7 +912,7 @@ class NNDist(NNBase):
                 break
         with open(os.path.join(path, name, "IO.txt"), "w") as file:
             file.write("\n".join([
-                "Input  : Entry:Placeholder:0",
+                "Input  : Entry/Placeholder:0",
                 "Output : {}:0".format(_output)
             ]))
         graph_io.write_graph(self._sess.graph, os.path.join(path, name), "Cache.pb", False)
