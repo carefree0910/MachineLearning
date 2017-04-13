@@ -1,7 +1,12 @@
+import os
 import pickle
 import numpy as np
-from math import pi, sqrt, ceil
+import tensorflow as tf
 import matplotlib.pyplot as plt
+from math import pi, sqrt, ceil
+from tensorflow.python.platform import gfile
+from tensorflow.python.framework import graph_io
+from tensorflow.python.tools import freeze_graph
 
 from pylab import mpl
 mpl.rcParams['font.sans-serif'] = ['FangSong']
@@ -29,6 +34,44 @@ class Util:
             return False
         if _str_obj.find("function") >= 0 or _str_obj.find("staticmethod") >= 0:
             return True
+
+    @staticmethod
+    def freeze_graph(sess, ckpt, output):
+        print("Loading checkpoint...")
+        saver = tf.train.Saver()
+        saver.restore(sess, ckpt)
+        print("Writing graph...")
+        saver = tf.train.Saver()
+        if not os.path.isdir("_Cache"):
+            os.makedirs("_Cache")
+        _dir = os.path.join("_Cache", "Model")
+        saver.save(sess, _dir)
+        graph_io.write_graph(sess.graph, "_Cache", "Model.pb", False)
+        print("Freezing graph...")
+        freeze_graph.freeze_graph(
+            os.path.join("_Cache", "Model.pb"),
+            "", True, os.path.join("_Cache", "Model"),
+            output, "save/restore_all", "save/Const:0", "Frozen.pb", True, ""
+        )
+        print("Done")
+
+    @staticmethod
+    def load_frozen_graph(graph_dir, fix_nodes=True):
+        with gfile.FastGFile(graph_dir, "rb") as file:
+            graph_def = tf.GraphDef()
+            graph_def.ParseFromString(file.read())
+            if fix_nodes:
+                for node in graph_def.node:
+                    if node.op == "RefSwitch":
+                        node.op = "Switch"
+                        for index in range(len(node.input)):
+                            if "moving_" in node.input[index]:
+                                node.input[index] = node.input[index] + "/read"
+                    elif node.op == "AssignSub":
+                        node.op = "Sub"
+                        if "use_locking" in node.attr:
+                            del node.attr["use_locking"]
+            tf.import_graph_def(graph_def, name="")
 
 
 class DataUtil:
