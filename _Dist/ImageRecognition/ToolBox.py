@@ -135,7 +135,7 @@ class Extractor:
                 print("Extracting features...")
                 rs = []
                 batch_size = math.floor(1e6 / np.prod(features.shape[1:]))
-                epoch = math.ceil(len(features) / batch_size)
+                epoch = math.ceil(len(features) / batch_size)  # type: int
                 bar = ProgressBar(max_value=epoch, name="Extract")
                 bar.start()
                 for i in range(epoch):
@@ -187,7 +187,7 @@ class Predictor:
             flattened_tensor = sess.graph.get_tensor_by_name(self._output)
             print("Predicting...")
             batch_size = math.floor(1e6 / np.prod(x.shape[1:]))
-            epoch = math.ceil(len(x) / batch_size)
+            epoch = math.ceil(len(x) / batch_size)  # type: int
             bar = ProgressBar(max_value=epoch, name="Predict")
             bar.start()
             for i in range(epoch):
@@ -228,19 +228,20 @@ class Pipeline:
             rs_dir = self._rs_dir
         y_pred = np.exp(np.load(rs_dir + "/prediction.npy"))
         y_pred /= np.sum(y_pred, axis=1, keepdims=True)
+        pred_classes = np.argmax(y_pred, axis=1)
         if ans is not None:
             true_classes = np.argmax(ans, axis=1)
-            pred_classes = np.argmax(y_pred, axis=1)
             true_prob = y_pred[range(len(y_pred)), true_classes]
         else:
-            true_classes = pred_classes = true_prob = None
+            true_classes = None
+            true_prob = y_pred[range(len(y_pred)), pred_classes]
         self._ans, self._pred, self._prob = true_classes, pred_classes, true_prob
         images = []
         c_base = 60
         for i, img in enumerate(Pipeline.get_image_paths(img_dir, True)):
             _pred = y_pred[i]
             _indices = np.argsort(_pred)[-3:][::-1]
-            label_dic = np.load("_Data/_Cache/LABEL_DIC.npy")
+            label_dic = np.load(os.path.join("_Data", "_Cache", "LABEL_DIC.npy"))
             _ps, _labels = _pred[_indices], label_dic[_indices]
             _img = cv2.imread(img)
             if true_classes is None:
@@ -267,7 +268,7 @@ class Pipeline:
         return images
 
     def _get_detail(self, event, x, y, *_):
-        label_dic = np.load("_Data/_Cache/LABEL_DIC.npy")
+        label_dic = np.load(os.path.join("_Data", "_Cache", "LABEL_DIC.npy"))
         if event == cv2.EVENT_LBUTTONDBLCLK:
             _w, _h = Pipeline.shape
             _pw, _ph = _w / self._n_col, _h / self._n_row
@@ -339,7 +340,7 @@ class Pipeline:
             print("-" * 30)
         self._img_dir = images_dir
         self._rs_dir = images_dir + "/_Result"
-        label_dic = np.load("_Data/_Cache/LABEL_DIC.npy")
+        label_dic = np.load(os.path.join("_Data", "_Cache", "LABEL_DIC.npy"))
         if not visualize_only:
             if not os.path.isdir(images_dir + "/_Result"):
                 os.makedirs(self._rs_dir)
@@ -361,7 +362,7 @@ class Pipeline:
             else:
                 _ans = None
             images = self._get_results(_ans)
-            n_row = math.ceil(math.sqrt(len(images)))
+            n_row = math.ceil(math.sqrt(len(images)))  # type: int
             n_col = math.ceil(len(images) / n_row)
             pictures = []
             for i in range(n_row):

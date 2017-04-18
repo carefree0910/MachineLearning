@@ -36,8 +36,10 @@ def fetch_data(name="_Data"):
 
 def main(_):
     if FLAGS.gen_test:
-        test_list = [file for file in os.listdir("Test") if imghdr.what(
-            os.path.join("Test", file)) is not None]
+        test_list = [
+            file for file in os.listdir("Test") if os.path.isfile(os.path.join("Test", file)) and imghdr.what(
+                os.path.join("Test", file)) is not None
+        ]
         if test_list:
             print("Test set already exists")
         else:
