@@ -2,3 +2,4 @@ name: Machine Learning
 author: Carefree0910
 theme: jekyll-theme-cayman
 timezone: CN
+show_downloads: True
