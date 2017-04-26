@@ -273,7 +273,7 @@ class ConvMeta(type):
 
             shape = (n_channels, filter_height, filter_width, n, self.out_h, self.out_w)
             strides = (height * width, width, 1, n_channels * height * width, sd * width, sd)
-            strides = x.itemsize * np.array(strides)
+            strides = x.itemsize * np.asarray(strides)
             x_cols = np.lib.stride_tricks.as_strided(x_padded, shape=shape, strides=strides).reshape(
                 n_channels * filter_height * filter_width, n * self.out_h * self.out_w)
             self.x_col_cache = x_cols

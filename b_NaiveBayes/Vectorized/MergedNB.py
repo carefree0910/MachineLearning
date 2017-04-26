@@ -17,13 +17,13 @@ class MergedNB(NaiveBayes):
         if wc is None:
             self._whether_discrete = self._whether_continuous = None
         else:
-            self._whether_continuous = np.array(wc)
+            self._whether_continuous = np.asarray(wc)
             self._whether_discrete = ~self._whether_continuous
 
     @MergedNBTiming.timeit(level=1, prefix="[API] ")
     def feed_data(self, x, y, sample_weight=None):
         if sample_weight is not None:
-            sample_weight = np.array(sample_weight)
+            sample_weight = np.asarray(sample_weight)
         x, y, wc, features, feat_dics, label_dic = DataUtil.quantize_data(
             x, y, wc=self._whether_continuous, separate=True)
         if self._whether_continuous is None:

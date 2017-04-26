@@ -34,7 +34,7 @@ class CvDBase(ClassifierBase):
             self.whether_continuous = np.array(
                 [len(feat) >= int(continuous_rate * data_len) for feat in self.feature_sets])
         else:
-            self.whether_continuous = np.array(self.whether_continuous)
+            self.whether_continuous = np.asarray(self.whether_continuous)
         self.root.feats = [i for i in range(x.shape[1])]
         self.root.feed_tree(self)
 

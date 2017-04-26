@@ -30,11 +30,11 @@ class LinearSVM(ClassifierBase):
             epoch = self._params["epoch"]
         if tol is None:
             tol = self._params["tol"]
-        x, y = np.atleast_2d(x), np.array(y)
+        x, y = np.atleast_2d(x), np.asarray(y)
         if sample_weight is None:
             sample_weight = np.ones(len(y))
         else:
-            sample_weight = np.array(sample_weight) * len(y)
+            sample_weight = np.asarray(sample_weight) * len(y)
         self._w = np.zeros(x.shape[1])
         self._b = 0
         bar = ProgressBar(max_value=epoch, name="LinearSVM")
@@ -88,7 +88,7 @@ class TFLinearSVM(ClassifierBase):
         if sample_weight is None:
             sample_weight = tf.constant(np.ones(len(y)), dtype=tf.float32, name="sample_weight")
         else:
-            sample_weight = tf.constant(np.array(sample_weight) * len(y), dtype=tf.float32, name="sample_weight")
+            sample_weight = tf.constant(np.asarray(sample_weight) * len(y), dtype=tf.float32, name="sample_weight")
         x, y = tf.constant(x, dtype=tf.float32), tf.constant(y, dtype=tf.float32)
         self._w = tf.Variable(np.zeros(x.shape[1]), dtype=tf.float32, name="w")
         self._b = tf.Variable(0., dtype=tf.float32, name="b")

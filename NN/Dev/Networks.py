@@ -438,7 +438,7 @@ class NNDist(NNBase):
                 raise BuildNetworkError("Please provide input matrix")
             y = self._y
         else:
-            y = np.array(y, dtype=np.float32)
+            y = np.asarray(y, dtype=np.float32)
         if len(x) != len(y):
             raise BuildNetworkError("Data fed to network should be identical in length, x: {} and y: {} found".format(
                 len(x), len(y)
@@ -727,7 +727,7 @@ class NNDist(NNBase):
                 raise NotImplementedError("Invalid param '{}' provided to 'build' method".format(units))
         else:
             try:
-                units = np.array(units).flatten().astype(np.int)
+                units = np.asarray(units).flatten().astype(np.int)
             except ValueError as err:
                 raise BuildLayerError(err)
             if len(units) < 2:
@@ -746,7 +746,7 @@ class NNDist(NNBase):
         if train_only:
             if x_test is not None and y_test is not None:
                 if not self._transferred_flags["test"]:
-                    x, y = np.vstack((x, NNDist._transfer_x(np.array(x_test)))), np.vstack((y, y_test))
+                    x, y = np.vstack((x, NNDist._transfer_x(np.asarray(x_test)))), np.vstack((y, y_test))
                     self._transferred_flags["test"] = True
             x_train = x_test = x.astype(np.float32)
             y_train = y_test = y.astype(np.float32)
@@ -760,7 +760,7 @@ class NNDist(NNBase):
             else:
                 x_train, y_train = x, y
                 if not self._transferred_flags["test"]:
-                    x_test, y_test = NNDist._transfer_x(np.array(x_test)), np.array(y_test, dtype=np.float32)
+                    x_test, y_test = NNDist._transfer_x(np.asarray(x_test)), np.asarray(y_test, dtype=np.float32)
                     self._transferred_flags["test"] = True
         if NNConfig.BOOST_LESS_SAMPLES:
             if y_train.shape[1] != 2:
@@ -1009,19 +1009,19 @@ class NNDist(NNBase):
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def predict(self, x):
-        x = NNDist._transfer_x(np.array(x))
+        x = NNDist._transfer_x(np.asarray(x))
         return self._get_prediction(x, out_of_sess=True)
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def predict_classes(self, x, flatten=True):
-        x = NNDist._transfer_x(np.array(x))
+        x = NNDist._transfer_x(np.asarray(x))
         if flatten:
             return np.argmax(self._get_prediction(x, out_of_sess=True), axis=1)
         return np.argmax([self._get_prediction(x, out_of_sess=True)], axis=2).T
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def evaluate(self, x, y, metrics=None):
-        x = NNDist._transfer_x(np.array(x))
+        x = NNDist._transfer_x(np.asarray(x))
         if metrics is None:
             metrics = self._metrics
         else:
@@ -1105,7 +1105,7 @@ class NNDist(NNBase):
                     VisUtil.show_batch_img(_w, "{} {} filter {}".format(name, i + 1, j + 1))
 
     def draw_conv_series(self, x, shape=None):
-        x = np.array(x)
+        x = np.asarray(x)
         for xx in x:
             VisUtil.show_img(VisUtil.trans_img(xx, shape), "Original")
             for i, (layer, ac) in enumerate(zip(

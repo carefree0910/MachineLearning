@@ -23,11 +23,11 @@ class Perceptron(ClassifierBase):
             lr = self._params["lr"]
         if epoch is None:
             epoch = self._params["epoch"]
-        x, y = np.atleast_2d(x), np.array(y)
+        x, y = np.atleast_2d(x), np.asarray(y)
         if sample_weight is None:
             sample_weight = np.ones(len(y))
         else:
-            sample_weight = np.array(sample_weight) * len(y)
+            sample_weight = np.asarray(sample_weight) * len(y)
         self._w = np.zeros(x.shape[1])
         self._b = 0
         bar = ProgressBar(max_value=epoch, name="Perceptron")

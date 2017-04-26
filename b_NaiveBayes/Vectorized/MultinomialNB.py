@@ -12,7 +12,7 @@ class MultinomialNB(NaiveBayes):
     @MultinomialNBTiming.timeit(level=1, prefix="[API] ")
     def feed_data(self, x, y, sample_weight=None):
         if sample_weight is not None:
-            sample_weight = np.array(sample_weight)
+            sample_weight = np.asarray(sample_weight)
         x, y, _, features, feat_dics, label_dic = DataUtil.quantize_data(x, y, wc=np.array([False] * len(x[0])))
         cat_counter = np.bincount(y)
         n_possibilities = [len(feats) for feats in features]
@@ -49,7 +49,7 @@ class MultinomialNB(NaiveBayes):
             data[dim] = [
                 [(self._con_counter[dim][c][p] + lb) / (self._cat_counter[c] + lb * n_possibilities)
                  for p in range(n_possibilities)] for c in range(n_category)]
-        self._data = [np.array(dim_info) for dim_info in data]
+        self._data = [np.asarray(dim_info) for dim_info in data]
 
         def func(input_x, tar_category):
             input_x = np.atleast_2d(input_x).T

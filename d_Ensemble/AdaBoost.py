@@ -69,7 +69,7 @@ class AdaBoost(ClassifierBase):
             epoch = self._params["epoch"]
         if eps is None:
             eps = self._params["eps"]
-        x, y = np.atleast_2d(x), np.array(y)
+        x, y = np.atleast_2d(x), np.asarray(y)
         if clf is None:
             clf = "Cart"
             kwargs = {"max_depth": 1}
@@ -78,7 +78,7 @@ class AdaBoost(ClassifierBase):
         if sample_weight is None:
             sample_weight = np.ones(len(y)) / len(y)
         else:
-            sample_weight = np.array(sample_weight)
+            sample_weight = np.asarray(sample_weight)
         bar = ProgressBar(max_value=epoch, name="AdaBoost")
         bar.start()
         for _ in range(epoch):

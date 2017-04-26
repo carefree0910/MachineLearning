@@ -115,7 +115,7 @@ class CvDNode(metaclass=TimingMeta):
                 _child.mark_pruned()
 
     def fit(self, x, y, sample_weight, feature_bound=None, eps=1e-8):
-        self._x, self._y = np.atleast_2d(x), np.array(y)
+        self._x, self._y = np.atleast_2d(x), np.asarray(y)
         self.sample_weight = sample_weight
         if self.stop1(eps):
             return

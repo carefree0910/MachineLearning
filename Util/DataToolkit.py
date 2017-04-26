@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 # noinspection PyTypeChecker
 class DataToolkit:
     def __init__(self, data):
-        self._data = np.array(data)
+        self._data = np.asarray(data)
         self._sorted_data = np.sort(self._data)
         self._n = len(self._data)
         self._mean = self._variance = self._std = None

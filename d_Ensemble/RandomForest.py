@@ -40,7 +40,7 @@ class RandomForest(ClassifierBase):
             epoch = self._params["epoch"]
         if feature_bound is None:
             feature_bound = self._params["feature_bound"]
-        x, y = np.atleast_2d(x), np.array(y)
+        x, y = np.atleast_2d(x), np.asarray(y)
         n_sample = len(y)
         self._tree = tree
         bar = ProgressBar(max_value=epoch, name="RF")

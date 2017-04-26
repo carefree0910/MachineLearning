@@ -52,7 +52,7 @@ class ModelBase:
         ModelBase.clf_timing.show_timing_log(level)
 
     def scatter2d(self, x, y, padding=0.5, title=None):
-        axis, labels = np.array(x).T, np.array(y)
+        axis, labels = np.asarray(x).T, np.asarray(y)
 
         print("=" * 30 + "\n" + str(self))
         x_min, x_max = np.min(axis[0]), np.max(axis[0])
@@ -91,7 +91,7 @@ class ModelBase:
         print("Done.")
 
     def scatter3d(self, x, y, padding=0.1, title=None):
-        axis, labels = np.array(x).T, np.array(y)
+        axis, labels = np.asarray(x).T, np.asarray(y)
 
         print("=" * 30 + "\n" + str(self))
         x_min, x_max = np.min(axis[0]), np.max(axis[0])
@@ -143,9 +143,9 @@ class ClassifierBase(ModelBase):
     @staticmethod
     def acc(y, y_pred, weights=None):
         if not isinstance(y, np.ndarray):
-            y = np.array(y)
+            y = np.asarray(y)
         if not isinstance(y_pred, np.ndarray):
-            y_pred = np.array(y_pred)
+            y_pred = np.asarray(y_pred)
         if weights is not None:
             return np.sum((y == y_pred) * weights) / len(y)
         return np.sum(y == y_pred) / len(y)
@@ -183,7 +183,7 @@ class ClassifierBase(ModelBase):
             metrics = ["acc"]
         self.get_metrics(metrics)
         logs, y_pred = [], self.predict(x)
-        y = np.array(y)
+        y = np.asarray(y)
         if y.ndim == 2:
             y = np.argmax(y, axis=1)
         for metric in metrics:
@@ -196,7 +196,7 @@ class ClassifierBase(ModelBase):
 
     def visualize2d(self, x, y, padding=0.1, dense=200,
                     title=None, show_org=False, show_background=True, emphasize=None, extra=None):
-        axis, labels = np.array(x).T, np.array(y)
+        axis, labels = np.asarray(x).T, np.asarray(y)
 
         print("=" * 30 + "\n" + str(self))
         decision_function = lambda _xx: self.predict(_xx)
@@ -253,11 +253,11 @@ class ClassifierBase(ModelBase):
         plt.scatter(axis[0], axis[1], c=colors)
         if emphasize is not None:
             _indices = np.array([False] * len(axis[0]))
-            _indices[np.array(emphasize)] = True
+            _indices[np.asarray(emphasize)] = True
             plt.scatter(axis[0][_indices], axis[1][_indices], s=80,
                         facecolors="None", zorder=10)
         if extra is not None:
-            plt.scatter(*np.array(extra).T, s=80, zorder=25, facecolors="red")
+            plt.scatter(*np.asarray(extra).T, s=80, zorder=25, facecolors="red")
         plt.xlim(x_min, x_max)
         plt.ylim(y_min, y_max)
         plt.show()
@@ -268,7 +268,7 @@ class ClassifierBase(ModelBase):
                     title=None, show_org=False, show_background=True, emphasize=None, extra=None):
         if False:
             print(Axes3D.add_artist)
-        axis, labels = np.array(x).T, np.array(y)
+        axis, labels = np.asarray(x).T, np.asarray(y)
 
         print("=" * 30 + "\n" + str(self))
         decision_function = lambda _x: self.predict(_x)
@@ -327,7 +327,7 @@ class ClassifierBase(ModelBase):
         z_classes, _ = transform_arr(z_classes)
         colors = plt.cm.rainbow([i / n_label for i in range(n_label)])
         if extra is not None:
-            ex0, ex1, ex2 = np.array(extra).T
+            ex0, ex1, ex2 = np.asarray(extra).T
         else:
             ex0 = ex1 = ex2 = None
 
@@ -378,7 +378,7 @@ class ClassifierBase(ModelBase):
             _ax.scatter(axis0, axis1, c=_c)
             if emphasize is not None:
                 _indices = np.array([False] * len(axis[0]))
-                _indices[np.array(emphasize)] = True
+                _indices[np.asarray(emphasize)] = True
                 _ax.scatter(axis0[_indices], axis1[_indices], s=80,
                             facecolors="None", zorder=10)
 
@@ -481,7 +481,7 @@ class KernelBase(ClassifierBase):
             y_test = self._params["y_test"]
         if metrics is None:
             metrics = self._params["metrics"]
-        self._x, self._y = np.atleast_2d(x), np.array(y)
+        self._x, self._y = np.atleast_2d(x), np.asarray(y)
         if kernel == "poly":
             _p = kwargs.get("p", self._params["p"])
             self._kernel_name = "Polynomial"
@@ -497,7 +497,7 @@ class KernelBase(ClassifierBase):
         if sample_weight is None:
             sample_weight = np.ones(len(y))
         else:
-            sample_weight = np.array(sample_weight) * len(y)
+            sample_weight = np.asarray(sample_weight) * len(y)
 
         self._alpha, self._w, self._prediction_cache = (
             np.zeros(len(x)), np.zeros(len(x)), np.zeros(len(x)))
@@ -515,7 +515,7 @@ class KernelBase(ClassifierBase):
                 self.get_metrics(metrics)
             _test_gram = None
             if x_test is not None and y_test is not None:
-                _xv, _yv = np.atleast_2d(x_test), np.array(y_test)
+                _xv, _yv = np.atleast_2d(x_test), np.asarray(y_test)
                 _test_gram = self._kernel(_xv, self._x)
             else:
                 _xv, _yv = self._x, self._y
@@ -553,7 +553,7 @@ class RegressorBase(ModelBase):
         return x
 
     def visualize2d(self, x, y, padding=0.1, dense=400, title=None):
-        x, y = np.array(x).ravel(), np.array(y)
+        x, y = np.asarray(x).ravel(), np.asarray(y)
 
         print("=" * 30 + "\n" + str(self))
 

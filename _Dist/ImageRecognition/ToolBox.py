@@ -103,6 +103,12 @@ class Extractor:
             if "cnn" in self._extractor or "ResNet" in self._extractor and self._mat_dir is not None:
                 features = np.load(self._mat_dir)
             else:
+                def process(img_path):
+                    img_data = gfile.FastGFile(img_path, "rb").read()
+                    feature = sess.run(flattened_tensor, {
+                        _entry: img_data
+                    })
+                    features.append(np.squeeze(feature))
                 for i, image_path in enumerate(self._image_paths):
                     if not os.path.isfile(image_path):
                         continue
@@ -110,18 +116,34 @@ class Extractor:
                         if verbose:
                             print("Processing {}...".format(image_path))
                         try:
-                            image_data = gfile.FastGFile(image_path, "rb").read()
-                            feature = sess.run(flattened_tensor, {
-                                _entry: image_data
-                            })
-                            features.append(np.squeeze(feature))
+                            process(image_path)
                         except Exception as err:
                             if verbose:
                                 print(err)
-                                print("Moving {} to '_err' folder...".format(image_path))
-                            if not os.path.isdir("_err"):
-                                os.makedirs("_err")
-                            shutil.move(image_path, os.path.join("_err", os.path.basename(image_path)))
+                            name, extension = os.path.splitext(image_path)
+                            base = os.path.basename(image_path)
+                            if extension.lower() in (".jpg", ".jpeg"):
+                                new_name = name[:image_path.rfind(base)] + "{:06d}{}".format(i, extension)
+                                print("Renaming {} to {}...".format(image_path, new_name))
+                                os.rename(image_path, new_name)
+                                process(new_name)
+                            else:
+                                new_name_base = name[:image_path.rfind(base)] + "{:06d}".format(i)
+                                new_name = new_name_base + ".jpg"
+                                print("Transforming {} to {}...".format(image_path, new_name))
+                                try:
+                                    if imghdr.what(image_path) is None:
+                                        raise ValueError("{} is not an image".format(image_path))
+                                    os.rename(image_path, new_name_base + extension)
+                                    cv2.imwrite(new_name, cv2.imread(new_name_base + extension))
+                                    os.remove(new_name_base + extension)
+                                    process(new_name)
+                                except Exception as err:
+                                    print(err)
+                                    print("Moving {} to '_err' folder...".format(image_path))
+                                    if not os.path.isdir("_err"):
+                                        os.makedirs("_err")
+                                    shutil.move(image_path, os.path.join("_err", os.path.basename(image_path)))
                     else:
                         if verbose:
                             print("Reading {}...".format(image_path))
@@ -135,7 +157,7 @@ class Extractor:
                 print("Extracting features...")
                 rs = []
                 batch_size = math.floor(1e6 / np.prod(features.shape[1:]))
-                epoch = math.ceil(len(features) / batch_size)  # type: int
+                epoch = int(math.ceil(len(features) / batch_size))
                 bar = ProgressBar(max_value=epoch, name="Extract")
                 bar.start()
                 for i in range(epoch):

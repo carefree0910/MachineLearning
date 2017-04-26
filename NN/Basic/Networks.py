@@ -663,7 +663,7 @@ class NNDist:
                 raise NotImplementedError("Invalid param '{}' provided to 'build' method".format(units))
         else:
             try:
-                units = np.array(units).flatten().astype(np.int)
+                units = np.asarray(units).flatten().astype(np.int)
             except ValueError as err:
                 raise BuildLayerError(err)
             if len(units) < 2:
@@ -704,20 +704,20 @@ class NNDist:
         if train_only:
             if x_test is not None and y_test is not None:
                 x, y = np.vstack((x, x_test)), np.vstack((y, y_test))
-            x_train, y_train = np.array(x), np.array(y)
+            x_train, y_train = np.asarray(x), np.asarray(y)
             x_test, y_test = x_train, y_train
         else:
             shuffle_suffix = np.random.permutation(len(x))
             x, y = x[shuffle_suffix], y[shuffle_suffix]
             if x_test is None or y_test is None:
                 train_len = int(len(x) * training_scale)
-                x_train, y_train = np.array(x[:train_len]), np.array(y[:train_len])
-                x_test, y_test = np.array(x[train_len:]), np.array(y[train_len:])
+                x_train, y_train = np.asarray(x[:train_len]), np.asarray(y[:train_len])
+                x_test, y_test = np.asarray(x[train_len:]), np.asarray(y[train_len:])
             elif x_test is None or y_test is None:
                 raise BuildNetworkError("Please provide test sets if you want to split data on your own")
             else:
-                x_train, y_train = np.array(x), np.array(y)
-                x_test, y_test = np.array(x_test), np.array(y_test)
+                x_train, y_train = np.asarray(x), np.asarray(y)
+                x_test, y_test = np.asarray(x_test), np.asarray(y_test)
         if NNConfig.BOOST_LESS_SAMPLES:
             if y_train.shape[1] != 2:
                 raise BuildNetworkError("It is not permitted to boost less samples in multiple classification")
@@ -969,14 +969,14 @@ class NNDist:
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def predict(self, x):
-        x = np.array(x)
+        x = np.asarray(x)
         if len(x.shape) == 1:
             x = x.reshape(1, -1)
         return self._get_prediction(x)
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def predict_classes(self, x, flatten=True):
-        x = np.array(x)
+        x = np.asarray(x)
         if len(x.shape) == 1:
             x = x.reshape(1, -1)
         if flatten:

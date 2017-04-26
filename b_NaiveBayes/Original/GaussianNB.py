@@ -12,7 +12,7 @@ class GaussianNB(NaiveBayes):
     @GaussianNBTiming.timeit(level=1, prefix="[API] ")
     def feed_data(self, x, y, sample_weight=None):
         if sample_weight is not None:
-            sample_weight = np.array(sample_weight)
+            sample_weight = np.asarray(sample_weight)
         x = np.array([list(map(lambda c: float(c), sample)) for sample in x])
         labels = list(set(y))
         label_dic = {label: i for i, label in enumerate(labels)}

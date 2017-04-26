@@ -109,17 +109,17 @@ class DataUtil:
         tar_idx = -1 if tar_idx is None else tar_idx
         y = np.array([xx.pop(tar_idx) for xx in x])
         if quantized:
-            x = np.array(x, dtype=np.float32)
+            x = np.asarray(x, dtype=np.float32)
             if one_hot:
                 z = []
                 y = y.astype(np.int8)
                 for yy in y:
                     z.append([0 if i != yy else 1 for i in range(np.max(y) + 1)])
-                y = np.array(z, dtype=np.int8)
+                y = np.asarray(z, dtype=np.int8)
             else:
                 y = y.astype(np.int8)
         else:
-            x = np.array(x)
+            x = np.asarray(x)
         if quantized or not quantize:
             if train_num is None:
                 return x, y
@@ -129,7 +129,7 @@ class DataUtil:
             z = []
             for yy in y:
                 z.append([0 if i != yy else 1 for i in range(len(label_dic))])
-            y = np.array(z)
+            y = np.asarray(z)
         if train_num is None:
             return x, y, wc, features, feat_dics, label_dic
         return (
@@ -160,7 +160,7 @@ class DataUtil:
             ys[ix] = i % n_class
         if not one_hot:
             return xs, ys
-        return xs, np.array(ys[..., None] == np.arange(n_class), dtype=np.int8)
+        return xs, np.asarray(ys[..., None] == np.arange(n_class), dtype=np.int8)
 
     @staticmethod
     def gen_random(size=100, n_dim=2, n_class=2, one_hot=True):
@@ -168,7 +168,7 @@ class DataUtil:
         ys = np.random.randint(n_class, size=size).astype(np.int8)
         if not one_hot:
             return xs, ys
-        return xs, np.array(ys == np.arange(n_class), dtype=np.int8)
+        return xs, np.asarray(ys == np.arange(n_class), dtype=np.int8)
 
     @staticmethod
     def gen_two_clusters(size=100, n_dim=2, center=0, dis=2, scale=1, one_hot=True):
@@ -195,7 +195,7 @@ class DataUtil:
         if wc is None:
             wc = np.array([len(feat) >= int(continuous_rate * len(y)) for feat in features])
         else:
-            wc = np.array(wc)
+            wc = np.asarray(wc)
         feat_dics = [{_l: i for i, _l in enumerate(feats)} if not wc[i] else None
                      for i, feats in enumerate(features)]
         if not separate:
