@@ -45,7 +45,7 @@ def main(_):
         else:
             print("Generating Test set...")
             _img_paths, labels = fetch_data()
-            _indices = np.random.choice(len(labels), 200, replace=False)
+            _indices = np.random.choice(len(labels), 196, replace=False)
             _img_paths = np.array(_img_paths)[_indices]
             labels = labels[_indices]
             for i, _path in enumerate(_img_paths):

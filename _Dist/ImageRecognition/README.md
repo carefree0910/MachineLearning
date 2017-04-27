@@ -67,3 +67,11 @@ parser.add_argument(
     default=True,
     help="Whether use cv2 to overview"
 )
+
+## Visualization
+
+![image](http://i2.muimg.com/567571/e0f83b20b6bc03dc.png)
+
+![image](http://i4.buimg.com/567571/a80134e7f81a5e70.png)
+
+*(Not so elegant, but (maybe) better than nothing...)*
