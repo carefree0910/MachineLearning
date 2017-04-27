@@ -70,8 +70,8 @@ parser.add_argument(
 
 ## Visualization
 
-![image](http://i2.muimg.com/567571/e0f83b20b6bc03dc.png)
+![image](http://i1.piimg.com/567571/663724d1c2d0c997.png)
 
-![image](http://i4.buimg.com/567571/a80134e7f81a5e70.png)
+![image](http://i1.piimg.com/567571/f253925c8122775a.png)
 
 *(Not so elegant, but (maybe) better than nothing...)*
