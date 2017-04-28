@@ -19,7 +19,7 @@ A Stand-alone version for this project can be found [here][1]
     + You may want a [Stand-alone version][1] for this project, where you can run it by double-clicking 'Main.py' without modifying any import statement!
 
 ## Notice That:
-+ If 'Test' folder remains empty when the program is running, 200 pictures will be **MOVED** from '_Data' folder to 'Test' folder if 'gen_test' FLAG is True
++ If 'Test' folder remains empty when the program is running, `min(196, 0.2 * n_data)`pictures will be **MOVED** from '_Data' folder to 'Test' folder if 'gen_test' FLAG is True
     + An '_answer.npy' ndarray will also be generated automatically!
 + After processing all images in '_Data' folder, a '_Cache' folder which contains 'features.npy' and 'labels.npy' (shuffled) will be generated
     + If you want to train on new dataset, '_Cache' folder should be deleted

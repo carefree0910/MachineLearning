@@ -58,10 +58,10 @@ class Config:
 
 
 class Extractor:
-    def __init__(self, extractor="v3", image_paths=None, mat_dir=None):
+    def __init__(self, extractor="v3", image_paths=None, labels=None, mat_dir=None):
         self._extractor = extractor if "v3" not in extractor else "v3"
         self._image_paths = Config.get_image_paths() if image_paths is None else image_paths
-        self._mat_dir = mat_dir
+        self._labels, self._mat_dir = labels, mat_dir
 
     def _create_graph(self):
         tf.reset_default_graph()
@@ -100,6 +100,7 @@ class Extractor:
                 _entry = "Placeholder:0"
             else:
                 _entry = "Entry/Placeholder:0"
+            pop_lst = []
             if "cnn" in self._extractor or "ResNet" in self._extractor and self._mat_dir is not None:
                 features = np.load(self._mat_dir)
             else:
@@ -144,6 +145,7 @@ class Extractor:
                                     if not os.path.isdir("_err"):
                                         os.makedirs("_err")
                                     shutil.move(image_path, os.path.join("_err", os.path.basename(image_path)))
+                                    pop_lst.append(i)
                     else:
                         if verbose:
                             print("Reading {}...".format(image_path))
@@ -171,7 +173,24 @@ class Extractor:
                         }))
                     bar.update()
                 return np.vstack(rs).astype(np.float32)
-            return np.array(features, dtype=np.float32)
+            if pop_lst:
+                labels = []
+                pop_cursor, pop_idx = 0, pop_lst[0]
+                for i, label in enumerate(self._labels):
+                    if i == pop_idx:
+                        pop_cursor += 1
+                        if pop_cursor < len(pop_lst):
+                            pop_idx = pop_lst[pop_cursor]
+                        else:
+                            pop_idx = -1
+                        continue
+                    labels.append(label)
+                labels = np.array(labels, dtype=np.float32)
+            elif self._labels is None:
+                labels = None
+            else:
+                labels = np.array(self._labels, dtype=np.float32)
+            return np.array(features, dtype=np.float32), labels
 
     def run(self, verbose=True):
         self._create_graph()
@@ -351,14 +370,14 @@ class Pipeline:
             print("=" * 30)
             print("Using {} to extract features...".format(model))
             print("=" * 30)
-            _features = Extractor(model, self._image_paths, _mat_dir).run(verbose)
+            features, _ = Extractor(model, self._image_paths, _mat_dir).run(verbose)
             if extract_only:
-                np.save("features", _features)
+                np.save("features", features)
                 Pipeline._delete_cache(images_dir)
                 return
             print("-" * 30)
             print("Loading predictor...")
-            y_pred = Predictor(model).predict(_features)
+            y_pred = Predictor(model).predict(features)
             print("-" * 30)
         self._img_dir = images_dir
         self._rs_dir = images_dir + "/_Result"

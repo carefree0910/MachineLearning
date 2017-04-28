@@ -11,10 +11,10 @@ from _Dist.ImageRecognition.ToolBox import Pipeline, Extractor
 from NN.NN import NNDist
 
 
-def fetch_data(name="_Data"):
-    _img_paths, labels = [], []
+def fetch_img_data(name="_Data"):
+    img_paths, labels = [], []
     data_folder_lst = os.listdir(name)
-    for i in range(len(data_folder_lst)-1, -1, -1):
+    for i in range(len(data_folder_lst) - 1, -1, -1):
         if not os.path.isdir(os.path.join(name, data_folder_lst[i])):
             data_folder_lst.pop(i)
         elif data_folder_lst[i] == "_Cache":
@@ -26,12 +26,19 @@ def fetch_data(name="_Data"):
         np.save(label_dic_dir, np.array(data_folder_lst))
     for i, folder in enumerate(data_folder_lst):
         for img in os.listdir(os.path.join(name, folder)):
-            _img_paths.append(os.path.join(name, folder, img))
+            img_dir = os.path.join(name, folder, img)
+            if not os.path.isfile(img_dir):
+                continue
+            if imghdr.what(img_dir) is None:
+                continue
+            img_paths.append(img_dir)
             labels.append(i)
+    max_label = max(labels)  # type: int
     labels = np.array(
-        [[0 if i != yy else 1 for i in range(max(labels) + 1)] for yy in labels]
+        [[0 if i != yy else 1 for i in range(max_label + 1)] for yy in labels],
+        dtype=np.float32
     )
-    return _img_paths, labels
+    return img_paths, labels
 
 
 def main(_):
@@ -44,11 +51,12 @@ def main(_):
             print("Test set already exists")
         else:
             print("Generating Test set...")
-            _img_paths, labels = fetch_data()
-            _indices = np.random.choice(len(labels), 196, replace=False)
-            _img_paths = np.array(_img_paths)[_indices]
+            img_paths, labels = fetch_img_data()
+            n_test = min(196, int(0.2 * len(labels)))
+            _indices = np.random.choice(len(labels), n_test, replace=False)
+            img_paths = np.array(img_paths)[_indices]
             labels = labels[_indices]
-            for i, _path in enumerate(_img_paths):
+            for i, _path in enumerate(img_paths):
                 base_name = os.path.basename(_path)
                 shutil.move(_path, os.path.join("Test", "{:04d}{}".format(i, base_name[base_name.rfind("."):])))
             np.save("Test/_answer", labels)
@@ -58,9 +66,9 @@ def main(_):
         _t = time.time()
         print("Predictor not found, training with images in '_Data' folder...")
         if not os.path.isfile("_Data/_Cache/features.npy") or not os.path.isfile("_Data/_Cache/labels.npy"):
-            _img_paths, labels = fetch_data()
-            extractor = Extractor(FLAGS.model, _img_paths)
-            features = extractor.run()
+            img_paths, labels = fetch_img_data()
+            extractor = Extractor(FLAGS.model, img_paths, labels)
+            features, labels = extractor.run()
             if not os.path.isdir("_Data/_Cache"):
                 os.makedirs("_Data/_Cache")
             _indices = np.random.permutation(len(labels))
