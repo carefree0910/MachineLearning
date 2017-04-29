@@ -1,6 +1,7 @@
 import os
 import cv2
 import time
+import math
 import pickle
 from math import sqrt
 import matplotlib.cm as cm
@@ -9,10 +10,12 @@ from mpl_toolkits.mplot3d import Axes3D
 from tensorflow.python.framework import graph_io
 from tensorflow.python.tools import freeze_graph
 
-from NN.Dev.Layers import *
+from NN.TF.Layers import *
 
 from Util.ProgressBar import ProgressBar
 from Util.Util import Util, VisUtil
+
+# TODO: Saving NNPipe; Add 'idx' param to 'get_rs' method
 
 
 class NNVerbose:
@@ -229,7 +232,8 @@ class NNBase:
             if i == len(self._layers) - 2:
                 if not pipe:
                     if NNDist._is_conv(self._layers[i]):
-                        _cache = tf.reshape(_cache, [-1, int(np.prod(_cache.get_shape()[1:]))])
+                        fc_shape = np.prod(_cache.get_shape()[1:])  # type: float
+                        _cache = tf.reshape(_cache, [-1, int(fc_shape)])
                     if self._tf_bias[-1] is not None:
                         return tf.matmul(_cache, self._tf_weights[-1]) + self._tf_bias[-1]
                     return tf.matmul(_cache, self._tf_weights[-1])
@@ -345,7 +349,7 @@ class NNDist(NNBase):
     NNTiming = Timing()
 
     def __init__(self):
-        NNBase.__init__(self)
+        super(NNDist, self).__init__()
 
         self._sess = tf.Session()
         self._optimizer_factory = OptFactory()
@@ -453,7 +457,8 @@ class NNDist(NNBase):
     def _get_prediction(self, x, name=None, batch_size=1e6, verbose=None, out_of_sess=False):
         if verbose is None:
             verbose = self.verbose
-        single_batch = int(batch_size / np.prod(x.shape[1:]))
+        fc_shape = np.prod(x.shape[1:])  # type: float
+        single_batch = int(batch_size / fc_shape)
         if not single_batch:
             single_batch = 1
         if single_batch >= len(x):
@@ -503,8 +508,9 @@ class NNDist(NNBase):
         for i, layer in enumerate(self._layers[1:]):
             if i == len(self._layers) - 2:
                 if NNDist._is_conv(self._layers[i]):
+                    fc_shape = np.prod(_activations[-1].get_shape()[1:])  # type: float
                     _activations[-1] = tf.reshape(
-                        _activations[-1], [-1, int(np.prod(_activations[-1].get_shape()[1:]))])
+                        _activations[-1], [-1, int(fc_shape)])
                 if self._tf_bias[-1] is not None:
                     _activations.append(tf.matmul(_activations[-1], self._tf_weights[-1]) + self._tf_bias[-1])
                 else:
@@ -564,7 +570,7 @@ class NNDist(NNBase):
         layers = len(self._layers) + 1
         units = [layer.shape[0] for layer in self._layers] + [self._layers[-1].shape[1]]
         whether_sub_layers = np.array([False] + [isinstance(layer, SubLayer) for layer in self._layers])
-        n_sub_layers = int(np.sum(whether_sub_layers))
+        n_sub_layers = np.sum(whether_sub_layers)  # type: int
 
         plot_num = int(1 / plot_precision)
         if plot_num % 2 == 1:
@@ -682,7 +688,7 @@ class NNDist(NNBase):
     @NNTiming.timeit(level=4)
     def _init_layers(self):
         for _layer in self._layers:
-            _layer.init()
+            _layer.init(self._sess)
 
     @NNTiming.timeit(level=4)
     def _init_structure(self, verbose):
@@ -738,7 +744,6 @@ class NNDist(NNBase):
             for unit_num in units[2:]:
                 self.add(Sigmoid((unit_num,)))
             self.add(CrossEntropy((units[-1],)))
-        self._init_layers()
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def split_data(self, x, y, x_test, y_test,
@@ -768,8 +773,8 @@ class NNDist(NNBase):
             y_train_arg = np.argmax(y_train, axis=1)
             y0 = y_train_arg == 0
             y1 = ~y0
-            y_len, y0_len = len(y_train), int(np.sum(y0))
-            if y0_len > 0.5 * y_len:
+            y_len, y0_len = len(y_train), np.sum(y0)  # type: int
+            if y0_len > int(0.5 * y_len):
                 y0, y1 = y1, y0
                 y0_len = y_len - y0_len
             boost_suffix = np.random.randint(y0_len, size=y_len - y0_len)
@@ -923,6 +928,7 @@ class NNDist(NNBase):
                 os.remove(_dir)
 
         with open(_dir + ".nn", "wb") as file:
+            # We don't need w_stds & b_inits when we load a model
             _dic = {
                 "structures": {
                     "_lr": self._lr,
@@ -938,9 +944,8 @@ class NNDist(NNBase):
                 }
             }
             pickle.dump(_dic, file)
-        _saver = tf.train.Saver()
-        _saver.save(self._sess, _dir)
-        graph_io.write_graph(self._sess.graph, os.path.join(path, name), "Model.pb", False)
+        saver = tf.train.Saver()
+        saver.save(self._sess, _dir)
         with tf.name_scope("OutputFlow"):
             self.get_rs(self._tfx)
         _output = ""
@@ -969,15 +974,11 @@ class NNDist(NNBase):
 
     @NNTiming.timeit(level=2, prefix="[API] ")
     def load(self, path=None, verbose=2):
-
-        # Reset Graph
-        tf.reset_default_graph()
-
-        self.initialize()
         if path is None:
             path = os.path.join("Models", "Cache", "Model")
         else:
             path = os.path.join(path, "Model")
+        self.initialize()
         try:
             with open(path + ".nn", "rb") as file:
                 _dic = pickle.load(file)
@@ -995,11 +996,11 @@ class NNDist(NNBase):
                         self._metrics.insert(0, self._available_metrics[name])
         except Exception as err:
             raise BuildNetworkError("Failed to load Network ({}), structure initialized".format(err))
-        self._init_layers()
         self._loaded = True
 
-        _saver = tf.train.Saver()
-        _saver.restore(self._sess, path)
+        saver = tf.train.Saver()
+        saver.restore(self._sess, path)
+        self._init_layers()
         self._init_structure(verbose)
 
         print()
@@ -1011,13 +1012,6 @@ class NNDist(NNBase):
     def predict(self, x):
         x = NNDist._transfer_x(np.asarray(x))
         return self._get_prediction(x, out_of_sess=True)
-
-    @NNTiming.timeit(level=4, prefix="[API] ")
-    def predict_classes(self, x, flatten=True):
-        x = NNDist._transfer_x(np.asarray(x))
-        if flatten:
-            return np.argmax(self._get_prediction(x, out_of_sess=True), axis=1)
-        return np.argmax([self._get_prediction(x, out_of_sess=True)], axis=2).T
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def evaluate(self, x, y, metrics=None):
@@ -1125,6 +1119,67 @@ class NNDist(NNBase):
     @staticmethod
     def fuck_pycharm_warning():
         print(Axes3D.acorr)
+
+
+class NNFrozen(NNBase):
+    NNTiming = Timing()
+
+    def __init__(self):
+        super(NNFrozen, self).__init__()
+        self._sess = tf.Session()
+        self._entry = self._output = None
+
+    @NNTiming.timeit(level=4, prefix="[API] ")
+    def load(self, path=None, pb="Frozen.pb"):
+        if path is None:
+            path = os.path.join("Models", "Cache")
+        try:
+            with open(os.path.join(path, "Model.nn"), "rb") as file:
+                _dic = pickle.load(file)
+                for key, value in _dic["structures"].items():
+                    setattr(self, key, value)
+                for name, param in zip(self._layer_names, self._layer_params):
+                    self.add(name, *param)
+                for key, value in _dic["params"].items():
+                    setattr(self, key, value)
+        except Exception as err:
+            raise BuildNetworkError("Failed to load Network ({}), structure initialized".format(err))
+
+        with open(os.path.join(path, "IO.txt"), "r") as file:
+            self._entry = file.readline().strip()[9:]
+            self._output = file.readline().strip()[9:]
+        Util.load_frozen_graph(os.path.join(path, pb), True, self._entry, self._output)
+
+        print()
+        print("=" * 30)
+        print("Model restored")
+        print("=" * 30)
+
+    @NNTiming.timeit(level=2, prefix="[API] ")
+    def predict(self, x):
+        x = NNDist._transfer_x(np.asarray(x))
+        rs = []
+        batch_size = math.floor(1e6 / np.prod(x.shape[1:]))
+        epoch = int(math.ceil(len(x) / batch_size))
+        output = self._sess.graph.get_tensor_by_name(self._output)
+        bar = ProgressBar(max_value=epoch, name="Predict")
+        bar.start()
+        for i in range(epoch):
+            if i == epoch - 1:
+                rs.append(self._sess.run(output, {
+                    self._entry: x[i * batch_size:]
+                }))
+            else:
+                rs.append(self._sess.run(output, {
+                    self._entry: x[i * batch_size:(i + 1) * batch_size]
+                }))
+            bar.update()
+        return np.vstack(rs).astype(np.float32)
+
+    @NNTiming.timeit(level=1, prefix="[API] ")
+    def evaluate(self, x, y):
+        y_pred = self.predict(x)
+        print("Acc: {:8.6} %".format(100 * np.sum(np.argmax(y, axis=1) == np.argmax(y_pred, axis=1)) / len(y)))
 
 
 class NNPipe:

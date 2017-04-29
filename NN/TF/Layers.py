@@ -27,7 +27,7 @@ class Layer:
     def __repr__(self):
         return str(self)
 
-    def init(self):
+    def init(self, sess):
         pass
 
     def feed_timing(self, timing):
@@ -71,7 +71,8 @@ class Layer:
     @LayerTiming.timeit(level=1, prefix="[Core] ")
     def activate(self, x, w, bias=None, predict=False):
         if self.is_fc:
-            x = tf.reshape(x, [-1, int(np.prod(x.get_shape()[1:]))])
+            fc_shape = np.prod(x.get_shape()[1:])  # type: float
+            x = tf.reshape(x, [-1, int(fc_shape)])
         if self.is_sub_layer:
             if not self.apply_bias:
                 return self._activate(x, predict)
@@ -377,11 +378,12 @@ class Normalize(SubLayer):
         self._momentum = momentum
         self.description = "(eps: {}, momentum: {}, activation: {})".format(eps, momentum, activation)
 
-    def init(self):
+    def init(self, sess):
         if self.rm is not None:
             self.tf_rm = tf.Variable(self.rm, trainable=False, name="norm_mean")
         if self.rv is not None:
             self.tf_rv = tf.Variable(self.rv, trainable=False, name="norm_var")
+        sess.run(tf.variables_initializer([self.tf_rm, self.tf_rv]))
 
     def get_special_params(self, sess):
         with sess.as_default():

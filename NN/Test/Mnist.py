@@ -1,14 +1,12 @@
-from NN.NN import *
+# from NN.NN import *
+from NN.Dev.Networks import *
 
 from Util.Util import DataUtil
 
 
 def main():
-    log = ""
-
-    nn = NNDist()
-    save = False
-    load = False
+    save = True
+    load = True
     show_loss = True
     train_only = False
     visualize = False
@@ -23,14 +21,15 @@ def main():
     timing_level = 1
 
     x, y = DataUtil.get_dataset("mnist", "../../_Data/mnist.txt", quantized=True, one_hot=True)
+    x = x.reshape(len(x), 1, 28, 28)
 
     if not load:
+        nn = NNDist()
 
         # nn.add("ReLU", (x.shape[1], 24))
         # nn.add("ReLU", (24, ))
         # nn.add("CrossEntropy", (y.shape[1], ))
 
-        x = x.reshape(len(x), 1, 28, 28)
         nn.add("ConvReLU", (x.shape[1:], (32, 3, 3)))
         nn.add("ConvReLU", ((32, 3, 3),))
         nn.add("MaxPool", ((3, 3),), 2)
@@ -49,12 +48,9 @@ def main():
         nn.add("Normalize", activation="ReLU")
         nn.add("Dropout")
         nn.add("CrossEntropy", (y.shape[1],))
-
         nn.optimizer = "Adam"
-
-        nn.preview()
+        nn.preview(verbose=verbose)
         nn.feed_timing(timing)
-
         nn.fit(x, y, lr=lr, lb=lb,
                epoch=epoch, batch_size=256, record_period=record_period,
                show_loss=show_loss, train_only=train_only,
@@ -62,23 +58,11 @@ def main():
         if save:
             nn.save()
         nn.draw_results()
-
     else:
-
-        nn.load("Models/Model")
-        nn.feed(x, y)
+        nn = NNFrozen()
+        nn.load()
         nn.preview()
-        nn.fit(epoch=5, lr=lr, lb=lb, verbose=verbose)
-        if visualize:
-            nn.visualize2d()
-        nn.draw_results()
-
-        acc = nn.evaluate(x, y)[0]
-        log += "Whole set Accuracy  : {:12.6} %".format(100 * acc) + "\n"
-
-        print()
-        print("=" * 30 + "\n" + "Results\n" + "-" * 30)
-        print(log)
+        nn.evaluate(x, y)
 
     timing.show_timing_log(timing_level)
 
