@@ -310,7 +310,7 @@ class CvDBase:
         ) + self.prune_alpha * len(node.leafs) for node in _tmp_nodes])
         _new = np.array([node.ent * len(node.labels) + self.prune_alpha for node in _tmp_nodes])
         _mask = (_old - _new) > 0
-        arg = np.argmax(_mask)
+        arg = np.argmax(_mask)  # type: int
         if _mask[arg]:
             _tmp_nodes[arg].prune()
             _continue = True

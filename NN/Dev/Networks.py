@@ -325,7 +325,6 @@ class NNBase:
             rs = (
                 "Input  :  {:<10s} - {}\n".format("Dimension", self._layers[0].shape[0]) +
                 "\n".join([_layer.info for _layer in self._layers]))
-            print("=" * 30 + "\n" + "Structure\n" + "-" * 30 + "\n" + rs + "\n" + "-" * 30)
         print("=" * 30 + "\n" + "Structure\n" + "-" * 30 + "\n" + rs + "\n" + "-" * 30)
         if verbose >= 1:
             print("Initial Values\n" + "-" * 30)
@@ -564,9 +563,7 @@ class NNDist(NNBase):
     @NNTiming.timeit(level=1)
     def _draw_detailed_network(self, radius=6, width=1200, height=800, padding=0.2,
                                plot_scale=2, plot_precision=0.03,
-                               sub_layer_height_scale=0, delay=1,
-                               weight_average=None):
-
+                               sub_layer_height_scale=0, delay=1):
         layers = len(self._layers) + 1
         units = [layer.shape[0] for layer in self._layers] + [self._layers[-1].shape[1]]
         whether_sub_layers = np.array([False] + [isinstance(layer, SubLayer) for layer in self._layers])
@@ -611,11 +608,10 @@ class NNDist(NNBase):
         color_weights = [weight.eval().copy() for weight in self._tf_weights]
         color_min = [np.min(weight) for weight in color_weights]
         color_max = [np.max(weight) for weight in color_weights]
-        color_average = [np.average(weight) for weight in color_weights] if weight_average is None else weight_average
-        for weight, weight_min, weight_max, weight_average in zip(
-                color_weights, color_min, color_max, color_average
+        for weight, weight_min, weight_max in zip(
+                color_weights, color_min, color_max
         ):
-            line_info = VisUtil.get_line_info(weight, weight_min, weight_max, weight_average)
+            line_info = VisUtil.get_line_info(weight, weight_min, weight_max)
             colors.append(line_info[0])
             thicknesses.append(line_info[1])
 
@@ -790,8 +786,7 @@ class NNDist(NNBase):
             lr=0.01, lb=0.01, epoch=20, weight_scale=1,
             batch_size=256, record_period=1, train_only=False, optimizer=None,
             show_loss=True, metrics=None, do_log=False, verbose=None,
-            visualize=False, visualize_setting=None,
-            draw_detailed_network=False, weight_average=None):
+            visualize=False, visualize_setting=None, draw_detailed_network=False):
 
         x, y = self._feed_data(x, y)
         self._lr = lr
@@ -898,7 +893,7 @@ class NNDist(NNBase):
                             self.visualize2d(x_test, y_test, *visualize_setting)
                     if x_test.shape[1] == 2:
                         if draw_detailed_network:
-                            img = self._draw_detailed_network(weight_average=weight_average)
+                            img = self._draw_detailed_network()
                     if self.verbose >= NNVerbose.EPOCH:
                         bar.update(counter // record_period + 1)
                         sub_bar = ProgressBar(min_value=0, max_value=train_repeat * record_period - 1, name="Iteration")

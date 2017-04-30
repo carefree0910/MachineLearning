@@ -14,11 +14,13 @@ from Util.ProgressBar import ProgressBar
 from Util.Util import VisUtil
 
 # Deprecated Pure Numpy Version
+# TODO: Support std & bias
 
 
 class NNVerbose:
     NONE = 0
     EPOCH = 1
+    ITER = 1.5
     METRICS = 2
     METRICS_DETAIL = 3
     DETAIL = 4
@@ -269,7 +271,8 @@ class NNDist:
     def _get_prediction(self, x, name=None, batch_size=1e6, verbose=None):
         if verbose is None:
             verbose = self.verbose
-        single_batch = int(batch_size / np.prod(x.shape[1:]))
+        fc_shape = np.prod(x.shape[1:])  # type: float
+        single_batch = int(batch_size / fc_shape)
         if not single_batch:
             single_batch = 1
         if single_batch >= len(x):
@@ -278,7 +281,7 @@ class NNDist:
         if not len(x) % single_batch:
             epoch += 1
         name = "Prediction" if name is None else "Prediction ({})".format(name)
-        sub_bar = ProgressBar(min_value=0, max_value=epoch, name=name)
+        sub_bar = ProgressBar(max_value=epoch, name=name)
         if verbose >= NNVerbose.METRICS:
             sub_bar.start()
         rs, count = [self._get_activations(x[:single_batch], predict=True).pop()], single_batch
@@ -324,12 +327,12 @@ class NNDist:
 
     @NNTiming.timeit(level=1)
     def _draw_network(self, radius=6, width=1200, height=800, padding=0.2, sub_layer_height_scale=0, delay=1,
-                      weight_average=None, activations=None):
+                      activations=None):
 
         layers = len(self._layers) + 1
         units = [layer.shape[0] for layer in self._layers] + [self._layers[-1].shape[1]]
         whether_sub_layers = np.array([False] + [isinstance(layer, SubLayer) for layer in self._layers])
-        n_sub_layers = int(np.sum(whether_sub_layers))
+        n_sub_layers = np.sum(whether_sub_layers)  # type: int
 
         img = np.zeros((height, width, 3), np.uint8)
         axis0_padding = int(height / (layers - 1 + 2 * padding)) * padding
@@ -348,11 +351,10 @@ class NNDist:
         color_weights = [weight.copy() for weight in self._weights]
         color_min = [np.min(weight) for weight in color_weights]
         color_max = [np.max(weight) for weight in color_weights]
-        color_average = [np.average(weight) for weight in color_weights] if weight_average is None else weight_average
-        for weight, weight_min, weight_max, weight_average in zip(
-                color_weights, color_min, color_max, color_average
+        for weight, weight_min, weight_max in zip(
+                color_weights, color_min, color_max
         ):
-            line_info = VisUtil.get_line_info(weight, weight_min, weight_max, weight_average)
+            line_info = VisUtil.get_line_info(weight, weight_min, weight_max)
             colors.append(line_info[0])
             thicknesses.append(line_info[1])
 
@@ -390,13 +392,12 @@ class NNDist:
     @NNTiming.timeit(level=1)
     def _draw_detailed_network(self, radius=6, width=1200, height=800, padding=0.2,
                                plot_scale=2, plot_precision=0.03,
-                               sub_layer_height_scale=0, delay=1,
-                               weight_average=None):
+                               sub_layer_height_scale=0, delay=1):
 
         layers = len(self._layers) + 1
         units = [layer.shape[0] for layer in self._layers] + [self._layers[-1].shape[1]]
         whether_sub_layers = np.array([False] + [isinstance(layer, SubLayer) for layer in self._layers])
-        n_sub_layers = int(np.sum(whether_sub_layers))
+        n_sub_layers = np.sum(whether_sub_layers)  # type: int
 
         plot_num = int(1 / plot_precision)
         if plot_num % 2 == 1:
@@ -437,11 +438,10 @@ class NNDist:
         color_weights = [weight.copy() for weight in self._weights]
         color_min = [np.min(weight) for weight in color_weights]
         color_max = [np.max(weight) for weight in color_weights]
-        color_average = [np.average(weight) for weight in color_weights] if weight_average is None else weight_average
-        for weight, weight_min, weight_max, weight_average in zip(
-                color_weights, color_min, color_max, color_average
+        for weight, weight_min, weight_max in zip(
+                color_weights, color_min, color_max
         ):
-            line_info = VisUtil.get_line_info(weight, weight_min, weight_max, weight_average)
+            line_info = VisUtil.get_line_info(weight, weight_min, weight_max)
             colors.append(line_info[0])
             thicknesses.append(line_info[1])
 
@@ -473,8 +473,7 @@ class NNDist:
 
     @NNTiming.timeit(level=1)
     def _draw_img_network(self, img_shape, width=1200, height=800, padding=0.2,
-                          sub_layer_height_scale=0, delay=1,
-                          weight_average=None):
+                          sub_layer_height_scale=0, delay=1):
 
         img_width, img_height = img_shape
         half_width = int(img_width * 0.5) if img_width % 2 == 0 else int(img_width * 0.5) + 1
@@ -483,7 +482,7 @@ class NNDist:
         layers = len(self._layers)
         units = [layer.shape[1] for layer in self._layers]
         whether_sub_layers = np.array([isinstance(layer, SubLayer) for layer in self._layers])
-        n_sub_layers = int(np.sum(whether_sub_layers))
+        n_sub_layers = np.sum(whether_sub_layers)  # type: int
 
         _activations = [self._weights[0].copy().T]
         for weight in self._weights[1:]:
@@ -518,11 +517,10 @@ class NNDist:
         color_weights = [weight.copy() for weight in self._weights]
         color_min = [np.min(weight) for weight in color_weights]
         color_max = [np.max(weight) for weight in color_weights]
-        color_average = [np.average(weight) for weight in color_weights] if weight_average is None else weight_average
-        for weight, weight_min, weight_max, weight_average in zip(
-                color_weights, color_min, color_max, color_average
+        for weight, weight_min, weight_max in zip(
+                color_weights, color_min, color_max
         ):
-            line_info = VisUtil.get_line_info(weight, weight_min, weight_max, weight_average)
+            line_info = VisUtil.get_line_info(weight, weight_min, weight_max)
             colors.append(line_info[0])
             thicknesses.append(line_info[1])
 
@@ -724,8 +722,8 @@ class NNDist:
             y_train_arg = np.argmax(y_train, axis=1)
             y0 = y_train_arg == 0
             y1 = ~y0
-            y_len, y0_len = len(y_train), int(np.sum(y0))
-            if y0_len > 0.5 * y_len:
+            y_len, y0_len = len(y_train), np.sum(y0)  # type: int
+            if y0_len > int(0.5 * y_len):
                 y0, y1 = y1, y0
                 y0_len = y_len - y0_len
             boost_suffix = np.random.randint(y0_len, size=y_len - y0_len)
@@ -744,7 +742,7 @@ class NNDist:
             show_loss=True, metrics=None, do_log=True, verbose=None,
             visualize=False, visualize_setting=None,
             draw_weights=False, draw_network=False, draw_detailed_network=False,
-            draw_img_network=False, img_shape=None, weight_average=None):
+            draw_img_network=False, img_shape=None):
 
         if draw_img_network and img_shape is None:
             raise BuildNetworkError("Please provide image's shape to draw_img_network")
@@ -804,18 +802,18 @@ class NNDist:
         layer_width = len(self._layers)
         self._whether_apply_bias = apply_bias
 
-        bar = ProgressBar(min_value=0, max_value=max(1, epoch // record_period), name="Epoch")
+        bar = ProgressBar(max_value=max(1, epoch // record_period), name="Epoch")
         if self.verbose >= NNVerbose.EPOCH:
             bar.start()
         img = None
 
         weight_trace = [[[org] for org in weight] for weight in self._weights]
-        sub_bar = ProgressBar(min_value=0, max_value=train_repeat * record_period - 1, name="Iteration")
+        sub_bar = ProgressBar(max_value=train_repeat * record_period - 1, name="Iteration")
         for counter in range(epoch):
             self._w_optimizer.update()
             self._b_optimizer.update()
             _xs, _activations = [], []
-            if self.verbose >= NNVerbose.EPOCH and counter % record_period == 0:
+            if self.verbose >= NNVerbose.ITER and counter % record_period == 0:
                 sub_bar.start()
 
             for _i in range(train_repeat):
@@ -860,14 +858,14 @@ class NNDist:
                         print(delta)
 
                     _ = input("Press any key to continue...")
-                if self.verbose >= NNVerbose.EPOCH:
+                if self.verbose >= NNVerbose.ITER:
                     if sub_bar.update() and self.verbose >= NNVerbose.METRICS_DETAIL:
                         self._append_log(x, y, "train", get_loss=show_loss)
                         self._append_log(x_test, y_test, "cv", get_loss=show_loss)
                         self._print_metric_logs(show_loss, "train")
                         self._print_metric_logs(show_loss, "cv")
 
-            if self.verbose >= NNVerbose.EPOCH:
+            if self.verbose >= NNVerbose.ITER:
                 sub_bar.update()
             if do_log:
                 self._append_log(x, y, "train", get_loss=show_loss)
@@ -883,14 +881,15 @@ class NNDist:
                         self.visualize2d(x_test, y_test, *visualize_setting)
                 if x_test.shape[1] == 2:
                     if draw_network:
-                        img = self._draw_network(weight_average=weight_average, activations=_activations)
+                        img = self._draw_network(activations=_activations)
                     if draw_detailed_network:
-                        img = self._draw_detailed_network(weight_average=weight_average)
+                        img = self._draw_detailed_network()
                 elif draw_img_network:
-                    img = self._draw_img_network(img_shape, weight_average=weight_average)
+                    img = self._draw_img_network(img_shape)
                 if self.verbose >= NNVerbose.EPOCH:
                     bar.update(counter // record_period + 1)
-                    sub_bar = ProgressBar(min_value=0, max_value=train_repeat * record_period - 1, name="Iteration")
+                    if self.verbose >= NNVerbose.ITER:
+                        sub_bar = ProgressBar(max_value=train_repeat * record_period - 1, name="Iteration")
 
         if do_log:
             self._append_log(x_test, y_test, "test", get_loss=show_loss)

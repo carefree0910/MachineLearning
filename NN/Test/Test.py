@@ -1,84 +1,61 @@
-from Util.Util import DataUtil
 from NN.Basic.Networks import *
+
+from Util.Util import DataUtil
 
 
 def main():
-
-    log = ""
-
-    def precision(_y, y_pred):
-        y_true, y_pred = np.argmax(_y, axis=1), np.argmax(y_pred, axis=1)
-        tp = np.sum(y_true * y_pred)
-        if tp == 0:
-            return .0
-        fp = np.sum((1 - y_true) * y_pred)
-        return tp / (tp + fp)
-
-    def recall(_y, y_pred):
-        y_true, y_pred = np.argmax(_y, axis=1), np.argmax(y_pred, axis=1)
-        tp = np.sum(y_true * y_pred)
-        if tp == 0:
-            return .0
-        fn = np.sum(y_true * (1 - y_pred))
-        return tp / (tp + fn)
-
     nn = NNDist()
     save = False
-    load = True
-    do_log = True
+    load = False
     show_loss = True
-    train_only = True
+    train_only = False
     visualize = False
-    draw_detailed_network = False
-    weight_average = None
-    verbose = 1
+    verbose = 2
 
-    lr = 0.01
+    lr = 0.001
     lb = 0.001
-    epoch = 1000
-    batch_size = 512
-    record_period = 100
+    epoch = 10
+    record_period = 1
 
     timing = Timing(enabled=True)
     timing_level = 1
-    nn.feed_timing(timing)
 
-    x, y = DataUtil.gen_spin()
+    x, y = DataUtil.get_dataset("mnist", "../../_Data/mnist.txt", quantized=True, one_hot=True)
+    x = x.reshape(len(x), 1, 28, 28)
 
     if not load:
-        nn.add("ReLU", (x.shape[1], 24))
+        nn.add("ConvReLU", (x.shape[1:], (32, 3, 3)))
+        nn.add("ConvReLU", ((32, 3, 3),))
+        nn.add("MaxPool", ((3, 3),), 1)
+        nn.add("ConvNorm")
+        nn.add("ConvDrop")
+        nn.add("ConvReLU", ((64, 3, 3),))
+        nn.add("ConvReLU", ((64, 3, 3),))
+        nn.add("MaxPool", ((3, 3),), 1)
+        nn.add("ConvNorm")
+        nn.add("ConvDrop")
+        nn.add("ConvReLU", ((32, 3, 3),))
+        nn.add("ConvReLU", ((32, 3, 3),))
+        nn.add("MaxPool", ((3, 3),), 1)
+        nn.add("ReLU", (512,))
+        nn.add("Identical", (64,))
+        nn.add("Normalize")
+        nn.add("Dropout")
         nn.add("CrossEntropy", (y.shape[1],))
-
+        nn.optimizer = "Adam"
         nn.preview()
-
+        nn.feed_timing(timing)
         nn.fit(x, y, lr=lr, lb=lb,
-               epoch=epoch, record_period=record_period, batch_size=batch_size,
-               # metrics=["acc", "f1", precision, recall],
+               epoch=epoch, batch_size=32, record_period=record_period,
                show_loss=show_loss, train_only=train_only,
-               do_log=do_log, verbose=verbose, visualize=visualize,
-               draw_detailed_network=draw_detailed_network, weight_average=weight_average)
-        nn.draw_results()
-        nn.visualize2d()
-
+               do_log=True, verbose=verbose, visualize=visualize)
         if save:
             nn.save()
+        nn.draw_results()
     else:
         nn.load()
         nn.preview()
-        nn.feed(x, y)
-        nn.fit(epoch=20, train_only=True, record_period=20, verbose=2)
-        nn.visualize2d()
-        nn.draw_results()
-
-        f1, acc, _precision, _recall = nn.evaluate(x, y, metrics=["f1", "acc", precision, recall])
-        log += "Test set Accuracy  : {:12.6} %".format(100 * acc) + "\n"
-        log += "Test set F1 Score  : {:12.6}".format(f1) + "\n"
-        log += "Test set Precision : {:12.6}".format(_precision) + "\n"
-        log += "Test set Recall    : {:12.6}".format(_recall)
-
-        print()
-        print("=" * 30 + "\n" + "Results\n" + "-" * 30)
-        print(log)
+        nn.evaluate(x, y)
 
     timing.show_timing_log(timing_level)
 

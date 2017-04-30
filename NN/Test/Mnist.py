@@ -5,8 +5,8 @@ from Util.Util import DataUtil
 
 
 def main():
-    save = True
-    load = True
+    save = False
+    load = False
     show_loss = True
     train_only = False
     visualize = False

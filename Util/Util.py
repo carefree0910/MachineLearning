@@ -160,7 +160,7 @@ class DataUtil:
             ys[ix] = i % n_class
         if not one_hot:
             return xs, ys
-        return xs, np.asarray(ys[..., None] == np.arange(n_class), dtype=np.int8)
+        return xs, np.array(ys[..., None] == np.arange(n_class), dtype=np.int8)
 
     @staticmethod
     def gen_random(size=100, n_dim=2, n_class=2, one_hot=True):
@@ -168,7 +168,7 @@ class DataUtil:
         ys = np.random.randint(n_class, size=size).astype(np.int8)
         if not one_hot:
             return xs, ys
-        return xs, np.asarray(ys == np.arange(n_class), dtype=np.int8)
+        return xs, np.array(ys[..., None] == np.arange(n_class), dtype=np.int8)
 
     @staticmethod
     def gen_two_clusters(size=100, n_dim=2, center=0, dis=2, scale=1, one_hot=True):
@@ -217,17 +217,19 @@ class DataUtil:
 
 class VisUtil:
     @staticmethod
-    def get_line_info(weight, weight_min, weight_max, weight_average, max_thickness=5):
-        mask = weight >= weight_average
-        min_avg_gap = (weight_average - weight_min)
-        max_avg_gap = (weight_max - weight_average)
-        weight -= weight_average
-        max_mask = mask / max_avg_gap
-        min_mask = ~mask / min_avg_gap
-        weight *= max_mask + min_mask
-        colors = np.array(
-            [[(130 - 125 * n, 130, 130 + 125 * n) for n in line] for line in weight]
-        )
+    def get_colors(line):
+        c_base = 60
+        colors = []
+        for weight in line:
+            colors.append([int(255 * (1 - weight)), int(255 - c_base * abs(1 - 2 * weight)), int(255 * weight)])
+        return colors
+
+    @staticmethod
+    def get_line_info(weight, weight_min, weight_max, max_thickness=5):
+        min_max_gap = weight_max - weight_min
+        weight -= weight_min
+        weight /= min_max_gap
+        colors = [VisUtil.get_colors(line) for line in weight]
         thicknesses = np.array(
             [[int((max_thickness - 1) * abs(n)) + 1 for n in line] for line in weight]
         )

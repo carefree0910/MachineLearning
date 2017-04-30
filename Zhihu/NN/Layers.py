@@ -66,7 +66,7 @@ class CostLayer(Layer):
 
 class CrossEntropy(CostLayer):
     def _activate(self, x, y):
-        return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(x, y))
+        return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=x, labels=y))
 
 
 class MSE(CostLayer):

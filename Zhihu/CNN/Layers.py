@@ -20,7 +20,8 @@ class Layer(metaclass=ABCMeta):
 
     def activate(self, x, w, bias=None, predict=False):
         if self.is_fc:
-            x = tf.reshape(x, [-1, int(np.prod(x.get_shape()[1:]))])
+            fc_shape = np.prod(x.get_shape()[1:])  # type: float
+            x = tf.reshape(x, [-1, int(fc_shape)])
         if bias is None:
             return self._activate(tf.matmul(x, w), predict)
         return self._activate(tf.matmul(x, w) + bias, predict)
@@ -228,7 +229,7 @@ class CostLayer(Layer):
 
 class CrossEntropy(CostLayer):
     def _activate(self, x, y):
-        return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(x, y))
+        return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=x, labels=y))
 
 
 class MSE(CostLayer):

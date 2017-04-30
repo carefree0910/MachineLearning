@@ -8,7 +8,7 @@ def main():
     log = ""
 
     nn = NNDist()
-    save = True
+    save = False
     load = False
     show_loss = True
     train_only = False

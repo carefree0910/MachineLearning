@@ -1,6 +1,5 @@
-import pickle
-
-from Zhihu.CNN.one.Network import *
+from Util.Util import DataUtil
+from Zhihu.CNN.Network import *
 
 
 def main():
@@ -16,8 +15,8 @@ def main():
     timing_level = 1
     nn.feed_timing(timing)
 
-    with open("../Data/mini_cifar10.dat", "rb") as file:
-        x, y = pickle.load(file)
+    x, y = DataUtil.get_dataset("cifar10", "../../_Data/cifar10.txt", quantized=True, one_hot=True)
+    x = x.reshape(len(x), 3, 32, 32)
 
     nn.add(ConvReLU((x.shape[1:], (32, 3, 3))))
     nn.add(ConvReLU(((32, 3, 3),)))

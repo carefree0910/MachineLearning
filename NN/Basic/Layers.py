@@ -3,9 +3,13 @@ from NN.Basic.Optimizers import *
 
 try:
     from NN.Basic.CFunc.core import col2im_6d_cython
+    cython_flag = True
 except ImportError:
     print("Cython codes are not compiled, naive cnn bp algorithm will be used.")
     col2im_6d_cython = lambda *_args, **_kwargs: np.array([])
+    cython_flag = False
+
+# TODO: Support 'SAME' padding
 
 
 # Abstract Layers
@@ -122,7 +126,7 @@ class Layer:
 
 class SubLayer(Layer):
     def __init__(self, parent, shape):
-        Layer.__init__(self, shape)
+        super(SubLayer, self).__init__(shape)
         self.parent = parent
         parent.child = self
         self._root = None
@@ -149,20 +153,24 @@ class SubLayer(Layer):
 class ConvLayer(Layer):
     LayerTiming = Timing()
 
-    def __init__(self, shape, stride=1, padding=0):
+    def __init__(self, shape, stride=1, padding=0, parent=None):
         """
         :param shape:    shape[0] = shape of previous layer           c x h x w
                          shape[1] = shape of current layer's weight   f x c x h x w
         :param stride:   stride
         :param padding:  zero-padding
         """
+        if parent is not None:
+            _parent = parent.root if parent.is_sub_layer else parent
+            shape = _parent.shape
         Layer.__init__(self, shape)
         self._stride, self._padding = stride, padding
         if len(shape) == 1:
-            self.n_channels, self.n_filters, self.out_h, self.out_w = None, None, None, None
+            self.n_channels = self.n_filters = self.out_h = self.out_w = None
         else:
             self.feed_shape(shape)
-        self.x_cache, self.x_col_cache, self.w_cache = None, None, None
+        self.x_cache = self.x_col_cache = None
+        self.inner_weight = None
 
     def feed_shape(self, shape):
         self._shape = shape
@@ -206,20 +214,15 @@ class ConvPoolLayer(ConvLayer):
     def __init__(self, shape, stride=1, padding=0):
         """
         :param shape:    shape[0] = shape of previous layer           c x h x w
-                         shape[1] = shape of pool window
+                         shape[1] = shape of pool window              c x ph x pw
         :param stride:   stride
         :param padding:  zero-padding
         """
-        Layer.__init__(self, shape)
-        self._stride, self._padding = stride, padding
-        if len(shape) == 1:
-            self.n_channels, self.n_filters, self.out_h, self.out_w = None, None, None, None
-        else:
-            self.feed_shape(shape)
-        self._pool_cache, self.inner_weight = {}, None
+        ConvLayer.__init__(self, shape, stride, padding)
+        self._pool_cache = {}
 
     def feed_shape(self, shape):
-        self._shape = shape
+        self._shape = (shape[0], (shape[0][0], *shape[1]))
         self.n_channels, height, width = shape[0]
         pool_height, pool_width = shape[1]
         self.n_filters = self.n_channels
@@ -261,7 +264,7 @@ class ConvMeta(type):
             conv_layer.__init__(self, shape, stride, padding)
 
         def _activate(self, x, w, bias, predict):
-            self.x_cache, self.w_cache = x, w
+            self.x_cache, self.inner_weight = x, w
             n, n_channels, height, width = x.shape
             n_filters, _, filter_height, filter_width = w.shape
 
@@ -295,21 +298,22 @@ class ConvMeta(type):
                 prev_delta = prev_delta[0]
 
             __derivative = self.LayerTiming.timeit(level=1, func_name="bp", cls_name=name, prefix="[Core] ")(
-                layer.derivative)
+                layer._derivative)
             if self.is_fc_base:
                 delta = __derivative(self, y) * prev_delta.dot(w.T).reshape(y.shape)
             else:
                 delta = __derivative(self, y) * prev_delta
 
             dw = delta.transpose(1, 0, 2, 3).reshape(n_filters, -1).dot(
-                self.x_col_cache.T).reshape(self.w_cache.shape)
+                self.x_col_cache.T).reshape(self.inner_weight.shape)
             db = np.sum(delta, axis=(0, 2, 3))
 
-            n_filters, _, filter_height, filter_width = self.w_cache.shape
-            _, _, out_h, out_w = delta.shape
+            n_filters, _, filter_height, filter_width = self.inner_weight.shape
+            *_, out_h, out_w = delta.shape
 
-            if col2im_6d_cython is not None:
-                dx_cols = self.w_cache.reshape(n_filters, -1).T.dot(delta.transpose(1, 0, 2, 3).reshape(n_filters, -1))
+            if cython_flag:
+                dx_cols = self.inner_weight.reshape(n_filters, -1).T.dot(
+                    delta.transpose(1, 0, 2, 3).reshape(n_filters, -1))
                 dx_cols.shape = (n_channels, filter_height, filter_width, n, out_h, out_w)
                 dx = col2im_6d_cython(
                     dx_cols, n, n_channels, height, width, filter_height, filter_width, self._padding, self._stride)
@@ -320,9 +324,9 @@ class ConvMeta(type):
                         for j in range(self.out_h):
                             for k in range(self.out_w):
                                 # noinspection PyTypeChecker
-                                dx_padded[i, :, j * sd:filter_height + j * sd, k * sd:filter_width + k * sd] += (
-                                    self.w_cache[f] * delta[i, f, j, k])
-                dx = dx_padded[:, :, p:-p, p:-p] if p > 0 else dx_padded
+                                dx_padded[i, ..., j * sd:filter_height + j * sd, k * sd:filter_width + k * sd] += (
+                                    self.inner_weight[f] * delta[i, f, j, k])
+                dx = dx_padded[..., p:-p, p:-p] if p > 0 else dx_padded
             return dx, dw, db
 
         def activate(self, x, w, bias=None, predict=False):
@@ -347,17 +351,17 @@ class ConvSubMeta(type):
         conv_layer, sub_layer = bases
 
         def __init__(self, parent, shape, *_args, **_kwargs):
-            conv_layer.__init__(self, parent.shape, parent.stride, parent.padding)
+            conv_layer.__init__(self, None, parent=parent, **_kwargs)
             self.out_h, self.out_w = parent.out_h, parent.out_w
             sub_layer.__init__(self, parent, shape, *_args, **_kwargs)
+            self._shape = ((shape[0][0], self.out_h, self.out_w), shape[0])
             if name == "ConvNorm":
                 self.gamma, self.beta = np.ones(self.n_filters), np.zeros(self.n_filters)
                 self.init_optimizers()
 
         def _activate(self, x, predict):
             n, n_channels, height, width = x.shape
-            x_new = x.transpose(0, 2, 3, 1).reshape(-1, n_channels)
-            out = sub_layer._activate(self, x_new, predict)
+            out = sub_layer._activate(self, x.transpose(0, 2, 3, 1).reshape(-1, n_channels), predict)
             return out.reshape(n, height, width, n_channels).transpose(0, 3, 1, 2)
 
         def _derivative(self, y, w, delta=None):
@@ -365,7 +369,7 @@ class ConvSubMeta(type):
                 delta = delta.dot(w.T).reshape(y.shape)
             n, n_channels, height, width = delta.shape
             # delta_new = delta.transpose(0, 2, 3, 1).reshape(-1, n_channels)
-            dx = sub_layer.derivative(self)
+            dx = sub_layer._derivative(self, y, delta.transpose(0, 2, 3, 1).reshape(-1, n_channels))
             return dx.reshape(n, height, width, n_channels).transpose(0, 3, 1, 2)
 
         # noinspection PyUnusedLocal
@@ -473,7 +477,8 @@ class MaxPool(ConvPoolLayer):
         self.x_cache = x
         sd = self._stride
         n, n_channels, height, width = x.shape
-        pool_height, pool_width = self._shape[1]
+        # noinspection PyTupleAssignmentBalance
+        _, pool_height, pool_width = self._shape[1]
         same_size = pool_height == pool_width == sd
         tiles = height % pool_height == 0 and width % pool_width == 0
         if same_size and tiles:
@@ -505,9 +510,9 @@ class MaxPool(ConvPoolLayer):
         if method == "reshape":
             x_reshaped_cache = self._pool_cache["x_reshaped"]
             dx_reshaped = np.zeros_like(x_reshaped_cache)
-            out_newaxis = y[:, :, :, None, :, None]
+            out_newaxis = y[..., None, :, None]
             mask = (x_reshaped_cache == out_newaxis)
-            dout_newaxis = delta[:, :, :, None, :, None]
+            dout_newaxis = delta[..., None, :, None]
             dout_broadcast, _ = np.broadcast_arrays(dout_newaxis, dx_reshaped)
             dx_reshaped[mask] = dout_broadcast[mask]
             # noinspection PyTypeChecker
@@ -516,8 +521,9 @@ class MaxPool(ConvPoolLayer):
         elif method == "original":
             sd = self._stride
             dx = np.zeros_like(self.x_cache)
-            n, n_channels, _, _ = self.x_cache.shape
-            pool_height, pool_width = self._shape[1]
+            n, n_channels, *_ = self.x_cache.shape
+            # noinspection PyTupleAssignmentBalance
+            _, pool_height, pool_width = self._shape[1]
             for i in range(n):
                 for j in range(n_channels):
                     for k in range(self.out_h):
@@ -733,7 +739,7 @@ class CostLayer(Layer):
     def _svm(y, y_pred, diff=True):
         n, y = y_pred.shape[0], np.argmax(y, axis=1)
         correct_class_scores = y_pred[np.arange(n), y]
-        margins = np.maximum(0, y_pred - correct_class_scores[:, None] + 1.0)
+        margins = np.maximum(0, y_pred - correct_class_scores[..., None] + 1.0)
         margins[np.arange(n), y] = 0
         loss = np.sum(margins) / n
         num_pos = np.sum(margins > 0, axis=1)
