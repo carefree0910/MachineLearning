@@ -117,7 +117,7 @@ class SubLayer(Layer):
 class ConvLayer(Layer):
     LayerTiming = Timing()
 
-    def __init__(self, shape, stride=1, padding="SAME", parent=None, **kwargs):
+    def __init__(self, shape, stride=1, padding=None, parent=None, **kwargs):
         """
         :param shape:    shape[0] = shape of previous layer           c x h x w
                          shape[1] = shape of current layer's weight   f x c x h x w
@@ -129,15 +129,19 @@ class ConvLayer(Layer):
             shape = _parent.shape
         Layer.__init__(self, shape, **kwargs)
         self._stride = stride
+        if padding is None:
+            padding = "SAME"
         if isinstance(padding, str):
             if padding.upper() == "VALID":
                 self._padding = 0
                 self._pad_flag = "VALID"
             else:
                 self._padding = self._pad_flag = "SAME"
-        else:
-            self._padding = int(padding)
+        elif isinstance(padding, int):
+            self._padding = padding
             self._pad_flag = "VALID"
+        else:
+            raise BuildLayerError("Padding should be 'SAME' or 'VALID' or integer")
         self.parent = parent
         if len(shape) == 1:
             self.n_channels, self.n_filters, self.out_h, self.out_w = None, None, None, None
@@ -215,7 +219,7 @@ class ConvMeta(type):
             conv_layer.__init__(self, shape, stride, padding, **_kwargs)
 
         def _conv(self, x, w):
-            return tf.nn.conv2d(x, w, strides=[self._stride] * 4, padding=self._pad_flag)
+            return tf.nn.conv2d(x, w, strides=[1, self.stride, self.stride, 1], padding=self._pad_flag)
 
         def _activate(self, x, w, bias, predict):
             res = self._conv(x, w) + bias if self.apply_bias else self._conv(x, w)

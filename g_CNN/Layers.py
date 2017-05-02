@@ -66,7 +66,7 @@ class SubLayer(Layer):
 class ConvLayer(Layer):
     LayerTiming = Timing()
 
-    def __init__(self, shape, stride=1, padding="SAME", parent=None):
+    def __init__(self, shape, stride=1, padding=None, parent=None):
         """
         :param shape:    shape[0] = shape of previous layer           c x h x w
                          shape[1] = shape of current layer's weight   f x h x w
@@ -79,15 +79,19 @@ class ConvLayer(Layer):
             shape = _parent.shape
         Layer.__init__(self, shape)
         self.stride = stride
+        if padding is None:
+            padding = "SAME"
         if isinstance(padding, str):
             if padding.upper() == "VALID":
                 self.padding = 0
                 self.pad_flag = "VALID"
             else:
                 self.padding = self.pad_flag = "SAME"
-        else:
-            self.padding = int(padding)
+        elif isinstance(padding, int):
+            self.padding = padding
             self.pad_flag = "VALID"
+        else:
+            raise ValueError("Padding should be 'SAME' or 'VALID' or integer")
         self.parent = parent
         if len(shape) == 1:
             self.n_channels = self.n_filters = self.out_h = self.out_w = None
@@ -136,7 +140,7 @@ class ConvLayerMeta(type):
             conv_layer.__init__(self, shape, stride, padding)
 
         def _conv(self, x, w):
-            return tf.nn.conv2d(x, w, strides=[self.stride] * 4, padding=self.pad_flag)
+            return tf.nn.conv2d(x, w, strides=[1, self.stride, self.stride, 1], padding=self.pad_flag)
 
         def _activate(self, x, w, bias, predict):
             res = self._conv(x, w) + bias
@@ -380,25 +384,21 @@ class LayerFactory:
         return _layer, (_current, _next)
 
 if __name__ == '__main__':
-    with tf.Session().as_default():
+    with tf.Session().as_default() as sess:
         # NN Process
         nn_x = np.array([
             [ 0,  1,  2,  1,  0],
             [-1, -2,  0,  2,  1],
             [ 0,  1, -2, -1,  2],
             [ 1,  2, -1,  0, -2]
-        ])
+        ], dtype=np.float32)
         nn_w = np.array([
             [-2, -1, 0,  1,  2],
             [ 2,  1, 0, -1, -2]
-        ]).T
-        nn_b = 1
-        nn_id = Identical([nn_x.shape[1], 1])
-        nn_r1 = nn_id.activate(nn_x, nn_w, nn_b)
-        # nn_norm = Normalize(nn_id, [None, 2])
-        # nn_norm.activate(nn_r1, None)
-        print(nn_r1.eval())
-
+        ], dtype=np.float32).T
+        nn_b = 1.
+        nn_id = Identical([nn_x.shape[1], 2])
+        print(nn_id.activate(nn_x, nn_w, nn_b).eval())
         # CNN Process
         conv_x = np.array([
             [
@@ -408,8 +408,6 @@ if __name__ == '__main__':
                 [-2, 1, -1, 0]
             ]
         ], dtype=np.float32).reshape(1, 4, 4, 1)
-        # Using "VALID" Padding -> out_h = out_w = 2
-        conv_id = ConvIdentical([(conv_x.shape[1:], [2, 3, 3])], padding="VALID")
         conv_w = np.array([
             [[ 1, 0,  1],
              [-1, 0,  1],
@@ -417,8 +415,10 @@ if __name__ == '__main__':
             [[0,  1,  0],
              [1,  0, -1],
              [0, -1,  1]]
-        ]).transpose([1, 2, 0])[..., None, :]
-        conv_b = np.array([1, -1])
+        ], dtype=np.float32).transpose([1, 2, 0])[..., None, :]
+        conv_b = np.array([1, -1], dtype=np.float32)
+        # Using "VALID" Padding -> out_h = out_w = 2
+        conv_id = ConvIdentical([(conv_x.shape[1:], [2, 3, 3])], padding="VALID")
         print(conv_id.activate(conv_x, conv_w, conv_b).eval())
         conv_x = np.array([
             [
@@ -435,5 +435,5 @@ if __name__ == '__main__':
               [ 0  1 -1  2  0 ]
               [ 0  0  0  0  0 ] ]
         """
-        conv_id = ConvIdentical([(conv_x.shape[1:], [2, 3, 3])], padding="SAME")
+        conv_id = ConvIdentical([(conv_x.shape[1:], [2, 3, 3])], padding=1, stride=2)
         print(conv_id.activate(conv_x, conv_w, conv_b).eval())
