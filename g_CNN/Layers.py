@@ -32,7 +32,8 @@ class Layer:
     @LayerTiming.timeit(level=1, prefix="[Core] ")
     def activate(self, x, w, bias=None, predict=False):
         if self.is_fc:
-            x = tf.reshape(x, [-1, int(np.prod(x.get_shape()[1:]))])
+            fc_shape = np.prod(x.get_shape()[1:])  # type: float
+            x = tf.reshape(x, [-1, int(fc_shape)])
         if self.is_sub_layer:
             return self._activate(x, predict)
         if not self.apply_bias:
@@ -48,6 +49,7 @@ class SubLayer(Layer):
         Layer.__init__(self, shape)
         self.parent = parent
         self.description = ""
+        self.is_sub_layer = True
 
     @property
     def root(self):
@@ -376,3 +378,62 @@ class LayerFactory:
         else:
             _layer = _layer(parent, (_current, _next), *layer_param)
         return _layer, (_current, _next)
+
+if __name__ == '__main__':
+    with tf.Session().as_default():
+        # NN Process
+        nn_x = np.array([
+            [ 0,  1,  2,  1,  0],
+            [-1, -2,  0,  2,  1],
+            [ 0,  1, -2, -1,  2],
+            [ 1,  2, -1,  0, -2]
+        ])
+        nn_w = np.array([
+            [-2, -1, 0,  1,  2],
+            [ 2,  1, 0, -1, -2]
+        ]).T
+        nn_b = 1
+        nn_id = Identical([nn_x.shape[1], 1])
+        nn_r1 = nn_id.activate(nn_x, nn_w, nn_b)
+        # nn_norm = Normalize(nn_id, [None, 2])
+        # nn_norm.activate(nn_r1, None)
+        print(nn_r1.eval())
+
+        # CNN Process
+        conv_x = np.array([
+            [
+                [ 0, 2,  1, 2],
+                [-1, 0,  0, 1],
+                [ 1, 1,  0, 1],
+                [-2, 1, -1, 0]
+            ]
+        ], dtype=np.float32).reshape(1, 4, 4, 1)
+        # Using "VALID" Padding -> out_h = out_w = 2
+        conv_id = ConvIdentical([(conv_x.shape[1:], [2, 3, 3])], padding="VALID")
+        conv_w = np.array([
+            [[ 1, 0,  1],
+             [-1, 0,  1],
+             [ 1, 0, -1]],
+            [[0,  1,  0],
+             [1,  0, -1],
+             [0, -1,  1]]
+        ]).transpose([1, 2, 0])[..., None, :]
+        conv_b = np.array([1, -1])
+        print(conv_id.activate(conv_x, conv_w, conv_b).eval())
+        conv_x = np.array([
+            [
+                [ 1,  2,  1],
+                [-1,  0, -2],
+                [ 1, -1,  2]
+            ]
+        ], dtype=np.float32).reshape(1, 3, 3, 1)
+        """
+        Using "SAME" Padding -> out_h = out_w = 3 & input_x = 
+            [ [ 0  0  0  0  0 ]
+              [ 0  1  2  1  0 ]
+              [ 0 -1  0 -2  0 ]
+              [ 0  1 -1  2  0 ]
+              [ 0  0  0  0  0 ] ]
+        """
+        conv_id = ConvIdentical([(conv_x.shape[1:], [2, 3, 3])], padding="SAME")
+        print(conv_id.activate(conv_x, conv_w, conv_b).eval())
