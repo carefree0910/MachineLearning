@@ -90,6 +90,7 @@ class SubLayer(Layer):
         Layer.__init__(self, shape, **kwargs)
         self.parent = parent
         self.description = ""
+        self.is_sub_layer = True
 
     @property
     def root(self):

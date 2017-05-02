@@ -152,7 +152,6 @@ class NN(ClassifierBase):
         else:
             _current, _next = args
         if isinstance(layer, SubLayer):
-            layer.is_sub_layer = True
             self.parent = _parent
             self._layers.append(layer)
             self._add_param_placeholder()

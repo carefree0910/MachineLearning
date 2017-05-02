@@ -83,9 +83,10 @@ class CvDBase(ClassifierBase):
 
     @CvDBaseTiming.timeit(level=3, prefix="[Util] ")
     def reduce_nodes(self):
+        pop = self.nodes.pop
         for i in range(len(self.nodes)-1, -1, -1):
             if self.nodes[i].pruned:
-                self.nodes.pop(i)
+                pop(i)
 
     # Prune
 
@@ -98,10 +99,11 @@ class CvDBase(ClassifierBase):
     def _prune(self):
         self._update_layers()
         _tmp_nodes = []
+        append = _tmp_nodes.append
         for _node_lst in self.layers[::-1]:
             for _node in _node_lst[::-1]:
                 if _node.category is None:
-                    _tmp_nodes.append(_node)
+                    append(_node)
         _old = np.array([node.cost() + self.prune_alpha * len(node.leafs) for node in _tmp_nodes])
         _new = np.array([node.cost(pruned=True) + self.prune_alpha for node in _tmp_nodes])
         _mask = _old >= _new
@@ -142,9 +144,10 @@ class CvDBase(ClassifierBase):
                 if node.affected:
                     _thresholds[i] = node.get_threshold()
                     node.affected = False
+            pop = _tmp_nodes.pop
             for i in range(len(_tmp_nodes) - 1, -1, -1):
                 if _tmp_nodes[i].pruned:
-                    _tmp_nodes.pop(i)
+                    pop(i)
                     _thresholds = np.delete(_thresholds, i)
         self.reduce_nodes()
 

@@ -98,8 +98,9 @@ class CvDNode(metaclass=TimingMeta):
         _parent = self.parent
         while _parent is not None:
             _parent.affected = True
+            pop = _parent.leafs.pop
             for _k in _pop_lst:
-                _parent.leafs.pop(_k)
+                pop(_k)
             _parent.leafs[id(self)] = self.info_dic
             _parent = _parent.parent
         self.mark_pruned()
@@ -135,23 +136,25 @@ class CvDNode(metaclass=TimingMeta):
         else:
             indices = np.random.permutation(feat_len)[:feature_bound]
         tmp_feats = [self.feats[i] for i in indices]
+        xt, feat_sets = self._x.T, self.tree.feature_sets
+        bin_ig, ig = _cluster.bin_info_gain, _cluster.info_gain
         for feat in tmp_feats:
             if self.wc[feat]:
-                _samples = np.sort(self._x.T[feat])
+                _samples = np.sort(xt[feat])
                 _set = (_samples[:-1] + _samples[1:]) * 0.5
             else:
                 if self.is_cart:
-                    _set = self.tree.feature_sets[feat]
+                    _set = feat_sets[feat]
                 else:
                     _set = None
             if self.is_cart or self.wc[feat]:
                 for tar in _set:
-                    _tmp_gain, _tmp_chaos_lst = _cluster.bin_info_gain(
+                    _tmp_gain, _tmp_chaos_lst = bin_ig(
                         feat, tar, criterion=self.criterion, get_chaos_lst=True, continuous=self.wc[feat])
                     if _tmp_gain > _max_gain:
                         (_max_gain, _chaos_lst), _max_feature, _max_tar = (_tmp_gain, _tmp_chaos_lst), feat, tar
             else:
-                _tmp_gain, _tmp_chaos_lst = _cluster.info_gain(
+                _tmp_gain, _tmp_chaos_lst = ig(
                     feat, self.criterion, True, self.tree.feature_sets[feat])
                 if _tmp_gain > _max_gain:
                     (_max_gain, _chaos_lst), _max_feature = (_tmp_gain, _tmp_chaos_lst), feat

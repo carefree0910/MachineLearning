@@ -57,16 +57,17 @@ class Cluster(metaclass=TimingMeta):
         # noinspection PyTypeChecker
         self._con_chaos_cache = [np.sum(_label) for _label in tmp_labels]
         label_lst = [self._y[label] for label in tmp_labels]
-        rs, chaos_lst = 0, []
+        rs, chaos_lst, xt = 0, [], self._x.T
+        append = chaos_lst.append
         for data_label, tar_label in zip(tmp_labels, label_lst):
-            tmp_data = self._x.T[data_label]
+            tmp_data = xt[data_label]
             if self._sample_weight is None:
                 _chaos = _method(Cluster(tmp_data, tar_label, base=self._base))
             else:
                 _new_weights = self._sample_weight[data_label]
                 _chaos = _method(Cluster(tmp_data, tar_label, _new_weights / np.sum(_new_weights), base=self._base))
             rs += len(tmp_data) / len(data) * _chaos
-            chaos_lst.append(_chaos)
+            append(_chaos)
         return rs, chaos_lst
 
     def info_gain(self, idx, criterion="ent", get_chaos_lst=False, features=None):
@@ -95,16 +96,17 @@ class Cluster(metaclass=TimingMeta):
         # noinspection PyTypeChecker
         self._con_chaos_cache = [np.sum(_label) for _label in tmp_labels]
         label_lst = [self._y[label] for label in tmp_labels]
-        rs, chaos_lst = 0, []
+        rs, chaos_lst, xt = 0, [], self._x.T
+        append = chaos_lst.append
         for data_label, tar_label in zip(tmp_labels, label_lst):
-            tmp_data = self._x.T[data_label]
+            tmp_data = xt[data_label]
             if self._sample_weight is None:
                 _chaos = _method(Cluster(tmp_data, tar_label, base=self._base))
             else:
                 _new_weights = self._sample_weight[data_label]
                 _chaos = _method(Cluster(tmp_data, tar_label, _new_weights / np.sum(_new_weights), base=self._base))
             rs += len(tmp_data) / len(data) * _chaos
-            chaos_lst.append(_chaos)
+            append(_chaos)
         return rs, chaos_lst
 
     def bin_info_gain(self, idx, tar, criterion="gini", get_chaos_lst=False, continuous=False):

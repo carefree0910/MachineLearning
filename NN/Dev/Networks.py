@@ -187,10 +187,9 @@ class NNBase:
         else:
             _current, _next = args
         if isinstance(layer, SubLayer):
-            if not isinstance(layer, CostLayer) and _current != _parent.shape[1]:
+            if _current != _parent.shape[1]:
                 raise BuildLayerError("Output shape should be identical with input shape "
                                       "if chosen SubLayer is not a CostLayer")
-            layer.is_sub_layer = True
             self.parent = _parent
             self._layers.append(layer)
             self._add_param_placeholder()
