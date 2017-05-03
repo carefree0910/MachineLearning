@@ -1,5 +1,4 @@
-# from NN.NN import *
-from NN.Dev.Networks import *
+from NN.NN import *
 
 from Util.Util import DataUtil
 
@@ -17,7 +16,7 @@ def main():
 
     lr = 0.001
     lb = 0.001
-    epoch = 5
+    epoch = 10
     record_period = 1
     weight_scale = 0.001
     optimizer = "Adam"

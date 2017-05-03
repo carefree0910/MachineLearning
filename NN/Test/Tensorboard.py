@@ -1,4 +1,4 @@
-from NN.NN import *
+from NN.TF.Networks import *
 
 from Util.Util import DataUtil
 
@@ -51,11 +51,9 @@ def main():
         nn.feed_timing(timing)
         nn.fit(x, y, lr=lr, lb=lb,
                epoch=epoch, batch_size=256, record_period=record_period,
-               show_loss=show_loss, train_only=train_only,
-               do_log=True, verbose=verbose)
+               show_loss=show_loss, train_only=train_only, do_log=True, tensorboard_verbose=1, verbose=verbose)
         if save:
             nn.save()
-        nn.draw_results()
     else:
         nn = NNFrozen()
         nn.load()
