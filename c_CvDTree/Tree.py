@@ -55,31 +55,31 @@ class CvDBase(ClassifierBase):
             train_only = self._params["train_only"]
         if feature_bound is None:
             feature_bound = self._params["feature_bound"]
-        _dic = {c: i for i, c in enumerate(set(y))}
-        y = np.array([_dic[yy] for yy in y])
-        self.label_dic = {value: key for key, value in _dic.items()}
+        dic = {c: i for i, c in enumerate(set(y))}
+        y = np.array([dic[yy] for yy in y])
+        self.label_dic = {value: key for key, value in dic.items()}
         x = np.atleast_2d(x)
         self.prune_alpha = alpha if alpha is not None else x.shape[1] / 2
         if not train_only and self.root.is_cart:
-            _train_num = int(len(x) * (1-cv_rate))
-            _indices = np.random.permutation(np.arange(len(x)))
-            _train_indices = _indices[:_train_num]
-            _test_indices = _indices[_train_num:]
+            train_num = int(len(x) * (1-cv_rate))
+            indices = np.random.permutation(np.arange(len(x)))
+            train_indices = indices[:train_num]
+            test_indices = indices[train_num:]
             if sample_weight is not None:
-                _train_weights = sample_weight[_train_indices]
-                _test_weights = sample_weight[_test_indices]
-                _train_weights /= np.sum(_train_weights)
-                _test_weights /= np.sum(_test_weights)
+                train_weights = sample_weight[train_indices]
+                test_weights = sample_weight[test_indices]
+                train_weights /= np.sum(train_weights)
+                test_weights /= np.sum(test_weights)
             else:
-                _train_weights = _test_weights = None
-            x_train, y_train = x[_train_indices], y[_train_indices]
-            x_cv, y_cv = x[_test_indices], y[_test_indices]
+                train_weights = test_weights = None
+            x_train, y_train = x[train_indices], y[train_indices]
+            x_cv, y_cv = x[test_indices], y[test_indices]
         else:
-            x_train, y_train, _train_weights = x, y, sample_weight
-            x_cv = y_cv = _test_weights = None
+            x_train, y_train, train_weights = x, y, sample_weight
+            x_cv = y_cv = test_weights = None
         self.feed_data(x_train)
-        self.root.fit(x_train, y_train, _train_weights, feature_bound, eps)
-        self.prune(x_cv, y_cv, _test_weights)
+        self.root.fit(x_train, y_train, train_weights, feature_bound, eps)
+        self.prune(x_cv, y_cv, test_weights)
 
     @CvDBaseTiming.timeit(level=3, prefix="[Util] ")
     def reduce_nodes(self):
@@ -98,32 +98,32 @@ class CvDBase(ClassifierBase):
     @CvDBaseTiming.timeit(level=1)
     def _prune(self):
         self._update_layers()
-        _tmp_nodes = []
-        append = _tmp_nodes.append
-        for _node_lst in self.layers[::-1]:
-            for _node in _node_lst[::-1]:
-                if _node.category is None:
-                    append(_node)
-        _old = np.array([node.cost() + self.prune_alpha * len(node.leafs) for node in _tmp_nodes])
-        _new = np.array([node.cost(pruned=True) + self.prune_alpha for node in _tmp_nodes])
-        _mask = _old >= _new
+        tmp_nodes = []
+        append = tmp_nodes.append
+        for node_lst in self.layers[::-1]:
+            for node in node_lst[::-1]:
+                if node.category is None:
+                    append(node)
+        old = np.array([node.cost() + self.prune_alpha * len(node.leafs) for node in tmp_nodes])
+        new = np.array([node.cost(pruned=True) + self.prune_alpha for node in tmp_nodes])
+        mask = old >= new
         while True:
             if self.root.height == 1:
                 break
-            p = np.argmax(_mask)  # type: int
-            if _mask[p]:
-                _tmp_nodes[p].prune()
-                for i, node in enumerate(_tmp_nodes):
+            p = np.argmax(mask)  # type: int
+            if mask[p]:
+                tmp_nodes[p].prune()
+                for i, node in enumerate(tmp_nodes):
                     if node.affected:
-                        _old[i] = node.cost() + self.prune_alpha * len(node.leafs)
-                        _mask[i] = _old[i] >= _new[i]
+                        old[i] = node.cost() + self.prune_alpha * len(node.leafs)
+                        mask[i] = old[i] >= new[i]
                         node.affected = False
-                for i in range(len(_tmp_nodes) - 1, -1, -1):
-                    if _tmp_nodes[i].pruned:
-                        _tmp_nodes.pop(i)
-                        _old = np.delete(_old, i)
-                        _new = np.delete(_new, i)
-                        _mask = np.delete(_mask, i)
+                for i in range(len(tmp_nodes) - 1, -1, -1):
+                    if tmp_nodes[i].pruned:
+                        tmp_nodes.pop(i)
+                        old = np.delete(old, i)
+                        new = np.delete(new, i)
+                        mask = np.delete(mask, i)
             else:
                 break
         self.reduce_nodes()
@@ -131,24 +131,24 @@ class CvDBase(ClassifierBase):
     @CvDBaseTiming.timeit(level=1)
     def _cart_prune(self):
         self.root.cut_tree()
-        _tmp_nodes = [node for node in self.nodes if node.category is None]
-        _thresholds = np.array([node.get_threshold() for node in _tmp_nodes])
+        tmp_nodes = [node for node in self.nodes if node.category is None]
+        thresholds = np.array([node.get_threshold() for node in tmp_nodes])
         while True:
             root_copy = deepcopy(self.root)
             self.roots.append(root_copy)
             if self.root.height == 1:
                 break
-            p = np.argmin(_thresholds)  # type: int
-            _tmp_nodes[p].prune()
-            for i, node in enumerate(_tmp_nodes):
+            p = np.argmin(thresholds)  # type: int
+            tmp_nodes[p].prune()
+            for i, node in enumerate(tmp_nodes):
                 if node.affected:
-                    _thresholds[i] = node.get_threshold()
+                    thresholds[i] = node.get_threshold()
                     node.affected = False
-            pop = _tmp_nodes.pop
-            for i in range(len(_tmp_nodes) - 1, -1, -1):
-                if _tmp_nodes[i].pruned:
+            pop = tmp_nodes.pop
+            for i in range(len(tmp_nodes) - 1, -1, -1):
+                if tmp_nodes[i].pruned:
                     pop(i)
-                    _thresholds = np.delete(_thresholds, i)
+                    thresholds = np.delete(thresholds, i)
         self.reduce_nodes()
 
     @CvDBaseTiming.timeit(level=3, prefix="[Util] ")
@@ -156,11 +156,11 @@ class CvDBase(ClassifierBase):
         if self.root.is_cart:
             if x_cv is not None and y_cv is not None:
                 self._cart_prune()
-                _arg = np.argmax([CvDBase.acc(y_cv, tree.predict(x_cv), weights) for tree in self.roots])  # type: int
-                _tar_root = self.roots[_arg]
+                arg = np.argmax([CvDBase.acc(y_cv, tree.predict(x_cv), weights) for tree in self.roots])  # type: int
+                tar_root = self.roots[arg]
                 self.nodes = []
-                _tar_root.feed_tree(self)
-                self.root = _tar_root
+                tar_root.feed_tree(self)
+                self.root = tar_root
         else:
             self._prune()
 

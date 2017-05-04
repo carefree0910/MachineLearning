@@ -149,7 +149,7 @@ class DataUtil:
         return np.c_[x, y].astype(np.float32), np.argmax(z, axis=1)
 
     @staticmethod
-    def gen_spin(size=50, n=7, n_class=7, scale=4, one_hot=True):
+    def gen_spiral(size=50, n=7, n_class=7, scale=4, one_hot=True):
         xs = np.zeros((size * n, 2), dtype=np.float32)
         ys = np.zeros(size * n, dtype=np.int8)
         for i in range(n):

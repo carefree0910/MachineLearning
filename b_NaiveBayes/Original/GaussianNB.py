@@ -23,7 +23,7 @@ class GaussianNB(NaiveBayes):
 
         self._x, self._y = x.T, y
         self._labelled_x, self._label_zip = labelled_x, labels
-        self._cat_counter, self.label_dic = cat_counter, {i: _l for _l, i in label_dic.items()}
+        self._cat_counter, self.label_dic = cat_counter, {i: l for l, i in label_dic.items()}
         self.feed_sample_weight(sample_weight)
 
     @GaussianNBTiming.timeit(level=1, prefix="[Core] ")
@@ -52,7 +52,7 @@ class GaussianNB(NaiveBayes):
 
     def visualize(self, save=False):
         colors = plt.cm.Paired([i / len(self.label_dic) for i in range(len(self.label_dic))])
-        colors = {_cat: _color for _cat, _color in zip(self.label_dic.values(), colors)}
+        colors = {cat: color for cat, color in zip(self.label_dic.values(), colors)}
         for j in range(len(self._x)):
             tmp_data = self._x[j]
             x_min, x_max = np.min(tmp_data), np.max(tmp_data)

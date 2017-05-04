@@ -29,13 +29,13 @@ class MultinomialNB(NaiveBayes):
     @MultinomialNBTiming.timeit(level=1, prefix="[Core] ")
     def feed_sample_weight(self, sample_weight=None):
         self._con_counter = []
-        for dim, _p in enumerate(self._n_possibilities):
+        for dim, p in enumerate(self._n_possibilities):
             if sample_weight is None:
                 self._con_counter.append([
-                    np.bincount(xx[dim], minlength=_p) for xx in self._labelled_x])
+                    np.bincount(xx[dim], minlength=p) for xx in self._labelled_x])
             else:
                 self._con_counter.append([
-                    np.bincount(xx[dim], weights=sample_weight[label] / sample_weight[label].mean(), minlength=_p)
+                    np.bincount(xx[dim], weights=sample_weight[label] / sample_weight[label].mean(), minlength=p)
                     for label, xx in self._label_zip])
 
     @MultinomialNBTiming.timeit(level=1, prefix="[Core] ")
@@ -69,10 +69,10 @@ class MultinomialNB(NaiveBayes):
 
     def visualize(self, save=False):
         colors = plt.cm.Paired([i / len(self.label_dic) for i in range(len(self.label_dic))])
-        colors = {_cat: _color for _cat, _color in zip(self.label_dic.values(), colors)}
-        _rev_feat_dics = [{_val: _key for _key, _val in _feat_dic.items()} for _feat_dic in self._feat_dics]
+        colors = {cat: color for cat, color in zip(self.label_dic.values(), colors)}
+        rev_feat_dics = [{val: key for key, val in feat_dic.items()} for feat_dic in self._feat_dics]
         for j in range(len(self._n_possibilities)):
-            _rev_dic = _rev_feat_dics[j]
+            rev_dic = rev_feat_dics[j]
             sj = self._n_possibilities[j]
             tmp_x = np.arange(1, sj + 1)
             title = "$j = {}; S_j = {}$".format(j + 1, sj)
@@ -82,7 +82,7 @@ class MultinomialNB(NaiveBayes):
                 plt.bar(tmp_x - 0.35 * c, self._data[j][c, :], width=0.35,
                         facecolor=colors[self.label_dic[c]], edgecolor="white",
                         label=u"class: {}".format(self.label_dic[c]))
-            plt.xticks([i for i in range(sj + 2)], [""] + [_rev_dic[i] for i in range(sj)] + [""])
+            plt.xticks([i for i in range(sj + 2)], [""] + [rev_dic[i] for i in range(sj)] + [""])
             plt.ylim(0, 1.0)
             plt.legend()
             if not save:

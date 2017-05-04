@@ -56,7 +56,7 @@ class CvDNode(metaclass=TimingMeta):
     def height(self):
         if self.category is not None:
             return 1
-        return 1 + max([_child.height if _child is not None else 0 for _child in self.children.values()])
+        return 1 + max([child.height if child is not None else 0 for child in self.children.values()])
 
     @property
     def info_dic(self):
@@ -87,22 +87,22 @@ class CvDNode(metaclass=TimingMeta):
 
     def _handle_terminate(self):
         self.category = self.get_category()
-        _parent = self.parent
-        while _parent is not None:
-            _parent.leafs[id(self)] = self.info_dic
-            _parent = _parent.parent
+        parent = self.parent
+        while parent is not None:
+            parent.leafs[id(self)] = self.info_dic
+            parent = parent.parent
 
     def prune(self):
         self.category = self.get_category()
-        _pop_lst = [key for key in self.leafs]
-        _parent = self.parent
-        while _parent is not None:
-            _parent.affected = True
-            pop = _parent.leafs.pop
-            for _k in _pop_lst:
-                pop(_k)
-            _parent.leafs[id(self)] = self.info_dic
-            _parent = _parent.parent
+        pop_lst = [key for key in self.leafs]
+        parent = self.parent
+        while parent is not None:
+            parent.affected = True
+            pop = parent.leafs.pop
+            for k in pop_lst:
+                pop(k)
+            parent.leafs[id(self)] = self.info_dic
+            parent = parent.parent
         self.mark_pruned()
         self.feature_dim = None
         self.left_child = self.right_child = None
@@ -111,23 +111,23 @@ class CvDNode(metaclass=TimingMeta):
 
     def mark_pruned(self):
         self.pruned = True
-        for _child in self.children.values():
-            if _child is not None:
-                _child.mark_pruned()
+        for child in self.children.values():
+            if child is not None:
+                child.mark_pruned()
 
     def fit(self, x, y, sample_weight, feature_bound=None, eps=1e-8):
         self._x, self._y = np.atleast_2d(x), np.asarray(y)
         self.sample_weight = sample_weight
         if self.stop1(eps):
             return
-        _cluster = Cluster(self._x, self._y, sample_weight, self.base)
+        cluster = Cluster(self._x, self._y, sample_weight, self.base)
         if self.is_root:
             if self.criterion == "gini":
-                self.chaos = _cluster.gini()
+                self.chaos = cluster.gini()
             else:
-                self.chaos = _cluster.ent()
-        _max_gain, _chaos_lst = 0, []
-        _max_feature = _max_tar = None
+                self.chaos = cluster.ent()
+        max_gain, chaos_lst = 0, []
+        max_feature = max_tar = None
         feat_len = len(self.feats)
         if feature_bound is None:
             indices = range(0, feat_len)
@@ -137,101 +137,101 @@ class CvDNode(metaclass=TimingMeta):
             indices = np.random.permutation(feat_len)[:feature_bound]
         tmp_feats = [self.feats[i] for i in indices]
         xt, feat_sets = self._x.T, self.tree.feature_sets
-        bin_ig, ig = _cluster.bin_info_gain, _cluster.info_gain
+        bin_ig, ig = cluster.bin_info_gain, cluster.info_gain
         for feat in tmp_feats:
             if self.wc[feat]:
-                _samples = np.sort(xt[feat])
-                _set = (_samples[:-1] + _samples[1:]) * 0.5
+                samples = np.sort(xt[feat])
+                feat_set = (samples[:-1] + samples[1:]) * 0.5
             else:
                 if self.is_cart:
-                    _set = feat_sets[feat]
+                    feat_set = feat_sets[feat]
                 else:
-                    _set = None
+                    feat_set = None
             if self.is_cart or self.wc[feat]:
-                for tar in _set:
-                    _tmp_gain, _tmp_chaos_lst = bin_ig(
+                for tar in feat_set:
+                    tmp_gain, tmp_chaos_lst = bin_ig(
                         feat, tar, criterion=self.criterion, get_chaos_lst=True, continuous=self.wc[feat])
-                    if _tmp_gain > _max_gain:
-                        (_max_gain, _chaos_lst), _max_feature, _max_tar = (_tmp_gain, _tmp_chaos_lst), feat, tar
+                    if tmp_gain > max_gain:
+                        (max_gain, chaos_lst), max_feature, max_tar = (tmp_gain, tmp_chaos_lst), feat, tar
             else:
-                _tmp_gain, _tmp_chaos_lst = ig(
+                tmp_gain, tmp_chaos_lst = ig(
                     feat, self.criterion, True, self.tree.feature_sets[feat])
-                if _tmp_gain > _max_gain:
-                    (_max_gain, _chaos_lst), _max_feature = (_tmp_gain, _tmp_chaos_lst), feat
-        if self.stop2(_max_gain, eps):
+                if tmp_gain > max_gain:
+                    (max_gain, chaos_lst), max_feature = (tmp_gain, tmp_chaos_lst), feat
+        if self.stop2(max_gain, eps):
             return
-        self.feature_dim = _max_feature
-        if self.is_cart or self.wc[_max_feature]:
-            self.tar = _max_tar
-            self._gen_children(_chaos_lst, feature_bound)
+        self.feature_dim = max_feature
+        if self.is_cart or self.wc[max_feature]:
+            self.tar = max_tar
+            self._gen_children(chaos_lst, feature_bound)
             if (self.left_child.category is not None and
                     self.left_child.category == self.right_child.category):
                 self.prune()
                 self.tree.reduce_nodes()
         else:
-            self._gen_children(_chaos_lst, feature_bound)
+            self._gen_children(chaos_lst, feature_bound)
 
-    def _gen_children(self, _chaos_lst, feature_bound):
+    def _gen_children(self, chaos_lst, feature_bound):
         feat, tar = self.feature_dim, self.tar
         self.is_continuous = continuous = self.wc[feat]
         features = self._x[..., feat]
-        _new_feats = self.feats.copy()
+        new_feats = self.feats.copy()
         if continuous:
-            _mask = features < tar
-            _masks = [_mask, ~_mask]
+            mask = features < tar
+            masks = [mask, ~mask]
         else:
             if self.is_cart:
-                _mask = features == tar
-                _masks = [_mask, ~_mask]
+                mask = features == tar
+                masks = [mask, ~mask]
                 self.tree.feature_sets[feat].discard(tar)
             else:
-                _masks = None
+                masks = None
         if self.is_cart or continuous:
-            _feats = [tar, "+"] if not continuous else ["{:6.4}-".format(tar), "{:6.4}+".format(tar)]
-            for _feat, side, _chaos in zip(_feats, ["left_child", "right_child"], _chaos_lst):
-                _new_node = self.__class__(
-                    self.tree, self.base, chaos=_chaos,
-                    depth=self._depth + 1, parent=self, is_root=False, prev_feat=_feat)
-                _new_node.criterion = self.criterion
-                setattr(self, side, _new_node)
-            for _node, _feat_mask in zip([self.left_child, self.right_child], _masks):
+            feats = [tar, "+"] if not continuous else ["{:6.4}-".format(tar), "{:6.4}+".format(tar)]
+            for feat, side, chaos in zip(feats, ["left_child", "right_child"], chaos_lst):
+                new_node = self.__class__(
+                    self.tree, self.base, chaos=chaos,
+                    depth=self._depth + 1, parent=self, is_root=False, prev_feat=feat)
+                new_node.criterion = self.criterion
+                setattr(self, side, new_node)
+            for node, feat_mask in zip([self.left_child, self.right_child], masks):
                 if self.sample_weight is None:
-                    _local_weights = None
+                    local_weights = None
                 else:
-                    _local_weights = self.sample_weight[_feat_mask]
-                    _local_weights /= np.sum(_local_weights)
-                tmp_data, tmp_labels = self._x[_feat_mask, ...], self._y[_feat_mask]
+                    local_weights = self.sample_weight[feat_mask]
+                    local_weights /= np.sum(local_weights)
+                tmp_data, tmp_labels = self._x[feat_mask, ...], self._y[feat_mask]
                 if len(tmp_labels) == 0:
                     continue
-                _node.feats = _new_feats
-                _node.fit(tmp_data, tmp_labels, _local_weights, feature_bound)
+                node.feats = new_feats
+                node.fit(tmp_data, tmp_labels, local_weights, feature_bound)
         else:
-            _new_feats.remove(self.feature_dim)
-            for feat, _chaos in zip(self.tree.feature_sets[self.feature_dim], _chaos_lst):
-                _feat_mask = features == feat
-                tmp_x = self._x[_feat_mask, ...]
+            new_feats.remove(self.feature_dim)
+            for feat, chaos in zip(self.tree.feature_sets[self.feature_dim], chaos_lst):
+                feat_mask = features == feat
+                tmp_x = self._x[feat_mask, ...]
                 if len(tmp_x) == 0:
                     continue
-                _new_node = self.__class__(
-                    tree=self.tree, base=self.base, chaos=_chaos,
+                new_node = self.__class__(
+                    tree=self.tree, base=self.base, chaos=chaos,
                     depth=self._depth + 1, parent=self, is_root=False, prev_feat=feat)
-                _new_node.feats = _new_feats
-                self.children[feat] = _new_node
+                new_node.feats = new_feats
+                self.children[feat] = new_node
                 if self.sample_weight is None:
-                    _local_weights = None
+                    local_weights = None
                 else:
-                    _local_weights = self.sample_weight[_feat_mask]
-                    _local_weights /= np.sum(_local_weights)
-                _new_node.fit(tmp_x, self._y[_feat_mask], _local_weights, feature_bound)
+                    local_weights = self.sample_weight[feat_mask]
+                    local_weights /= np.sum(local_weights)
+                new_node.fit(tmp_x, self._y[feat_mask], local_weights, feature_bound)
 
     # Util
 
     def update_layers(self):
         self.tree.layers[self._depth].append(self)
-        for _node in sorted(self.children):
-            _node = self.children[_node]
-            if _node is not None:
-                _node.update_layers()
+        for node in sorted(self.children):
+            node = self.children[node]
+            if node is not None:
+                node.update_layers()
 
     def cost(self, pruned=False):
         if not pruned:
@@ -277,10 +277,10 @@ class CvDNode(metaclass=TimingMeta):
 
     def view(self, indent=4):
         print(" " * indent * self._depth, self.info)
-        for _node in sorted(self.children):
-            _node = self.children[_node]
-            if _node is not None:
-                _node.view()
+        for node in sorted(self.children):
+            node = self.children[node]
+            if node is not None:
+                node.view()
 
 
 class ID3Node(CvDNode):

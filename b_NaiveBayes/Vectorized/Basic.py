@@ -21,8 +21,8 @@ class NBFunctions:
             (labelled_x[c][dim] - mu[c]) ** 2) / len(labelled_x[c][dim]) for c in range(n_category)]
 
         def func(_c):
-            def sub(_x):
-                return NBFunctions.gaussian(_x, mu[_c], sigma[_c])
+            def sub(x):
+                return NBFunctions.gaussian(x, mu[_c], sigma[_c])
             return sub
 
         return [func(_c=c) for c in range(n_category)]
@@ -50,8 +50,8 @@ class NaiveBayes(ClassifierBase):
 
     @NaiveBayesTiming.timeit(level=2, prefix="[API] ")
     def get_prior_probability(self, lb=1):
-        return [(_c_num + lb) / (len(self._y) + lb * len(self._cat_counter))
-                for _c_num in self._cat_counter]
+        return [(c_num + lb) / (len(self._y) + lb * len(self._cat_counter))
+                for c_num in self._cat_counter]
 
     @NaiveBayesTiming.timeit(level=2, prefix="[API] ")
     def fit(self, x=None, y=None, sample_weight=None, lb=None):
@@ -76,8 +76,8 @@ class NaiveBayes(ClassifierBase):
         m_arg, m_probability = np.zeros(len(x), dtype=np.int8), np.zeros(len(x))
         for i in range(len(self._cat_counter)):
             p = self._func(x, i)
-            _mask = p > m_probability
-            m_arg[_mask], m_probability[_mask] = i, p[_mask]
+            mask = p > m_probability
+            m_arg[mask], m_probability[mask] = i, p[mask]
         if not get_raw_result:
             return np.array([self.label_dic[arg] for arg in m_arg])
         return m_probability

@@ -42,7 +42,7 @@ class MergedNB(NaiveBayes):
         self._multinomial._x, self._multinomial._y = x, y
         self._multinomial._labelled_x, self._multinomial._label_zip = labelled_x, list(zip(labels, labelled_x))
         self._multinomial._cat_counter = cat_counter
-        self._multinomial._feat_dics = [_dic for i, _dic in enumerate(feat_dics) if self._whether_discrete[i]]
+        self._multinomial._feat_dics = [dic for i, dic in enumerate(feat_dics) if self._whether_discrete[i]]
         self._multinomial._n_possibilities = [len(feats) for i, feats in enumerate(features)
                                               if self._whether_discrete[i]]
         self._multinomial.label_dic = label_dic
@@ -77,14 +77,14 @@ class MergedNB(NaiveBayes):
 
     @MergedNBTiming.timeit(level=1, prefix="[Core] ")
     def _transfer_x(self, x):
-        _feat_dics = self._multinomial["feat_dics"]
+        feat_dics = self._multinomial["feat_dics"]
         idx = 0
         for d, discrete in enumerate(self._whether_discrete):
             for i, sample in enumerate(x):
                 if not discrete:
                     x[i][d] = float(x[i][d])
                 else:
-                    x[i][d] = _feat_dics[idx][sample[d]]
+                    x[i][d] = feat_dics[idx][sample[d]]
             if discrete:
                 idx += 1
         return x
@@ -92,10 +92,10 @@ class MergedNB(NaiveBayes):
 if __name__ == '__main__':
     import time
 
-    _whether_continuous = [False] * 16
-    _continuous_lst = [0, 5, 9, 11, 12, 13, 14]
-    for _cl in _continuous_lst:
-        _whether_continuous[_cl] = True
+    whether_continuous = [False] * 16
+    continuous_lst = [0, 5, 9, 11, 12, 13, 14]
+    for cl in continuous_lst:
+        whether_continuous[cl] = True
 
     train_num = 40000
 
@@ -105,7 +105,7 @@ if __name__ == '__main__':
     data_time = time.time() - data_time
 
     learning_time = time.time()
-    nb = MergedNB(whether_continuous=_whether_continuous)
+    nb = MergedNB(whether_continuous=whether_continuous)
     nb.fit(x_train, y_train)
     learning_time = time.time() - learning_time
 

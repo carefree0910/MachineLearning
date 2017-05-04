@@ -6,95 +6,95 @@ from Util.Util import DataUtil
 
 
 def main():
-    # _x, _y = DataUtil.get_dataset("balloon1.0(en)", "../_Data/balloon1.0(en).txt")
-    _x, _y = DataUtil.get_dataset("test", "../_Data/test.txt")
-    _fit_time = time.time()
-    _tree = CartTree(whether_continuous=[False] * 4)
-    _tree.fit(_x, _y, train_only=True)
-    _fit_time = time.time() - _fit_time
-    _tree.view()
-    _estimate_time = time.time()
-    _tree.evaluate(_x, _y)
-    _estimate_time = time.time() - _estimate_time
+    # x, y = DataUtil.get_dataset("balloon1.0(en)", "../_Data/balloon1.0(en).txt")
+    x, y = DataUtil.get_dataset("test", "../_Data/test.txt")
+    fit_time = time.time()
+    tree = CartTree(whether_continuous=[False] * 4)
+    tree.fit(x, y, train_only=True)
+    fit_time = time.time() - fit_time
+    tree.view()
+    estimate_time = time.time()
+    tree.evaluate(x, y)
+    estimate_time = time.time() - estimate_time
     print(
         "Model building  : {:12.6} s\n"
         "Estimation      : {:12.6} s\n"
         "Total           : {:12.6} s".format(
-            _fit_time, _estimate_time,
-            _fit_time + _estimate_time
+            fit_time, estimate_time,
+            fit_time + estimate_time
         )
     )
-    _tree.visualize()
+    tree.visualize()
 
     train_num = 6000
     (x_train, y_train), (x_test, y_test), *_ = DataUtil.get_dataset(
         "mushroom", "../_Data/mushroom.txt", tar_idx=0, train_num=train_num)
-    _fit_time = time.time()
-    _tree = C45Tree()
-    _tree.fit(x_train, y_train)
-    _fit_time = time.time() - _fit_time
-    _tree.view()
-    _estimate_time = time.time()
-    _tree.evaluate(x_train, y_train)
-    _tree.evaluate(x_test, y_test)
-    _estimate_time = time.time() - _estimate_time
+    fit_time = time.time()
+    tree = C45Tree()
+    tree.fit(x_train, y_train)
+    fit_time = time.time() - fit_time
+    tree.view()
+    estimate_time = time.time()
+    tree.evaluate(x_train, y_train)
+    tree.evaluate(x_test, y_test)
+    estimate_time = time.time() - estimate_time
     print(
         "Model building  : {:12.6} s\n"
         "Estimation      : {:12.6} s\n"
         "Total           : {:12.6} s".format(
-            _fit_time, _estimate_time,
-            _fit_time + _estimate_time
+            fit_time, estimate_time,
+            fit_time + estimate_time
         )
     )
-    _tree.visualize()
+    tree.visualize()
 
-    _x, _y = DataUtil.gen_xor(one_hot=False)
-    _fit_time = time.time()
-    _tree = CartTree()
-    _tree.fit(_x, _y, train_only=True)
-    _fit_time = time.time() - _fit_time
-    _tree.view()
-    _estimate_time = time.time()
-    _tree.evaluate(_x, _y)
-    _estimate_time = time.time() - _estimate_time
+    x, y = DataUtil.gen_xor(one_hot=False)
+    fit_time = time.time()
+    tree = CartTree()
+    tree.fit(x, y, train_only=True)
+    fit_time = time.time() - fit_time
+    tree.view()
+    estimate_time = time.time()
+    tree.evaluate(x, y)
+    estimate_time = time.time() - estimate_time
     print(
         "Model building  : {:12.6} s\n"
         "Estimation      : {:12.6} s\n"
         "Total           : {:12.6} s".format(
-            _fit_time, _estimate_time,
-            _fit_time + _estimate_time
+            fit_time, estimate_time,
+            fit_time + estimate_time
         )
     )
-    _tree.visualize2d(_x, _y)
-    _tree.visualize()
+    tree.visualize2d(x, y)
+    tree.visualize()
 
-    _wc = [False] * 16
-    _continuous_lst = [0, 5, 9, 11, 12, 13, 14]
-    for _cl in _continuous_lst:
-        _wc[_cl] = True
+    wc = [False] * 16
+    continuous_lst = [0, 5, 9, 11, 12, 13, 14]
+    for _cl in continuous_lst:
+        wc[_cl] = True
 
     train_num = 2000
     (x_train, y_train), (x_test, y_test), *_ = DataUtil.get_dataset(
         "bank1.0", "../_Data/bank1.0.txt", train_num=train_num, quantize=True)
-    _fit_time = time.time()
-    _tree = CartTree()
-    _tree.fit(x_train, y_train)
-    _fit_time = time.time() - _fit_time
-    _tree.view()
-    _estimate_time = time.time()
-    _tree.evaluate(x_test, y_test)
-    _estimate_time = time.time() - _estimate_time
+    fit_time = time.time()
+    tree = CartTree()
+    tree.fit(x_train, y_train)
+    fit_time = time.time() - fit_time
+    tree.view()
+    estimate_time = time.time()
+    tree.evaluate(x_test, y_test)
+    estimate_time = time.time() - estimate_time
     print(
         "Model building  : {:12.6} s\n"
         "Estimation      : {:12.6} s\n"
         "Total           : {:12.6} s".format(
-            _fit_time, _estimate_time,
-            _fit_time + _estimate_time
+            fit_time, estimate_time,
+            fit_time + estimate_time
         )
     )
-    _tree.visualize()
+    tree.visualize()
 
-    _tree.show_timing_log()
+    tree.show_timing_log()
 
 if __name__ == '__main__':
     main()

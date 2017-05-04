@@ -8,10 +8,10 @@ from Util.Util import DataUtil
 
 def main():
 
-    # # x, y = DataUtil.gen_xor(100, one_hot=False)
-    # # x, y = DataUtil.gen_spin(20, 4, 2, 2, one_hot=False)
+    # x, y = DataUtil.gen_xor(100, one_hot=False)
+    x, y = DataUtil.gen_spiral(20, 4, 2, 2, one_hot=False)
     # x, y = DataUtil.gen_two_clusters(n_dim=2, one_hot=False)
-    # y[y == 0] = -1
+    y[y == 0] = -1
     #
     # svm = SKSVM()
     # # svm = SKSVM(kernel="poly", degree=12)
@@ -24,10 +24,11 @@ def main():
     # svm.evaluate(x, y)
     # svm.visualize2d(x, y, padding=0.1, dense=400)
     #
-    # svm = SVM()
+    svm = SVM()
+    svm.fit(x, y, kernel="poly", p=12)
     # _logs = [_log[0] for _log in svm.fit(x, y, metrics=["acc"])]
-    # svm.evaluate(x, y)
-    # svm.visualize2d(x, y, padding=0.1, dense=400, emphasize=svm["alpha"] > 0)
+    svm.evaluate(x, y)
+    svm.visualize2d(x, y, padding=0.1, dense=400, emphasize=svm["alpha"] > 0)
 
     (x_train, y_train), (x_test, y_test), *_ = DataUtil.get_dataset(
         "mushroom", "../_Data/mushroom.txt", train_num=100, quantize=True, tar_idx=0)

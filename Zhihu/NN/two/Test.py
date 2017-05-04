@@ -11,7 +11,7 @@ def main():
     nn = NNDist()
     epoch = 1000
 
-    x, y = DataUtil.gen_spin(100)
+    x, y = DataUtil.gen_spiral(100)
 
     nn.add(ReLU((x.shape[1], 24)))
     nn.add(ReLU((24,)))

@@ -6,14 +6,14 @@ from _SKlearn.Ensemble import SKAdaBoost, SKRandomForest
 
 from Util.Util import DataUtil
 
-_clf_dic = {
+clf_dic = {
     "AdaBoost": AdaBoost, "RF": RandomForest,
     "SKAdaBoost": SKAdaBoost, "SKRandomForest": SKRandomForest
 }
 
 
 def test(x, y, algorithm="AdaBoost", clf="Cart", epoch=10, **kwargs):
-    ensemble = _clf_dic[algorithm]()
+    ensemble = clf_dic[algorithm]()
     if "SK" in algorithm:
         ensemble.fit(x, y)
     else:
@@ -26,11 +26,11 @@ def cv_test(x, y, xt, yt, algorithm="AdaBoost", clf="Cart", epoch=10, **kwargs):
     print("=" * 30)
     print("Testing {} ({})...".format(algorithm, clf))
     print("-" * 30)
-    _t = time.time()
-    ensemble = _clf_dic[algorithm]()
+    t = time.time()
+    ensemble = clf_dic[algorithm]()
     ensemble.fit(x, y, None, clf, epoch, **kwargs)
     ensemble.evaluate(xt, yt)
-    print("Time cost: {:8.6} s".format(time.time() - _t))
+    print("Time cost: {:8.6} s".format(time.time() - t))
 
 if __name__ == '__main__':
     # _x, _y = gen_random()
@@ -46,7 +46,7 @@ if __name__ == '__main__':
     # test(_x, _y, algorithm="RF", epoch=10)
     # test(_x, _y, algorithm="RF", epoch=1000)
     # test(_x, _y, algorithm="SKAdaBoost")
-    _x, _y = DataUtil.gen_spin(size=20, n=4, n_class=2, one_hot=False)
+    _x, _y = DataUtil.gen_spiral(size=20, n=4, n_class=2, one_hot=False)
     _y[_y == 0] = -1
     # test(_x, _y, clf="SKTree", epoch=10)
     # test(_x, _y, clf="SKTree", epoch=1000)

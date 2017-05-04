@@ -39,7 +39,7 @@ class MergedNB(NaiveBayes):
         self._multinomial._x, self._multinomial._y = x, y
         self._multinomial._labelled_x, self._multinomial._label_zip = labelled_x, list(zip(labels, labelled_x))
         self._multinomial._cat_counter = cat_counter
-        self._multinomial._feat_dics = [_dic for i, _dic in enumerate(feat_dics) if self._whether_discrete[i]]
+        self._multinomial._feat_dics = [dic for i, dic in enumerate(feat_dics) if self._whether_discrete[i]]
         self._multinomial._n_possibilities = [len(feats) for i, feats in enumerate(features)
                                               if self._whether_discrete[i]]
         self._multinomial.label_dic = label_dic
@@ -73,13 +73,13 @@ class MergedNB(NaiveBayes):
 
     @MergedNBTiming.timeit(level=1, prefix="[Core] ")
     def _transfer_x(self, x):
-        _feat_dics = self._multinomial["feat_dics"]
+        feat_dics = self._multinomial["feat_dics"]
         idx = 0
         for d, discrete in enumerate(self._whether_discrete):
             if not discrete:
                 x[d] = float(x[d])
             else:
-                x[d] = _feat_dics[idx][x[d]]
+                x[d] = feat_dics[idx][x[d]]
             if discrete:
                 idx += 1
         return x
@@ -87,15 +87,15 @@ class MergedNB(NaiveBayes):
 if __name__ == '__main__':
     import time
 
-    # _whether_discrete = [True, False, True, True]
-    # _x = DataUtil.get_dataset("balloon2.0", "../../_Data/{}.txt".format("balloon2.0"))
-    # _y = [xx.pop() for xx in _x]
+    # whether_discrete = [True, False, True, True]
+    # x = DataUtil.get_dataset("balloon2.0", "../../_Data/{}.txt".format("balloon2.0"))
+    # y = [xx.pop() for xx in x]
     # learning_time = time.time()
-    # nb = MergedNB(_whether_discrete)
-    # nb.fit(_x, _y)
+    # nb = MergedNB(whether_discrete)
+    # nb.fit(x, y)
     # learning_time = time.time() - learning_time
     # estimation_time = time.time()
-    # nb.evaluate(_x, _y)
+    # nb.evaluate(x, y)
     # estimation_time = time.time() - estimation_time
     # print(
     #     "Model building  : {:12.6} s\n"
@@ -106,10 +106,10 @@ if __name__ == '__main__':
     #     )
     # )
 
-    _whether_continuous = [False] * 16
-    _continuous_lst = [0, 5, 9, 11, 12, 13, 14]
-    for _cl in _continuous_lst:
-        _whether_continuous[_cl] = True
+    whether_continuous = [False] * 16
+    continuous_lst = [0, 5, 9, 11, 12, 13, 14]
+    for cl in continuous_lst:
+        whether_continuous[cl] = True
 
     train_num = 40000
     data_time = time.time()
@@ -117,7 +117,7 @@ if __name__ == '__main__':
         "bank1.0", "../../_Data/bank1.0.txt", train_num=train_num)
     data_time = time.time() - data_time
     learning_time = time.time()
-    nb = MergedNB(whether_continuous=_whether_continuous)
+    nb = MergedNB(whether_continuous=whether_continuous)
     nb.fit(x_train, y_train)
     learning_time = time.time() - learning_time
     estimation_time = time.time()
