@@ -2,10 +2,10 @@ import os
 import cv2
 import time
 import pickle
+import matplotlib.cm as cm
+import matplotlib.pyplot as plt
 from math import sqrt, ceil
 from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
 
 from NN.Basic.Layers import *
 from NN.Basic.Optimizers import OptFactory
@@ -14,7 +14,7 @@ from Util.ProgressBar import ProgressBar
 from Util.Util import VisUtil
 
 # Deprecated Pure Numpy Version
-# TODO: Support std & bias
+# TODO: Fix 'save' & 'load'; Support std & bias
 
 
 class NNVerbose:
@@ -326,9 +326,8 @@ class NNDist:
         print("=" * 47)
 
     @NNTiming.timeit(level=1)
-    def _draw_network(self, radius=6, width=1200, height=800, padding=0.2, sub_layer_height_scale=0, delay=1,
-                      activations=None):
-
+    def _draw_network(self, show, radius=6, width=1200, height=800, padding=0.2,
+                      sub_layer_height_scale=0, activations=None):
         layers = len(self._layers) + 1
         units = [layer.shape[0] for layer in self._layers] + [self._layers[-1].shape[1]]
         whether_sub_layers = np.array([False] + [isinstance(layer, SubLayer) for layer in self._layers])
@@ -347,16 +346,12 @@ class NNDist:
         axis1 = [np.linspace(divide, width - divide, units[i], dtype=np.int)
                  for i, divide in enumerate(axis1_divide)]
 
-        colors, thicknesses = [], []
-        color_weights = [weight.copy() for weight in self._weights]
-        color_min = [np.min(weight) for weight in color_weights]
-        color_max = [np.max(weight) for weight in color_weights]
-        for weight, weight_min, weight_max in zip(
-                color_weights, color_min, color_max
-        ):
-            line_info = VisUtil.get_line_info(weight, weight_min, weight_max)
+        colors, thicknesses, masks = [], [], []
+        for weight in self._weights:
+            line_info = VisUtil.get_line_info(weight.copy())
             colors.append(line_info[0])
             thicknesses.append(line_info[1])
+            masks.append(line_info[2])
 
         activations = [np.average(np.abs(activation), axis=0) for activation in activations]
         activations = [activation / np.max(activation) for activation in activations]
@@ -383,16 +378,17 @@ class NNDist:
                 for k, new_x in enumerate(axis1[i + 1]):
                     if whether_sub_layer and j != k:
                         continue
-                    cv2.line(img, (x, y), (new_x, new_y), colors[i][j][k], thicknesses[i][j][k])
-
-        cv2.imshow("Neural Network", img)
-        cv2.waitKey(delay)
+                    if masks[i][j][k]:
+                        cv2.line(img, (x, y), (new_x, new_y), colors[i][j][k], thicknesses[i][j][k])
+        if show:
+            cv2.imshow("Neural Network", img)
+            cv2.waitKey(1)
         return img
 
     @NNTiming.timeit(level=1)
-    def _draw_detailed_network(self, radius=6, width=1200, height=800, padding=0.2,
+    def _draw_detailed_network(self, show, radius=6, width=1200, height=800, padding=0.2,
                                plot_scale=2, plot_precision=0.03,
-                               sub_layer_height_scale=0, delay=1):
+                               sub_layer_height_scale=0):
 
         layers = len(self._layers) + 1
         units = [layer.shape[0] for layer in self._layers] + [self._layers[-1].shape[1]]
@@ -408,17 +404,17 @@ class NNDist:
         input_x, input_y = np.meshgrid(xf, yf)
         input_xs = np.c_[input_x.ravel(), input_y.ravel()]
 
-        _activations = [activation.T.reshape(units[i + 1], plot_num, plot_num)
-                        for i, activation in enumerate(self._get_activations(input_xs, predict=True))]
-        _graphs = []
-        for j, activation in enumerate(_activations):
-            _graph_group = []
+        activations = [activation.T.reshape(units[i + 1], plot_num, plot_num)
+                       for i, activation in enumerate(self._get_activations(input_xs, predict=True))]
+        graphs = []
+        for j, activation in enumerate(activations):
+            graph_group = []
             for ac in activation:
                 data = np.zeros((plot_num, plot_num, 3), np.uint8)
                 mask = ac >= np.average(ac)
-                data[mask], data[~mask] = [0, 125, 255], [255, 125, 0]
-                _graph_group.append(data)
-            _graphs.append(_graph_group)
+                data[mask], data[~mask] = [0, 165, 255], [255, 165, 0]
+                graph_group.append(data)
+            graphs.append(graph_group)
 
         img = np.ones((height, width, 3), np.uint8) * 255
         axis0_padding = int(height / (layers - 1 + 2 * padding)) * padding + plot_num
@@ -434,23 +430,19 @@ class NNDist:
                  for unit in units]
         axis1 = [axis[1:-1] for axis in axis1]
 
-        colors, thicknesses = [], []
-        color_weights = [weight.copy() for weight in self._weights]
-        color_min = [np.min(weight) for weight in color_weights]
-        color_max = [np.max(weight) for weight in color_weights]
-        for weight, weight_min, weight_max in zip(
-                color_weights, color_min, color_max
-        ):
-            line_info = VisUtil.get_line_info(weight, weight_min, weight_max)
+        colors, thicknesses, masks = [], [], []
+        for weight in self._weights:
+            line_info = VisUtil.get_line_info(weight.copy())
             colors.append(line_info[0])
             thicknesses.append(line_info[1])
+            masks.append(line_info[2])
 
         for i, (y, xs) in enumerate(zip(axis0, axis1)):
             for j, x in enumerate(xs):
                 if i == 0:
                     cv2.circle(img, (x, y), radius, (20, 215, 20), int(radius / 2))
                 else:
-                    graph = _graphs[i - 1][j]
+                    graph = graphs[i - 1][j]
                     img[y - half_plot_num:y + half_plot_num, x - half_plot_num:x + half_plot_num] = graph
             if i > 0:
                 cv2.putText(img, self._layers[i - 1].name, (12, y - 36), cv2.LINE_AA, 0.6, (0, 0, 0), 1)
@@ -464,16 +456,17 @@ class NNDist:
                 for k, new_x in enumerate(axis1[i + 1]):
                     if whether_sub_layer and j != k:
                         continue
-                    cv2.line(img, (x, y + half_plot_num), (new_x, new_y - half_plot_num),
-                             colors[i][j][k], thicknesses[i][j][k])
-
-        cv2.imshow("Neural Network", img)
-        cv2.waitKey(delay)
+                    if masks[i][j][k]:
+                        cv2.line(img, (x, y + half_plot_num), (new_x, new_y - half_plot_num),
+                                 colors[i][j][k], thicknesses[i][j][k])
+        if show:
+            cv2.imshow("Neural Network", img)
+            cv2.waitKey(1)
         return img
 
     @NNTiming.timeit(level=1)
-    def _draw_img_network(self, img_shape, width=1200, height=800, padding=0.2,
-                          sub_layer_height_scale=0, delay=1):
+    def _draw_img_network(self, show, img_shape, width=1200, height=800, padding=0.2,
+                          sub_layer_height_scale=0):
 
         img_width, img_height = img_shape
         half_width = int(img_width * 0.5) if img_width % 2 == 0 else int(img_width * 0.5) + 1
@@ -513,16 +506,12 @@ class NNDist:
                  for unit in units]
         axis1 = [axis[1:-1] for axis in axis1]
 
-        colors, thicknesses = [], []
-        color_weights = [weight.copy() for weight in self._weights]
-        color_min = [np.min(weight) for weight in color_weights]
-        color_max = [np.max(weight) for weight in color_weights]
-        for weight, weight_min, weight_max in zip(
-                color_weights, color_min, color_max
-        ):
-            line_info = VisUtil.get_line_info(weight, weight_min, weight_max)
+        colors, thicknesses, masks = [], [], []
+        for weight in self._weights:
+            line_info = VisUtil.get_line_info(weight.copy())
             colors.append(line_info[0])
             thicknesses.append(line_info[1])
+            masks.append(line_info[2])
 
         for i, (y, xs) in enumerate(zip(axis0, axis1)):
             for j, x in enumerate(xs):
@@ -539,11 +528,12 @@ class NNDist:
                 for k, new_x in enumerate(axis1[i + 1]):
                     if whether_sub_layer and j != k:
                         continue
-                    cv2.line(img, (x, y + half_height), (new_x, new_y - half_height),
-                             colors[i + 1][j][k], thicknesses[i + 1][j][k])
-
-        cv2.imshow("Neural Network", img)
-        cv2.waitKey(delay)
+                    if masks[i][j][k]:
+                        cv2.line(img, (x, y + half_height), (new_x, new_y - half_height),
+                                 colors[i + 1][j][k], thicknesses[i + 1][j][k])
+        if show:
+            cv2.imshow("Neural Network", img)
+            cv2.waitKey(1)
         return img
 
     # Metrics
@@ -736,13 +726,13 @@ class NNDist:
     @NNTiming.timeit(level=1, prefix="[API] ")
     def fit(self,
             x=None, y=None, x_test=None, y_test=None,
-            batch_size=256, record_period=1, train_only=False,
+            batch_size=128, record_period=1, train_only=False,
             optimizer=None, w_optimizer=None, b_optimizer=None,
-            lr=0.01, lb=0.01, epoch=20, weight_scale=1, apply_bias=True,
+            lr=0.001, lb=0.001, epoch=20, weight_scale=1, apply_bias=True,
             show_loss=True, metrics=None, do_log=True, verbose=None,
             visualize=False, visualize_setting=None,
             draw_weights=False, draw_network=False, draw_detailed_network=False,
-            draw_img_network=False, img_shape=None):
+            draw_img_network=False, img_shape=None, show_animation=False, make_gif=False, make_mp4=False):
 
         if draw_img_network and img_shape is None:
             raise BuildNetworkError("Please provide image's shape to draw_img_network")
@@ -805,7 +795,7 @@ class NNDist:
         bar = ProgressBar(max_value=max(1, epoch // record_period), name="Epoch")
         if self.verbose >= NNVerbose.EPOCH:
             bar.start()
-        img = None
+        img, ims = None, []
 
         weight_trace = [[[org] for org in weight] for weight in self._weights]
         sub_bar = ProgressBar(max_value=train_repeat * record_period - 1, name="Iteration")
@@ -881,11 +871,13 @@ class NNDist:
                         self.visualize2d(x_test, y_test, *visualize_setting)
                 if x_test.shape[1] == 2:
                     if draw_network:
-                        img = self._draw_network(activations=_activations)
+                        img = self._draw_network(show_animation, activations=_activations)
                     if draw_detailed_network:
-                        img = self._draw_detailed_network()
+                        img = self._draw_detailed_network(show_animation)
                 elif draw_img_network:
-                    img = self._draw_img_network(img_shape)
+                    img = self._draw_img_network(show_animation, img_shape)
+                if img is not None and (make_gif or make_mp4):
+                    ims.append(img)
                 if self.verbose >= NNVerbose.EPOCH:
                     bar.update(counter // record_period + 1)
                     if self.verbose >= NNVerbose.ITER:
@@ -896,6 +888,8 @@ class NNDist:
         if img is not None:
             cv2.waitKey(0)
             cv2.destroyAllWindows()
+        if ims:
+            VisUtil.make_animations(ims, "NN", 20, 1, make_gif, make_mp4)
 
         if draw_weights:
             ts = np.arange(epoch * train_repeat + 1)
@@ -914,7 +908,6 @@ class NNDist:
         name = "Model.nn" if name is None else name
         if not os.path.exists(path):
             os.makedirs(path)
-
         _dir = os.path.join(path, name)
         if not overwrite and os.path.isfile(_dir):
             _count = 1
@@ -923,7 +916,7 @@ class NNDist:
                 _count += 1
                 _new_dir = _dir + "({})".format(_count)
             _dir = _new_dir
-
+        print("Saving Model to {}...".format(_dir))
         with open(_dir, "wb") as file:
             pickle.dump({
                 "structures": {
@@ -943,6 +936,7 @@ class NNDist:
                     "layer_special_params": self.layer_special_params,
                 }
             }, file)
+        print("Done")
 
     @NNTiming.timeit(level=2, prefix="[API] ")
     def load(self, path=os.path.join("Models", "Cache", "Model.nn")):

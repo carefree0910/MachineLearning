@@ -1,5 +1,4 @@
 from NN.TF.Networks import *
-
 from Util.Util import DataUtil
 
 

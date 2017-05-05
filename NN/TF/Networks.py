@@ -598,16 +598,12 @@ class NNDist(NNBase):
                  for unit in units]
         axis1 = [axis[1:-1] for axis in axis1]
 
-        colors, thicknesses = [], []
-        color_weights = [weight.eval().copy() for weight in self._tf_weights]
-        color_min = [np.min(weight) for weight in color_weights]
-        color_max = [np.max(weight) for weight in color_weights]
-        for weight, weight_min, weight_max in zip(
-                color_weights, color_min, color_max
-        ):
-            line_info = VisUtil.get_line_info(weight, weight_min, weight_max)
+        colors, thicknesses, masks = [], [], []
+        for weight in self._tf_weights:
+            line_info = VisUtil.get_line_info(weight.eval())
             colors.append(line_info[0])
             thicknesses.append(line_info[1])
+            masks.append(line_info[2])
 
         for i, (y, xs) in enumerate(zip(axis0, axis1)):
             for j, x in enumerate(xs):
@@ -628,8 +624,9 @@ class NNDist(NNBase):
                 for k, new_x in enumerate(axis1[i + 1]):
                     if whether_sub_layer and j != k:
                         continue
-                    cv2.line(img, (x, y + half_plot_num), (new_x, new_y - half_plot_num),
-                             colors[i][j][k], thicknesses[i][j][k])
+                    if masks[i][j][k]:
+                        cv2.line(img, (x, y + half_plot_num), (new_x, new_y - half_plot_num),
+                                 colors[i][j][k], thicknesses[i][j][k])
 
         cv2.imshow("Neural Network", img)
         cv2.waitKey(delay)

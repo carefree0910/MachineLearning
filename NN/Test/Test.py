@@ -1,5 +1,4 @@
 from NN.Basic.Networks import *
-
 from Util.Util import DataUtil
 
 
@@ -14,32 +13,17 @@ def main():
 
     lr = 0.001
     lb = 0.001
-    epoch = 10
+    epoch = 5
     record_period = 1
 
-    timing = Timing(enabled=True)
+    timing = Timing()
     timing_level = 1
 
     x, y = DataUtil.get_dataset("mnist", "../../_Data/mnist.txt", quantized=True, one_hot=True)
-    x = x.reshape(len(x), 1, 28, 28)
 
     if not load:
-        nn.add("ConvReLU", (x.shape[1:], (32, 3, 3)))
-        nn.add("ConvReLU", ((32, 3, 3),))
-        nn.add("MaxPool", ((3, 3),), 1)
-        nn.add("ConvNorm")
-        nn.add("ConvDrop")
-        nn.add("ConvReLU", ((64, 3, 3),))
-        nn.add("ConvReLU", ((64, 3, 3),))
-        nn.add("MaxPool", ((3, 3),), 1)
-        nn.add("ConvNorm")
-        nn.add("ConvDrop")
-        nn.add("ConvReLU", ((32, 3, 3),))
-        nn.add("ConvReLU", ((32, 3, 3),))
-        nn.add("MaxPool", ((3, 3),), 1)
-        nn.add("ReLU", (512,))
-        nn.add("Identical", (64,))
-        nn.add("Normalize")
+        nn.add("ReLU", (x.shape[1], 1024))
+        nn.add("ReLU", (1024,))
         nn.add("Dropout")
         nn.add("CrossEntropy", (y.shape[1],))
         nn.optimizer = "Adam"

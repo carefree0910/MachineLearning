@@ -1,5 +1,7 @@
 import os
+import cv2
 import pickle
+import imageio
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
@@ -217,28 +219,34 @@ class DataUtil:
 
 class VisUtil:
     @staticmethod
-    def get_colors(line):
-        c_base = 60
-        colors = []
-        for weight in line:
-            colors.append([int(255 * (1 - weight)), int(255 - c_base * abs(1 - 2 * weight)), int(255 * weight)])
-        return colors
+    def get_colors(line, all_pos):
+        # c_base = 60
+        # colors = []
+        # for weight in line:
+        #     colors.append([int(255 * (1 - weight)), int(255 - c_base * abs(1 - 2 * weight)), int(255 * weight)])
+        # return colors
+        # noinspection PyTypeChecker
+        colors = np.full([len(line), 3], [0, 195, 255], dtype=np.uint8)
+        if all_pos:
+            return colors.tolist()
+        colors[line < 0] = [255, 195, 0]
+        return colors.tolist()
 
     @staticmethod
-    def get_line_info(weight, weight_min, weight_max, max_thickness=5):
-        min_max_gap = weight_max - weight_min
-        weight -= weight_min
-        weight /= min_max_gap
-        colors = [VisUtil.get_colors(line) for line in weight]
+    def get_line_info(weight, max_thickness=4, threshold=0.2):
+        w_min, w_max = np.min(weight), np.max(weight)
+        if w_min >= 0:
+            weight -= w_min
+            all_pos = True
+        else:
+            all_pos = False
+        weight /= max(w_max, -w_min)
+        masks = np.abs(weight) >= threshold  # type: np.ndarray
+        colors = [VisUtil.get_colors(line, all_pos) for line in weight]
         thicknesses = np.array(
             [[int((max_thickness - 1) * abs(n)) + 1 for n in line] for line in weight]
         )
-        max_thickness = int(max_thickness)
-        if max_thickness <= 1:
-            max_thickness = 2
-        if np.sum(thicknesses == max_thickness) == thicknesses.shape[0] * thicknesses.shape[1]:
-            thicknesses = np.ones(thicknesses.shape, dtype=np.uint8)
-        return colors, thicknesses
+        return colors, thicknesses, masks
 
     @staticmethod
     def get_graphs_from_logs():
@@ -295,3 +303,22 @@ class VisUtil:
         if img.shape[0] == 1:
             return img.reshape(img.shape[1:])
         return img.transpose(1, 2, 0)
+
+    @staticmethod
+    def make_animations(ims, name="", fps=1, scale=1, gif=False, mp4=True):
+        if not gif and not mp4:
+            print("No animations are made")
+            return
+        print("Making Animations...")
+        with imageio.get_writer("{}.mp4".format(name), mode='I', fps=fps) as writer:
+            for im in ims:
+                if scale != 1:
+                    new_shape = (int(im.shape[1] * scale), int(im.shape[0] * scale))
+                    interpolation = cv2.INTER_CUBIC if scale > 1 else cv2.INTER_AREA
+                    im = cv2.resize(im, new_shape, interpolation=interpolation)
+                writer.append_data(im[..., ::-1])
+        if gif:
+            os.system("ffmpeg -i NN.mp4 -pix_fmt rgb24 NN.gif")
+        if not mp4:
+            os.remove("{}.mp4".format(name))
+        print("Done")

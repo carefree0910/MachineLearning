@@ -1,5 +1,4 @@
 from NN.Basic.Networks import *
-
 from Util.Util import DataUtil
 
 
@@ -15,18 +14,19 @@ def main():
     timing = Timing(enabled=True)
     timing_level = 1
 
-    x, y = DataUtil.gen_xor()
+    x, y = DataUtil.gen_spiral(50, 3, 3, 2.5)
 
     if not load:
-        nn.add("ReLU", (x.shape[1], 2))
-        nn.add("ReLU", (3,))
-        nn.add("ReLU", (3,))
+        nn.add("ReLU", (x.shape[1], 6))
+        nn.add("ReLU", (6,))
+        nn.add("ReLU", (6,))
         nn.add("CrossEntropy", (y.shape[1],))
         nn.optimizer = "Adam"
         nn.preview()
         nn.feed_timing(timing)
-        nn.fit(x, y, lr=lr, lb=lb, verbose=1,
-               epoch=epoch, batch_size=128, train_only=True, draw_detailed_network=True)
+        nn.fit(x, y, lr=lr, lb=lb, verbose=1, record_period=4,
+               epoch=epoch, batch_size=128, train_only=True,
+               draw_detailed_network=True, make_gif=True, make_mp4=True)
         if save:
             nn.save()
         nn.draw_results()
