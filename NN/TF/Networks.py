@@ -204,7 +204,6 @@ class NNBase:
                     layer.feed_shape((_current, _next))
                 else:
                     layer.is_fc = True
-                    last_layer.is_fc_base = True
                     fc_shape = last_layer.out_h * last_layer.out_w * last_layer.n_filters
             self._layers.append(layer)
             if isinstance(layer, ConvPoolLayer):
@@ -727,9 +726,9 @@ class NNDist(NNBase):
                 raise BuildLayerError("At least 2 layers are needed")
             _input_shape = (units[0], units[1])
             self.initialize()
-            self.add(Sigmoid(_input_shape))
+            self.add(ReLU(_input_shape))
             for unit_num in units[2:]:
-                self.add(Sigmoid((unit_num,)))
+                self.add(ReLU((unit_num,)))
             self.add(CrossEntropy((units[-1],)))
 
     @NNTiming.timeit(level=4, prefix="[API] ")
@@ -922,9 +921,10 @@ class NNDist(NNBase):
     def save(self, path=None, name=None, overwrite=True):
         path = "Models" if path is None else path
         name = "Cache" if name is None else name
-        if not os.path.exists(os.path.join(path, name)):
-            os.makedirs(os.path.join(path, name))
-        _dir = os.path.join(path, name, "Model")
+        folder = os.path.join(path, name)
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+        _dir = os.path.join(folder, "Model")
         if os.path.isfile(_dir):
             if not overwrite:
                 _count = 1
@@ -935,6 +935,11 @@ class NNDist(NNBase):
                 _dir = _new_dir
             else:
                 os.remove(_dir)
+
+        print()
+        print("=" * 60)
+        print("Saving Model to {}...".format(folder))
+        print("-" * 60)
 
         with open(_dir + ".nn", "wb") as file:
             # We don't need w_stds & b_inits when we load a model
@@ -977,10 +982,8 @@ class NNDist(NNBase):
         )
         os.remove(os.path.join(path, name, "Cache.pb"))
 
-        print()
-        print("=" * 30)
-        print("Model saved in folder: ", os.path.join(path, name))
-        print("=" * 30)
+        print("Done")
+        print("=" * 60)
 
     @NNTiming.timeit(level=2, prefix="[API] ")
     def load(self, path=None, verbose=2):

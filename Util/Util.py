@@ -305,11 +305,8 @@ class VisUtil:
         return img.transpose(1, 2, 0)
 
     @staticmethod
-    def make_animations(ims, name="", fps=1, scale=1, gif=False, mp4=True):
-        if not gif and not mp4:
-            print("No animations are made")
-            return
-        print("Making Animations...")
+    def make_mp4(ims, name="", fps=1, scale=1):
+        print("Making mp4...")
         with imageio.get_writer("{}.mp4".format(name), mode='I', fps=fps) as writer:
             for im in ims:
                 if scale != 1:
@@ -317,8 +314,4 @@ class VisUtil:
                     interpolation = cv2.INTER_CUBIC if scale > 1 else cv2.INTER_AREA
                     im = cv2.resize(im, new_shape, interpolation=interpolation)
                 writer.append_data(im[..., ::-1])
-        if gif:
-            os.system("ffmpeg -i NN.mp4 -pix_fmt rgb24 NN.gif")
-        if not mp4:
-            os.remove("{}.mp4".format(name))
         print("Done")

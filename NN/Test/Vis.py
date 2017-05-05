@@ -17,16 +17,13 @@ def main():
     x, y = DataUtil.gen_spiral(50, 3, 3, 2.5)
 
     if not load:
-        nn.add("ReLU", (x.shape[1], 6))
-        nn.add("ReLU", (6,))
-        nn.add("ReLU", (6,))
-        nn.add("CrossEntropy", (y.shape[1],))
+        nn.build([x.shape[1], 6, 6, 6, y.shape[1]])
         nn.optimizer = "Adam"
         nn.preview()
         nn.feed_timing(timing)
         nn.fit(x, y, lr=lr, lb=lb, verbose=1, record_period=4,
                epoch=epoch, batch_size=128, train_only=True,
-               draw_detailed_network=True, make_gif=True, make_mp4=True)
+               draw_detailed_network=True, make_mp4=True)
         if save:
             nn.save()
         nn.draw_results()

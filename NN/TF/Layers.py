@@ -16,7 +16,6 @@ class Layer:
         self._shape = shape
         self.parent = None
         self.is_fc = False
-        self.is_fc_base = False
         self.is_sub_layer = False
         self.apply_bias = kwargs["apply_bias"]
         self.position = kwargs["position"]

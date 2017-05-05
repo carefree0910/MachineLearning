@@ -13,8 +13,7 @@ from NN.Basic.Optimizers import OptFactory
 from Util.ProgressBar import ProgressBar
 from Util.Util import VisUtil
 
-# Deprecated Pure Numpy Version
-# TODO: Fix 'save' & 'load'; Support std & bias
+# Naive pure numpy version
 
 
 class NNVerbose:
@@ -227,12 +226,8 @@ class NNDist:
             layer.root.last_sub_layer = layer
             self.parent = _parent
             self._layers.append(layer)
-            if not isinstance(layer, ConvLayer):
-                self._weights.append(np.eye(_current))
-                self._bias.append(np.zeros((1, _current)))
-            else:
-                self._weights.append(np.array([.0]))
-                self._bias.append(np.array([.0]))
+            self._weights.append(np.array([.0]))
+            self._bias.append(np.array([.0]))
             self._current_dimension = _next
         else:
             fc_shape, conv_channel, last_layer = None, None, self._layers[-1]
@@ -251,21 +246,23 @@ class NNDist:
         self._update_layer_information(layer)
 
     @NNTiming.timeit(level=4)
-    def _add_cost_layer(self):
-        _last_layer = self._layers[-1]
-        _last_layer_root = _last_layer.root
-        if not isinstance(_last_layer, CostLayer):
-            if _last_layer_root.name == "Sigmoid" or _last_layer_root.name == "Softmax":
+    def _add_cost_layer(self, output_dim):
+        last_layer = self._layers[-1]
+        last_layer_root = last_layer.root
+        if not isinstance(last_layer, CostLayer):
+            if last_layer_root.name == "Sigmoid" or last_layer_root.name == "Softmax":
                 self._cost_layer = "CrossEntropy"
             else:
                 self._cost_layer = "MSE"
-            self.add(self._cost_layer)
+            self.add(self._cost_layer, (output_dim,))
         else:
-            self._cost_layer = _last_layer.cost_function
+            self._cost_layer = last_layer.cost_function
 
     @NNTiming.timeit(level=4)
     def _update_layer_information(self, layer):
         self._layer_params.append(layer.params)
+        if len(self._layer_params) > 1 and not layer.is_sub_layer:
+            self._layer_params[-1] = ((self._layer_params[-1][0][1],), *self._layer_params[-1][1:])
 
     @NNTiming.timeit(level=1)
     def _get_prediction(self, x, name=None, batch_size=1e6, verbose=None):
@@ -645,8 +642,7 @@ class NNDist:
         if isinstance(units, str):
             if units == "build":
                 for name, param in zip(self._layer_names, self._layer_params):
-                    self._add_layer(name, *param)
-                self._add_cost_layer()
+                    self.add(name, *param)
             else:
                 raise NotImplementedError("Invalid param '{}' provided to 'build' method".format(units))
         else:
@@ -658,18 +654,16 @@ class NNDist:
                 raise BuildLayerError("At least 2 layers are needed")
             _input_shape = (units[0], units[1])
             self.initialize()
-            self.add(Sigmoid(_input_shape))
-            for unit_num in units[2:]:
-                self.add(Sigmoid((unit_num,)))
-            self._add_cost_layer()
+            self.add(ReLU(_input_shape))
+            for unit_num in units[2:-1]:
+                self.add(ReLU((unit_num,)))
+            self.add("CrossEntropy", (units[-1],))
 
     @NNTiming.timeit(level=4, prefix="[API] ")
-    def preview(self, add_cost=True):
+    def preview(self):
         if not self._layers:
             rs = "None"
         else:
-            if add_cost:
-                self._add_cost_layer()
             rs = (
                 "Input  :  {:<10s} - {}\n".format("Dimension", self._layers[0].shape[0]) +
                 "\n".join([
@@ -732,7 +726,7 @@ class NNDist:
             show_loss=True, metrics=None, do_log=True, verbose=None,
             visualize=False, visualize_setting=None,
             draw_weights=False, draw_network=False, draw_detailed_network=False,
-            draw_img_network=False, img_shape=None, show_animation=False, make_gif=False, make_mp4=False):
+            draw_img_network=False, img_shape=None, show_animation=False, make_mp4=False):
 
         if draw_img_network and img_shape is None:
             raise BuildNetworkError("Please provide image's shape to draw_img_network")
@@ -876,7 +870,7 @@ class NNDist:
                         img = self._draw_detailed_network(show_animation)
                 elif draw_img_network:
                     img = self._draw_img_network(show_animation, img_shape)
-                if img is not None and (make_gif or make_mp4):
+                if img is not None and make_mp4:
                     ims.append(img)
                 if self.verbose >= NNVerbose.EPOCH:
                     bar.update(counter // record_period + 1)
@@ -889,7 +883,7 @@ class NNDist:
             cv2.waitKey(0)
             cv2.destroyAllWindows()
         if ims:
-            VisUtil.make_animations(ims, "NN", 20, 1, make_gif, make_mp4)
+            VisUtil.make_mp4(ims, "NN", 20, 1)
 
         if draw_weights:
             ts = np.arange(epoch * train_repeat + 1)
@@ -916,7 +910,10 @@ class NNDist:
                 _count += 1
                 _new_dir = _dir + "({})".format(_count)
             _dir = _new_dir
+        print()
+        print("=" * 60)
         print("Saving Model to {}...".format(_dir))
+        print("-" * 60)
         with open(_dir, "wb") as file:
             pickle.dump({
                 "structures": {
@@ -937,17 +934,18 @@ class NNDist:
                 }
             }, file)
         print("Done")
+        print("=" * 60)
 
     @NNTiming.timeit(level=2, prefix="[API] ")
     def load(self, path=os.path.join("Models", "Cache", "Model.nn")):
         self.initialize()
         try:
             with open(path, "rb") as file:
-                _dic = pickle.load(file)
-                for key, value in _dic["structures"].items():
+                dic = pickle.load(file)
+                for key, value in dic["structures"].items():
                     setattr(self, key, value)
                 self.build()
-                for key, value in _dic["params"].items():
+                for key, value in dic["params"].items():
                     setattr(self, key, value)
                 self._init_optimizer()
                 for i in range(len(self._metric_names) - 1, -1, -1):
@@ -956,7 +954,11 @@ class NNDist:
                         self._metric_names.pop(i)
                     else:
                         self._metrics.insert(0, self._available_metrics[name])
-                return _dic
+                print()
+                print("=" * 30)
+                print("Model restored")
+                print("=" * 30)
+                return dic
         except Exception as err:
             raise BuildNetworkError("Failed to load Network ({}), structure initialized".format(err))
 

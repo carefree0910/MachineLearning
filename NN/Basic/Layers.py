@@ -95,7 +95,9 @@ class Layer:
         if self.is_fc:
             x = x.reshape(x.shape[0], -1)
         if self.is_sub_layer:
-            return self._activate(x, predict)
+            if bias is None:
+                return self._activate(x, predict)
+            return self._activate(x + bias, predict)
         if bias is None:
             return self._activate(x.dot(w), predict)
         return self._activate(x.dot(w) + bias, predict)
@@ -142,6 +144,13 @@ class SubLayer(Layer):
     @root.setter
     def root(self, value):
         self._root = value
+
+    def get_params(self):
+        pass
+
+    @property
+    def params(self):
+        return self.get_params()
 
     def _activate(self, x, predict):
         raise NotImplementedError("Please implement activation function for " + self.name)
@@ -221,23 +230,14 @@ class ConvPoolLayer(ConvLayer):
         ConvLayer.__init__(self, shape, stride, padding)
         self._pool_cache = {}
 
+    @property
+    def params(self):
+        return (self._shape[0], self._shape[1][1:]), self._stride, self._padding
+
     def feed_shape(self, shape):
-        self._shape = (shape[0], (shape[0][0], *shape[1]))
-        self.n_channels, height, width = shape[0]
-        pool_height, pool_width = shape[1]
-        self.n_filters = self.n_channels
-        full_height, full_width = width + 2 * self._padding, height + 2 * self._padding
-        if (
-            (full_height - pool_height) % self._stride != 0 or
-            (full_width - pool_width) % self._stride != 0
-        ):
-            raise BuildLayerError(
-                "Pool shape does not work, "
-                "shape: {} - stride: {} - padding: {} not compatible with {}".format(
-                    self._shape[1], self._stride, self._padding, (height, width)
-                ))
-        self.out_h = int((height - pool_height) / self._stride) + 1
-        self.out_w = int((width - pool_width) / self._stride) + 1
+        if len(shape[1]) == 2:
+            shape = (shape[0], (shape[0][0], *shape[1]))
+        ConvLayer.feed_shape(self, shape)
 
     @LayerTiming.timeit(level=1, prefix="[Core] ")
     def activate(self, x, w, bias=None, predict=False):
@@ -382,6 +382,10 @@ class ConvSubMeta(type):
                 prev_delta = prev_delta[0]
             return self.LayerTiming.timeit(level=1, func_name="bp", cls_name=name, prefix="[Core] ")(
                 _derivative)(self, y, w, prev_delta)
+
+        @property
+        def params(self):
+            return sub_layer.get_params(self)
 
         for key, value in locals().items():
             if str(value).find("function") >= 0 or str(value).find("property"):
@@ -548,6 +552,9 @@ class Dropout(SubLayer):
         self._prob_inv = 1 / (1 - prob)
         self.description = "(Drop prob: {})".format(prob)
 
+    def get_params(self):
+        return self._prob,
+
     def _activate(self, x, predict):
         if not predict:
             return x.dot(np.diag(np.random.random(x.shape[1]) >= self._prob) * self._prob_inv)
@@ -575,8 +582,7 @@ class Normalize(SubLayer):
             lr, eps, momentum, self._g_optimizer.name, self._b_optimizer.name
         )
 
-    @property
-    def params(self):
+    def get_params(self):
         return self._lr, self._eps, self._momentum, (self._g_optimizer.name, self._b_optimizer.name)
 
     @property
@@ -786,7 +792,7 @@ class LayerFactory:
     }
     special_layer_default_params = {
         "Dropout": (0.5, ),
-        "Normalize": (0.01, 1e-8, 0.9),
+        "Normalize": (0.001, 1e-8, 0.9),
         "ConvDrop": (0.5, ),
         "ConvNorm": (0.001, 1e-8, 0.9)
     }
