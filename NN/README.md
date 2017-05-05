@@ -6,6 +6,34 @@ Implemented **Neural Network** & **Convolutional Neural Network** with `numpy` &
 
 ## Examples
 
+### Visualize Network
+```python
+from NN.Basic.Networks import *
+from Util.Util import DataUtil
+
+nn = NNDist()
+
+timing = Timing()
+timing_level = 1
+
+x, y = DataUtil.gen_spiral(50, 3, 3, 2.5)
+
+nn.build([x.shape[1], 6, 6, 6, y.shape[1]])  # Build a neural network on the fly (With ReLU + Cross Entropy)
+nn.optimizer = "Adam"                        # Use Adam algorithms for training 
+nn.preview()                                 # Preview network structure    
+nn.feed_timing(timing)
+nn.fit(x, y, verbose=1, record_period=4, epoch=1000, train_only=True,
+       draw_detailed_network=True, show_animation=True, make_mp4=True)
+                                             # Visualize network & make an mp4 file                    
+nn.draw_results()                            # Draw results (Training curve & loss curve)
+nn.visualize2d()                             # Visualize result (2d)
+
+timing.show_timing_log(timing_level)         # Show timing log
+```
+
+#### Result
+See the GIF above
+
 ### Mnist
 ```python
 from NN.NN import *
@@ -15,8 +43,8 @@ timing = Timing()
 timing_level = 1
 
 x, y = DataUtil.get_dataset("mnist", "../../_Data/mnist.txt", quantized=True, one_hot=True)
-                                               # Get tiny mnist dataset
-x = x.reshape(len(x), 1, 28, 28)               # Reshape x to 4d array
+                                             # Get tiny mnist dataset
+x = x.reshape(len(x), 1, 28, 28)             # Reshape x to 4d array
 
 nn = NNDist()
 
@@ -45,42 +73,11 @@ nn.add("Normalize", activation="ReLU")
 nn.add("Dropout")
 nn.add("CrossEntropy", (y.shape[1],))
 
-nn.optimizer = "Adam"                          # Use Adam algorithms for training 
-nn.preview()                                   # Preview network structure                     
-nn.fit(x, y, verbose=2, do_log=True, show_loss=True)
-                                               # Train network 
-nn.draw_results()                              # Draw results (Training curve & loss curve)
-
-timing.show_timing_log(timing_level)           # Show timing log
-```
-
-### Visualize Network
-```python
-from NN.Basic.Networks import *
-from Util.Util import DataUtil
-
-nn = NNDist()
-
-timing = Timing()
-timing_level = 1
-
-x, y = DataUtil.gen_spiral(50, 3, 3, 2.5)
-
-nn.add("ReLU", (x.shape[1], 6))
-nn.add("ReLU", (6,))
-nn.add("ReLU", (6,))
-nn.add("CrossEntropy", (y.shape[1],))
 nn.optimizer = "Adam"
-nn.preview()
-nn.feed_timing(timing)
-nn.fit(x, y, verbose=1, record_period=4, epoch=1000, train_only=True,
-       draw_detailed_network=True, show_animation=True, make_mp4=True)
-                                               # Visualize network & make an mp4 file                    
-nn.draw_results()                              # Draw results (Training curve & loss curve)
-nn.visualize2d()                               # Visualize result (2d)
+nn.preview()                     
+nn.fit(x, y, verbose=2, do_log=True, show_loss=True)
+                                             # Train network 
+nn.draw_results()                            # Draw results (Training curve & loss curve)
 
-timing.show_timing_log(timing_level)           # Show timing log
+timing.show_timing_log(timing_level)         # Show timing log
 ```
-
-#### Result
-See the GIF above
