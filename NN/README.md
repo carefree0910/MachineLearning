@@ -81,3 +81,6 @@ nn.visualize2d()                               # Visualize result (2d)
 
 timing.show_timing_log(timing_level)           # Show timing log
 ```
+
+#### Result
+See the GIF above
