@@ -19,4 +19,4 @@ svm.visualize2d(x, y, padding=0.1, dense=400, emphasize=svm["alpha"] > 0)
 ```
 
 ### Result
-![image](http://i1.piimg.com/567571/c1131052c5659373.png)
+![SVM on Spiral](http://i1.piimg.com/567571/c1131052c5659373.png)

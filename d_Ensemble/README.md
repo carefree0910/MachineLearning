@@ -16,4 +16,4 @@ rf.show_timing_log()                    # Show timing log
 ```
 
 ### Result
-![image](http://i4.buimg.com/567571/fd50b722d988b1dd.png)
+![Cart on Spiral](http://i4.buimg.com/567571/fd50b722d988b1dd.png)

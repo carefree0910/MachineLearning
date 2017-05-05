@@ -8,9 +8,9 @@ Naive Bayes algorithms implemented with
 ## Visualization
 + Dataset comes from UCI: [Bank Marketing dataset](http://archive.ics.uci.edu/ml/datasets/Bank+Marketing)
 
-![image](http://i4.buimg.com/567571/79ea5cb079b16a72.png)
+![Discrete Features](http://i4.buimg.com/567571/79ea5cb079b16a72.png)
 
-![image](http://i2.muimg.com/567571/f267b1a607e4c95e.png)
+![Continuous Features](http://i2.muimg.com/567571/f267b1a607e4c95e.png)
 
 ## Example
 ```python
