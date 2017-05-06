@@ -44,16 +44,16 @@ class NaiveNN(ClassifierBase):
         self._layers.append(layer)
 
     @NaiveNNTiming.timeit(level=1)
-    def _get_prediction(self, x):
-        return self._get_activations(x).pop()
-
-    @NaiveNNTiming.timeit(level=1)
     def _get_activations(self, x):
         _activations = [self._layers[0].activate(x, self._weights[0], self._bias[0])]
         for i, layer in enumerate(self._layers[1:]):
             _activations.append(layer.activate(
                 _activations[-1], self._weights[i + 1], self._bias[i + 1]))
         return _activations
+
+    @NaiveNNTiming.timeit(level=1)
+    def _get_prediction(self, x):
+        return self._get_activations(x)[-1]
 
     # Optimizing Process
 
