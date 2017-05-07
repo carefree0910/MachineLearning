@@ -23,7 +23,7 @@ def main():
         nn.feed_timing(timing)
         nn.fit(x, y, lr=lr, lb=lb, verbose=1, record_period=4,
                epoch=epoch, batch_size=128, train_only=True,
-               draw_detailed_network=True, make_mp4=True)
+               draw_detailed_network=True, make_mp4=True, show_animation=True)
         if save:
             nn.save()
         nn.draw_results()
