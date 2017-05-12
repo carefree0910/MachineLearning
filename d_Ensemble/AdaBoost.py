@@ -80,7 +80,6 @@ class AdaBoost(ClassifierBase):
         else:
             sample_weight = np.asarray(sample_weight)
         bar = ProgressBar(max_value=epoch, name="AdaBoost")
-        bar.start()
         for _ in range(epoch):
             tmp_clf = AdaBoost._weak_clf[clf](**kwargs)
             tmp_clf.fit(x, y, sample_weight=sample_weight)

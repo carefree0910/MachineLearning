@@ -471,7 +471,7 @@ class NNDist(NNBase):
         if not len(x) % single_batch:
             epoch += 1
         name = "Prediction" if name is None else "Prediction ({})".format(name)
-        sub_bar = ProgressBar(max_value=epoch, name=name)
+        sub_bar = ProgressBar(max_value=epoch, name=name, start=False)
         if verbose >= NNVerbose.METRICS:
             sub_bar.start()
         rs, count = [], 0
@@ -583,7 +583,7 @@ class NNDist(NNBase):
                 _graph_group.append(data)
             _graphs.append(_graph_group)
 
-        img = np.ones((height, width, 3), np.uint8) * 255
+        img = np.full([height, width, 3], 255, dtype=np.uint8)
         axis0_padding = int(height / (layers - 1 + 2 * padding)) * padding + plot_num
         axis0_step = (height - 2 * axis0_padding) / layers
         sub_layer_decrease = int((1 - sub_layer_height_scale) * axis0_step)
@@ -819,7 +819,7 @@ class NNDist(NNBase):
         if verbose is not None:
             self.verbose = verbose
 
-        bar = ProgressBar(max_value=max(1, epoch // record_period), name="Epoch")
+        bar = ProgressBar(max_value=max(1, epoch // record_period), name="Epoch", start=False)
         if self.verbose >= NNVerbose.EPOCH:
             bar.start()
         img = None
@@ -863,7 +863,7 @@ class NNDist(NNBase):
                 train_writer = test_writer = train_merge_op = test_merge_op = None
 
             y_train_pred = y_test_pred = None
-            sub_bar = ProgressBar(max_value=train_repeat * record_period - 1, name="Iteration")
+            sub_bar = ProgressBar(max_value=train_repeat * record_period - 1, name="Iteration", start=False)
             for counter in range(epoch):
                 if self.verbose >= NNVerbose.ITER and counter % record_period == 0:
                     sub_bar.start()
@@ -911,7 +911,8 @@ class NNDist(NNBase):
                     if self.verbose >= NNVerbose.EPOCH:
                         bar.update(counter // record_period + 1)
                         if self.verbose >= NNVerbose.ITER:
-                            sub_bar = ProgressBar(max_value=train_repeat * record_period - 1, name="Iteration")
+                            sub_bar = ProgressBar(
+                                max_value=train_repeat * record_period - 1, name="Iteration", start=False)
 
         if img is not None:
             cv2.waitKey(0)
@@ -1176,7 +1177,6 @@ class NNFrozen(NNBase):
         epoch = int(ceil(len(x) / batch_size))
         output = self._sess.graph.get_tensor_by_name(self._output)
         bar = ProgressBar(max_value=epoch, name="Predict")
-        bar.start()
         for i in range(epoch):
             if i == epoch - 1:
                 rs.append(self._sess.run(output, {

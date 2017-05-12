@@ -38,7 +38,6 @@ class LinearSVM(ClassifierBase):
         self._w = np.zeros(x.shape[1])
         self._b = 0
         bar = ProgressBar(max_value=epoch, name="LinearSVM")
-        bar.start()
         for _ in range(epoch):
             _err = (1 - self.predict(x, get_raw_results=True) * y) * sample_weight
             _indices = np.random.permutation(len(y))
@@ -97,7 +96,6 @@ class TFLinearSVM(ClassifierBase):
         train_step = tf.train.AdamOptimizer(learning_rate=lr).minimize(cost)
         self._sess.run(tf.global_variables_initializer())
         bar = ProgressBar(max_value=epoch, name="TFLinearSVM")
-        bar.start()
         for _ in range(epoch):
             _l = self._sess.run([cost, train_step])[0]
             if _l < tol:

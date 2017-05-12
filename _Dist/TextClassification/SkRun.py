@@ -27,7 +27,6 @@ def main(clf):
     batch_size = math.ceil(data_len * 0.1)
     _acc_lst, y_results = [], []
     bar = ProgressBar(max_value=10, name=str(clf))
-    bar.start()
     for i in range(10):
         _next = (i + 1) * batch_size if i != 9 else data_len
         x_train = x[:i * batch_size] + x[(i + 1) * batch_size:]
@@ -50,7 +49,6 @@ def main(clf):
 def run(clf):
     acc_records, y_records = [], []
     bar = ProgressBar(max_value=10, name="Main")
-    bar.start()
     for _ in range(10):
         if clf == "Naive Bayes":
             _clf = SKMultinomialNB(alpha=0.1)

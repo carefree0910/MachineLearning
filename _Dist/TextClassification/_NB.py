@@ -69,7 +69,6 @@ def test(test_sets, prob_lists):
 if __name__ == '__main__':
     _rs, epoch = [], 10
     bar = ProgressBar(max_value=epoch, name="_NB")
-    bar.start()
     for _ in range(epoch):
         _rs.append(test(*train()))
         bar.update()

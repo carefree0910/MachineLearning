@@ -161,7 +161,6 @@ class Extractor:
                 batch_size = math.floor(1e6 / np.prod(features.shape[1:]))
                 epoch = int(math.ceil(len(features) / batch_size))
                 bar = ProgressBar(max_value=epoch, name="Extract")
-                bar.start()
                 for i in range(epoch):
                     if i == epoch - 1:
                         rs.append(sess.run(flattened_tensor, {
@@ -230,7 +229,6 @@ class Predictor:
             batch_size = math.floor(1e6 / np.prod(x.shape[1:]))
             epoch = math.ceil(len(x) / batch_size)  # type: int
             bar = ProgressBar(max_value=epoch, name="Predict")
-            bar.start()
             for i in range(epoch):
                 if i == epoch - 1:
                     rs.append(sess.run(flattened_tensor, {

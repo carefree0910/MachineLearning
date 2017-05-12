@@ -45,7 +45,6 @@ class NNDist:
 
         self._whether_apply_bias = False
         self._current_dimension = 0
-        self._cost_layer = "Undefined"
 
         self._logs = {}
         self._timings = {}
@@ -92,7 +91,6 @@ class NNDist:
 
         self._whether_apply_bias = False
         self._current_dimension = 0
-        self._cost_layer = "Undefined"
 
         self._logs = []
         self._timings = {}
@@ -246,19 +244,6 @@ class NNDist:
         self._update_layer_information(layer)
 
     @NNTiming.timeit(level=4)
-    def _add_cost_layer(self, output_dim):
-        last_layer = self._layers[-1]
-        last_layer_root = last_layer.root
-        if not isinstance(last_layer, CostLayer):
-            if last_layer_root.name == "Sigmoid" or last_layer_root.name == "Softmax":
-                self._cost_layer = "CrossEntropy"
-            else:
-                self._cost_layer = "MSE"
-            self.add(self._cost_layer, (output_dim,))
-        else:
-            self._cost_layer = last_layer.cost_function
-
-    @NNTiming.timeit(level=4)
     def _update_layer_information(self, layer):
         self._layer_params.append(layer.params)
         if len(self._layer_params) > 1 and not layer.is_sub_layer:
@@ -278,7 +263,7 @@ class NNDist:
         if not len(x) % single_batch:
             epoch += 1
         name = "Prediction" if name is None else "Prediction ({})".format(name)
-        sub_bar = ProgressBar(max_value=epoch, name=name)
+        sub_bar = ProgressBar(max_value=epoch, name=name, start=False)
         if verbose >= NNVerbose.METRICS:
             sub_bar.start()
         rs, count = [self._get_activations(x[:single_batch], predict=True).pop()], single_batch
@@ -413,7 +398,7 @@ class NNDist:
                 graph_group.append(data)
             graphs.append(graph_group)
 
-        img = np.ones((height, width, 3), np.uint8) * 255
+        img = np.full([height, width, 3], 255, dtype=np.uint8)
         axis0_padding = int(height / (layers - 1 + 2 * padding)) * padding + plot_num
         axis0_step = (height - 2 * axis0_padding) / layers
         sub_layer_decrease = int((1 - sub_layer_height_scale) * axis0_step)
@@ -676,7 +661,7 @@ class NNDist:
                     ) if isinstance(_layer, ConvLayer) else "Layer  :  {:<10s} - {}".format(
                         _layer.name, _layer.shape[1]
                     ) for _layer in self._layers[:-1]
-                ]) + "\nCost   :  {:<10s}".format(self._cost_layer)
+                ]) + "\nCost   :  {:<10s}".format(str(self._layers[-1]))
             )
         print("=" * 30 + "\n" + "Structure\n" + "-" * 30 + "\n" + rs + "\n" + "-" * 30 + "\n")
 
@@ -786,13 +771,13 @@ class NNDist:
         layer_width = len(self._layers)
         self._whether_apply_bias = apply_bias
 
-        bar = ProgressBar(max_value=max(1, epoch // record_period), name="Epoch")
+        bar = ProgressBar(max_value=max(1, epoch // record_period), name="Epoch", start=False)
         if self.verbose >= NNVerbose.EPOCH:
             bar.start()
         img, ims = None, []
 
         weight_trace = [[[org] for org in weight] for weight in self._weights]
-        sub_bar = ProgressBar(max_value=train_repeat * record_period - 1, name="Iteration")
+        sub_bar = ProgressBar(max_value=train_repeat * record_period - 1, name="Iteration", start=False)
         for counter in range(epoch):
             self._w_optimizer.update()
             self._b_optimizer.update()
@@ -875,7 +860,7 @@ class NNDist:
                 if self.verbose >= NNVerbose.EPOCH:
                     bar.update(counter // record_period + 1)
                     if self.verbose >= NNVerbose.ITER:
-                        sub_bar = ProgressBar(max_value=train_repeat * record_period - 1, name="Iteration")
+                        sub_bar = ProgressBar(max_value=train_repeat * record_period - 1, name="Iteration", start=False)
 
         if do_log:
             self._append_log(x_test, y_test, "test", get_loss=show_loss)

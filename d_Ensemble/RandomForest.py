@@ -44,7 +44,6 @@ class RandomForest(ClassifierBase):
         n_sample = len(y)
         self._tree = tree
         bar = ProgressBar(max_value=epoch, name="RF")
-        bar.start()
         for _ in range(epoch):
             tmp_tree = RandomForest._cvd_trees[tree](**kwargs)
             _indices = np.random.randint(n_sample, size=n_sample)

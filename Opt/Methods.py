@@ -315,7 +315,6 @@ class Optimizer:
         self._func.refresh_cache(self._x)
         self._loss_cache, self._grad_cache = self.func(0), self.func(1)
         bar = ProgressBar(max_value=epoch, name="Opt")
-        bar.start()
         for _ in range(epoch):
             self.iter += 1
             with warnings.catch_warnings():

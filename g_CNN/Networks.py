@@ -68,7 +68,7 @@ class NN(ClassifierBase):
         if not len(x) % single_batch:
             epoch += 1
         name = "Prediction" if name is None else "Prediction ({})".format(name)
-        sub_bar = ProgressBar(min_value=0, max_value=epoch, name=name)
+        sub_bar = ProgressBar(max_value=epoch, name=name, start=False)
         if verbose >= NNVerbose.METRICS:
             sub_bar.start()
         if not out_of_sess:
@@ -310,7 +310,7 @@ class NN(ClassifierBase):
             name: [[] for _ in range(len(metrics) + 1)] for name in ("train", "test")
         }
 
-        bar = ProgressBar(min_value=0, max_value=max(1, epoch // record_period), name="Epoch")
+        bar = ProgressBar(max_value=max(1, epoch // record_period), name="Epoch", start=False)
         if self.verbose >= NNVerbose.EPOCH:
             bar.start()
 
@@ -322,7 +322,7 @@ class NN(ClassifierBase):
             self._cost = self._layers[-1].calculate(self._tfy, self._y_pred)
             self._train_step = self._optimizer.minimize(self._cost)
             sess.run(tf.global_variables_initializer())
-            sub_bar = ProgressBar(min_value=0, max_value=train_repeat * record_period - 1, name="Iteration")
+            sub_bar = ProgressBar(max_value=train_repeat * record_period - 1, name="Iteration", start=False)
             for counter in range(epoch):
                 if self.verbose >= NNVerbose.EPOCH and counter % record_period == 0:
                     sub_bar.start()
@@ -349,7 +349,7 @@ class NN(ClassifierBase):
                         self._print_metric_logs("test")
                     if self.verbose >= NNVerbose.EPOCH:
                         bar.update(counter // record_period + 1)
-                        sub_bar = ProgressBar(min_value=0, max_value=train_repeat * record_period - 1, name="Iteration")
+                        sub_bar = ProgressBar(max_value=train_repeat * record_period - 1, name="Iteration", start=False)
 
     @NNTiming.timeit(level=1, prefix="[API] ")
     def predict(self, x, get_raw_results=False):

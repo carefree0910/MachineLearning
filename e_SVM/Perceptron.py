@@ -31,7 +31,6 @@ class Perceptron(ClassifierBase):
         self._w = np.zeros(x.shape[1])
         self._b = 0
         bar = ProgressBar(max_value=epoch, name="Perceptron")
-        bar.start()
         for _ in range(epoch):
             y_pred = self.predict(x)
             _err = (y_pred != y) * sample_weight

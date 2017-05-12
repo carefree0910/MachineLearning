@@ -522,7 +522,6 @@ class KernelBase(ClassifierBase):
         else:
             _yv = _test_gram = None
         bar = ProgressBar(max_value=epoch, name=str(self))
-        bar.start()
         for _ in range(epoch):
             if self._fit(sample_weight, *_fit_args):
                 bar.update(epoch)

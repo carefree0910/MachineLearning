@@ -2,7 +2,7 @@ import time
 
 
 class ProgressBar:
-    def __init__(self, min_value=0, max_value=None, min_refresh_period=0.5, width=30, name=""):
+    def __init__(self, min_value=0, max_value=None, min_refresh_period=0.5, width=30, name="", start=True):
         self._min, self._max = min_value, max_value
         self._task_length = int(max_value - min_value) if (
             min_value is not None and max_value is not None
@@ -17,6 +17,8 @@ class ProgressBar:
         self._current = 0
         self._clock = 0
         self._cost = 0
+        if start:
+            self.start()
 
     def _flush(self):
         if self._ended:
@@ -119,7 +121,6 @@ if __name__ == '__main__':
     def task(cost=0.25, epoch=3, name="", _sub_task=None):
         def _sub():
             bar = ProgressBar(max_value=epoch, name=name)
-            bar.start()
             for _ in range(epoch):
                 time.sleep(cost)
                 if _sub_task is not None:
