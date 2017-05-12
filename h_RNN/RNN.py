@@ -38,6 +38,7 @@ class RNNWrapper:
 
         self._params = {
             "cell": kwargs.get("cell", LSTMCell),
+            # "cell": kwargs.get("cell", tf.contrib.rnn.BasicRNNCell),
             "n_time_step": kwargs.get("n_time_step", 10),
             "random_scale": kwargs.get("random_scale", 1),
             "n_hidden": kwargs.get("n_hidden", 128),
@@ -136,10 +137,11 @@ class RNNWrapper:
         plt.show()
 
 
-class RNNForAddition(RNNWrapper):
+class RNNForOp(RNNWrapper):
     def __init__(self, **kwargs):
-        super(RNNForAddition, self).__init__(**kwargs)
+        super(RNNForOp, self).__init__(**kwargs)
         self._params["boost"] = kwargs.get("boost", 2)
+        self._op = ""
 
     def _verbose(self):
         x_test, y_test = self._generator.gen(1, self._params["boost"])
@@ -148,18 +150,31 @@ class RNNForAddition(RNNWrapper):
         }), axis=2).ravel()
         x_test = x_test.astype(np.int)
         print("I think {} = {}, answer: {}...".format(
-            " + ".join(
+            " {} ".format(self._op).join(
                 ["".join(map(lambda n: str(n), x_test[..., 0, i][::-1])) for i in range(x_test.shape[2])]
             ),
             "".join(map(lambda n: str(n), ans[::-1])),
             "".join(map(lambda n: str(n), np.argmax(y_test, axis=2).ravel()[::-1]))))
 
 
-class AdditionGenerator:
+class RNNForAddition(RNNForOp):
+    def __init__(self, **kwargs):
+        super(RNNForAddition, self).__init__(**kwargs)
+        self._op = "+"
+
+
+class RNNForMultiple(RNNForOp):
+    def __init__(self, **kwargs):
+        super(RNNForMultiple, self).__init__(**kwargs)
+        self._op = "*"
+
+
+class OpGenerator:
     def __init__(self, n_time_step, random_scale, im, base):
         self._n_time_step = n_time_step
         self._random_scale = random_scale
         self._im, self._base = im, base
+        self._op = lambda x: 0
 
     def _gen_seq(self, n_time_step, tar):
         seq = []
@@ -167,6 +182,9 @@ class AdditionGenerator:
             seq.append(tar % self._base)
             tar //= self._base
         return seq
+
+    def _gen_targets(self, n_time_step):
+        return []
 
     def gen(self, batch_size, boost=0):
         if boost:
@@ -176,15 +194,37 @@ class AdditionGenerator:
         x = np.empty([n_time_step, batch_size, self._im])
         y = np.zeros([n_time_step, batch_size, self._base])
         for i in range(batch_size):
-            targets = [int(random.randint(0, self._base ** n_time_step - 1) / self._im) for _ in range(self._im)]
+            targets = self._gen_targets(n_time_step)
             sequences = [self._gen_seq(n_time_step, tar) for tar in targets]
             for j in range(self._im):
                 x[:, i, j] = sequences[j]
-            y[range(n_time_step), i, self._gen_seq(n_time_step, sum(targets))] = 1
+            y[range(n_time_step), i, self._gen_seq(n_time_step, self._op(targets))] = 1
         return x, y
 
+
+class AdditionGenerator(OpGenerator):
+    def __init__(self, n_time_step, random_scale, im, base):
+        super(AdditionGenerator, self).__init__(n_time_step, random_scale, im, base)
+        self._op = sum
+
+    def _gen_targets(self, n_time_step):
+        return [int(random.randint(0, self._base ** n_time_step - 1) / self._im) for _ in range(self._im)]
+
+
+class MultipleGenerator(OpGenerator):
+    def __init__(self, n_time_step, random_scale, im, base):
+        super(MultipleGenerator, self).__init__(n_time_step, random_scale, im, base)
+        self._op = np.prod
+
+    def _gen_targets(self, n_time_step):
+        return [int(random.randint(0, self._base ** n_time_step - 1) ** (1 / self._im)) for _ in range(self._im)]
+
 if __name__ == '__main__':
-    _digit_len, _digit_base, _n_digit = 2, 10, 3
-    lstm = RNNForAddition(n_time_step=_digit_len, epoch=100, random_scale=2)
-    lstm.fit(_n_digit, _digit_base, generator=AdditionGenerator)
+    _digit_len, _digit_base, _n_digit = 4, 10, 2
+    lstm = RNNForMultiple(
+        cell=LSTMCell,
+        # cell=tf.contrib.rnn.BasicRNNCell,
+        n_time_step=_digit_len, epoch=100, random_scale=0, boost=0
+    )
+    lstm.fit(_n_digit, _digit_base, generator=MultipleGenerator)
     lstm.draw_err_logs()
