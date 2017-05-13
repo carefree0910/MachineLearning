@@ -55,7 +55,10 @@ class RNNWrapper:
     def _verbose(self):
         x_test, y_test = self._generator.gen(-1, True)
         axis = 1 if self._squeeze else 2
-        y_true = np.argmax(y_test, axis=axis).ravel()  # type: np.ndarray
+        if len(y_test.shape) == 1:
+            y_true = y_test
+        else:
+            y_true = np.argmax(y_test, axis=axis).ravel()  # type: np.ndarray
         y_pred = np.argmax(self._sess.run(self._output, {self._tfx: x_test}), axis=axis).ravel()  # type: np.ndarray
         print("Test acc: {:8.6} %".format(np.mean(y_true == y_pred) * 100))
 
