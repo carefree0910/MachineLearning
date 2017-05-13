@@ -31,17 +31,16 @@ class LSTMCell(tf.contrib.rnn.BasicRNNCell):
 class RNNWrapper:
     def __init__(self, **kwargs):
         self._log = {}
-        self._optimizer = None
-        self._generator = None
+        self._optimizer = self._generator = None
         self._tfx = self._tfy = self._output = None
+        self._im = self._om = self._activation = None
         self._sess = tf.Session()
 
         self._params = {
+            "generator_params": kwargs.get("generator_params", {}),
             "cell": kwargs.get("cell", LSTMCell),
-            # "cell": kwargs.get("cell", tf.contrib.rnn.BasicRNNCell),
-            "n_time_step": kwargs.get("n_time_step", 10),
-            "random_scale": kwargs.get("random_scale", 1),
             "n_hidden": kwargs.get("n_hidden", 128),
+            "n_targets": kwargs.get("n_targets", 0),
             "activation": kwargs.get("activation", tf.nn.sigmoid),
             "lr": kwargs.get("lr", 0.01),
             "epoch": kwargs.get("epoch", 25),
@@ -53,18 +52,26 @@ class RNNWrapper:
         }
 
     def _verbose(self):
-        pass
+        x_test, y_test = self._generator.gen(-1, True)
+        y_true = np.argmax(y_test, axis=2).ravel()  # type: np.ndarray
+        y_pred = np.argmax(self._sess.run(self._output, {self._tfx: x_test}), axis=2).ravel()  # type: np.ndarray
+        print("Test acc: {:8.6} %".format(np.mean(y_true == y_pred) * 100))
 
-    def fit(self, im, om, generator, cell=None, n_time_step=None, random_scale=None, n_hidden=None, activation=None,
+    def _get_output(self, rnn_outputs, n_targets):
+        self._output = layers.fully_connected(
+            rnn_outputs[..., -n_targets:, :],
+            num_outputs=self._om, activation_fn=self._activation)
+
+    def fit(self, im, om, generator, generator_params=None, cell=None, n_hidden=None, n_targets=None, activation=None,
             lr=None, epoch=None, n_iter=None, batch_size=None, optimizer=None, eps=None, verbose=None):
+        if generator_params is None:
+            generator_params = self._params["generator_params"]
         if cell is None:
             cell = self._params["cell"]
-        if n_time_step is None:
-            n_time_step = self._params["n_time_step"]
-        if random_scale is None:
-            random_scale = self._params["random_scale"]
         if n_hidden is None:
             n_hidden = self._params["n_hidden"]
+        if n_targets is None:
+            n_targets = self._params["n_targets"]
         if activation is None:
             activation = self._params["activation"]
         if lr is None:
@@ -82,19 +89,17 @@ class RNNWrapper:
         if verbose is None:
             verbose = self._params["verbose"]
 
-        self._generator = generator(n_time_step, random_scale, im, om)
+        self._im, self._om, self._activation = im, om, activation
+        self._generator = generator(im, om, **generator_params)
         self._optimizer = OptFactory().get_optimizer_by_name(optimizer, lr)
         self._tfx = tf.placeholder(tf.float32, shape=[None, None, im])
         self._tfy = tf.placeholder(tf.float32, shape=[None, None, om])
 
         cell = cell(n_hidden)
-        initial_state = cell.zero_state(tf.shape(self._tfx)[1], tf.float32)
+        initial_state = cell.zero_state(tf.shape(self._tfx)[0], tf.float32)
         rnn_outputs, rnn_states = tf.nn.dynamic_rnn(
-            cell, self._tfx, initial_state=initial_state, time_major=True)
-        self._output = tf.map_fn(
-            lambda x: layers.fully_connected(x, num_outputs=om, activation_fn=activation),
-            rnn_outputs
-        )
+            cell, self._tfx, initial_state=initial_state)
+        self._get_output(rnn_outputs, n_targets)
         err = -tf.reduce_mean(
             self._tfy * tf.log(self._output + eps) + (1 - self._tfy) * tf.log(1 - self._output + eps)
         )
@@ -141,17 +146,21 @@ class RNNForOp(RNNWrapper):
     def __init__(self, **kwargs):
         super(RNNForOp, self).__init__(**kwargs)
         self._params["boost"] = kwargs.get("boost", 2)
+        if not self._params["generator_params"]:
+            self._params["generator_params"] = {
+                "n_time_step": 6, "random_scale": 2
+            }
         self._op = ""
 
     def _verbose(self):
-        x_test, y_test = self._generator.gen(1, self._params["boost"])
+        x_test, y_test = self._generator.gen(1, boost=self._params["boost"])
         ans = np.argmax(self._sess.run(self._output, {
             self._tfx: x_test
         }), axis=2).ravel()
         x_test = x_test.astype(np.int)
         print("I think {} = {}, answer: {}...".format(
             " {} ".format(self._op).join(
-                ["".join(map(lambda n: str(n), x_test[..., 0, i][::-1])) for i in range(x_test.shape[2])]
+                ["".join(map(lambda n: str(n), x_test[0, ..., i][::-1])) for i in range(x_test.shape[2])]
             ),
             "".join(map(lambda n: str(n), ans[::-1])),
             "".join(map(lambda n: str(n), np.argmax(y_test, axis=2).ravel()[::-1]))))
@@ -169,11 +178,20 @@ class RNNForMultiple(RNNForOp):
         self._op = "*"
 
 
-class OpGenerator:
-    def __init__(self, n_time_step, random_scale, im, base):
+class Generator:
+    def __init__(self, im, base, **kwargs):
+        self._im, self._base = im, base
+
+    def gen(self, batch, test=False, **kwargs):
+        pass
+
+
+class OpGenerator(Generator):
+    def __init__(self, im, base, n_time_step, random_scale):
+        super(OpGenerator, self).__init__(im, base)
         self._n_time_step = n_time_step
         self._random_scale = random_scale
-        self._im, self._base = im, base
+
         self._op = lambda x: 0
 
     def _gen_seq(self, n_time_step, tar):
@@ -186,25 +204,25 @@ class OpGenerator:
     def _gen_targets(self, n_time_step):
         return []
 
-    def gen(self, batch_size, boost=0):
+    def gen(self, batch_size, test=False, boost=0):
         if boost:
             n_time_step = self._n_time_step + self._random_scale + random.randint(1, boost)
         else:
             n_time_step = self._n_time_step + random.randint(0, self._random_scale)
-        x = np.empty([n_time_step, batch_size, self._im])
-        y = np.zeros([n_time_step, batch_size, self._base])
+        x = np.empty([batch_size, n_time_step, self._im])
+        y = np.zeros([batch_size, n_time_step, self._base])
         for i in range(batch_size):
             targets = self._gen_targets(n_time_step)
             sequences = [self._gen_seq(n_time_step, tar) for tar in targets]
             for j in range(self._im):
-                x[:, i, j] = sequences[j]
-            y[range(n_time_step), i, self._gen_seq(n_time_step, self._op(targets))] = 1
+                x[i, ..., j] = sequences[j]
+            y[i, range(n_time_step), self._gen_seq(n_time_step, self._op(targets))] = 1
         return x, y
 
 
 class AdditionGenerator(OpGenerator):
-    def __init__(self, n_time_step, random_scale, im, base):
-        super(AdditionGenerator, self).__init__(n_time_step, random_scale, im, base)
+    def __init__(self, im, base, n_time_step, random_scale):
+        super(AdditionGenerator, self).__init__(im, base, n_time_step, random_scale)
         self._op = sum
 
     def _gen_targets(self, n_time_step):
@@ -212,19 +230,19 @@ class AdditionGenerator(OpGenerator):
 
 
 class MultipleGenerator(OpGenerator):
-    def __init__(self, n_time_step, random_scale, im, base):
-        super(MultipleGenerator, self).__init__(n_time_step, random_scale, im, base)
+    def __init__(self, im, base, n_time_step, random_scale):
+        super(MultipleGenerator, self).__init__(im, base, n_time_step, random_scale)
         self._op = np.prod
 
     def _gen_targets(self, n_time_step):
         return [int(random.randint(0, self._base ** n_time_step - 1) ** (1 / self._im)) for _ in range(self._im)]
 
 if __name__ == '__main__':
-    _digit_len, _digit_base, _n_digit = 4, 10, 2
+    _digit_len, _digit_base, _n_digit = 3, 10, 2
     lstm = RNNForMultiple(
-        cell=LSTMCell,
         # cell=tf.contrib.rnn.BasicRNNCell,
-        n_time_step=_digit_len, epoch=100, random_scale=0, boost=0
+        # cell=tf.contrib.rnn.BasicLSTMCell,
+        generator_params={"n_time_step": _digit_len, "random_scale": 2}, epoch=100, boost=1
     )
-    lstm.fit(_n_digit, _digit_base, generator=MultipleGenerator)
+    lstm.fit(_n_digit, _digit_base, MultipleGenerator)
     lstm.draw_err_logs()
