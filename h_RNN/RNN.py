@@ -40,7 +40,7 @@ class RNNWrapper:
             "generator_params": kwargs.get("generator_params", {}),
             "cell": kwargs.get("cell", LSTMCell),
             "n_hidden": kwargs.get("n_hidden", 128),
-            "n_targets": kwargs.get("n_targets", 0),
+            "n_history": kwargs.get("n_history", 0),
             "activation": kwargs.get("activation", tf.nn.sigmoid),
             "lr": kwargs.get("lr", 0.01),
             "epoch": kwargs.get("epoch", 25),
@@ -57,12 +57,21 @@ class RNNWrapper:
         y_pred = np.argmax(self._sess.run(self._output, {self._tfx: x_test}), axis=2).ravel()  # type: np.ndarray
         print("Test acc: {:8.6} %".format(np.mean(y_true == y_pred) * 100))
 
-    def _get_output(self, rnn_outputs, n_targets):
+    def _define_input(self, im, om):
+        self._tfx = tf.placeholder(tf.float32, shape=[None, None, im])
+        self._tfy = tf.placeholder(tf.float32, shape=[None, None, om])
+
+    def _get_loss(self, eps):
+        return -tf.reduce_mean(
+            self._tfy * tf.log(self._output + eps) + (1 - self._tfy) * tf.log(1 - self._output + eps)
+        )
+
+    def _get_output(self, rnn_outputs, rnn_states, n_history):
         self._output = layers.fully_connected(
-            rnn_outputs[..., -n_targets:, :],
+            rnn_outputs[..., -n_history:, :],
             num_outputs=self._om, activation_fn=self._activation)
 
-    def fit(self, im, om, generator, generator_params=None, cell=None, n_hidden=None, n_targets=None, activation=None,
+    def fit(self, im, om, generator, generator_params=None, cell=None, n_hidden=None, n_history=None, activation=None,
             lr=None, epoch=None, n_iter=None, batch_size=None, optimizer=None, eps=None, verbose=None):
         if generator_params is None:
             generator_params = self._params["generator_params"]
@@ -70,8 +79,8 @@ class RNNWrapper:
             cell = self._params["cell"]
         if n_hidden is None:
             n_hidden = self._params["n_hidden"]
-        if n_targets is None:
-            n_targets = self._params["n_targets"]
+        if n_history is None:
+            n_history = self._params["n_history"]
         if activation is None:
             activation = self._params["activation"]
         if lr is None:
@@ -92,21 +101,17 @@ class RNNWrapper:
         self._im, self._om, self._activation = im, om, activation
         self._generator = generator(im, om, **generator_params)
         self._optimizer = OptFactory().get_optimizer_by_name(optimizer, lr)
-        self._tfx = tf.placeholder(tf.float32, shape=[None, None, im])
-        self._tfy = tf.placeholder(tf.float32, shape=[None, None, om])
+        self._define_input(im, om)
 
         cell = cell(n_hidden)
         initial_state = cell.zero_state(tf.shape(self._tfx)[0], tf.float32)
         rnn_outputs, rnn_states = tf.nn.dynamic_rnn(
             cell, self._tfx, initial_state=initial_state)
-        self._get_output(rnn_outputs, n_targets)
-        err = -tf.reduce_mean(
-            self._tfy * tf.log(self._output + eps) + (1 - self._tfy) * tf.log(1 - self._output + eps)
-        )
-        train_step = self._optimizer.minimize(err)
+        self._get_output(rnn_outputs, rnn_states, n_history)
+        loss = self._get_loss(eps)
+        train_step = self._optimizer.minimize(loss)
         self._log["iter_err"] = []
         self._log["epoch_err"] = []
-
         self._sess.run(tf.global_variables_initializer())
         bar = ProgressBar(max_value=epoch, name="Epoch", start=False)
         if verbose >= 2:
@@ -118,7 +123,7 @@ class RNNWrapper:
                 sub_bar.start()
             for __ in range(n_iter):
                 x_batch, y_batch = self._generator.gen(batch_size)
-                iter_err = self._sess.run([err, train_step], {
+                iter_err = self._sess.run([loss, train_step], {
                     self._tfx: x_batch, self._tfy: y_batch,
                 })[0]
                 self._log["iter_err"].append(iter_err)
@@ -192,7 +197,8 @@ class OpGenerator(Generator):
         self._n_time_step = n_time_step
         self._random_scale = random_scale
 
-        self._op = lambda x: 0
+    def _op(self, seq):
+        return 0
 
     def _gen_seq(self, n_time_step, tar):
         seq = []
@@ -221,28 +227,29 @@ class OpGenerator(Generator):
 
 
 class AdditionGenerator(OpGenerator):
-    def __init__(self, im, base, n_time_step, random_scale):
-        super(AdditionGenerator, self).__init__(im, base, n_time_step, random_scale)
-        self._op = sum
+    def _op(self, seq):
+        return sum(seq)
 
     def _gen_targets(self, n_time_step):
         return [int(random.randint(0, self._base ** n_time_step - 1) / self._im) for _ in range(self._im)]
 
 
 class MultipleGenerator(OpGenerator):
-    def __init__(self, im, base, n_time_step, random_scale):
-        super(MultipleGenerator, self).__init__(im, base, n_time_step, random_scale)
-        self._op = np.prod
+    def _op(self, seq):
+        return np.prod(seq)
 
     def _gen_targets(self, n_time_step):
         return [int(random.randint(0, self._base ** n_time_step - 1) ** (1 / self._im)) for _ in range(self._im)]
 
 if __name__ == '__main__':
-    _digit_len, _digit_base, _n_digit = 3, 10, 2
-    lstm = RNNForMultiple(
+    _random_scale = 2
+    _digit_len, _digit_base, _n_digit = 2, 10, 3
+    lstm = RNNForAddition(
+        # cell=tf.contrib.rnn.GRUCell,
+        # cell=tf.contrib.rnn.LSTMCell,
         # cell=tf.contrib.rnn.BasicRNNCell,
         # cell=tf.contrib.rnn.BasicLSTMCell,
-        generator_params={"n_time_step": _digit_len, "random_scale": 2}, epoch=100, boost=1
+        generator_params={"n_time_step": _digit_len, "random_scale": _random_scale}, epoch=100, boost=2
     )
-    lstm.fit(_n_digit, _digit_base, MultipleGenerator)
+    lstm.fit(_n_digit, _digit_base, AdditionGenerator)
     lstm.draw_err_logs()
