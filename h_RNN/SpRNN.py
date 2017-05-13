@@ -1,7 +1,6 @@
 import random
 import numpy as np
 import tensorflow as tf
-import tensorflow.contrib.layers as layers
 
 from h_RNN.RNN import RNNWrapper, OpGenerator
 
@@ -9,6 +8,7 @@ from h_RNN.RNN import RNNWrapper, OpGenerator
 class SparseRNN(RNNWrapper):
     def __init__(self, **kwargs):
         super(SparseRNN, self).__init__(**kwargs)
+        self._squeeze = True
         self._params["n_history"] = kwargs.get("n_history", 1)
         self._params["activation"] = kwargs.get("activation", None)
 
@@ -22,15 +22,9 @@ class SparseRNN(RNNWrapper):
         )
 
     def _get_output(self, rnn_outputs, rnn_states, n_history):
-        if n_history == 0:
-            raise ValueError("SparseRNN could not be as dynamic as RNN, so 'n_history' should be positive integer")
-        if n_history == 1:
-            output = rnn_outputs[..., -1, :]
-        else:
-            output = rnn_outputs[..., -n_history:, :]
-            output = tf.reshape(output, [-1, n_history * int(output.get_shape()[2])])
-        self._output = layers.fully_connected(
-            output, num_outputs=self._om, activation_fn=self._activation)
+        if not self._squeeze:
+            raise ValueError("Please squeeze the outputs when using SparseRNN")
+        super(SparseRNN, self)._get_output(rnn_outputs, rnn_states, n_history)
 
 
 class SpRNNForOp(SparseRNN):
@@ -68,9 +62,9 @@ class SpRNNForMultiple(SpRNNForOp):
 
 
 class SpOpGenerator(OpGenerator):
-    def __init__(self, im, base, n_time_step, random_scale):
-        super(SpOpGenerator, self).__init__(im, base, n_time_step, random_scale)
-        self._base = round(self._base ** (1 / (n_time_step + random_scale)))
+    def __init__(self, im, om, n_time_step, random_scale):
+        super(SpOpGenerator, self).__init__(im, om, n_time_step, random_scale)
+        self._base = round(self._om ** (1 / (n_time_step + random_scale)))
 
     def gen(self, batch_size, test=False, boost=0):
         if boost:
@@ -111,7 +105,7 @@ if __name__ == '__main__':
         # cell=tf.contrib.rnn.LSTMCell,
         # cell=tf.contrib.rnn.BasicRNNCell,
         # cell=tf.contrib.rnn.BasicLSTMCell,
-        epoch=20, n_history=3,
+        epoch=20, n_history=2,
         generator_params={"n_time_step": _digit_len, "random_scale": _random_scale}
     )
     lstm.fit(_n_digit, _digit_base ** (_digit_len + _random_scale), SpMultipleGenerator)

@@ -34,6 +34,7 @@ class RNNWrapper:
         self._optimizer = self._generator = None
         self._tfx = self._tfy = self._output = None
         self._im = self._om = self._activation = None
+        self._squeeze = kwargs.get("squeeze", False)
         self._sess = tf.Session()
 
         self._params = {
@@ -53,13 +54,17 @@ class RNNWrapper:
 
     def _verbose(self):
         x_test, y_test = self._generator.gen(-1, True)
-        y_true = np.argmax(y_test, axis=2).ravel()  # type: np.ndarray
-        y_pred = np.argmax(self._sess.run(self._output, {self._tfx: x_test}), axis=2).ravel()  # type: np.ndarray
+        axis = 1 if self._squeeze else 2
+        y_true = np.argmax(y_test, axis=axis).ravel()  # type: np.ndarray
+        y_pred = np.argmax(self._sess.run(self._output, {self._tfx: x_test}), axis=axis).ravel()  # type: np.ndarray
         print("Test acc: {:8.6} %".format(np.mean(y_true == y_pred) * 100))
 
     def _define_input(self, im, om):
         self._tfx = tf.placeholder(tf.float32, shape=[None, None, im])
-        self._tfy = tf.placeholder(tf.float32, shape=[None, None, om])
+        if self._squeeze:
+            self._tfy = tf.placeholder(tf.float32, shape=[None, om])
+        else:
+            self._tfy = tf.placeholder(tf.float32, shape=[None, None, om])
 
     def _get_loss(self, eps):
         return -tf.reduce_mean(
@@ -67,11 +72,19 @@ class RNNWrapper:
         )
 
     def _get_output(self, rnn_outputs, rnn_states, n_history):
+        if n_history == 0 and self._squeeze:
+            raise ValueError("'n_history' should not be 0 when trying to squeeze the outputs")
+        if n_history == 1 and self._squeeze:
+            outputs = rnn_outputs[..., -1, :]
+        else:
+            outputs = rnn_outputs[..., -n_history:, :]
+            if self._squeeze:
+                outputs = tf.reshape(outputs, [-1, n_history * int(outputs.get_shape()[2])])
         self._output = layers.fully_connected(
-            rnn_outputs[..., -n_history:, :],
-            num_outputs=self._om, activation_fn=self._activation)
+            outputs, num_outputs=self._om, activation_fn=self._activation)
 
-    def fit(self, im, om, generator, generator_params=None, cell=None, n_hidden=None, n_history=None, activation=None,
+    def fit(self, im, om, generator, generator_params=None, cell=None,
+            n_hidden=None, n_history=None, squeeze=None, activation=None,
             lr=None, epoch=None, n_iter=None, batch_size=None, optimizer=None, eps=None, verbose=None):
         if generator_params is None:
             generator_params = self._params["generator_params"]
@@ -81,6 +94,8 @@ class RNNWrapper:
             n_hidden = self._params["n_hidden"]
         if n_history is None:
             n_history = self._params["n_history"]
+        if squeeze:
+            self._squeeze = True
         if activation is None:
             activation = self._params["activation"]
         if lr is None:
@@ -184,16 +199,17 @@ class RNNForMultiple(RNNForOp):
 
 
 class Generator:
-    def __init__(self, im, base, **kwargs):
-        self._im, self._base = im, base
+    def __init__(self, im=None, om=None, **kwargs):
+        self._im, self._om = im, om
 
     def gen(self, batch, test=False, **kwargs):
         pass
 
 
 class OpGenerator(Generator):
-    def __init__(self, im, base, n_time_step, random_scale):
-        super(OpGenerator, self).__init__(im, base)
+    def __init__(self, im, om, n_time_step, random_scale):
+        super(OpGenerator, self).__init__(im, om)
+        self._base = self._om
         self._n_time_step = n_time_step
         self._random_scale = random_scale
 
@@ -216,7 +232,7 @@ class OpGenerator(Generator):
         else:
             n_time_step = self._n_time_step + random.randint(0, self._random_scale)
         x = np.empty([batch_size, n_time_step, self._im])
-        y = np.zeros([batch_size, n_time_step, self._base])
+        y = np.zeros([batch_size, n_time_step, self._om])
         for i in range(batch_size):
             targets = self._gen_targets(n_time_step)
             sequences = [self._gen_seq(n_time_step, tar) for tar in targets]
@@ -231,7 +247,7 @@ class AdditionGenerator(OpGenerator):
         return sum(seq)
 
     def _gen_targets(self, n_time_step):
-        return [int(random.randint(0, self._base ** n_time_step - 1) / self._im) for _ in range(self._im)]
+        return [int(random.randint(0, self._om ** n_time_step - 1) / self._im) for _ in range(self._im)]
 
 
 class MultipleGenerator(OpGenerator):
@@ -239,7 +255,7 @@ class MultipleGenerator(OpGenerator):
         return np.prod(seq)
 
     def _gen_targets(self, n_time_step):
-        return [int(random.randint(0, self._base ** n_time_step - 1) ** (1 / self._im)) for _ in range(self._im)]
+        return [int(random.randint(0, self._om ** n_time_step - 1) ** (1 / self._im)) for _ in range(self._im)]
 
 if __name__ == '__main__':
     _random_scale = 2
