@@ -32,7 +32,7 @@ class RNNWrapper:
     def __init__(self, **kwargs):
         self._log = {}
         self._optimizer = self._generator = None
-        self._tfx = self._tfy = self._output = None
+        self._tfx = self._tfy = self._input = self._output = None
         self._im = self._om = self._activation = None
         self._squeeze = kwargs.get("squeeze", False)
         self._sess = tf.Session()
@@ -53,7 +53,7 @@ class RNNWrapper:
         }
 
     def _verbose(self):
-        x_test, y_test = self._generator.gen(-1, True)
+        x_test, y_test = self._generator.gen(1, True)
         axis = 1 if self._squeeze else 2
         if len(y_test.shape) == 1:
             y_true = y_test
@@ -63,7 +63,7 @@ class RNNWrapper:
         print("Test acc: {:8.6} %".format(np.mean(y_true == y_pred) * 100))
 
     def _define_input(self, im, om):
-        self._tfx = tf.placeholder(tf.float32, shape=[None, None, im])
+        self._input = self._tfx = tf.placeholder(tf.float32, shape=[None, None, im])
         if self._squeeze:
             self._tfy = tf.placeholder(tf.float32, shape=[None, om])
         else:
@@ -122,9 +122,9 @@ class RNNWrapper:
         self._define_input(im, om)
 
         cell = cell(n_hidden)
-        initial_state = cell.zero_state(tf.shape(self._tfx)[0], tf.float32)
+        initial_state = cell.zero_state(tf.shape(self._input)[0], tf.float32)
         rnn_outputs, rnn_states = tf.nn.dynamic_rnn(
-            cell, self._tfx, initial_state=initial_state)
+            cell, self._input, initial_state=initial_state)
         self._get_output(rnn_outputs, rnn_states, n_history)
         loss = self._get_loss(eps)
         train_step = self._optimizer.minimize(loss)

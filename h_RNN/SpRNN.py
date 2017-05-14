@@ -13,7 +13,7 @@ class SparseRNN(RNNWrapper):
         self._params["activation"] = kwargs.get("activation", None)
 
     def _define_input(self, im, om):
-        self._tfx = tf.placeholder(tf.float32, shape=[None, None, im])
+        self._input = self._tfx = tf.placeholder(tf.float32, shape=[None, None, im])
         self._tfy = tf.placeholder(tf.int32, shape=[None])
 
     def _get_loss(self, eps):
