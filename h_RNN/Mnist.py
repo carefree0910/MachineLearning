@@ -4,7 +4,6 @@ import numpy as np
 import tensorflow as tf
 
 from h_RNN.RNN import RNNWrapper, Generator
-from h_RNN.SpRNN import SparseRNN
 from Util.Util import DataUtil
 
 
@@ -17,7 +16,7 @@ class MnistGenerator(Generator):
         self._y_train, self._y_test = self._y[:1800], self._y[1800:]
 
     def gen(self, batch, test=False, **kwargs):
-        if batch < 0:
+        if batch == 1:
             if test:
                 return self._x_test, self._y_test
             return self._x_train, self._y_train
@@ -38,7 +37,7 @@ if __name__ == '__main__':
     print("=" * 60, "\n" + "Sparse LSTM" + "\n" + "-" * 60)
     _t = time.time()
     tf.reset_default_graph()
-    rnn = SparseRNN(n_history=_n_history, epoch=10, generator_params={"one_hot": False})
+    rnn = RNNWrapper(n_history=_n_history, epoch=10, sparse=True, generator_params={"one_hot": False})
     rnn.fit(28, 10, MnistGenerator)
     print("Time Cost: {}".format(time.time() - _t))
     rnn.draw_err_logs()

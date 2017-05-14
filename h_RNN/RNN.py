@@ -104,11 +104,8 @@ class RNNWrapper:
             outputs = rnn_outputs[..., -n_history:, :]
             if self._squeeze:
                 outputs = tf.reshape(outputs, [-1, n_history * int(outputs.get_shape()[2])])
-        if self._use_final_state:
-            if self._squeeze:
-                outputs = tf.concat([outputs, rnn_final_state], axis=1)
-            else:
-                outputs = tf.concat([outputs, rnn_final_state[..., None, :]], axis=1)
+        if self._use_final_state and self._squeeze:
+            outputs = tf.concat([outputs, rnn_final_state], axis=1)
         self._output = layers.fully_connected(
             outputs, num_outputs=self._om, activation_fn=self._activation)
 
