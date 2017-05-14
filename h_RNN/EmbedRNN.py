@@ -1,23 +1,9 @@
 import numpy as np
-import tensorflow as tf
 
-from h_RNN.RNN import Generator
-from h_RNN.SpRNN import SparseRNN
+from h_RNN.RNN import RNNWrapper, Generator
 
 
-class EmbedRNN(SparseRNN):
-    def __init__(self, **kwargs):
-        super(EmbedRNN, self).__init__(**kwargs)
-        self._embedding_size = kwargs.get("embedding_size", 200)
-
-    def _define_input(self, im, om):
-        self._tfx = tf.placeholder(tf.int32, shape=[None, None])
-        embeddings = tf.Variable(tf.random_uniform([im, self._embedding_size], -1.0, 1.0))
-        self._input = tf.nn.embedding_lookup(embeddings, self._tfx)
-        self._tfy = tf.placeholder(tf.int32, shape=[None])
-
-
-class EmbedRNNForOp(EmbedRNN):
+class EmbedRNNForOp(RNNWrapper):
     def __init__(self, **kwargs):
         super(EmbedRNNForOp, self).__init__(**kwargs)
         if not self._params["generator_params"]:
@@ -90,7 +76,8 @@ if __name__ == '__main__':
         # cell=tf.contrib.rnn.LSTMCell,
         # cell=tf.contrib.rnn.BasicRNNCell,
         # cell=tf.contrib.rnn.BasicLSTMCell,
-        epoch=20, n_history=_n_digit, embedding_size=50, generator_params={"n_digit": _n_digit}
+        epoch=20, sparse=True, embedding_size=50, use_final_state=False,
+        n_history=_n_digit, generator_params={"n_digit": _n_digit}
     )
     lstm.fit(_im, _om, EmbedMultipleGenerator)
     lstm.draw_err_logs()

@@ -1,34 +1,12 @@
 import random
 import numpy as np
-import tensorflow as tf
 
 from h_RNN.RNN import RNNWrapper, OpGenerator
 
 
-class SparseRNN(RNNWrapper):
+class SpRNNForOp(RNNWrapper):
     def __init__(self, **kwargs):
-        super(SparseRNN, self).__init__(**kwargs)
-        self._squeeze = True
-        self._params["n_history"] = kwargs.get("n_history", 1)
-        self._params["activation"] = kwargs.get("activation", None)
-
-    def _define_input(self, im, om):
-        self._input = self._tfx = tf.placeholder(tf.float32, shape=[None, None, im])
-        self._tfy = tf.placeholder(tf.int32, shape=[None])
-
-    def _get_loss(self, eps):
-        return tf.reduce_mean(
-            tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self._tfy, logits=self._output)
-        )
-
-    def _get_output(self, rnn_outputs, rnn_states, n_history):
-        if not self._squeeze:
-            raise ValueError("Please squeeze the outputs when using SparseRNN")
-        super(SparseRNN, self)._get_output(rnn_outputs, rnn_states, n_history)
-
-
-class SpRNNForOp(SparseRNN):
-    def __init__(self, **kwargs):
+        kwargs["sparse"] = True
         super(SpRNNForOp, self).__init__(**kwargs)
         if not self._params["generator_params"]:
             self._params["generator_params"] = {

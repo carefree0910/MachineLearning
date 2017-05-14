@@ -34,9 +34,12 @@ class RNNWrapper:
         self._optimizer = self._generator = None
         self._tfx = self._tfy = self._input = self._output = None
         self._im = self._om = self._activation = None
-        self._squeeze = kwargs.get("squeeze", False)
         self._sess = tf.Session()
 
+        self._squeeze = kwargs.get("squeeze", False)
+        self._sparse = kwargs.get("sparse", False)
+        self._embedding_size = kwargs.get("embedding_size", None)
+        self._use_final_state = kwargs.get("use_final_state", False)
         self._params = {
             "generator_params": kwargs.get("generator_params", {}),
             "cell": kwargs.get("cell", LSTMCell),
@@ -52,10 +55,15 @@ class RNNWrapper:
             "verbose": kwargs.get("verbose", 1)
         }
 
+        if self._sparse:
+            self._squeeze = True
+            self._params["n_history"] = kwargs.get("n_history", 1)
+            self._params["activation"] = kwargs.get("activation", None)
+
     def _verbose(self):
         x_test, y_test = self._generator.gen(1, True)
         axis = 1 if self._squeeze else 2
-        if len(y_test.shape) == 1:
+        if self._sparse:
             y_true = y_test
         else:
             y_true = np.argmax(y_test, axis=axis).ravel()  # type: np.ndarray
@@ -63,32 +71,50 @@ class RNNWrapper:
         print("Test acc: {:8.6} %".format(np.mean(y_true == y_pred) * 100))
 
     def _define_input(self, im, om):
-        self._input = self._tfx = tf.placeholder(tf.float32, shape=[None, None, im])
-        if self._squeeze:
+        if self._embedding_size:
+            self._tfx = tf.placeholder(tf.int32, shape=[None, None])
+            embeddings = tf.Variable(tf.random_uniform([im, self._embedding_size], -1.0, 1.0))
+            self._input = tf.nn.embedding_lookup(embeddings, self._tfx)
+        else:
+            self._input = self._tfx = tf.placeholder(tf.float32, shape=[None, None, im])
+        if self._sparse:
+            self._tfy = tf.placeholder(tf.int32, shape=[None])
+        elif self._squeeze:
             self._tfy = tf.placeholder(tf.float32, shape=[None, om])
         else:
             self._tfy = tf.placeholder(tf.float32, shape=[None, None, om])
 
     def _get_loss(self, eps):
+        if self._sparse:
+            return tf.reduce_mean(
+                tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self._tfy, logits=self._output)
+            )
         return -tf.reduce_mean(
             self._tfy * tf.log(self._output + eps) + (1 - self._tfy) * tf.log(1 - self._output + eps)
         )
 
-    def _get_output(self, rnn_outputs, rnn_states, n_history):
+    def _get_output(self, rnn_outputs, rnn_final_state, n_history):
         if n_history == 0 and self._squeeze:
             raise ValueError("'n_history' should not be 0 when trying to squeeze the outputs")
+        if self._sparse and not self._squeeze:
+            raise ValueError("Please squeeze the outputs when using sparse labels")
         if n_history == 1 and self._squeeze:
             outputs = rnn_outputs[..., -1, :]
         else:
             outputs = rnn_outputs[..., -n_history:, :]
             if self._squeeze:
                 outputs = tf.reshape(outputs, [-1, n_history * int(outputs.get_shape()[2])])
+        if self._use_final_state:
+            if self._squeeze:
+                outputs = tf.concat([outputs, rnn_final_state], axis=1)
+            else:
+                outputs = tf.concat([outputs, rnn_final_state[..., None, :]], axis=1)
         self._output = layers.fully_connected(
             outputs, num_outputs=self._om, activation_fn=self._activation)
 
     def fit(self, im, om, generator, generator_params=None, cell=None,
-            n_hidden=None, n_history=None, squeeze=None, activation=None,
-            lr=None, epoch=None, n_iter=None, batch_size=None, optimizer=None, eps=None, verbose=None):
+            squeeze=None, sparse=None, embedding_size=None, use_final_state=None, n_hidden=None, n_history=None,
+            activation=None, lr=None, epoch=None, n_iter=None, batch_size=None, optimizer=None, eps=None, verbose=None):
         if generator_params is None:
             generator_params = self._params["generator_params"]
         if cell is None:
@@ -99,6 +125,12 @@ class RNNWrapper:
             n_history = self._params["n_history"]
         if squeeze:
             self._squeeze = True
+        if sparse:
+            self._sparse = True
+        if embedding_size:
+            self._embedding_size = embedding_size
+        if use_final_state:
+            self._use_final_state = True
         if activation is None:
             activation = self._params["activation"]
         if lr is None:
@@ -123,9 +155,9 @@ class RNNWrapper:
 
         cell = cell(n_hidden)
         initial_state = cell.zero_state(tf.shape(self._input)[0], tf.float32)
-        rnn_outputs, rnn_states = tf.nn.dynamic_rnn(
+        rnn_outputs, rnn_final_state = tf.nn.dynamic_rnn(
             cell, self._input, initial_state=initial_state)
-        self._get_output(rnn_outputs, rnn_states, n_history)
+        self._get_output(rnn_outputs, rnn_final_state, n_history)
         loss = self._get_loss(eps)
         train_step = self._optimizer.minimize(loss)
         self._log["iter_err"] = []
