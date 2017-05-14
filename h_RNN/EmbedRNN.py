@@ -16,16 +16,6 @@ class EmbedRNN(SparseRNN):
         self._input = tf.nn.embedding_lookup(embeddings, self._tfx)
         self._tfy = tf.placeholder(tf.int32, shape=[None])
 
-    def _get_loss(self, eps):
-        return tf.reduce_mean(
-            tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self._tfy, logits=self._output)
-        )
-
-    def _get_output(self, rnn_outputs, rnn_states, n_history):
-        if not self._squeeze:
-            raise ValueError("Please squeeze the outputs when using SparseRNN")
-        super(SparseRNN, self)._get_output(rnn_outputs, rnn_states, n_history)
-
 
 class EmbedRNNForOp(EmbedRNN):
     def __init__(self, **kwargs):
