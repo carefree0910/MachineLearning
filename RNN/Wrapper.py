@@ -11,6 +11,7 @@ class RNNWrapper:
         self._log = {}
         self._optimizer = self._generator = None
         self._tfx = self._tfy = self._input = self._output = None
+        self._cell = self._initial_state = self._sequence_lengths = None
         self._im = self._om = self._activation = None
         self._sess = tf.Session()
 
@@ -19,8 +20,8 @@ class RNNWrapper:
         self._embedding_size = kwargs.get("embedding_size", None)
         self._use_final_state = kwargs.get("use_final_state", False)
         self._params = {
-            "generator_params": kwargs.get("generator_params", {}),
             "cell": kwargs.get("cell", LSTMCell),
+            "provide_sequence_length": kwargs.get("provide_sequence_length", False),
             "n_hidden": kwargs.get("n_hidden", 128),
             "n_history": kwargs.get("n_history", 0),
             "activation": kwargs.get("activation", tf.nn.sigmoid),
@@ -37,15 +38,21 @@ class RNNWrapper:
             self._squeeze = True
             self._params["n_history"] = kwargs.get("n_history", 1)
             self._params["activation"] = kwargs.get("activation", None)
+        if self._squeeze:
+            self._params["n_history"] = kwargs.get("n_history", 1)
 
     def _verbose(self):
-        x_test, y_test = self._generator.gen(1, True)
+        if self._sequence_lengths is not None:
+            x_test, y_test, sequence_lengths = self._generator.gen(1, True)
+        else:
+            x_test, y_test = self._generator.gen(1, True)
+            sequence_lengths = None
         axis = 1 if self._squeeze else 2
         if self._sparse:
             y_true = y_test
         else:
             y_true = np.argmax(y_test, axis=axis).ravel()  # type: np.ndarray
-        y_pred = np.argmax(self._sess.run(self._output, {self._tfx: x_test}), axis=axis).ravel()  # type: np.ndarray
+        y_pred = self.predict(x_test, sequence_lengths)
         print("Test acc: {:8.6} %".format(np.mean(y_true == y_pred) * 100))
 
     def _define_input(self, im, om):
@@ -61,6 +68,13 @@ class RNNWrapper:
             self._tfy = tf.placeholder(tf.float32, shape=[None, om])
         else:
             self._tfy = tf.placeholder(tf.float32, shape=[None, None, om])
+
+    def _prepare_for_dynamic_rnn(self, provide_sequence_length):
+        self._initial_state = self._cell.zero_state(tf.shape(self._input)[0], tf.float32)
+        if provide_sequence_length:
+            self._sequence_lengths = tf.placeholder(tf.int32, [None])
+        else:
+            self._sequence_lengths = None
 
     def _get_loss(self, eps):
         if self._sparse:
@@ -87,13 +101,13 @@ class RNNWrapper:
         self._output = layers.fully_connected(
             outputs, num_outputs=self._om, activation_fn=self._activation)
 
-    def fit(self, im, om, generator, generator_params=None, cell=None,
+    def fit(self, im, om, generator, cell=None, provide_sequence_length=None,
             squeeze=None, sparse=None, embedding_size=None, use_final_state=None, n_hidden=None, n_history=None,
             activation=None, lr=None, epoch=None, n_iter=None, batch_size=None, optimizer=None, eps=None, verbose=None):
-        if generator_params is None:
-            generator_params = self._params["generator_params"]
         if cell is None:
             cell = self._params["cell"]
+        if provide_sequence_length is None:
+            provide_sequence_length = self._params["provide_sequence_length"]
         if n_hidden is None:
             n_hidden = self._params["n_hidden"]
         if n_history is None:
@@ -102,6 +116,9 @@ class RNNWrapper:
             self._squeeze = True
         if sparse:
             self._sparse = True
+            self._squeeze = True
+        if self._squeeze and n_history == 0:
+            n_history = 1
         if embedding_size:
             self._embedding_size = embedding_size
         if use_final_state:
@@ -123,15 +140,17 @@ class RNNWrapper:
         if verbose is None:
             verbose = self._params["verbose"]
 
+        self._generator = generator
         self._im, self._om, self._activation = im, om, activation
-        self._generator = generator(im, om, **generator_params)
         self._optimizer = OptFactory().get_optimizer_by_name(optimizer, lr)
         self._define_input(im, om)
 
-        cell = cell(n_hidden)
-        initial_state = cell.zero_state(tf.shape(self._input)[0], tf.float32)
+        self._cell = cell(n_hidden)
+        self._prepare_for_dynamic_rnn(provide_sequence_length)
         rnn_outputs, rnn_final_state = tf.nn.dynamic_rnn(
-            cell, self._input, initial_state=initial_state)
+            self._cell, self._input,
+            sequence_length=self._sequence_lengths, initial_state=self._initial_state
+        )
         self._get_output(rnn_outputs, rnn_final_state, n_history)
         loss = self._get_loss(eps)
         train_step = self._optimizer.minimize(loss)
@@ -147,10 +166,16 @@ class RNNWrapper:
             if verbose >= 2:
                 sub_bar.start()
             for __ in range(n_iter):
-                x_batch, y_batch = self._generator.gen(batch_size)
-                iter_err = self._sess.run([loss, train_step], {
-                    self._tfx: x_batch, self._tfy: y_batch,
-                })[0]
+                if provide_sequence_length:
+                    x_batch, y_batch, sequence_length = self._generator.gen(batch_size)
+                    feed_dict = {
+                        self._tfx: x_batch, self._tfy: y_batch,
+                        self._sequence_lengths: sequence_length
+                    }
+                else:
+                    x_batch, y_batch = self._generator.gen(batch_size)
+                    feed_dict = {self._tfx: x_batch, self._tfy: y_batch}
+                iter_err = self._sess.run([loss, train_step], feed_dict)[0]
                 self._log["iter_err"].append(iter_err)
                 epoch_err += iter_err
                 if verbose >= 2:
@@ -160,6 +185,20 @@ class RNNWrapper:
                 self._verbose()
                 if verbose >= 2:
                     bar.update()
+
+    def predict(self, x, sequence_lengths=None, get_raw=False):
+        x = np.atleast_3d(x)
+        if self._sequence_lengths is not None:
+            if sequence_lengths is None:
+                sequence_lengths = [x.shape[1]] * x.shape[0]
+            feed_dict = {self._tfx: x, self._sequence_lengths: sequence_lengths}
+        else:
+            feed_dict = {self._tfx: x}
+        output = self._sess.run(self._output, feed_dict)
+        if get_raw:
+            return output
+        axis = 1 if self._squeeze else 2
+        return np.argmax(output, axis=axis).ravel()
 
     def draw_err_logs(self):
         ee, ie = self._log["epoch_err"], self._log["iter_err"]

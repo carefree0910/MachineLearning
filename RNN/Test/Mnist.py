@@ -3,27 +3,42 @@ import tflearn
 import tensorflow as tf
 
 from RNN.Wrapper import RNNWrapper
-from RNN.Generators import MnistGenerator
+from RNN.Generator import Generator
+from Util.Util import DataUtil
 
 
+# Generator
+class MnistGenerator(Generator):
+    def __init__(self, im=None, om=None, one_hot=True):
+        super(MnistGenerator, self).__init__(im, om)
+        self._x, self._y = DataUtil.get_dataset("mnist", "../../_Data/mnist.txt", quantized=True, one_hot=one_hot)
+        self._x = self._x.reshape(-1, 28, 28)
+        self._x_train, self._x_test = self._x[:1800], self._x[1800:]
+        self._y_train, self._y_test = self._y[:1800], self._y[1800:]
+
+
+# Test Case
 def test_mnist(n_history=3):
     print("=" * 60, "\n" + "Normal LSTM", "\n" + "-" * 60)
+    generator = MnistGenerator()
     t = time.time()
     tf.reset_default_graph()
     rnn = RNNWrapper(n_history=n_history, epoch=10, squeeze=True)
-    rnn.fit(28, 10, MnistGenerator)
+    rnn.fit(28, 10, generator)
     print("Time Cost: {}".format(time.time() - t))
     rnn.draw_err_logs()
 
     print("=" * 60, "\n" + "Sparse LSTM" + "\n" + "-" * 60)
+    generator = MnistGenerator(one_hot=False)
     t = time.time()
     tf.reset_default_graph()
-    rnn = RNNWrapper(n_history=n_history, epoch=10, sparse=True, generator_params={"one_hot": False})
-    rnn.fit(28, 10, MnistGenerator)
+    rnn = RNNWrapper(n_history=n_history, epoch=10, sparse=True)
+    rnn.fit(28, 10, generator)
     print("Time Cost: {}".format(time.time() - t))
     rnn.draw_err_logs()
 
     print("=" * 60, "\n" + "Tflearn", "\n" + "-" * 60)
+    generator = MnistGenerator()
     t = time.time()
     tf.reset_default_graph()
     net = tflearn.input_data(shape=[None, 28, 28])
@@ -32,7 +47,6 @@ def test_mnist(n_history=3):
     net = tflearn.regression(net, optimizer='adam',
                              loss='categorical_crossentropy', name="output1")
     model = tflearn.DNN(net, tensorboard_verbose=0)
-    generator = MnistGenerator()
     model.fit(*generator.gen(1), n_epoch=10, validation_set=generator.gen(1, True), show_metric=True)
     print("Time Cost: {}".format(time.time() - t))
 

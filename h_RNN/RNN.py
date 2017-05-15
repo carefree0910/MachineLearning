@@ -5,6 +5,7 @@ import tensorflow.contrib.layers as layers
 import matplotlib.pyplot as plt
 
 from g_CNN.Optimizers import OptFactory
+from Util.ProgressBar import ProgressBar
 
 
 class LSTMCell(tf.contrib.rnn.BasicRNNCell):
@@ -28,21 +29,20 @@ class LSTMCell(tf.contrib.rnn.BasicRNNCell):
 
 
 class RNNWrapper:
-    def __init__(self, **kwargs):
+    def __init__(self):
         self._log = {}
+        self._im = self._om = None
         self._optimizer = self._generator = None
         self._tfx = self._tfy = self._input = self._output = None
-        self._im = self._om = self._activation = None
         self._sess = tf.Session()
 
-        self._squeeze = self._sparse = None
-        self._embedding_size = self._use_final_state = None
-        self._generator_params = kwargs.get("generator_params", {})
+        self._squeeze = False
+        self._activation = tf.nn.sigmoid
 
     def _verbose(self):
         x_test, y_test = self._generator.gen(1, True)
         axis = 1 if self._squeeze else 2
-        if self._sparse:
+        if len(y_test.shape) == 1:
             y_true = y_test
         else:
             y_true = np.argmax(y_test, axis=axis).ravel()  # type: np.ndarray
@@ -50,71 +50,59 @@ class RNNWrapper:
         print("Test acc: {:8.6} %".format(np.mean(y_true == y_pred) * 100))
 
     def _define_input(self, im, om):
-        if self._embedding_size:
-            self._tfx = tf.placeholder(tf.int32, shape=[None, None])
-            embeddings = tf.Variable(tf.random_uniform([im, self._embedding_size], -1.0, 1.0))
-            self._input = tf.nn.embedding_lookup(embeddings, self._tfx)
-        else:
-            self._input = self._tfx = tf.placeholder(tf.float32, shape=[None, None, im])
-        if self._sparse:
-            self._tfy = tf.placeholder(tf.int32, shape=[None])
-        elif self._squeeze:
+        self._input = self._tfx = tf.placeholder(tf.float32, shape=[None, None, im])
+        if self._squeeze:
             self._tfy = tf.placeholder(tf.float32, shape=[None, om])
         else:
             self._tfy = tf.placeholder(tf.float32, shape=[None, None, om])
 
     def _get_loss(self, eps):
-        if self._sparse:
-            return tf.reduce_mean(
-                tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self._tfy, logits=self._output)
-            )
         return -tf.reduce_mean(
             self._tfy * tf.log(self._output + eps) + (1 - self._tfy) * tf.log(1 - self._output + eps)
         )
 
-    def _get_output(self, rnn_outputs, rnn_final_state, n_history):
+    def _get_output(self, rnn_outputs, rnn_states, n_history):
         if n_history == 0 and self._squeeze:
             raise ValueError("'n_history' should not be 0 when trying to squeeze the outputs")
-        if self._sparse and not self._squeeze:
-            raise ValueError("Please squeeze the outputs when using sparse labels")
         if n_history == 1 and self._squeeze:
             outputs = rnn_outputs[..., -1, :]
         else:
             outputs = rnn_outputs[..., -n_history:, :]
             if self._squeeze:
                 outputs = tf.reshape(outputs, [-1, n_history * int(outputs.get_shape()[2])])
-        if self._use_final_state and self._squeeze:
-            outputs = tf.concat([outputs, rnn_final_state], axis=1)
         self._output = layers.fully_connected(
             outputs, num_outputs=self._om, activation_fn=self._activation)
 
-    def fit(self, im, om, generator, generator_params=None, cell=LSTMCell,
-            squeeze=False, sparse=False, embedding_size=None, use_final_state=False, n_hidden=128, n_history=0,
-            activation=None, lr=0.01, epoch=25, n_iter=128, batch_size=64, optimizer="Adam", eps=1e-8, verbose=1):
-        if generator_params is None:
-            generator_params = self._generator_params
-        self._squeeze, self._sparse = squeeze, sparse
-        self._embedding_size, self._use_final_state = embedding_size, use_final_state
-        if self._sparse:
+    def fit(self, im, om, generator, cell=LSTMCell,
+            n_hidden=128, n_history=0, squeeze=None, activation=None,
+            lr=0.01, epoch=10, n_iter=128, batch_size=64, optimizer="Adam", eps=1e-8, verbose=1):
+        if squeeze:
             self._squeeze = True
-
-        self._im, self._om, self._activation = im, om, activation
-        self._generator = generator(im, om, **generator_params)
+        if callable(activation):
+            self._activation = activation
+        self._generator = generator
+        self._im, self._om = im, om
         self._optimizer = OptFactory().get_optimizer_by_name(optimizer, lr)
         self._define_input(im, om)
 
         cell = cell(n_hidden)
         initial_state = cell.zero_state(tf.shape(self._input)[0], tf.float32)
-        rnn_outputs, rnn_final_state = tf.nn.dynamic_rnn(
+        rnn_outputs, rnn_states = tf.nn.dynamic_rnn(
             cell, self._input, initial_state=initial_state)
-        self._get_output(rnn_outputs, rnn_final_state, n_history)
+        self._get_output(rnn_outputs, rnn_states, n_history)
         loss = self._get_loss(eps)
         train_step = self._optimizer.minimize(loss)
         self._log["iter_err"] = []
         self._log["epoch_err"] = []
         self._sess.run(tf.global_variables_initializer())
+        bar = ProgressBar(max_value=epoch, name="Epoch", start=False)
+        if verbose >= 2:
+            bar.start()
         for _ in range(epoch):
             epoch_err = 0
+            sub_bar = ProgressBar(max_value=n_iter, name="Iter", start=False)
+            if verbose >= 2:
+                sub_bar.start()
             for __ in range(n_iter):
                 x_batch, y_batch = self._generator.gen(batch_size)
                 iter_err = self._sess.run([loss, train_step], {
@@ -122,9 +110,13 @@ class RNNWrapper:
                 })[0]
                 self._log["iter_err"].append(iter_err)
                 epoch_err += iter_err
+                if verbose >= 2:
+                    sub_bar.update()
             self._log["epoch_err"].append(epoch_err / n_iter)
             if verbose >= 1:
                 self._verbose()
+                if verbose >= 2:
+                    bar.update()
 
     def draw_err_logs(self):
         ee, ie = self._log["epoch_err"], self._log["iter_err"]
@@ -138,13 +130,9 @@ class RNNWrapper:
 
 
 class RNNForOp(RNNWrapper):
-    def __init__(self, **kwargs):
-        super(RNNForOp, self).__init__(**kwargs)
-        self._boost = kwargs.get("boost", 2)
-        if not self._generator_params:
-            self._generator_params = {
-                "n_time_step": 6, "random_scale": 2
-            }
+    def __init__(self, boost=2):
+        super(RNNForOp, self).__init__()
+        self._boost = boost
         self._op = ""
 
     def _verbose(self):
@@ -162,14 +150,14 @@ class RNNForOp(RNNWrapper):
 
 
 class RNNForAddition(RNNForOp):
-    def __init__(self, **kwargs):
-        super(RNNForAddition, self).__init__(**kwargs)
+    def __init__(self, boost=2):
+        super(RNNForAddition, self).__init__(boost)
         self._op = "+"
 
 
 class RNNForMultiple(RNNForOp):
-    def __init__(self, **kwargs):
-        super(RNNForMultiple, self).__init__(**kwargs)
+    def __init__(self, boost=2):
+        super(RNNForMultiple, self).__init__(boost)
         self._op = "*"
 
 
@@ -235,7 +223,17 @@ class MultipleGenerator(OpGenerator):
 if __name__ == '__main__':
     _random_scale = 2
     _digit_len, _digit_base, _n_digit = 2, 10, 3
-    lstm = RNNForAddition(boost=2)
-    lstm.fit(_n_digit, _digit_base, AdditionGenerator, epoch=10, activation=tf.nn.sigmoid,
-             generator_params={"n_time_step": _digit_len, "random_scale": _random_scale})
+    _generator = AdditionGenerator(
+        _n_digit, _digit_base,
+        n_time_step=_digit_len, random_scale=_random_scale
+    )
+    lstm = RNNForAddition()
+    lstm.fit(
+        _n_digit, _digit_base, _generator,
+        # cell=tf.contrib.rnn.GRUCell,
+        # cell=tf.contrib.rnn.LSTMCell,
+        # cell=tf.contrib.rnn.BasicRNNCell,
+        # cell=tf.contrib.rnn.BasicLSTMCell,
+        epoch=100
+    )
     lstm.draw_err_logs()

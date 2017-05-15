@@ -1,13 +1,25 @@
 import numpy as np
+import tensorflow as tf
 
-from h_RNN.RNN import RNNWrapper, Generator
+from h_RNN.RNN import Generator
+from h_RNN.SpRNN import SparseRNN
 
 
-class EmbedRNNForOp(RNNWrapper):
-    def __init__(self):
-        super(EmbedRNNForOp, self).__init__()
-        if not self._generator_params:
-            self._generator_params = {"n_digit": 2}
+class EmbedRNN(SparseRNN):
+    def __init__(self, embedding_size=200):
+        super(EmbedRNN, self).__init__()
+        self._embedding_size = embedding_size
+
+    def _define_input(self, im, om):
+        self._tfx = tf.placeholder(tf.int32, shape=[None, None])
+        embeddings = tf.Variable(tf.random_uniform([im, self._embedding_size], -1.0, 1.0))
+        self._input = tf.nn.embedding_lookup(embeddings, self._tfx)
+        self._tfy = tf.placeholder(tf.int32, shape=[None])
+
+
+class EmbedRNNForOp(EmbedRNN):
+    def __init__(self, embedding_size=200):
+        super(EmbedRNNForOp, self).__init__(embedding_size)
         self._op = ""
 
     def _verbose(self):
@@ -21,14 +33,14 @@ class EmbedRNNForOp(RNNWrapper):
 
 
 class EmbedRNNForAddition(EmbedRNNForOp):
-    def __init__(self):
-        super(EmbedRNNForAddition, self).__init__()
+    def __init__(self, embedding_size=200):
+        super(EmbedRNNForAddition, self).__init__(embedding_size)
         self._op = "+"
 
 
 class EmbedRNNForMultiple(EmbedRNNForOp):
-    def __init__(self):
-        super(EmbedRNNForMultiple, self).__init__()
+    def __init__(self, embedding_size=200):
+        super(EmbedRNNForMultiple, self).__init__(embedding_size)
         self._op = "*"
 
 
@@ -70,8 +82,14 @@ class EmbedMultipleGenerator(EmbedOpGenerator):
 if __name__ == '__main__':
     _n_digit = 2
     _im, _om = 100, 10000
-    lstm = EmbedRNNForMultiple()
-    lstm.fit(_im, _om, EmbedMultipleGenerator,
-             epoch=20, sparse=True, embedding_size=50, use_final_state=False,
-             n_history=_n_digit, generator_params={"n_digit": _n_digit})
+    _generator = EmbedMultipleGenerator(_im, _om, n_digit=_n_digit)
+    lstm = EmbedRNNForMultiple(embedding_size=50)
+    lstm.fit(
+        _im, _om, _generator,
+        # cell=tf.contrib.rnn.GRUCell,
+        # cell=tf.contrib.rnn.LSTMCell,
+        # cell=tf.contrib.rnn.BasicRNNCell,
+        # cell=tf.contrib.rnn.BasicLSTMCell,
+        epoch=20, n_history=_n_digit
+    )
     lstm.draw_err_logs()
