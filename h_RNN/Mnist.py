@@ -29,16 +29,17 @@ if __name__ == '__main__':
     print("=" * 60, "\n" + "Normal LSTM", "\n" + "-" * 60)
     _t = time.time()
     tf.reset_default_graph()
-    rnn = RNNWrapper(n_history=_n_history, epoch=10, squeeze=True)
-    rnn.fit(28, 10, MnistGenerator)
+    rnn = RNNWrapper()
+    rnn.fit(28, 10, MnistGenerator, n_history=_n_history, epoch=10, squeeze=True)
     print("Time Cost: {}".format(time.time() - _t))
     rnn.draw_err_logs()
 
     print("=" * 60, "\n" + "Sparse LSTM" + "\n" + "-" * 60)
     _t = time.time()
     tf.reset_default_graph()
-    rnn = RNNWrapper(n_history=_n_history, epoch=10, sparse=True, generator_params={"one_hot": False})
-    rnn.fit(28, 10, MnistGenerator)
+    rnn = RNNWrapper()
+    rnn.fit(28, 10, MnistGenerator, n_history=_n_history, epoch=10, sparse=True,
+            generator_params = {"one_hot": False})
     print("Time Cost: {}".format(time.time() - _t))
     rnn.draw_err_logs()
 

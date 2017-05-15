@@ -4,15 +4,14 @@ from h_RNN.RNN import RNNWrapper, Generator
 
 
 class EmbedRNNForOp(RNNWrapper):
-    def __init__(self, **kwargs):
-        super(EmbedRNNForOp, self).__init__(**kwargs)
-        if not self._params["generator_params"]:
-            self._params["generator_params"] = {"n_digit": 2}
-        self._params["boost"] = 0
+    def __init__(self):
+        super(EmbedRNNForOp, self).__init__()
+        if not self._generator_params:
+            self._generator_params = {"n_digit": 2}
         self._op = ""
 
     def _verbose(self):
-        x_test, y_test = self._generator.gen(1, boost=self._params["boost"])
+        x_test, y_test = self._generator.gen(1)
         ans = np.argmax(self._sess.run(self._output, {self._tfx: x_test}), axis=1)
         x_test = x_test.astype(np.int)
         print("I think {} = {}, answer: {}...".format(
@@ -22,14 +21,14 @@ class EmbedRNNForOp(RNNWrapper):
 
 
 class EmbedRNNForAddition(EmbedRNNForOp):
-    def __init__(self, **kwargs):
-        super(EmbedRNNForAddition, self).__init__(**kwargs)
+    def __init__(self):
+        super(EmbedRNNForAddition, self).__init__()
         self._op = "+"
 
 
 class EmbedRNNForMultiple(EmbedRNNForOp):
-    def __init__(self, **kwargs):
-        super(EmbedRNNForMultiple, self).__init__(**kwargs)
+    def __init__(self):
+        super(EmbedRNNForMultiple, self).__init__()
         self._op = "*"
 
 
@@ -71,13 +70,8 @@ class EmbedMultipleGenerator(EmbedOpGenerator):
 if __name__ == '__main__':
     _n_digit = 2
     _im, _om = 100, 10000
-    lstm = EmbedRNNForMultiple(
-        # cell=tf.contrib.rnn.GRUCell,
-        # cell=tf.contrib.rnn.LSTMCell,
-        # cell=tf.contrib.rnn.BasicRNNCell,
-        # cell=tf.contrib.rnn.BasicLSTMCell,
-        epoch=20, sparse=True, embedding_size=50, use_final_state=False,
-        n_history=_n_digit, generator_params={"n_digit": _n_digit}
-    )
-    lstm.fit(_im, _om, EmbedMultipleGenerator)
+    lstm = EmbedRNNForMultiple()
+    lstm.fit(_im, _om, EmbedMultipleGenerator,
+             epoch=20, sparse=True, embedding_size=50, use_final_state=False,
+             n_history=_n_digit, generator_params={"n_digit": _n_digit})
     lstm.draw_err_logs()
