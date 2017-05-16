@@ -39,16 +39,6 @@ class RNNWrapper:
         self._squeeze = False
         self._activation = tf.nn.sigmoid
 
-    def _verbose(self):
-        x_test, y_test = self._generator.gen(1, True)
-        axis = 1 if self._squeeze else 2
-        if len(y_test.shape) == 1:
-            y_true = y_test
-        else:
-            y_true = np.argmax(y_test, axis=axis).ravel()  # type: np.ndarray
-        y_pred = np.argmax(self._sess.run(self._output, {self._tfx: x_test}), axis=axis).ravel()  # type: np.ndarray
-        print("Test acc: {:8.6} %".format(np.mean(y_true == y_pred) * 100))
-
     def _define_input(self, im, om):
         self._input = self._tfx = tf.placeholder(tf.float32, shape=[None, None, im])
         if self._squeeze:
@@ -61,7 +51,7 @@ class RNNWrapper:
             self._tfy * tf.log(self._output + eps) + (1 - self._tfy) * tf.log(1 - self._output + eps)
         )
 
-    def _get_output(self, rnn_outputs, rnn_states, n_history):
+    def _get_output(self, rnn_outputs, rnn_final_state, n_history):
         if n_history == 0 and self._squeeze:
             raise ValueError("'n_history' should not be 0 when trying to squeeze the outputs")
         if n_history == 1 and self._squeeze:
@@ -72,6 +62,16 @@ class RNNWrapper:
                 outputs = tf.reshape(outputs, [-1, n_history * int(outputs.get_shape()[2])])
         self._output = layers.fully_connected(
             outputs, num_outputs=self._om, activation_fn=self._activation)
+
+    def _verbose(self):
+        x_test, y_test = self._generator.gen(0, True)
+        axis = 1 if self._squeeze else 2
+        if len(y_test.shape) == 1:
+            y_true = y_test
+        else:
+            y_true = np.argmax(y_test, axis=axis).ravel()  # type: np.ndarray
+        y_pred = self.predict(x_test).ravel()  # type: np.ndarray
+        print("Test acc: {:8.6} %".format(np.mean(y_true == y_pred) * 100))
 
     def fit(self, im, om, generator, cell=LSTMCell,
             n_hidden=128, n_history=0, squeeze=None, activation=None,
@@ -87,9 +87,9 @@ class RNNWrapper:
 
         cell = cell(n_hidden)
         initial_state = cell.zero_state(tf.shape(self._input)[0], tf.float32)
-        rnn_outputs, rnn_states = tf.nn.dynamic_rnn(
+        rnn_outputs, rnn_final_state = tf.nn.dynamic_rnn(
             cell, self._input, initial_state=initial_state)
-        self._get_output(rnn_outputs, rnn_states, n_history)
+        self._get_output(rnn_outputs, rnn_final_state, n_history)
         loss = self._get_loss(eps)
         train_step = self._optimizer.minimize(loss)
         self._log["iter_err"] = []
@@ -118,6 +118,13 @@ class RNNWrapper:
                 if verbose >= 2:
                     bar.update()
 
+    def predict(self, x, get_raw_results=False):
+        y_pred = self._sess.run(self._output, {self._tfx: x})
+        axis = 1 if self._squeeze else 2
+        if get_raw_results:
+            return y_pred
+        return np.argmax(y_pred, axis=axis)
+
     def draw_err_logs(self):
         ee, ie = self._log["epoch_err"], self._log["iter_err"]
         ee_base = np.arange(len(ee))
@@ -137,9 +144,7 @@ class RNNForOp(RNNWrapper):
 
     def _verbose(self):
         x_test, y_test = self._generator.gen(1, boost=self._boost)
-        ans = np.argmax(self._sess.run(self._output, {
-            self._tfx: x_test
-        }), axis=2).ravel()
+        ans = self.predict(x_test).ravel()
         x_test = x_test.astype(np.int)
         print("I think {} = {}, answer: {}...".format(
             " {} ".format(self._op).join(
@@ -221,13 +226,13 @@ class MultipleGenerator(OpGenerator):
         return [int(random.randint(0, self._om ** n_time_step - 1) ** (1 / self._im)) for _ in range(self._im)]
 
 if __name__ == '__main__':
-    _random_scale = 2
-    _digit_len, _digit_base, _n_digit = 2, 10, 3
-    _generator = AdditionGenerator(
+    _random_scale = 0
+    _digit_len, _digit_base, _n_digit = 3, 10, 2
+    _generator = MultipleGenerator(
         _n_digit, _digit_base,
         n_time_step=_digit_len, random_scale=_random_scale
     )
-    lstm = RNNForAddition()
+    lstm = RNNForMultiple(boost=1)
     lstm.fit(
         _n_digit, _digit_base, _generator,
         # cell=tf.contrib.rnn.GRUCell,

@@ -44,7 +44,7 @@ def test_mnist(n_history=3):
     net = tflearn.input_data(shape=[None, 28, 28])
     net = tf.concat(tflearn.lstm(net, 128, return_seq=True)[-n_history:], axis=1)
     net = tflearn.fully_connected(net, 10, activation='softmax')
-    net = tflearn.regression(net, optimizer='adam',
+    net = tflearn.regression(net, optimizer='adam', batch_size=64,
                              loss='categorical_crossentropy', name="output1")
     model = tflearn.DNN(net, tensorboard_verbose=0)
     model.fit(*generator.gen(1), n_epoch=10, validation_set=generator.gen(1, True), show_metric=True)

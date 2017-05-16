@@ -24,7 +24,7 @@ class EmbedRNNForOp(EmbedRNN):
 
     def _verbose(self):
         x_test, y_test = self._generator.gen(1)
-        ans = np.argmax(self._sess.run(self._output, {self._tfx: x_test}), axis=1)
+        ans = self.predict(x_test)
         x_test = x_test.astype(np.int)
         print("I think {} = {}, answer: {}...".format(
             " {} ".format(self._op).join(map(lambda n: str(n), x_test[0])),

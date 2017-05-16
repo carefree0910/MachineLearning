@@ -20,11 +20,6 @@ class SparseRNN(RNNWrapper):
             tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self._tfy, logits=self._output)
         )
 
-    def _get_output(self, rnn_outputs, rnn_states, n_history):
-        if not self._squeeze:
-            raise ValueError("Please squeeze the outputs when using SparseRNN")
-        super(SparseRNN, self)._get_output(rnn_outputs, rnn_states, n_history)
-
 
 class SpRNNForOp(SparseRNN):
     def __init__(self):
@@ -33,7 +28,7 @@ class SpRNNForOp(SparseRNN):
 
     def _verbose(self):
         x_test, y_test = self._generator.gen(1)
-        ans = np.argmax(self._sess.run(self._output, {self._tfx: x_test}), axis=1)
+        ans = self.predict(x_test)
         x_test = x_test.astype(np.int)
         print("I think {} = {}, answer: {}...".format(
             " {} ".format(self._op).join(
@@ -94,17 +89,17 @@ class SpMultipleGenerator(SpOpGenerator):
 if __name__ == '__main__':
     _random_scale = 0
     _digit_len, _digit_base, _n_digit = 4, 10, 2
-    _generator = SpMultipleGenerator(
+    _generator = SpAdditionGenerator(
         _n_digit, _digit_base ** (_digit_len + _random_scale),
         n_time_step=_digit_len, random_scale=_random_scale
     )
-    lstm = SpRNNForMultiple()
+    lstm = SpRNNForAddition()
     lstm.fit(
         _n_digit, _digit_base ** (_digit_len + _random_scale), _generator,
         # cell=tf.contrib.rnn.GRUCell,
         # cell=tf.contrib.rnn.LSTMCell,
         # cell=tf.contrib.rnn.BasicRNNCell,
         # cell=tf.contrib.rnn.BasicLSTMCell,
-        epoch=20, n_history=2
+        epoch=100, n_history=2
     )
     lstm.draw_err_logs()

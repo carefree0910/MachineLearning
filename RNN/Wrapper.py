@@ -43,9 +43,9 @@ class RNNWrapper:
 
     def _verbose(self):
         if self._sequence_lengths is not None:
-            x_test, y_test, sequence_lengths = self._generator.gen(1, True)
+            x_test, y_test, sequence_lengths = self._generator.gen(0, True)
         else:
-            x_test, y_test = self._generator.gen(1, True)
+            x_test, y_test = self._generator.gen(0, True)
             sequence_lengths = None
         axis = 1 if self._squeeze else 2
         if self._sparse:

@@ -17,7 +17,7 @@ class MnistGenerator(Generator):
         self._y_train, self._y_test = self._y[:1800], self._y[1800:]
 
     def gen(self, batch, test=False, **kwargs):
-        if batch == 1:
+        if batch == 0:
             if test:
                 return self._x_test, self._y_test
             return self._x_train, self._y_train
@@ -51,8 +51,8 @@ if __name__ == '__main__':
     net = tflearn.input_data(shape=[None, 28, 28])
     net = tf.concat(tflearn.lstm(net, 128, return_seq=True)[-n_history:], axis=1)
     net = tflearn.fully_connected(net, 10, activation='softmax')
-    net = tflearn.regression(net, optimizer='adam',
-                             loss='categorical_crossentropy', name="output1")
+    net = tflearn.regression(net, optimizer='adam', batch_size=64,
+                             loss='categorical_crossentropy')
     model = tflearn.DNN(net, tensorboard_verbose=0)
-    model.fit(*generator.gen(1), n_epoch=10, validation_set=generator.gen(1, True), show_metric=True)
+    model.fit(*generator.gen(0), n_epoch=10, validation_set=generator.gen(0, True), show_metric=True)
     print("Time Cost: {}".format(time.time() - t))
