@@ -1,11 +1,12 @@
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
+from tensorflow.contrib.rnn import LSTMStateTuple
 
 
 class LSTMCell(tf.contrib.rnn.BasicRNNCell):
     def __call__(self, x, state, scope="LSTM"):
         with tf.variable_scope(scope):
-            s_old, h_old = tf.split(state, 2, 1)
+            s_old, h_old = state
             gates = layers.fully_connected(
                 tf.concat([x, s_old], 1),
                 num_outputs=4 * self._num_units,
@@ -15,8 +16,8 @@ class LSTMCell(tf.contrib.rnn.BasicRNNCell):
             g2 = tf.nn.tanh(g2)
             h_new = h_old * r1 + g1 * g2
             s_new = tf.nn.tanh(h_new) * g3
-            return s_new, tf.concat([s_new, h_new], 1)
+            return s_new, LSTMStateTuple(s_new, h_new)
 
     @property
     def state_size(self):
-        return 2 * self._num_units
+        return LSTMStateTuple(self._num_units, self._num_units)

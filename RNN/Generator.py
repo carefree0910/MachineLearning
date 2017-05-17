@@ -9,7 +9,7 @@ class Generator:
         self._y_train = self._y_test = None
 
     def gen(self, batch, test=False, **kwargs):
-        if batch == 1:
+        if batch == 0:
             if test:
                 return self._x_test, self._y_test
             return self._x_train, self._y_train

@@ -35,13 +35,13 @@ class RNN2(RNN1):
         return safe_exp / np.sum(safe_exp)
 
     def bptt(self, x, y):
-        x, y, n = np.asarray(x), np.asarray(y), len(y)
+        x, y, T = np.asarray(x), np.asarray(y), len(y)
         o = self.run(x)
         dis = o - y
         dv = dis.T.dot(self._states[:-1])
         du = np.zeros_like(self._u)
         dw = np.zeros_like(self._w)
-        for t in range(n-1, -1, -1):
+        for t in range(T-1, -1, -1):
             ds = self._v.T.dot(dis[t])
             for bptt_step in range(t, max(-1, t-10), -1):
                 du += np.outer(ds, x[bptt_step])
@@ -50,14 +50,7 @@ class RNN2(RNN1):
                 ds = self._w.T.dot(ds) * st * (1 - st)
         return du, dv, dw
 
-    def loss(self, x, y):
-        o = self.run(x)
-        # noinspection PyTypeChecker
-        return np.sum(
-            -y * np.log(np.maximum(o, 1e-12)) - (1 - y) * np.log(np.maximum(1 - o, 1e-12))
-        )
-
 if __name__ == '__main__':
-    n_sample = 5
-    rnn = RNN1(np.eye(n_sample), np.eye(n_sample), np.eye(n_sample) * 2)
-    print(rnn.run(np.eye(n_sample)))
+    _T = 5
+    rnn = RNN1(np.eye(_T), np.eye(_T), np.eye(_T) * 2)
+    print(rnn.run(np.eye(_T)))

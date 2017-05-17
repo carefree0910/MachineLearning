@@ -16,7 +16,7 @@ class RNNWrapper:
         self._sess = tf.Session()
 
         self._squeeze = kwargs.get("squeeze", False)
-        self._sparse = kwargs.get("sparse", False)
+        self._use_sparse_labels = kwargs.get("use_sparse_labels", False)
         self._embedding_size = kwargs.get("embedding_size", None)
         self._use_final_state = kwargs.get("use_final_state", False)
         self._params = {
@@ -34,7 +34,7 @@ class RNNWrapper:
             "verbose": kwargs.get("verbose", 1)
         }
 
-        if self._sparse:
+        if self._use_sparse_labels:
             self._squeeze = True
             self._params["n_history"] = kwargs.get("n_history", 1)
             self._params["activation"] = kwargs.get("activation", None)
@@ -48,7 +48,7 @@ class RNNWrapper:
             x_test, y_test = self._generator.gen(0, True)
             sequence_lengths = None
         axis = 1 if self._squeeze else 2
-        if self._sparse:
+        if self._use_sparse_labels:
             y_true = y_test
         else:
             y_true = np.argmax(y_test, axis=axis).ravel()  # type: np.ndarray
@@ -62,7 +62,7 @@ class RNNWrapper:
             self._input = tf.nn.embedding_lookup(embeddings, self._tfx)
         else:
             self._input = self._tfx = tf.placeholder(tf.float32, shape=[None, None, im])
-        if self._sparse:
+        if self._use_sparse_labels:
             self._tfy = tf.placeholder(tf.int32, shape=[None])
         elif self._squeeze:
             self._tfy = tf.placeholder(tf.float32, shape=[None, om])
@@ -77,7 +77,7 @@ class RNNWrapper:
             self._sequence_lengths = None
 
     def _get_loss(self, eps):
-        if self._sparse:
+        if self._use_sparse_labels:
             return tf.reduce_mean(
                 tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self._tfy, logits=self._output)
             )
@@ -88,7 +88,7 @@ class RNNWrapper:
     def _get_output(self, rnn_outputs, rnn_final_state, n_history):
         if n_history == 0 and self._squeeze:
             raise ValueError("'n_history' should not be 0 when trying to squeeze the outputs")
-        if self._sparse and not self._squeeze:
+        if self._use_sparse_labels and not self._squeeze:
             raise ValueError("Please squeeze the outputs when using sparse labels")
         if n_history == 1 and self._squeeze:
             outputs = rnn_outputs[..., -1, :]
@@ -102,8 +102,9 @@ class RNNWrapper:
             outputs, num_outputs=self._om, activation_fn=self._activation)
 
     def fit(self, im, om, generator, cell=None, provide_sequence_length=None,
-            squeeze=None, sparse=None, embedding_size=None, use_final_state=None, n_hidden=None, n_history=None,
-            activation=None, lr=None, epoch=None, n_iter=None, batch_size=None, optimizer=None, eps=None, verbose=None):
+            squeeze=None, use_sparse_labels=None, embedding_size=None, use_final_state=None,
+            n_hidden=None, n_history=None, activation=None, lr=None, epoch=None, n_iter=None,
+            batch_size=None, optimizer=None, eps=None, verbose=None):
         if cell is None:
             cell = self._params["cell"]
         if provide_sequence_length is None:
@@ -114,8 +115,8 @@ class RNNWrapper:
             n_history = self._params["n_history"]
         if squeeze:
             self._squeeze = True
-        if sparse:
-            self._sparse = True
+        if use_sparse_labels:
+            self._use_sparse_labels = True
             self._squeeze = True
         if self._squeeze and n_history == 0:
             n_history = 1

@@ -41,7 +41,7 @@ class RNNForMultiple(RNNForOp):
 # Sparse RNN For Op
 class SpRNNForOp(RNNWrapper):
     def __init__(self, **kwargs):
-        kwargs["sparse"] = True
+        kwargs["use_sparse_labels"] = True
         super(SpRNNForOp, self).__init__(**kwargs)
         self._params["boost"] = 0
         self._op = ""
@@ -53,9 +53,7 @@ class SpRNNForOp(RNNWrapper):
         print("I think {} = {}, answer: {}...".format(
             " {} ".format(self._op).join(
                 ["".join(map(lambda n: str(n), x_test[0, ..., i][::-1])) for i in range(x_test.shape[2])]
-            ),
-            "".join(map(lambda n: str(n), ans)),
-            "".join(map(lambda n: str(n), y_test))))
+            ), ans[0], y_test[0]))
 
 
 class SpRNNForAddition(SpRNNForOp):
@@ -83,8 +81,7 @@ class EmbedRNNForOp(RNNWrapper):
         x_test = x_test.astype(np.int)
         print("I think {} = {}, answer: {}...".format(
             " {} ".format(self._op).join(map(lambda n: str(n), x_test[0])),
-            "".join(map(lambda n: str(n), ans)),
-            "".join(map(lambda n: str(n), y_test))))
+            ans[0], y_test[0]))
 
 
 class EmbedRNNForAddition(EmbedRNNForOp):
@@ -269,7 +266,8 @@ def test_embed_rnn(n_digit=2, im=100, om=10000):
         # cell=tf.contrib.rnn.LSTMCell,
         # cell=tf.contrib.rnn.BasicRNNCell,
         # cell=tf.contrib.rnn.BasicLSTMCell,
-        epoch=20, sparse=True, embedding_size=50, use_final_state=False, n_history=n_digit
+        epoch=20, use_sparse_labels=True, embedding_size=50,
+        use_final_state=False, n_history=n_digit
     )
     lstm.fit(im, om, generator)
     lstm.draw_err_logs()

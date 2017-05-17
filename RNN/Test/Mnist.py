@@ -18,7 +18,7 @@ class MnistGenerator(Generator):
 
 
 # Test Case
-def test_mnist(n_history=3):
+def test_mnist(n_history=3, draw=False):
     print("=" * 60, "\n" + "Normal LSTM", "\n" + "-" * 60)
     generator = MnistGenerator()
     t = time.time()
@@ -26,16 +26,18 @@ def test_mnist(n_history=3):
     rnn = RNNWrapper(n_history=n_history, epoch=10, squeeze=True)
     rnn.fit(28, 10, generator)
     print("Time Cost: {}".format(time.time() - t))
-    rnn.draw_err_logs()
+    if draw:
+        rnn.draw_err_logs()
 
     print("=" * 60, "\n" + "Sparse LSTM" + "\n" + "-" * 60)
     generator = MnistGenerator(one_hot=False)
     t = time.time()
     tf.reset_default_graph()
-    rnn = RNNWrapper(n_history=n_history, epoch=10, sparse=True)
+    rnn = RNNWrapper(n_history=n_history, epoch=10, use_sparse_labels=True)
     rnn.fit(28, 10, generator)
     print("Time Cost: {}".format(time.time() - t))
-    rnn.draw_err_logs()
+    if draw:
+        rnn.draw_err_logs()
 
     print("=" * 60, "\n" + "Tflearn", "\n" + "-" * 60)
     generator = MnistGenerator()
@@ -47,8 +49,8 @@ def test_mnist(n_history=3):
     net = tflearn.regression(net, optimizer='adam', batch_size=64,
                              loss='categorical_crossentropy', name="output1")
     model = tflearn.DNN(net, tensorboard_verbose=0)
-    model.fit(*generator.gen(1), n_epoch=10, validation_set=generator.gen(1, True), show_metric=True)
+    model.fit(*generator.gen(0), n_epoch=10, validation_set=generator.gen(0, True), show_metric=True)
     print("Time Cost: {}".format(time.time() - t))
 
 if __name__ == '__main__':
-    test_mnist()
+    test_mnist(draw=True)

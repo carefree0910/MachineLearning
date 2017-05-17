@@ -1,8 +1,8 @@
 import random
 import numpy as np
 import tensorflow as tf
-import tensorflow.contrib.layers as layers
 import matplotlib.pyplot as plt
+import tensorflow.contrib.layers as layers
 
 from g_CNN.Optimizers import OptFactory
 from Util.ProgressBar import ProgressBar
@@ -36,7 +36,7 @@ class RNNWrapper:
         self._tfx = self._tfy = self._input = self._output = None
         self._sess = tf.Session()
 
-        self._squeeze = False
+        self._squeeze = self._use_final_state = False
         self._activation = tf.nn.sigmoid
 
     def _define_input(self, im, om):
@@ -60,6 +60,8 @@ class RNNWrapper:
             outputs = rnn_outputs[..., -n_history:, :]
             if self._squeeze:
                 outputs = tf.reshape(outputs, [-1, n_history * int(outputs.get_shape()[2])])
+        if self._use_final_state and self._squeeze:
+            outputs = tf.concat([outputs, rnn_final_state], axis=1)
         self._output = layers.fully_connected(
             outputs, num_outputs=self._om, activation_fn=self._activation)
 
@@ -74,10 +76,12 @@ class RNNWrapper:
         print("Test acc: {:8.6} %".format(np.mean(y_true == y_pred) * 100))
 
     def fit(self, im, om, generator, cell=LSTMCell,
-            n_hidden=128, n_history=0, squeeze=None, activation=None,
+            n_hidden=128, n_history=0, squeeze=None, use_final_state=None, activation=None,
             lr=0.01, epoch=10, n_iter=128, batch_size=64, optimizer="Adam", eps=1e-8, verbose=1):
         if squeeze:
             self._squeeze = True
+        if use_final_state:
+            self._use_final_state = True
         if callable(activation):
             self._activation = activation
         self._generator = generator
