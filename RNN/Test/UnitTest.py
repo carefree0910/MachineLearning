@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import tensorflow.contrib.layers as layers
-from tensorflow.contrib.rnn import BasicRNNCell
+import tensorflow.contrib.rnn as rnn
 
 
 class AdditionGenerator:
@@ -69,7 +69,7 @@ class RNNWrapper:
         self._output = layers.fully_connected(
             outputs, num_outputs=self._om, activation_fn=tf.nn.sigmoid)
 
-    def fit(self, im, om, generator, return_all_states=False):
+    def fit(self, im, om, generator, cell=rnn.BasicLSTMCell, return_all_states=False):
         self._generator = generator
         self._im, self._om = im, om
         self._return_all_states = return_all_states
@@ -77,7 +77,7 @@ class RNNWrapper:
         self._input = self._tfx = tf.placeholder(tf.float32, shape=[None, None, im])
         self._tfy = tf.placeholder(tf.float32, shape=[None, None, om])
 
-        self._cell = BasicRNNCell(128)
+        self._cell = cell(128)
         rnn_outputs, rnn_states = tf.nn.dynamic_rnn(
             self._cell, self._input, return_all_states=self._return_all_states,
             initial_state=self._cell.zero_state(tf.shape(self._input)[0], tf.float32)
@@ -124,14 +124,44 @@ if __name__ == '__main__':
     _generator = AdditionGenerator(n_digit, digit_base, n_time_step=digit_len)
 
     # Return final state only
-    print("=" * 60 + "\n" + "Return final state only\n" + "-" * 60)
+    # BasicRNNCell
+    print("=" * 60 + "\n" + "Return final state only (BasicRNNCell)\n" + "-" * 60)
+    lstm = RNNWrapper()
+    lstm.fit(n_digit, digit_base, _generator, rnn.BasicRNNCell)
+    lstm.draw_err_logs()
+
+    # BasicLSTMCell
+    print("=" * 60 + "\n" + "Return final state only (BasicLSTMCell)\n" + "-" * 60)
+    tf.reset_default_graph()
     lstm = RNNWrapper()
     lstm.fit(n_digit, digit_base, _generator)
     lstm.draw_err_logs()
 
-    # Return all states
-    print("=" * 60 + "\n" + "Return all states generated\n" + "-" * 60)
+    # LSTMCell
+    print("=" * 60 + "\n" + "Return final state only (LSTMCell)\n" + "-" * 60)
     tf.reset_default_graph()
     lstm = RNNWrapper()
-    lstm.fit(n_digit, digit_base, _generator, return_all_states=True)
+    lstm.fit(n_digit, digit_base, _generator, rnn.LSTMCell)
+    lstm.draw_err_logs()
+
+    # GRUCell
+    print("=" * 60 + "\n" + "Return final state only (GRUCell)\n" + "-" * 60)
+    tf.reset_default_graph()
+    lstm = RNNWrapper()
+    lstm.fit(n_digit, digit_base, _generator, rnn.GRUCell)
+    lstm.draw_err_logs()
+
+    # Return all states
+    # LSTMCell
+    print("=" * 60 + "\n" + "Return all states generated (LSTMCell)\n" + "-" * 60)
+    tf.reset_default_graph()
+    lstm = RNNWrapper()
+    lstm.fit(n_digit, digit_base, _generator, rnn.LSTMCell, return_all_states=True)
+    lstm.draw_err_logs()
+
+    # GRUCell
+    print("=" * 60 + "\n" + "Return all states generated (GRUCell)\n" + "-" * 60)
+    tf.reset_default_graph()
+    lstm = RNNWrapper()
+    lstm.fit(n_digit, digit_base, _generator, rnn.GRUCell, return_all_states=True)
     lstm.draw_err_logs()
