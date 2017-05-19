@@ -44,7 +44,7 @@ class CvDBase(ClassifierBase):
     def fit(self, x, y, sample_weight=None, alpha=None, eps=None,
             cv_rate=None, train_only=None, feature_bound=None):
         if sample_weight is None:
-            sample_weight = self._params["sw"]
+            sample_weight = self._params["sample_weight"]
         if alpha is None:
             alpha = self._params["alpha"]
         if eps is None:

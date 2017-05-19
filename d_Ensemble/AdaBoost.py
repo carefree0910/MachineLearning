@@ -62,7 +62,7 @@ class AdaBoost(ClassifierBase):
     @AdaBoostTiming.timeit(level=1, prefix="[API] ")
     def fit(self, x, y, sample_weight=None, clf=None, epoch=None, eps=None, **kwargs):
         if sample_weight is None:
-            sample_weight = self._params["sw"]
+            sample_weight = self._params["sample_weight"]
         if clf is None:
             clf = self._params["clf"]
         if epoch is None:

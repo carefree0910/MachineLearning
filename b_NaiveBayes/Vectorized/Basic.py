@@ -56,7 +56,7 @@ class NaiveBayes(ClassifierBase):
     @NaiveBayesTiming.timeit(level=2, prefix="[API] ")
     def fit(self, x=None, y=None, sample_weight=None, lb=None):
         if sample_weight is None:
-            sample_weight = self._params["sw"]
+            sample_weight = self._params["sample_weight"]
         if lb is None:
             lb = self._params["lb"]
         if x is not None and y is not None:

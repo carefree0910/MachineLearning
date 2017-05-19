@@ -1,7 +1,7 @@
 from abc import ABCMeta
 
-from Util.Timing import Timing
 from Util.Util import Util
+from Util.Timing import Timing
 
 
 class TimingMeta(type):

@@ -33,7 +33,7 @@ class RandomForest(ClassifierBase):
     @RandomForestTiming.timeit(level=1, prefix="[API] ")
     def fit(self, x, y, sample_weight=None, tree=None, epoch=None, feature_bound=None, **kwargs):
         if sample_weight is None:
-            sample_weight = self._params["sw"]
+            sample_weight = self._params["sample_weight"]
         if tree is None:
             tree = self._params["tree"]
         if epoch is None:

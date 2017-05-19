@@ -1,9 +1,11 @@
+import cv2
 import time
 import math
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
+from Util.Util import VisUtil
 from Util.Timing import Timing
 from Util.ProgressBar import ProgressBar
 
@@ -22,7 +24,9 @@ class ModelBase:
             "acc": ClassifierBase.acc
         }
         self._params = {
-            "sw": kwargs.get("sample_weight", None)
+            "sample_weight": kwargs.get("sample_weight", None),
+            "show_animations": kwargs.get("show_animations", False),
+            "make_mp4": kwargs.get("make_mp4", False)
         }
 
     def __str__(self):
@@ -193,6 +197,59 @@ class ClassifierBase(ModelBase):
         if isinstance(tar, int):
             print(prefix + ": {:12.8}".format(logs[tar]))
         return logs
+
+    def get_2d_plot(self, x, y, height=600, width=600, padding=1, dense=200):
+        axis, labels = np.asarray(x).T, np.asarray(y)
+        decision_function = lambda _xx: self.predict(_xx)
+        nx, ny, padding = dense, dense, padding
+        x_min, x_max = np.min(axis[0]), np.max(axis[0])  # type: float
+        y_min, y_max = np.min(axis[1]), np.max(axis[1])  # type: float
+        x_padding = max(abs(x_min), abs(x_max)) * padding
+        y_padding = max(abs(y_min), abs(y_max)) * padding
+        x_min -= x_padding
+        x_max += x_padding
+        y_min -= y_padding
+        y_max += y_padding
+
+        def get_base(_nx, _ny):
+            _xf = np.linspace(x_min, x_max, _nx)
+            _yf = np.linspace(y_min, y_max, _ny)
+            n_xf, n_yf = np.meshgrid(_xf, _yf)
+            return _xf, _yf, np.c_[n_xf.ravel(), n_yf.ravel()]
+
+        xf, yf, base_matrix = get_base(nx, ny)
+        z = decision_function(base_matrix).reshape((nx, ny))
+
+        if labels.ndim == 1:
+            _dic = {c: i for i, c in enumerate(set(labels))}
+            n_label = len(_dic)
+            labels = np.array([_dic[label] for label in labels])
+        else:
+            n_label = labels.shape[1]
+            labels = np.argmax(labels, axis=1)
+        colors = plt.cm.rainbow([i / n_label for i in range(n_label)])[labels][..., 1:]
+
+        canvas = np.zeros([height, width, 3])
+        x_boost = width / (x_max - x_min)
+        y_boost = height / (y_max - y_min)
+        for color, coordinate in zip(colors, axis.T):
+            x, y = coordinate  # type: float
+            cv2.circle(canvas, (
+                int(round((x - x_min) * x_boost)), height - int(round((y - y_min) * y_boost))
+            ), 2, color, 1)
+        z_new = z.copy()
+        z_new[..., :199] = z[..., 1:]
+        mask = z == z_new
+        for i in range(nx):
+            x = xf[i]
+            x = int(round((x - x_min) * x_boost))
+            for j in range(ny):
+                if not mask[i][j]:
+                    y = yf[j]
+                    cv2.circle(canvas, (
+                        int(round((y - y_min) * y_boost)), width - x
+                    ), 1, (255, 255, 255), 2)
+        return canvas
 
     def visualize2d(self, x, y, padding=0.1, dense=200,
                     title=None, show_org=False, show_background=True, emphasize=None, extra=None):
@@ -468,19 +525,25 @@ class KernelBase(ClassifierBase):
 
     @KernelBaseTiming.timeit(level=1, prefix="[API] ")
     def fit(self, x, y, sample_weight=None, kernel=None, epoch=None,
-            x_test=None, y_test=None, metrics=None, **kwargs):
+            x_test=None, y_test=None, metrics=None,
+            show_animations=None, make_mp4=None, **kwargs):
         if sample_weight is None:
-            sample_weight = self._params["sw"]
+            sample_weight = self._params["sample_weight"]  # type: list
         if kernel is None:
             kernel = self._params["kernel"]
         if epoch is None:
             epoch = self._params["epoch"]
         if x_test is None:
-            x_test = self._params["x_test"]
+            x_test = self._params["x_test"]  # type: list
         if y_test is None:
-            y_test = self._params["y_test"]
+            y_test = self._params["y_test"]  # type: list
         if metrics is None:
-            metrics = self._params["metrics"]
+            metrics = self._params["metrics"]  # type: list
+        if show_animations is None:
+            show_animations = self._params["show_animations"]
+        if make_mp4 is None:
+            make_mp4 = self._params["make_mp4"]
+        draw_animations = show_animations or make_mp4
         self._x, self._y = np.atleast_2d(x), np.asarray(y)
         if kernel == "poly":
             _p = kwargs.get("p", self._params["p"])
@@ -505,7 +568,7 @@ class KernelBase(ClassifierBase):
         self._b = 0
         self._prepare(sample_weight, **kwargs)
 
-        _fit_args, _logs = [], []
+        _fit_args, _logs, ims = [], [], []
         for _name, _arg in zip(self._fit_args_names, self._fit_args):
             if _name in kwargs:
                 _arg = kwargs[_name]
@@ -534,7 +597,16 @@ class KernelBase(ClassifierBase):
                     else:
                         _local_logs.append(metric(_yv, self.predict(_test_gram, gram_provided=True)))
                 _logs.append(_local_logs)
+            if draw_animations and self._x.shape[1] == 2:
+                img = self.get_2d_plot(self._x, self._y)
+                if show_animations:
+                    cv2.imshow(str(self), img)
+                    cv2.waitKey(1)
+                if make_mp4:
+                    ims.append(img)
             bar.update()
+        if make_mp4:
+            VisUtil.make_mp4(ims, str(self))
         return _logs
 
     @KernelBaseTiming.timeit(level=1, prefix="[API] ")
