@@ -31,7 +31,6 @@ if __name__ == '__main__':
     rnn = RNNWrapper()
     rnn.fit(28, 10, generator)
     print("Time Cost: {}".format(time.time() - t))
-    rnn.draw_err_logs()
 
     print("=" * 60, "\n" + "My Fast LSTM", "\n" + "-" * 60)
     generator = MnistGenerator()
@@ -40,7 +39,6 @@ if __name__ == '__main__':
     rnn = RNNWrapper()
     rnn.fit(28, 10, generator, cell=FastLSTMCell)
     print("Time Cost: {}".format(time.time() - t))
-    rnn.draw_err_logs()
 
     print("=" * 60, "\n" + "Tflearn", "\n" + "-" * 60)
     generator = MnistGenerator()
