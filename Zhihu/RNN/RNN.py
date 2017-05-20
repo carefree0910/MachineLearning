@@ -78,10 +78,11 @@ class RNNWrapper:
         )
         self._get_output(rnn_outputs)
         loss = tf.nn.softmax_cross_entropy_with_logits(logits=self._output, labels=self._tfy)
-        train_step = tf.train.AdamOptimizer(0.01).minimize(loss)
+        train_step = tf.train.AdamOptimizer(0.001).minimize(loss)
         self._sess.run(tf.global_variables_initializer())
         for _ in range(10):
-            for __ in range(28):
+            self._generator.refresh()
+            for __ in range(29):
                 x_batch, y_batch = self._generator.gen(64)
                 self._sess.run(train_step, {self._tfx: x_batch, self._tfy: y_batch})
             self._verbose()
