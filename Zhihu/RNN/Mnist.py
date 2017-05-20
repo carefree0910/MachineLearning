@@ -24,26 +24,25 @@ class MnistGenerator:
         return self._x_train[batch], self._y_train[batch]
 
 if __name__ == '__main__':
-    print("=" * 60, "\n" + "My LSTM", "\n" + "-" * 60)
     generator = MnistGenerator()
-    t = time.time()
+
+    print("=" * 60, "\n" + "My LSTM", "\n" + "-" * 60)
     tf.reset_default_graph()
+    t = time.time()
     rnn = RNNWrapper()
     rnn.fit(28, 10, generator)
     print("Time Cost: {}".format(time.time() - t))
 
     print("=" * 60, "\n" + "My Fast LSTM", "\n" + "-" * 60)
-    generator = MnistGenerator()
-    t = time.time()
     tf.reset_default_graph()
+    t = time.time()
     rnn = RNNWrapper()
     rnn.fit(28, 10, generator, cell=FastLSTMCell)
     print("Time Cost: {}".format(time.time() - t))
 
     print("=" * 60, "\n" + "Tflearn", "\n" + "-" * 60)
-    generator = MnistGenerator()
-    t = time.time()
     tf.reset_default_graph()
+    t = time.time()
     net = tflearn.input_data(shape=[None, 28, 28])
     net = tf.concat(tflearn.lstm(net, 128, return_seq=True)[-3:], axis=1)
     net = tflearn.fully_connected(net, 10, activation='softmax')

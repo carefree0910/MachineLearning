@@ -13,8 +13,10 @@ class LSTMCell(BasicRNNCell):
                 num_outputs=4 * self._num_units,
                 activation_fn=None)
             r1, g1, g2, g3 = tf.split(gates, 4, 1)
-            r1, g1, g3 = tf.nn.sigmoid(r1), tf.nn.sigmoid(g1), tf.nn.sigmoid(g3)
+            r1 = tf.nn.sigmoid(r1)
+            g1 = tf.nn.sigmoid(g1)
             g2 = tf.nn.tanh(g2)
+            g3 = tf.nn.sigmoid(g3)
             h_new = h_old * r1 + g1 * g2
             s_new = tf.nn.tanh(h_new) * g3
             return s_new, tf.concat([s_new, h_new], 1)
@@ -33,8 +35,10 @@ class FastLSTMCell(BasicRNNCell):
                 num_outputs=4 * self._num_units,
                 activation_fn=None)
             r1, g1, g2, g3 = tf.split(gates, 4, 1)
-            r1, g1, g3 = tf.nn.sigmoid(r1), tf.nn.sigmoid(g1), tf.nn.sigmoid(g3)
+            r1 = tf.nn.sigmoid(r1)
+            g1 = tf.nn.sigmoid(g1)
             g2 = tf.nn.tanh(g2)
+            g3 = tf.nn.sigmoid(g3)
             h_new = h_old * r1 + g1 * g2
             s_new = tf.nn.tanh(h_new) * g3
             return s_new, LSTMStateTuple(s_new, h_new)
