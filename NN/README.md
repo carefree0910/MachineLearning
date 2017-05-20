@@ -2,7 +2,7 @@
 Implemented **Neural Network** & **Convolutional Neural Network** with `numpy` & `Tensorflow`
 
 ## Visualization
-![Neural Network on Spiral](http://i2.muimg.com/588926/21ecd09ab2137c30.gif)
+![Neural Network on Spiral](https://cdn.rawgit.com/carefree0910/Resources/641e8228/NN.gif)
 
 ## Examples
 

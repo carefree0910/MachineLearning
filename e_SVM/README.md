@@ -6,29 +6,29 @@ Implemented **Tensorflow** backend for `LinearSVM` & `SVM`
 ## Visualization
 
 ### Perceptron
-![Perceptron on Two Clusters](http://oph1aen4o.bkt.clouddn.com/17-5-20/97196555-file_1495275689415_15d56.gif)
+![Perceptron on Two Clusters](https://cdn.rawgit.com/carefree0910/Resources/d269faeb/Lines/Perceptron.gif)
 
-![Perceptron on Two Clusters](http://oph1aen4o.bkt.clouddn.com/17-5-20/62314176-file_1495275694416_47dd.gif)
+![Perceptron on Two Clusters](https://cdn.rawgit.com/carefree0910/Resources/d269faeb/Backgrounds/Perceptron.gif)
 
 ### LinearSVM
-![LinearSVM on Two Clusters](http://oph1aen4o.bkt.clouddn.com/17-5-20/53018892-file_1495275689219_1493b.gif)
+![LinearSVM on Two Clusters](https://cdn.rawgit.com/carefree0910/Resources/d269faeb/Lines/LinearSVM.gif)
 
-![LinearSVM on Two Clusters](http://oph1aen4o.bkt.clouddn.com/17-5-20/97544282-file_1495275694176_6a5.gif)
+![LinearSVM on Two Clusters](https://cdn.rawgit.com/carefree0910/Resources/d269faeb/Backgrounds/LinearSVM.gif)
 
 ### TFLinearSVM
-![TFLinearSVM on Two Clusters](http://oph1aen4o.bkt.clouddn.com/17-5-20/40345342-file_1495275689828_2c1a.gif)
+![TFLinearSVM on Two Clusters](https://cdn.rawgit.com/carefree0910/Resources/d269faeb/Lines/TFLinearSVM.gif)
 
-![TFLinearSVM on Two Clusters](http://oph1aen4o.bkt.clouddn.com/17-5-20/29078272-file_1495275694854_1549d.gif)
+![TFLinearSVM on Two Clusters](https://cdn.rawgit.com/carefree0910/Resources/d269faeb/Backgrounds/TFLinearSVM.gif)
 
 ### Kernel Perceptron
-![Kernel Perceptron on Spiral](http://oph1aen4o.bkt.clouddn.com/17-5-20/29584743-file_1495275688867_17b9d.gif)
+![Kernel Perceptron on Spiral](https://cdn.rawgit.com/carefree0910/Resources/d269faeb/Lines/KP.gif)
 
-![Kernel Perceptron on Spiral](http://oph1aen4o.bkt.clouddn.com/17-5-20/58516048-file_1495275693829_5922.gif)
+![Kernel Perceptron on Spiral](https://cdn.rawgit.com/carefree0910/Resources/d269faeb/Backgrounds/KP.gif)
 
 ### SVM
-![SVM on Spiral](http://oph1aen4o.bkt.clouddn.com/17-5-20/60620731-file_1495275689578_1d97.gif)
+![SVM on Spiral](https://cdn.rawgit.com/carefree0910/Resources/d269faeb/Lines/SVM.gif)
 
-![SVM on Spiral](http://oph1aen4o.bkt.clouddn.com/17-5-20/64162775-file_1495275694615_7489.gif)
+![SVM on Spiral](https://cdn.rawgit.com/carefree0910/Resources/d269faeb/Backgrounds/SVM.gif)
 
 ## Example
 ```python
