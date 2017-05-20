@@ -18,19 +18,15 @@ class Perceptron(ClassifierBase):
         self._params["epoch"] = kwargs.get("epoch", 10 ** 4)
 
     @PerceptronTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, sample_weight=None, lr=None, epoch=None,
-            show_animations=None, make_mp4=None):
+    def fit(self, x, y, sample_weight=None, lr=None, epoch=None, animation_params=None):
         if sample_weight is None:
             sample_weight = self._params["sample_weight"]
         if lr is None:
             lr = self._params["lr"]
         if epoch is None:
             epoch = self._params["epoch"]
-        if show_animations is None:
-            show_animations = self._params["show_animations"]
-        if make_mp4 is None:
-            make_mp4 = self._params["make_mp4"]
-        draw_animations = show_animations or make_mp4
+        draw_ani, show_ani, make_mp4, ani_period, animation_params = self.get_animation_params(animation_params)
+
         x, y = np.atleast_2d(x), np.asarray(y)
         if sample_weight is None:
             sample_weight = np.ones(len(y))
@@ -41,20 +37,20 @@ class Perceptron(ClassifierBase):
         self._b = 0
         ims = []
         bar = ProgressBar(max_value=epoch, name="Perceptron")
-        for _ in range(epoch):
+        for i in range(epoch):
             y_pred = self.predict(x)
             _err = (y_pred != y) * sample_weight
             _indices = np.random.permutation(len(y))
             _idx = _indices[np.argmax(_err[_indices])]
             if y_pred[_idx] == y[_idx]:
                 bar.update(epoch)
-                return
+                break
             _delta = lr * y[_idx] * sample_weight[_idx]
             self._w += _delta * x[_idx]
             self._b += _delta
-            if draw_animations and x.shape[1] == 2:
-                img = self.get_2d_plot(x, y)
-                if show_animations:
+            if draw_ani and x.shape[1] == 2 and (i+1) % ani_period == 0:
+                img = self.get_2d_plot(x, y, **animation_params)
+                if show_ani:
                     cv2.imshow("Perceptron", img)
                     cv2.waitKey(1)
                 if make_mp4:

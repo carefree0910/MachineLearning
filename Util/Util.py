@@ -305,8 +305,9 @@ class VisUtil:
         return img.transpose(1, 2, 0)
 
     @staticmethod
-    def make_mp4(ims, name="", fps=20, scale=1):
+    def make_mp4(ims, name="", fps=20, scale=1, extend=30):
         print("Making mp4...")
+        ims += [ims[-1]] * extend
         with imageio.get_writer("{}.mp4".format(name), mode='I', fps=fps) as writer:
             for im in ims:
                 if scale != 1:

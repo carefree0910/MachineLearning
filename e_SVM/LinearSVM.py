@@ -21,8 +21,7 @@ class LinearSVM(ClassifierBase):
         self._params["tol"] = kwargs.get("tol", 1e-3)
 
     @LinearSVMTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, sample_weight=None, c=None, lr=None, epoch=None, tol=None,
-            show_animations=None, make_mp4=None):
+    def fit(self, x, y, sample_weight=None, c=None, lr=None, epoch=None, tol=None, animation_params=None):
         if sample_weight is None:
             sample_weight = self._params["sample_weight"]
         if c is None:
@@ -33,11 +32,7 @@ class LinearSVM(ClassifierBase):
             epoch = self._params["epoch"]
         if tol is None:
             tol = self._params["tol"]
-        if show_animations is None:
-            show_animations = self._params["show_animations"]
-        if make_mp4 is None:
-            make_mp4 = self._params["make_mp4"]
-        draw_animations = show_animations or make_mp4
+        draw_ani, show_ani, make_mp4, ani_period, animation_params = self.get_animation_params(animation_params)
         x, y = np.atleast_2d(x), np.asarray(y)
         if sample_weight is None:
             sample_weight = np.ones(len(y))
@@ -48,21 +43,21 @@ class LinearSVM(ClassifierBase):
         self._b = 0
         ims = []
         bar = ProgressBar(max_value=epoch, name="LinearSVM")
-        for _ in range(epoch):
-            _err = (1 - self.predict(x, get_raw_results=True) * y) * sample_weight
-            _indices = np.random.permutation(len(y))
-            _idx = _indices[np.argmax(_err[_indices])]
-            if _err[_idx] <= tol:
+        for i in range(epoch):
+            err = (1 - self.predict(x, get_raw_results=True) * y) * sample_weight
+            indices = np.random.permutation(len(y))
+            idx = indices[np.argmax(err[indices])]
+            if err[idx] <= tol:
                 bar.update(epoch)
-                return
-            _delta = lr * c * y[_idx] * sample_weight[_idx]
+                break
+            delta = lr * c * y[idx] * sample_weight[idx]
             self._w *= 1 - lr
-            self._w += _delta * x[_idx]
-            self._b += _delta
-            if draw_animations and x.shape[1] == 2:
-                img = self.get_2d_plot(x, y)
-                if show_animations:
-                    cv2.imshow("Perceptron", img)
+            self._w += delta * x[idx]
+            self._b += delta
+            if draw_ani and x.shape[1] == 2 and (i+1) % ani_period == 0:
+                img = self.get_2d_plot(x, y, **animation_params)
+                if show_ani:
+                    cv2.imshow("LinearSVM", img)
                     cv2.waitKey(1)
                 if make_mp4:
                     ims.append(img)
@@ -93,8 +88,7 @@ class TFLinearSVM(ClassifierBase):
         self._params["tol"] = kwargs.get("tol", 1e-3)
 
     @TFLinearSVMTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, sample_weight=None, c=None, lr=None, epoch=None, tol=None,
-            show_animations=None, make_mp4=None):
+    def fit(self, x, y, sample_weight=None, c=None, lr=None, epoch=None, tol=None, animation_params=None):
         if sample_weight is None:
             sample_weight = self._params["sample_weight"]
         if c is None:
@@ -105,11 +99,7 @@ class TFLinearSVM(ClassifierBase):
             epoch = self._params["epoch"]
         if tol is None:
             tol = self._params["tol"]
-        if show_animations is None:
-            show_animations = self._params["show_animations"]
-        if make_mp4 is None:
-            make_mp4 = self._params["make_mp4"]
-        draw_animations = show_animations or make_mp4
+        draw_ani, show_ani, make_mp4, ani_period, animation_params = self.get_animation_params(animation_params)
         x, y = np.atleast_2d(x), np.asarray(y)
         if sample_weight is None:
             sample_weight = tf.constant(np.ones([len(y), 1]), dtype=tf.float32, name="sample_weight")
@@ -129,15 +119,15 @@ class TFLinearSVM(ClassifierBase):
         self._sess.run(tf.global_variables_initializer())
         bar = ProgressBar(max_value=epoch, name="TFLinearSVM")
         ims = []
-        for _ in range(epoch):
-            _l = self._sess.run([cost, train_step], {self._tfx: x})[0]
-            if _l < tol:
+        for i in range(epoch):
+            l = self._sess.run([cost, train_step], {self._tfx: x})[0]
+            if l < tol:
                 bar.update(epoch)
                 break
-            if draw_animations and x.shape[1] == 2:
-                img = self.get_2d_plot(x, y)
-                if show_animations:
-                    cv2.imshow("Perceptron", img)
+            if draw_ani and x.shape[1] == 2 and (i+1) % ani_period == 0:
+                img = self.get_2d_plot(x, y, **animation_params)
+                if show_ani:
+                    cv2.imshow("TFLinearSVM", img)
                     cv2.waitKey(1)
                 if make_mp4:
                     ims.append(img)

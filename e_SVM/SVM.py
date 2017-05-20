@@ -99,42 +99,41 @@ class SVM(KernelBase):
 class TFSVM(KernelBase):
     TFSVMTiming = Timing()
 
-    def __init__(self):
-        super(TFSVM, self).__init__()
+    def __init__(self, **kwargs):
+        super(TFSVM, self).__init__(**kwargs)
         self._fit_args, self._fit_args_names = [1e-3], ["tol"]
+        self._tf_gram = self._y_pred_raw = self._y_pred = None
         self._cost = self._train_step = None
         self._sess = tf.Session()
-        self._do_log = False
 
     def _prepare(self, sample_weight, **kwargs):
         lr = kwargs.get("lr", self._params["lr"])
         sample_weight = tf.constant(sample_weight, dtype=tf.float32, name="sample_weight")
-        x, y = tf.constant(self._x, dtype=tf.float32), tf.constant(self._y, dtype=tf.float32)
-        self._gram = tf.constant(self._kernel(self._x, self._x), dtype=tf.float32, name="gram")
         self._w = tf.Variable(np.zeros(len(self._x))[None, ...], dtype=tf.float32, name="w")
         self._b = tf.Variable(.0, dtype=tf.float32, name="b")
-        y_pred = self.predict(x, True, True)
-        self._cost = tf.reduce_sum(tf.maximum(1 - y * y_pred, 0) * sample_weight) + 0.5 * tf.matmul(
-            self._w, tf.matmul(self._gram, self._w, transpose_b=True)
+
+        self._tf_gram = tf.placeholder(tf.float32, [None, None])
+        self._y_pred_raw = tf.matmul(self._w, self._tf_gram, transpose_b=True) + self._b
+        self._y_pred = tf.sign(self._y_pred_raw)
+        self._cost = tf.reduce_sum(
+            tf.maximum(1 - self._y * self._y_pred_raw, 0) * sample_weight
+        ) + 0.5 * tf.matmul(
+            self._w, tf.matmul(self._tf_gram, self._w, transpose_b=True)
         )[0][0]
         self._train_step = tf.train.AdamOptimizer(learning_rate=lr).minimize(self._cost)
         self._sess.run(tf.global_variables_initializer())
 
     @TFSVMTiming.timeit(level=1, prefix="[API] ")
     def _fit(self, sample_weight, tol):
-        _l = self._sess.run([self._cost, self._train_step])[0]
+        _l = self._sess.run([self._cost, self._train_step], {
+            self._tf_gram: self._gram
+        })[0]
         if _l < tol:
             return True
 
     @TFSVMTiming.timeit(level=1, prefix="[API] ")
     def predict(self, x, get_raw_results=False, gram_provided=False):
+        rs = self._y_pred_raw if get_raw_results else self._y_pred
         if gram_provided:
-            gram = self._gram
-        else:
-            gram = tf.constant(self._kernel(np.atleast_2d(x), self._x).T, dtype=tf.float32)
-        rs = tf.matmul(self._w, gram) + self._b
-        if not get_raw_results:
-            rs = tf.sign(rs)
-        if not gram_provided:
-            rs = self._sess.run(rs)
-        return rs
+            return self._sess.run(rs, {self._tf_gram: x})
+        return self._sess.run(rs, {self._tf_gram: self._kernel(np.atleast_2d(x), self._x)})

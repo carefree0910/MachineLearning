@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 
-from h_Cluster.KMeans import KMeans
+from i_Cluster.KMeans import KMeans
 from Opt.Methods import *
 from Opt.Functions import *
 from Util.Util import DataUtil
@@ -151,7 +151,7 @@ class RBFNRegressor(RegressorBase):
         k_mat = self.rbf(x, self._sigma2)
         return k_mat.dot(alpha)
 
-data = np.linspace(0, 20, 100)[..., None]
+data = np.linspace(0, 20, 100)[..., None]  # type: np.ndarray
 labels = data.ravel() ** 2 + np.random.rand(100) * 25
 indices = np.random.permutation(len(data))
 data, labels = data[indices], labels[indices]
