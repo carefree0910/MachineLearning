@@ -73,9 +73,7 @@ class RNNWrapper:
             initial_state=self._cell.zero_state(tf.shape(self._tfx)[0], tf.float32)
         )
         self._get_output(rnn_outputs)
-        loss = -tf.reduce_mean(
-            self._tfy * tf.log(self._output + 1e-8) + (1 - self._tfy) * tf.log(1 - self._output + 1e-8)
-        )
+        loss = tf.nn.softmax_cross_entropy_with_logits(logits=self._output, labels=self._tfy)
         train_step = tf.train.AdamOptimizer(0.01).minimize(loss)
         self._sess.run(tf.global_variables_initializer())
         for _ in range(10):
