@@ -13,10 +13,12 @@ def main():
     # x, y = DataUtil.gen_two_clusters(n_dim=2, one_hot=False)
     y[y == 0] = -1
 
-    svm = SVM(animation_params={
-        "show": False, "period": 50, "mp4": False,
-        "dense": 400, "draw_background": True
-    })
+    animation_params = {
+        "show": False, "period": 50, "mp4": True,
+        "dense": 400, "draw_background": False
+    }
+
+    svm = SVM(animation_params=animation_params)
     svm.fit(x, y, kernel="poly", p=12)
     svm.evaluate(x, y)
     svm.visualize2d(x, y, padding=0.1, dense=400, emphasize=svm["alpha"] > 0)

@@ -18,12 +18,16 @@ class RNNForOp(RNNWrapper):
             self._tfx: x_test
         }), axis=2).ravel()
         x_test = x_test.astype(np.int)
+        if self._use_sparse_labels:
+            y_test = y_test.ravel()
+        else:
+            y_test = np.argmax(y_test, axis=2).ravel()
         print("I think {} = {}, answer: {}...".format(
             " {} ".format(self._op).join(
                 ["".join(map(lambda n: str(n), x_test[0, ..., i][::-1])) for i in range(x_test.shape[2])]
             ),
             "".join(map(lambda n: str(n), ans[::-1])),
-            "".join(map(lambda n: str(n), np.argmax(y_test, axis=2).ravel()[::-1]))))
+            "".join(map(lambda n: str(n), y_test[::-1]))))
 
 
 class RNNForAddition(RNNForOp):
@@ -41,19 +45,26 @@ class RNNForMultiple(RNNForOp):
 # Sparse RNN For Op
 class SpRNNForOp(RNNWrapper):
     def __init__(self, **kwargs):
-        kwargs["use_sparse_labels"] = True
+        kwargs["use_sparse_labels"] = kwargs["squeeze"] = True
         super(SpRNNForOp, self).__init__(**kwargs)
         self._params["boost"] = 0
         self._op = ""
 
     def _verbose(self):
         x_test, y_test = self._generator.gen(1, boost=self._params["boost"])
-        ans = np.argmax(self._sess.run(self._output, {self._tfx: x_test}), axis=1)
+        if self._squeeze:
+            y_test = [y_test]
+        if self._squeeze:
+            ans = [np.argmax(self._sess.run(self._output, {self._tfx: x_test}), axis=1)]
+        else:
+            ans = np.argmax(self._sess.run(self._output, {self._tfx: x_test}), axis=2)
         x_test = x_test.astype(np.int)
         print("I think {} = {}, answer: {}...".format(
             " {} ".format(self._op).join(
                 ["".join(map(lambda n: str(n), x_test[0, ..., i][::-1])) for i in range(x_test.shape[2])]
-            ), ans[0], y_test[0]))
+            ),
+            "".join(map(lambda n: str(n), ans[0][::-1])),
+            "".join(map(lambda n: str(n), y_test[0][::-1]))))
 
 
 class SpRNNForAddition(SpRNNForOp):
@@ -71,6 +82,7 @@ class SpRNNForMultiple(SpRNNForOp):
 # Embedding RNN For Op
 class EmbedRNNForOp(RNNWrapper):
     def __init__(self, **kwargs):
+        kwargs["use_sparse_labels"] = kwargs["squeeze"] = True
         super(EmbedRNNForOp, self).__init__(**kwargs)
         self._params["boost"] = 0
         self._op = ""
@@ -100,11 +112,12 @@ class EmbedRNNForMultiple(EmbedRNNForOp):
 
 # Op Generator
 class OpGenerator(Generator):
-    def __init__(self, im, om, n_time_step, random_scale):
+    def __init__(self, im, om, n_time_step, random_scale, use_sparse_labels=False):
         super(OpGenerator, self).__init__(im, om)
         self._base = self._om
         self._n_time_step = n_time_step
         self._random_scale = random_scale
+        self._use_sparse_labels = use_sparse_labels
 
     def _op(self, seq):
         return 0
@@ -125,13 +138,20 @@ class OpGenerator(Generator):
         else:
             n_time_step = self._n_time_step + random.randint(0, self._random_scale)
         x = np.empty([batch_size, n_time_step, self._im])
-        y = np.zeros([batch_size, n_time_step, self._om])
+        if not self._use_sparse_labels:
+            y = np.zeros([batch_size, n_time_step, self._om])
+        else:
+            y = np.zeros([batch_size, n_time_step], dtype=np.int32)
         for i in range(batch_size):
             targets = self._gen_targets(n_time_step)
             sequences = [self._gen_seq(n_time_step, tar) for tar in targets]
             for j in range(self._im):
                 x[i, ..., j] = sequences[j]
-            y[i, range(n_time_step), self._gen_seq(n_time_step, self._op(targets))] = 1
+            ans_seq = self._gen_seq(n_time_step, self._op(targets))
+            if not self._use_sparse_labels:
+                y[i, range(n_time_step), ans_seq] = 1
+            else:
+                y[i] = ans_seq
         return x, y
 
 
@@ -191,21 +211,23 @@ class SpMultipleGenerator(SpOpGenerator):
 
 # Embedding Sparse Op Generator
 class EmbedOpGenerator(Generator):
-    def __init__(self, im, om, n_digit):
+    def __init__(self, im, om, n_digit, random_scale=0):
         super(EmbedOpGenerator, self).__init__(im, om)
         self._n_digit = n_digit
+        self._random_scale = random_scale
 
     def _op(self, x):
         return 0
 
-    def _get_x(self):
+    def _get_x(self, n_digit):
         return 0
 
     def gen(self, batch_size, test=False, boost=0):
-        x = np.empty([batch_size, self._n_digit], dtype=np.int32)
+        n_digit = self._n_digit + random.randint(0, self._random_scale)
+        x = np.empty([batch_size, n_digit], dtype=np.int32)
         y = np.zeros(batch_size, dtype=np.int32)
         for i in range(batch_size):
-            x[i] = self._get_x()
+            x[i] = self._get_x(n_digit)
             y[i] = self._op(x[i])
         return x, y
 
@@ -214,28 +236,31 @@ class EmbedAdditionGenerator(EmbedOpGenerator):
     def _op(self, seq):
         return sum(seq)
 
-    def _get_x(self):
-        return np.random.randint(0, int(min(self._im, self._om / self._n_digit)), self._n_digit)
+    def _get_x(self, n_digit):
+        return np.random.randint(0, int(min(self._im, self._om / n_digit)), n_digit)
 
 
 class EmbedMultipleGenerator(EmbedOpGenerator):
     def _op(self, seq):
         return np.prod(seq)
 
-    def _get_x(self):
-        return np.random.randint(0, int(min(self._im, self._om ** (1 / self._n_digit))), self._n_digit)
+    def _get_x(self, n_digit):
+        return np.random.randint(0, int(min(self._im, self._om ** (1 / n_digit))), n_digit)
 
 
 # Test Cases
-def test_rnn(random_scale=2, digit_len=2, digit_base=10, n_digit=3):
+def test_rnn(random_scale=2, digit_len=2, digit_base=10, n_digit=3, use_sparse_labels=False):
     tf.reset_default_graph()
-    generator = AdditionGenerator(n_digit, digit_base, n_time_step=digit_len, random_scale=random_scale)
+    generator = AdditionGenerator(
+        n_digit, digit_base, n_time_step=digit_len, random_scale=random_scale,
+        use_sparse_labels=use_sparse_labels
+    )
     lstm = RNNForAddition(
         # cell=tf.contrib.rnn.GRUCell,
         # cell=tf.contrib.rnn.LSTMCell,
         # cell=tf.contrib.rnn.BasicRNNCell,
         # cell=tf.contrib.rnn.BasicLSTMCell,
-        epoch=100, boost=2
+        epoch=100, boost=2, use_sparse_labels=use_sparse_labels
     )
     lstm.fit(n_digit, digit_base, generator)
     lstm.draw_err_logs()
@@ -258,9 +283,9 @@ def test_sp_rnn(random_scale=0, digit_len=4, digit_base=10, n_digit=2):
     lstm.draw_err_logs()
 
 
-def test_embed_rnn(n_digit=2, im=100, om=10000):
+def test_embed_rnn(random_scale=0, n_digit=2, im=100, om=10000):
     tf.reset_default_graph()
-    generator = EmbedMultipleGenerator(im, om, n_digit=n_digit)
+    generator = EmbedMultipleGenerator(im, om, n_digit=n_digit, random_scale=random_scale)
     lstm = EmbedRNNForMultiple(
         # cell=tf.contrib.rnn.GRUCell,
         # cell=tf.contrib.rnn.LSTMCell,
@@ -274,5 +299,7 @@ def test_embed_rnn(n_digit=2, im=100, om=10000):
 
 if __name__ == '__main__':
     test_rnn()
+    test_rnn(use_sparse_labels=True)
     test_sp_rnn()
     test_embed_rnn()
+    test_embed_rnn(1)

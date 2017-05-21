@@ -24,7 +24,7 @@ def test_mnist(n_history=3, draw=False):
     t = time.time()
     tf.reset_default_graph()
     rnn = RNNWrapper(n_history=n_history, epoch=10, squeeze=True)
-    rnn.fit(28, 10, generator)
+    rnn.fit(28, 10, generator, n_iter=28)
     print("Time Cost: {}".format(time.time() - t))
     if draw:
         rnn.draw_err_logs()
@@ -33,8 +33,8 @@ def test_mnist(n_history=3, draw=False):
     generator = MnistGenerator(one_hot=False)
     t = time.time()
     tf.reset_default_graph()
-    rnn = RNNWrapper(n_history=n_history, epoch=10, use_sparse_labels=True)
-    rnn.fit(28, 10, generator)
+    rnn = RNNWrapper(n_history=n_history, epoch=10, squeeze=True, use_sparse_labels=True)
+    rnn.fit(28, 10, generator, n_iter=28)
     print("Time Cost: {}".format(time.time() - t))
     if draw:
         rnn.draw_err_logs()

@@ -1,7 +1,5 @@
-import cv2
 import numpy as np
 
-from Util.Util import VisUtil
 from Util.Timing import Timing
 from Util.Bases import ClassifierBase
 from Util.ProgressBar import ProgressBar
@@ -25,7 +23,7 @@ class Perceptron(ClassifierBase):
             lr = self._params["lr"]
         if epoch is None:
             epoch = self._params["epoch"]
-        draw_ani, show_ani, make_mp4, ani_period, animation_params = self.get_animation_params(animation_params)
+        *animation_properties, animation_params = self._get_animation_params(animation_params)
 
         x, y = np.atleast_2d(x), np.asarray(y)
         if sample_weight is None:
@@ -48,16 +46,9 @@ class Perceptron(ClassifierBase):
             _delta = lr * y[_idx] * sample_weight[_idx]
             self._w += _delta * x[_idx]
             self._b += _delta
-            if draw_ani and x.shape[1] == 2 and (i+1) % ani_period == 0:
-                img = self.get_2d_plot(x, y, **animation_params)
-                if show_ani:
-                    cv2.imshow("Perceptron", img)
-                    cv2.waitKey(1)
-                if make_mp4:
-                    ims.append(img)
+            self._handle_animation(i, x, y, ims, animation_params, *animation_properties)
             bar.update()
-        if make_mp4:
-            VisUtil.make_mp4(ims, "Perceptron")
+        self._handle_mp4(ims, animation_properties)
 
     @PerceptronTiming.timeit(level=1, prefix="[API] ")
     def predict(self, x, get_raw_results=False):

@@ -1,8 +1,6 @@
-import cv2
 import numpy as np
 import tensorflow as tf
 
-from Util.Util import VisUtil
 from Util.Timing import Timing
 from Util.Bases import ClassifierBase
 from Util.ProgressBar import ProgressBar
@@ -32,7 +30,7 @@ class LinearSVM(ClassifierBase):
             epoch = self._params["epoch"]
         if tol is None:
             tol = self._params["tol"]
-        draw_ani, show_ani, make_mp4, ani_period, animation_params = self.get_animation_params(animation_params)
+        *animation_properties, animation_params = self._get_animation_params(animation_params)
         x, y = np.atleast_2d(x), np.asarray(y)
         if sample_weight is None:
             sample_weight = np.ones(len(y))
@@ -54,16 +52,9 @@ class LinearSVM(ClassifierBase):
             self._w *= 1 - lr
             self._w += delta * x[idx]
             self._b += delta
-            if draw_ani and x.shape[1] == 2 and (i+1) % ani_period == 0:
-                img = self.get_2d_plot(x, y, **animation_params)
-                if show_ani:
-                    cv2.imshow("LinearSVM", img)
-                    cv2.waitKey(1)
-                if make_mp4:
-                    ims.append(img)
+            self._handle_animation(i, x, y, ims, animation_params, *animation_properties)
             bar.update()
-        if make_mp4:
-            VisUtil.make_mp4(ims, "LinearSVM")
+        self._handle_mp4(ims, animation_properties)
 
     @LinearSVMTiming.timeit(level=1, prefix="[API] ")
     def predict(self, x, get_raw_results=False):
@@ -99,7 +90,7 @@ class TFLinearSVM(ClassifierBase):
             epoch = self._params["epoch"]
         if tol is None:
             tol = self._params["tol"]
-        draw_ani, show_ani, make_mp4, ani_period, animation_params = self.get_animation_params(animation_params)
+        *animation_properties, animation_params = self._get_animation_params(animation_params)
         x, y = np.atleast_2d(x), np.asarray(y)
         if sample_weight is None:
             sample_weight = tf.constant(np.ones([len(y), 1]), dtype=tf.float32, name="sample_weight")
@@ -124,16 +115,9 @@ class TFLinearSVM(ClassifierBase):
             if l < tol:
                 bar.update(epoch)
                 break
-            if draw_ani and x.shape[1] == 2 and (i+1) % ani_period == 0:
-                img = self.get_2d_plot(x, y, **animation_params)
-                if show_ani:
-                    cv2.imshow("TFLinearSVM", img)
-                    cv2.waitKey(1)
-                if make_mp4:
-                    ims.append(img)
+            self._handle_animation(i, x, y, ims, animation_params, *animation_properties)
             bar.update()
-        if make_mp4:
-            VisUtil.make_mp4(ims, "TFLinearSVM")
+        self._handle_mp4(ims, animation_properties)
 
     @TFLinearSVMTiming.timeit(level=1, prefix="[API] ")
     def predict(self, x, get_raw_results=False):

@@ -35,8 +35,6 @@ class RNNWrapper:
         }
 
         if self._use_sparse_labels:
-            self._squeeze = True
-            self._params["n_history"] = kwargs.get("n_history", 1)
             self._params["activation"] = kwargs.get("activation", None)
         if self._squeeze:
             self._params["n_history"] = kwargs.get("n_history", 1)
@@ -63,7 +61,10 @@ class RNNWrapper:
         else:
             self._input = self._tfx = tf.placeholder(tf.float32, shape=[None, None, im])
         if self._use_sparse_labels:
-            self._tfy = tf.placeholder(tf.int32, shape=[None])
+            if self._squeeze:
+                self._tfy = tf.placeholder(tf.int32, shape=[None])
+            else:
+                self._tfy = tf.placeholder(tf.int32, shape=[None, None])
         elif self._squeeze:
             self._tfy = tf.placeholder(tf.float32, shape=[None, om])
         else:
@@ -88,16 +89,16 @@ class RNNWrapper:
     def _get_output(self, rnn_outputs, rnn_final_state, n_history):
         if n_history == 0 and self._squeeze:
             raise ValueError("'n_history' should not be 0 when trying to squeeze the outputs")
-        if self._use_sparse_labels and not self._squeeze:
-            raise ValueError("Please squeeze the outputs when using sparse labels")
         if n_history == 1 and self._squeeze:
             outputs = rnn_outputs[..., -1, :]
         else:
             outputs = rnn_outputs[..., -n_history:, :]
+            if self._use_final_state:
+                outputs = tf.concat([outputs, rnn_final_state[..., -n_history:, :]], axis=2)
             if self._squeeze:
                 outputs = tf.reshape(outputs, [-1, n_history * int(outputs.get_shape()[2])])
-        if self._use_final_state and self._squeeze:
-            outputs = tf.concat([outputs, rnn_final_state], axis=1)
+        # if self._use_final_state and self._squeeze:
+        #     outputs = tf.concat([outputs, rnn_final_state[0]], axis=1)
         self._output = layers.fully_connected(
             outputs, num_outputs=self._om, activation_fn=self._activation)
 
@@ -117,7 +118,6 @@ class RNNWrapper:
             self._squeeze = True
         if use_sparse_labels:
             self._use_sparse_labels = True
-            self._squeeze = True
         if self._squeeze and n_history == 0:
             n_history = 1
         if embedding_size:
@@ -149,7 +149,7 @@ class RNNWrapper:
         self._cell = cell(n_hidden)
         self._prepare_for_dynamic_rnn(provide_sequence_length)
         rnn_outputs, rnn_final_state = tf.nn.dynamic_rnn(
-            self._cell, self._input,
+            self._cell, self._input, return_all_states=True,
             sequence_length=self._sequence_lengths, initial_state=self._initial_state
         )
         self._get_output(rnn_outputs, rnn_final_state, n_history)

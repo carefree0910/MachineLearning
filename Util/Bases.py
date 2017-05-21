@@ -55,6 +55,36 @@ class ModelBase:
     def show_timing_log(level=2):
         ModelBase.clf_timing.show_timing_log(level)
 
+    @staticmethod
+    def _refresh_animation_params(animation_params):
+        animation_params["show"] = animation_params.get("show", False)
+        animation_params["mp4"] = animation_params.get("mp4", False)
+        animation_params["period"] = animation_params.get("period", 1)
+
+    def _get_animation_params(self, animation_params):
+        if animation_params is None:
+            animation_params = self._params["animation_params"]
+        else:
+            ClassifierBase._refresh_animation_params(animation_params)
+        show, mp4, period = animation_params["show"], animation_params["mp4"], animation_params["period"]
+        return show or mp4, show, mp4, period, animation_params
+
+    def _handle_animation(self, i, x, y, ims, animation_params, draw_ani, show_ani, make_mp4, ani_period):
+        if draw_ani and x.shape[1] == 2 and (i + 1) % ani_period == 0:
+            img = self.get_2d_plot(x, y, **animation_params)
+            if show_ani:
+                cv2.imshow(str(self), img)
+                cv2.waitKey(1)
+            if make_mp4:
+                ims.append(img)
+
+    def _handle_mp4(self, ims, animation_properties):
+        if animation_properties[2] and ims:
+            VisUtil.make_mp4(ims, str(self))
+
+    def get_2d_plot(self, x, y, padding=1, dense=200, draw_background=False, emphasize=None, extra=None, **kwargs):
+        pass
+
     def scatter2d(self, x, y, padding=0.5, title=None):
         axis, labels = np.asarray(x).T, np.asarray(y)
 
@@ -140,6 +170,9 @@ class ModelBase:
                   ncol=math.ceil(math.sqrt(len(_scatters))), fontsize=8)
         plt.show()
 
+    def predict(self, x, **kwargs):
+        pass
+
 
 class ClassifierBase(ModelBase):
     clf_timing = Timing()
@@ -169,20 +202,6 @@ class ClassifierBase(ModelBase):
         fn = np.sum(y * (1 - y_pred))
         return 2 * tp / (2 * tp + fn + fp)
 
-    @staticmethod
-    def _refresh_animation_params(animation_params):
-        animation_params["show"] = animation_params.get("show", False)
-        animation_params["mp4"] = animation_params.get("mp4", False)
-        animation_params["period"] = animation_params.get("period", 1)
-
-    def get_animation_params(self, animation_params):
-        if animation_params is None:
-            animation_params = self._params["animation_params"]
-        else:
-            ClassifierBase._refresh_animation_params(animation_params)
-        show, mp4, period = animation_params["show"], animation_params["mp4"], animation_params["period"]
-        return show or mp4, show, mp4, period, animation_params
-
     def get_metrics(self, metrics):
         if len(metrics) == 0:
             for metric in self._metrics:
@@ -196,9 +215,6 @@ class ClassifierBase(ModelBase):
                 except AttributeError:
                     metrics.pop(i)
         return metrics
-
-    def predict(self, x, get_raw_results=False):
-        pass
 
     @clf_timing.timeit(level=1, prefix="[API] ")
     def evaluate(self, x, y, metrics=None, tar=None, prefix="Acc"):
@@ -217,9 +233,8 @@ class ClassifierBase(ModelBase):
             print(prefix + ": {:12.8}".format(logs[tar]))
         return logs
 
-    def get_2d_plot(self, x, y, padding=1, dense=200, draw_background=False, **kwargs):
-        if kwargs:
-            pass
+    def get_2d_plot(self, x, y, padding=1, dense=200, title=None,
+                    draw_background=False, emphasize=None, extra=None, **kwargs):
         axis, labels = np.asarray(x).T, np.asarray(y)
         decision_function = lambda _xx: self.predict(_xx)
         nx, ny, padding = dense, dense, padding
@@ -250,43 +265,31 @@ class ClassifierBase(ModelBase):
             labels = np.argmax(labels, axis=1)
         colors = plt.cm.rainbow([i / n_label for i in range(n_label)])[labels]
 
-        # colors = (colors[..., 1:] * 255).astype(np.uint8)
-        # canvas = np.zeros([height, width, 3], dtype=np.uint8)
-        # x_boost = width / (x_max - x_min)
-        # y_boost = height / (y_max - y_min)
-        # for color, coordinate in zip(colors, axis.T):
-        #     x, y = coordinate  # type: float
-        #     cv2.circle(canvas, (
-        #         int(round((x - x_min) * x_boost)), height - int(round((y - y_min) * y_boost))
-        #     ), 2, (int(color[0]), int(color[1]), int(color[2])), 1)
-        # z_new = z.copy()
-        # z_new[..., :dense-1] = z[..., 1:]
-        # mask = z == z_new
-        # points = []
-        # for i in range(nx):
-        #     x = xf[i]
-        #     x = int(round((x - x_min) * x_boost))
-        #     for j in range(ny):
-        #         if not mask[i][j]:
-        #             y = yf[j]
-        #             points.append([int(round((y - y_min) * y_boost)), width - x])
-        # cv2.drawContours(canvas, [np.array(points).reshape([-1, 1, 2])], 0, (255, 255, 255), 2)
-
         buffer_ = io.BytesIO()
         plt.figure()
+        if title is None:
+            title = self.title
+        plt.title(title)
         if draw_background:
             xy_xf, xy_yf = np.meshgrid(xf, yf, sparse=True)
             plt.pcolormesh(xy_xf, xy_yf, z, cmap=plt.cm.Paired)
         else:
             plt.contour(xf, yf, z, c='k-', levels=[0])
         plt.scatter(axis[0], axis[1], c=colors)
+        if emphasize is not None:
+            _indices = np.array([False] * len(axis[0]))
+            _indices[np.asarray(emphasize)] = True
+            plt.scatter(axis[0][_indices], axis[1][_indices], s=80,
+                        facecolors="None", zorder=10)
+        if extra is not None:
+            plt.scatter(*np.asarray(extra).T, s=80, zorder=25, facecolors="red")
+
         plt.savefig(buffer_, format="png")
         plt.close()
         buffer_.seek(0)
         image = Image.open(buffer_)
         canvas = np.asarray(image)[..., :3]
         buffer_.close()
-
         return canvas
 
     def visualize2d(self, x, y, padding=0.1, dense=200,
@@ -575,7 +578,7 @@ class KernelBase(ClassifierBase):
             y_test = self._params["y_test"]  # type: list
         if metrics is None:
             metrics = self._params["metrics"]  # type: list
-        draw_ani, show_ani, make_mp4, ani_period, animation_params = self.get_animation_params(animation_params)
+        *animation_properties, animation_params = self._get_animation_params(animation_params)
         self._x, self._y = np.atleast_2d(x), np.asarray(y)
         if kernel == "poly":
             _p = kwargs.get("p", self._params["p"])
@@ -629,16 +632,9 @@ class KernelBase(ClassifierBase):
                     else:
                         local_logs.append(metric(y_cv, self.predict(test_gram, gram_provided=True)))
                 logs.append(local_logs)
-            if draw_ani and self._x.shape[1] == 2 and (i+1) % ani_period == 0:
-                img = self.get_2d_plot(self._x, self._y, **animation_params)
-                if show_ani:
-                    cv2.imshow(str(self), img)
-                    cv2.waitKey(1)
-                if make_mp4:
-                    ims.append(img)
+            self._handle_animation(i, x, y, ims, animation_params, *animation_properties)
             bar.update()
-        if make_mp4:
-            VisUtil.make_mp4(ims, str(self))
+        self._handle_mp4(ims, animation_properties)
         return logs
 
     @KernelBaseTiming.timeit(level=1, prefix="[API] ")
@@ -652,7 +648,7 @@ class KernelBase(ClassifierBase):
 
 
 class RegressorBase(ModelBase):
-    def predict(self, x):
+    def predict(self, x, **kwargs):
         return x
 
     def visualize2d(self, x, y, padding=0.1, dense=400, title=None):

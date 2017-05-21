@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 
-from i_Cluster.KMeans import KMeans
+from i_Clustering.KMeans import KMeans
 from Opt.Methods import *
 from Opt.Functions import *
 from Util.Util import DataUtil
