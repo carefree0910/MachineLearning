@@ -3,9 +3,11 @@ import matplotlib.pyplot as plt
 from g_CNN.Layers import *
 from g_CNN.Optimizers import *
 
-from Util.Bases import ClassifierBase
 from Util.Timing import Timing
+from Util.Bases import TFClassifierBase
 from Util.ProgressBar import ProgressBar
+
+# TODO: Optimize the codes
 
 
 class NNVerbose:
@@ -17,7 +19,7 @@ class NNVerbose:
     DEBUG = 5
 
 
-class NN(ClassifierBase):
+class NN(TFClassifierBase):
     NNTiming = Timing()
 
     def __init__(self, **kwargs):
@@ -30,15 +32,10 @@ class NN(ClassifierBase):
         }
         self._metrics, self._metric_names, self._logs = [], [], {}
 
-        self._tfx = self._tfy = None
-        self._tf_weights, self._tf_bias = [], []
-        self._cost = self._y_pred = None
-
         self.verbose = 0
-        self._train_step = None
-        self._sess = tf.Session()
-
         self._layer_factory = LayerFactory()
+        self._cost = self._train_step = None
+        self._tf_weights, self._tf_bias = [], []
 
         self._params["lr"] = kwargs.get("lr", 0.001)
         self._params["epoch"] = kwargs.get("epoch", 10)
@@ -218,7 +215,7 @@ class NN(ClassifierBase):
             x = x.transpose(0, 2, 3, 1)
         return x.astype(np.float32)
 
-    @NNTiming.timeit(level=4, prefix="[API] ")
+    @NNTiming.timeit(level=4)
     def _preview(self):
         if not self._layers:
             rs = "None"
@@ -236,6 +233,14 @@ class NN(ClassifierBase):
         print("-" * 30)
         print(self._optimizer)
         print("=" * 30)
+
+    @NNTiming.timeit(level=2)
+    def _batch_work(self, i, x_train, y_train, y_train_classes, x_test, y_test, y_test_classes, condition):
+        if condition:
+            self._append_log(x_train, y_train, y_train_classes, "train")
+            self._append_log(x_test, y_test, y_test_classes, "test")
+            self._print_metric_logs("train")
+            self._print_metric_logs("test")
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def add(self, layer, *args, **kwargs):
@@ -297,11 +302,6 @@ class NN(ClassifierBase):
         y_train_classes = np.argmax(y_train, axis=1)
         y_test_classes = np.argmax(y_test, axis=1)
 
-        train_len = len(x_train)
-        batch_size = min(batch_size, train_len)
-        do_random_batch = train_len >= batch_size
-        train_repeat, record_period = int(train_len / batch_size) + 1, min(record_period, epoch)
-
         if metrics is None:
             metrics = []
         self._metrics = self.get_metrics(metrics)
@@ -317,39 +317,25 @@ class NN(ClassifierBase):
         if preview:
             self._preview()
 
+        args = (
+            (x_train, y_train, y_train_classes,
+             x_test, y_test, y_test_classes,
+             self.verbose >= NNVerbose.EPOCH and self.verbose >= NNVerbose.METRICS_DETAIL),
+            (None, x_train, y_train, y_train_classes, x_test, y_test, y_test_classes,
+             self.verbose >= NNVerbose.METRICS)
+        )
+
         with self._sess.as_default() as sess:
             self._y_pred = self._get_rs(self._tfx, predict=False)
             self._cost = self._layers[-1].calculate(self._tfy, self._y_pred)
             self._train_step = self._optimizer.minimize(self._cost)
             sess.run(tf.global_variables_initializer())
-            sub_bar = ProgressBar(max_value=train_repeat * record_period - 1, name="Iteration", start=False)
             for counter in range(epoch):
-                if self.verbose >= NNVerbose.EPOCH and counter % record_period == 0:
-                    sub_bar.start()
-                for _i in range(train_repeat):
-                    if do_random_batch:
-                        batch = np.random.choice(train_len, batch_size)
-                        x_batch, y_batch = x_train[batch], y_train[batch]
-                    else:
-                        x_batch, y_batch = x_train, y_train
-                    self._train_step.run(feed_dict={self._tfx: x_batch, self._tfy: y_batch})
-                    if self.verbose >= NNVerbose.EPOCH:
-                        if sub_bar.update() and self.verbose >= NNVerbose.METRICS_DETAIL:
-                            self._append_log(x_train, y_train, y_train_classes, "train")
-                            self._append_log(x_test, y_test, y_test_classes, "test")
-                            self._print_metric_logs("train")
-                            self._print_metric_logs("test")
-                if self.verbose >= NNVerbose.EPOCH:
-                    sub_bar.update()
+                self.batch_training(x_train, y_train, batch_size, self._cost, self._train_step, *args[0])
                 if (counter + 1) % record_period == 0:
-                    if self.verbose >= NNVerbose.METRICS:
-                        self._append_log(x_train, y_train, y_train_classes, "train")
-                        self._append_log(x_test, y_test, y_test_classes, "test")
-                        self._print_metric_logs("train")
-                        self._print_metric_logs("test")
+                    self._batch_work(*args[1])
                     if self.verbose >= NNVerbose.EPOCH:
                         bar.update(counter // record_period + 1)
-                        sub_bar = ProgressBar(max_value=train_repeat * record_period - 1, name="Iteration", start=False)
 
     @NNTiming.timeit(level=1, prefix="[API] ")
     def predict(self, x, get_raw_results=False):

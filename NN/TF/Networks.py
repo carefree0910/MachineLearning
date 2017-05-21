@@ -15,6 +15,7 @@ from NN.TF.Layers import *
 from Util.ProgressBar import ProgressBar
 from Util.Util import Util, VisUtil
 
+# TODO: Optimize the codes
 # TODO: Saving NNPipe; Add 'idx' param to 'get_rs' method
 
 
@@ -795,8 +796,8 @@ class NNDist(NNBase):
         (x_train, x_test), (y_train, y_test) = self.split_data(x, y, x_test, y_test, train_only)
         train_len, test_len = len(x_train), len(x_test)
         batch_size = min(batch_size, train_len)
-        do_random_batch = train_len >= batch_size
-        train_repeat = int(train_len / batch_size) + 1
+        do_random_batch = train_len > batch_size
+        train_repeat = 1 if not do_random_batch else int(train_len / batch_size) + 1
         self._feed_data(x_train, y_train)
 
         with tf.name_scope("Entry"):

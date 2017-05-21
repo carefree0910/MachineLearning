@@ -749,8 +749,8 @@ class NNDist:
             x, y, x_test, y_test, train_only)
         train_len = len(x_train)
         batch_size = min(batch_size, train_len)
-        do_random_batch = train_len >= batch_size
-        train_repeat = int(train_len / batch_size) + 1
+        do_random_batch = train_len > batch_size
+        train_repeat = 1 if not do_random_batch else int(train_len / batch_size) + 1
         self._regularization_param = 1 - lb * lr / batch_size
         self._feed_data(x_train, y_train)
 

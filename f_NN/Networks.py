@@ -243,8 +243,8 @@ class NN(NaiveNN):
 
         train_len = len(x_train)
         batch_size = min(batch_size, train_len)
-        do_random_batch = train_len >= batch_size
-        train_repeat = int(train_len / batch_size) + 1
+        do_random_batch = train_len > batch_size
+        train_repeat = 1 if not do_random_batch else int(train_len / batch_size) + 1
 
         if metrics is None:
             metrics = []
@@ -270,15 +270,15 @@ class NN(NaiveNN):
                     x_batch, y_batch = x_train, y_train
                 self._w_optimizer.update()
                 self._b_optimizer.update()
-                _activations = self._get_activations(x_batch)
-                _deltas = [self._layers[-1].bp_first(y_batch, _activations[-1])]
-                for i in range(-1, -len(_activations), -1):
-                    _deltas.append(
-                        self._layers[i - 1].bp(_activations[i - 1], self._weights[i], _deltas[-1])
+                activations = self._get_activations(x_batch)
+                deltas = [self._layers[-1].bp_first(y_batch, activations[-1])]
+                for i in range(-1, -len(activations), -1):
+                    deltas.append(
+                        self._layers[i - 1].bp(activations[i - 1], self._weights[i], deltas[-1])
                     )
                 for i in range(layer_width - 1, 0, -1):
-                    self._opt(i, _activations[i - 1], _deltas[layer_width - i - 1])
-                self._opt(0, x_batch, _deltas[-1])
+                    self._opt(i, activations[i - 1], deltas[layer_width - i - 1])
+                self._opt(0, x_batch, deltas[-1])
                 if self.verbose >= NNVerbose.EPOCH:
                     if sub_bar.update() and self.verbose >= NNVerbose.METRICS_DETAIL:
                         self._append_log(x_train, y_train, y_train_classes, "train")

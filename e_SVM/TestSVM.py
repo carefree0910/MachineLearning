@@ -14,7 +14,7 @@ def main():
     y[y == 0] = -1
 
     animation_params = {
-        "show": False, "period": 50, "mp4": True,
+        "show": False, "period": 50, "mp4": False,
         "dense": 400, "draw_background": False
     }
 

@@ -3,8 +3,6 @@ import time
 import math
 import numpy as np
 
-# TODO: Try batch prediction
-
 
 # Util
 

@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 from Util.Timing import Timing
-from Util.Bases import KernelBase
+from Util.Bases import KernelBase, TFKernelBase
 
 
 class SVM(KernelBase):
@@ -96,44 +96,40 @@ class SVM(KernelBase):
         self._update_alpha(idx1, idx2)
 
 
-class TFSVM(KernelBase):
+class TFSVM(TFKernelBase):
     TFSVMTiming = Timing()
 
     def __init__(self, **kwargs):
         super(TFSVM, self).__init__(**kwargs)
         self._fit_args, self._fit_args_names = [1e-3], ["tol"]
-        self._tf_gram = self._y_pred_raw = self._y_pred = None
-        self._cost = self._train_step = None
-        self._sess = tf.Session()
+        self._batch_size = kwargs.get("batch_size", 128)
 
     def _prepare(self, sample_weight, **kwargs):
         lr = kwargs.get("lr", self._params["lr"])
-        sample_weight = tf.constant(sample_weight, dtype=tf.float32, name="sample_weight")
         self._w = tf.Variable(np.zeros(len(self._x))[None, ...], dtype=tf.float32, name="w")
         self._b = tf.Variable(.0, dtype=tf.float32, name="b")
 
-        self._tf_gram = tf.placeholder(tf.float32, [None, None])
-        self._y_pred_raw = tf.matmul(self._w, self._tf_gram, transpose_b=True) + self._b
+        self._tfx = tf.placeholder(tf.float32, [None, None])
+        self._tfy = tf.placeholder(tf.float32, [None])
+        self._y_pred_raw = tf.matmul(self._w, self._tfx, transpose_b=True) + self._b
         self._y_pred = tf.sign(self._y_pred_raw)
         self._cost = tf.reduce_sum(
-            tf.maximum(1 - self._y * self._y_pred_raw, 0) * sample_weight
+            tf.maximum(1 - self._tfy * self._y_pred_raw, 0) * sample_weight
         ) + 0.5 * tf.matmul(
-            self._w, tf.matmul(self._tf_gram, self._w, transpose_b=True)
+            self._w, tf.matmul(self._tfx, self._w, transpose_b=True)
         )[0][0]
         self._train_step = tf.train.AdamOptimizer(learning_rate=lr).minimize(self._cost)
         self._sess.run(tf.global_variables_initializer())
 
     @TFSVMTiming.timeit(level=1, prefix="[API] ")
     def _fit(self, sample_weight, tol):
-        _l = self._sess.run([self._cost, self._train_step], {
-            self._tf_gram: self._gram
-        })[0]
-        if _l < tol:
+        l = self.batch_training(self._gram, self._y, self._batch_size, self._cost, self._train_step)
+        if l < tol:
             return True
 
     @TFSVMTiming.timeit(level=1, prefix="[API] ")
     def predict(self, x, get_raw_results=False, gram_provided=False):
         rs = self._y_pred_raw if get_raw_results else self._y_pred
         if gram_provided:
-            return self._sess.run(rs, {self._tf_gram: x})
-        return self._sess.run(rs, {self._tf_gram: self._kernel(np.atleast_2d(x), self._x)})
+            return self._sess.run(rs, {self._tfx: x})
+        return self._sess.run(rs, {self._tfx: self._kernel(np.atleast_2d(x), self._x)})

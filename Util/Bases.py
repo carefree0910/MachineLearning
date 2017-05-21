@@ -3,6 +3,7 @@ import cv2
 import time
 import math
 import numpy as np
+import tensorflow as tf
 import matplotlib.pyplot as plt
 from PIL import Image
 from mpl_toolkits.mplot3d import Axes3D
@@ -504,6 +505,35 @@ class ClassifierBase(ModelBase):
         print("Done.")
 
 
+class TFClassifierBase(ClassifierBase):
+    def __init__(self, **kwargs):
+        super(TFClassifierBase, self).__init__(**kwargs)
+        self._tfx = self._tfy = None
+        self._y_pred_raw = self._y_pred = None
+        self._sess = tf.Session()
+
+    def batch_training(self, x, y, batch_size, cost, train_step, *args):
+        train_len = len(x)
+        batch_size = min(batch_size, train_len)
+        do_random_batch = train_len > batch_size
+        train_repeat = 1 if not do_random_batch else int(train_len / batch_size) + 1
+        epoch_cost = 0
+        for i in range(train_repeat):
+            if do_random_batch:
+                batch = np.random.choice(train_len, batch_size)
+                x_batch, y_batch = x[batch], y[batch]
+            else:
+                x_batch, y_batch = x, y
+            epoch_cost += self._sess.run([cost, train_step], {
+                self._tfx: x_batch, self._tfy: y_batch
+            })[0]
+            self._batch_work(i, *args)
+        return epoch_cost / train_repeat
+
+    def _batch_work(self, *args):
+        pass
+
+
 class KernelBase(ClassifierBase):
     KernelBaseTiming = Timing()
 
@@ -645,6 +675,12 @@ class KernelBase(ClassifierBase):
         if not get_raw_results:
             return np.sign(y_pred)
         return y_pred
+
+
+class TFKernelBase(KernelBase, TFClassifierBase):
+    def __init__(self, **kwargs):
+        super(TFKernelBase, self).__init__(**kwargs)
+        self._cost = None
 
 
 class RegressorBase(ModelBase):
