@@ -25,7 +25,7 @@ def main(clf):
     y = list(np.array(y)[_indices])
     data_len = len(x)
     batch_size = math.ceil(data_len * 0.1)
-    _acc_lst, y_results = [], []
+    acc_lst, y_results = [], []
     bar = ProgressBar(max_value=10, name=str(clf))
     for i in range(10):
         _next = (i + 1) * batch_size if i != 9 else data_len
@@ -39,11 +39,11 @@ def main(clf):
         x_train = tfidf_transformer.fit_transform(counts_train)
         clf.fit(x_train, y_train)
         y_pred = clf.predict(x_test)
-        _acc_lst.append(clf.acc(y_test, y_pred))
+        acc_lst.append(clf.acc(y_test, y_pred))
         y_results.append([y_test, y_pred])
         del x_train, y_train, x_test, y_test, y_pred
         bar.update()
-    return _acc_lst, y_results
+    return acc_lst, y_results
 
 
 def run(clf):

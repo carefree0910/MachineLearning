@@ -110,7 +110,7 @@ class NaiveNN(ClassifierBase):
             self._opt(0, x, _deltas[-1])
 
     @NaiveNNTiming.timeit(level=4, prefix="[API] ")
-    def predict(self, x, get_raw_results=False):
+    def predict(self, x, get_raw_results=False, **kwargs):
         y_pred = self._get_prediction(np.atleast_2d(x))
         if get_raw_results:
             return y_pred
@@ -298,9 +298,9 @@ class NN(NaiveNN):
                     sub_bar = ProgressBar(max_value=train_repeat * record_period - 1, name="Iteration", start=False)
 
     def draw_logs(self):
-        metrics_log, cost_log = {}, {}
+        metrics_log, loss_log = {}, {}
         for key, value in sorted(self._logs.items()):
-            metrics_log[key], cost_log[key] = value[:-1], value[-1]
+            metrics_log[key], loss_log[key] = value[:-1], value[-1]
         for i, name in enumerate(sorted(self._metric_names)):
             plt.figure()
             plt.title("Metric Type: {}".format(name))
@@ -312,7 +312,7 @@ class NN(NaiveNN):
             plt.close()
         plt.figure()
         plt.title("Cost")
-        for key, loss in sorted(cost_log.items()):
+        for key, loss in sorted(loss_log.items()):
             xs = np.arange(len(loss)) + 1
             plt.plot(xs, loss, label="Data Type: {}".format(key))
         plt.legend()

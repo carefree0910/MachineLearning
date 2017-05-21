@@ -57,7 +57,7 @@ class LinearSVM(ClassifierBase):
         self._handle_mp4(ims, animation_properties)
 
     @LinearSVMTiming.timeit(level=1, prefix="[API] ")
-    def predict(self, x, get_raw_results=False):
+    def predict(self, x, get_raw_results=False, **kwargs):
         rs = np.sum(self._w * x, axis=1) + self._b
         if not get_raw_results:
             return np.sign(rs)
@@ -99,15 +99,16 @@ class TFLinearSVM(TFClassifierBase):
         self._tfy = tf.placeholder(tf.float32, [None, 1])
         self._y_pred_raw = tf.matmul(self._tfx, self._w) + self._b
         self._y_pred = tf.sign(self._y_pred_raw)
-        cost = tf.reduce_sum(
+        loss = tf.reduce_sum(
             tf.nn.relu(1 - self._tfy * self._y_pred_raw)
         ) + c * tf.nn.l2_loss(self._w)
-        train_step = tf.train.AdamOptimizer(learning_rate=lr).minimize(cost)
+        train_step = tf.train.AdamOptimizer(learning_rate=lr).minimize(loss)
         self._sess.run(tf.global_variables_initializer())
         bar = ProgressBar(max_value=epoch, name="TFLinearSVM")
         ims = []
+        train_repeat = self._get_train_repeat(x, batch_size)
         for i in range(epoch):
-            l = self.batch_training(x, y_2d, batch_size, cost, train_step)
+            l = self.batch_training(x, y_2d, batch_size, train_repeat, loss, train_step)
             if l < tol:
                 bar.update(epoch)
                 break
@@ -116,6 +117,6 @@ class TFLinearSVM(TFClassifierBase):
         self._handle_mp4(ims, animation_properties)
 
     @TFLinearSVMTiming.timeit(level=1, prefix="[API] ")
-    def predict(self, x, get_raw_results=False):
+    def predict(self, x, get_raw_results=False, **kwargs):
         rs = self._y_pred_raw if get_raw_results else self._y_pred
         return self._sess.run(rs, {self._tfx: x}).ravel()

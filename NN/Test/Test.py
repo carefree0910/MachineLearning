@@ -14,26 +14,29 @@ def main():
     lb = 0.001
     epoch = 5
     record_period = 1
-
-    timing = Timing()
-    timing_level = 1
+    use_cnn = True
 
     x, y = DataUtil.get_dataset("mnist", "../../_Data/mnist.txt", quantized=True, one_hot=True)
-    x = x.reshape(len(x), 1, 28, 28)
+    if use_cnn:
+        x = x.reshape(len(x), 1, 28, 28)
+        batch_size = 32
+    else:
+        batch_size = 128
 
     if not load:
-        # nn.add("ReLU", (x.shape[1], 1024))
-        # nn.add("ReLU", (1024,))
-        nn.add("ConvReLU", (x.shape[1:], (16, 3, 3)))
-        nn.add("MaxPool", ((3, 3),), 1)
-        nn.add("ConvNorm")
-        nn.add("ConvDrop")
+        if use_cnn:
+            nn.add("ConvReLU", (x.shape[1:], (16, 3, 3)))
+            nn.add("MaxPool", ((3, 3),), 1)
+            nn.add("ConvNorm")
+            nn.add("ConvDrop")
+        else:
+            nn.add("ReLU", (x.shape[1], 1024))
+            nn.add("ReLU", (1024,))
         nn.add("CrossEntropy", (y.shape[1],))
         nn.optimizer = "Adam"
         nn.preview()
-        nn.feed_timing(timing)
         nn.fit(x, y, lr=lr, lb=lb,
-               epoch=epoch, batch_size=32, record_period=record_period,
+               epoch=epoch, batch_size=batch_size, record_period=record_period,
                show_loss=show_loss, train_only=train_only, do_log=True, verbose=verbose)
         if save:
             nn.save()
@@ -43,7 +46,7 @@ def main():
         nn.preview()
         print(nn.evaluate(x, y)[0])
 
-    timing.show_timing_log(timing_level)
+    nn.show_timing_log()
 
 if __name__ == '__main__':
     main()

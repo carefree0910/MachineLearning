@@ -171,7 +171,7 @@ class CvDBase(ClassifierBase):
         return self.label_dic[self.root.predict_one(x)]
 
     @CvDBaseTiming.timeit(level=3, prefix="[API] ")
-    def predict(self, x, get_raw_results=False):
+    def predict(self, x, get_raw_results=False, **kwargs):
         return np.array([self.predict_one(xx) for xx in x])
 
     @CvDBaseTiming.timeit(level=3, prefix="[API] ")

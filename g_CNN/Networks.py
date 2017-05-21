@@ -7,12 +7,11 @@ from Util.Timing import Timing
 from Util.Bases import TFClassifierBase
 from Util.ProgressBar import ProgressBar
 
-# TODO: Optimize the codes
-
 
 class NNVerbose:
     NONE = 0
     EPOCH = 1
+    ITER = 1.5
     METRICS = 2
     METRICS_DETAIL = 3
     DETAIL = 4
@@ -34,8 +33,8 @@ class NN(TFClassifierBase):
 
         self.verbose = 0
         self._layer_factory = LayerFactory()
-        self._cost = self._train_step = None
         self._tf_weights, self._tf_bias = [], []
+        self._loss = self._train_step = self._inner_y = None
 
         self._params["lr"] = kwargs.get("lr", 0.001)
         self._params["epoch"] = kwargs.get("epoch", 10)
@@ -48,7 +47,7 @@ class NN(TFClassifierBase):
         self._params["preview"] = kwargs.get("preview", True)
 
     @NNTiming.timeit(level=1)
-    def _get_prediction(self, x, name=None, batch_size=1e6, verbose=None, out_of_sess=False):
+    def _get_prediction(self, x, name=None, batch_size=1e6, verbose=None):
         if verbose is None:
             verbose = self.verbose
         single_batch = batch_size / np.prod(x.shape[1:])  # type: float
@@ -56,11 +55,7 @@ class NN(TFClassifierBase):
         if not single_batch:
             single_batch = 1
         if single_batch >= len(x):
-            if not out_of_sess:
-                return self._y_pred.eval(feed_dict={self._tfx: x})
-            with self._sess.as_default():
-                x = x.astype(np.float32)
-                return self._get_rs(x).eval(feed_dict={self._tfx: x})
+            return self._sess.run(self._y_pred, {self._tfx: x})
         epoch = int(len(x) / single_batch)
         if not len(x) % single_batch:
             epoch += 1
@@ -68,30 +63,18 @@ class NN(TFClassifierBase):
         sub_bar = ProgressBar(max_value=epoch, name=name, start=False)
         if verbose >= NNVerbose.METRICS:
             sub_bar.start()
-        if not out_of_sess:
-            rs = [self._y_pred.eval(feed_dict={self._tfx: x[:single_batch]})]
-        else:
-            rs = [self._get_rs(x[:single_batch])]
+        rs = [self._sess.run(self._y_pred, {self._tfx: x[:single_batch]})]
         count = single_batch
         if verbose >= NNVerbose.METRICS:
             sub_bar.update()
         while count < len(x):
             count += single_batch
             if count >= len(x):
-                if not out_of_sess:
-                    rs.append(self._y_pred.eval(feed_dict={self._tfx: x[count - single_batch:]}))
-                else:
-                    rs.append(self._get_rs(x[count - single_batch:]))
+                rs.append(self._sess.run(self._y_pred, {self._tfx: x[count - single_batch:]}))
             else:
-                if not out_of_sess:
-                    rs.append(self._y_pred.eval(feed_dict={self._tfx: x[count - single_batch:count]}))
-                else:
-                    rs.append(self._get_rs(x[count - single_batch:count]))
+                rs.append(self._sess.run(self._y_pred, {self._tfx: x[count - single_batch:count]}))
             if verbose >= NNVerbose.METRICS:
                 sub_bar.update()
-        if out_of_sess:
-            with self._sess.as_default():
-                rs = [_rs.eval() for _rs in rs]
         return np.vstack(rs)
 
     @staticmethod
@@ -170,40 +153,38 @@ class NN(TFClassifierBase):
 
     @NNTiming.timeit(level=1)
     def _get_rs(self, x, predict=True, idx=-1):
-        _cache = self._layers[0].activate(x, self._tf_weights[0], self._tf_bias[0], predict)
+        cache = self._layers[0].activate(x, self._tf_weights[0], self._tf_bias[0], predict)
         idx = idx + 1 if idx >= 0 else len(self._layers) + idx + 1
         for i, layer in enumerate(self._layers[1:idx]):
             if i == len(self._layers) - 2:
                 if isinstance(self._layers[-2], ConvLayer):
-                    _shape = np.prod(_cache.get_shape()[1:])  # type: int
-                    _cache = tf.reshape(_cache, [-1, _shape])
+                    fc_shape = np.prod(cache.get_shape()[1:])  # type: int
+                    cache = tf.reshape(cache, [-1, fc_shape])
                 if self._tf_bias[-1] is not None:
-                    return tf.matmul(_cache, self._tf_weights[-1]) + self._tf_bias[-1]
-                return tf.matmul(_cache, self._tf_weights[-1])
-            _cache = layer.activate(_cache, self._tf_weights[i + 1], self._tf_bias[i + 1], predict)
-        return _cache
+                    return tf.matmul(cache, self._tf_weights[-1]) + self._tf_bias[-1]
+                return tf.matmul(cache, self._tf_weights[-1])
+            cache = layer.activate(cache, self._tf_weights[i + 1], self._tf_bias[i + 1], predict)
+        return cache
 
     @NNTiming.timeit(level=2)
-    def _append_log(self, x, y, y_classes, name, out_of_sess=False):
-        y_pred = self._get_prediction(x, name, out_of_sess=out_of_sess)
+    def _append_log(self, x, y, y_classes, name):
+        y_pred = self._get_prediction(x, name)
         y_pred_class = np.argmax(y_pred, axis=1)
         for i, metric in enumerate(self._metrics):
             self._logs[name][i].append(metric(y_classes, y_pred_class))
-        if not out_of_sess:
-            self._logs[name][-1].append(self._layers[-1].calculate(y, y_pred).eval())
-        else:
-            with self._sess.as_default():
-                self._logs[name][-1].append(self._layers[-1].calculate(y, y_pred).eval())
+        self._logs[name][-1].append(self._sess.run(
+            self._layers[-1].calculate(y, y_pred)
+        ))
 
     @NNTiming.timeit(level=2)
-    def _print_metric_logs(self, data_type):
+    def _print_metric_logs(self, name):
         print()
         print("=" * 47)
-        for i, name in enumerate(self._metric_names):
+        for i, metric in enumerate(self._metric_names):
             print("{:<16s} {:<16s}: {:12.8}".format(
-                data_type, name, self._logs[data_type][i][-1]))
+                name, metric, self._logs[name][i][-1]))
         print("{:<16s} {:<16s}: {:12.8}".format(
-            data_type, "loss", self._logs[data_type][-1][-1]))
+            name, "loss", self._logs[name][-1][-1]))
         print("=" * 47)
 
     @staticmethod
@@ -235,12 +216,14 @@ class NN(TFClassifierBase):
         print("=" * 30)
 
     @NNTiming.timeit(level=2)
-    def _batch_work(self, i, x_train, y_train, y_train_classes, x_test, y_test, y_test_classes, condition):
+    def _batch_work(self, i, bar, x_train, y_train, y_train_classes, x_test, y_test, y_test_classes, condition):
+        if bar is not None:
+            condition = bar.update() and condition
         if condition:
-            self._append_log(x_train, y_train, y_train_classes, "train")
-            self._append_log(x_test, y_test, y_test_classes, "test")
-            self._print_metric_logs("train")
-            self._print_metric_logs("test")
+            self._append_log(x_train, y_train, y_train_classes, "Train")
+            self._append_log(x_test, y_test, y_test_classes, "Test")
+            self._print_metric_logs("Train")
+            self._print_metric_logs("Test")
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def add(self, layer, *args, **kwargs):
@@ -307,7 +290,7 @@ class NN(TFClassifierBase):
         self._metrics = self.get_metrics(metrics)
         self._metric_names = [_m.__name__ for _m in metrics]
         self._logs = {
-            name: [[] for _ in range(len(metrics) + 1)] for name in ("train", "test")
+            name: [[] for _ in range(len(metrics) + 1)] for name in ("Train", "Test")
         }
 
         bar = ProgressBar(max_value=max(1, epoch // record_period), name="Epoch", start=False)
@@ -320,26 +303,32 @@ class NN(TFClassifierBase):
         args = (
             (x_train, y_train, y_train_classes,
              x_test, y_test, y_test_classes,
-             self.verbose >= NNVerbose.EPOCH and self.verbose >= NNVerbose.METRICS_DETAIL),
-            (None, x_train, y_train, y_train_classes, x_test, y_test, y_test_classes,
+             self.verbose >= NNVerbose.METRICS_DETAIL),
+            (None, None, x_train, y_train, y_train_classes, x_test, y_test, y_test_classes,
              self.verbose >= NNVerbose.METRICS)
         )
-
+        train_repeat = self._get_train_repeat(x, batch_size)
         with self._sess.as_default() as sess:
-            self._y_pred = self._get_rs(self._tfx, predict=False)
-            self._cost = self._layers[-1].calculate(self._tfy, self._y_pred)
-            self._train_step = self._optimizer.minimize(self._cost)
+            self._y_pred = self._get_rs(self._tfx)
+            self._inner_y = self._get_rs(self._tfx, predict=False)
+            self._loss = self._layers[-1].calculate(self._tfy, self._inner_y)
+            self._train_step = self._optimizer.minimize(self._loss)
             sess.run(tf.global_variables_initializer())
             for counter in range(epoch):
-                self.batch_training(x_train, y_train, batch_size, self._cost, self._train_step, *args[0])
+                if self.verbose >= NNVerbose.ITER and counter % record_period == 0:
+                    sub_bar = ProgressBar(max_value=train_repeat * record_period - 1, name="Iteration")
+                else:
+                    sub_bar = None
+                self.batch_training(x_train, y_train, batch_size, train_repeat,
+                                    self._loss, self._train_step, sub_bar, *args[0])
                 if (counter + 1) % record_period == 0:
                     self._batch_work(*args[1])
                     if self.verbose >= NNVerbose.EPOCH:
                         bar.update(counter // record_period + 1)
 
     @NNTiming.timeit(level=1, prefix="[API] ")
-    def predict(self, x, get_raw_results=False):
-        y_pred = self._get_prediction(NN._transfer_x(x).astype(np.float32), out_of_sess=True)
+    def predict(self, x, get_raw_results=False, **kwargs):
+        y_pred = self._get_prediction(NN._transfer_x(x))
         if get_raw_results:
             return y_pred
         return np.argmax(y_pred, axis=1)

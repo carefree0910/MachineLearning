@@ -69,7 +69,7 @@ class LR(ClassifierBase):
         self._opt_cache.opt()
         self._beta = self._func_cache._beta
 
-    def predict(self, x, get_raw_results=False):
+    def predict(self, x, get_raw_results=False, **kwargs):
         pi = 1 / (1 + np.exp(-np.atleast_2d(x).dot(self._beta)))
         if get_raw_results:
             return pi
@@ -209,7 +209,7 @@ class NN(ClassifierBase):
         self._opt_cache.opt()
         self._mat1, self._mat2 = self._func_cache.mat1, self._func_cache.mat2
 
-    def predict(self, x, get_raw_results=False):
+    def predict(self, x, get_raw_results=False, **kwargs):
         y_raw = np.maximum(0, np.atleast_2d(x).dot(self._mat1)).dot(self._mat2)
         y_pred = 1 / (1 + np.exp(-y_raw))  # type: np.ndarray
         if get_raw_results:

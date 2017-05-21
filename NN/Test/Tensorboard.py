@@ -14,9 +14,6 @@ def main():
     epoch = 10
     record_period = 1
 
-    timing = Timing(enabled=True)
-    timing_level = 1
-
     x, y = DataUtil.get_dataset("mnist", "../../_Data/mnist.txt", quantized=True, one_hot=True)
     x = x.reshape(len(x), 1, 28, 28)
 
@@ -47,7 +44,6 @@ def main():
         nn.add("CrossEntropy", (y.shape[1],))
         nn.optimizer = "Adam"
         nn.preview(verbose=verbose)
-        nn.feed_timing(timing)
         nn.fit(x, y, lr=lr, lb=lb,
                epoch=epoch, batch_size=256, record_period=record_period,
                show_loss=show_loss, train_only=train_only, do_log=True, tensorboard_verbose=1, verbose=verbose)
@@ -59,7 +55,7 @@ def main():
         nn.preview()
         nn.evaluate(x, y)
 
-    timing.show_timing_log(timing_level)
+    nn.show_timing_log()
 
 if __name__ == '__main__':
     main()

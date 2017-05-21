@@ -2,7 +2,6 @@ import os
 import cv2
 import time
 import pickle
-import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 from math import sqrt, ceil
 from mpl_toolkits.mplot3d import Axes3D
@@ -10,8 +9,9 @@ from mpl_toolkits.mplot3d import Axes3D
 from NN.Basic.Layers import *
 from NN.Basic.Optimizers import OptFactory
 
-from Util.ProgressBar import ProgressBar
 from Util.Util import VisUtil
+from Util.Bases import ClassifierBase
+from Util.ProgressBar import ProgressBar
 
 # Naive pure numpy version
 
@@ -33,10 +33,11 @@ class NNConfig:
 
 # Neural Network
 
-class NNDist:
+class NNDist(ClassifierBase):
     NNTiming = Timing()
 
-    def __init__(self):
+    def __init__(self, **kwargs):
+        super(NNDist, self).__init__(**kwargs)
         self._layers, self._weights, self._bias = [], [], []
         self._layer_names, self._layer_shapes, self._layer_params = [], [], []
         self._lr, self._epoch, self._regularization_param = 0, 0, 0
@@ -47,10 +48,8 @@ class NNDist:
         self._current_dimension = 0
 
         self._logs = {}
-        self._timings = {}
         self._metrics, self._metric_names = [], []
 
-        self._x, self._y = None, None
         self._x_min, self._x_max = 0, 0
         self._y_min, self._y_max = 0, 0
 
@@ -58,28 +57,9 @@ class NNDist:
         self._optimizer_factory = OptFactory()
 
         self._available_metrics = {
-            "acc": NNDist._acc, "_acc": NNDist._acc,
-            "f1": NNDist._f1_score, "_f1_score": NNDist._f1_score
+            "acc": NNDist.acc, "_acc": NNDist.acc,
+            "f1": NNDist.f1_score, "_f1_score": NNDist.f1_score
         }
-
-    def __getitem__(self, item):
-        if isinstance(item, int):
-            if item < 0 or item >= len(self._layers):
-                return
-            bias = self._bias[item]
-            return {
-                "name": self._layers[item].name,
-                "weight": self._weights[item],
-                "bias": bias
-            }
-        if isinstance(item, str):
-            return getattr(self, "_" + item)
-        return
-
-    def __str__(self):
-        return "Neural Network"
-
-    __repr__ = __str__
 
     @NNTiming.timeit(level=4, prefix="[Initialize] ")
     def initialize(self):
@@ -93,19 +73,10 @@ class NNDist:
         self._current_dimension = 0
 
         self._logs = []
-        self._timings = {}
         self._metrics, self._metric_names = [], []
 
-        self._x, self._y = None, None
         self._x_min, self._x_max = 0, 0
         self._y_min, self._y_max = 0, 0
-
-    @NNTiming.timeit(level=4, prefix="[API] ")
-    def feed_timing(self, timing):
-        if isinstance(timing, Timing):
-            self.NNTiming = timing
-            for layer in self._layers:
-                layer.feed_timing(timing)
 
     # Property
 
@@ -165,19 +136,10 @@ class NNDist:
 
     @NNTiming.timeit(level=4)
     def _feed_data(self, x, y):
-        if x is None:
-            if self._x is None:
-                raise BuildNetworkError("Please provide input matrix")
-            x = self._x
-        if y is None:
-            if self._y is None:
-                raise BuildNetworkError("Please provide input matrix")
-            y = self._y
         if len(x) != len(y):
             raise BuildNetworkError("Data fed to network should be identical in length, x: {} and y: {} found".format(
                 len(x), len(y)
             ))
-        self._x, self._y = x, y
         self._x_min, self._x_max = np.min(x), np.max(x)
         self._y_min, self._y_max = np.min(y), np.max(y)
         return x, y
@@ -281,17 +243,19 @@ class NNDist:
 
     @NNTiming.timeit(level=1)
     def _get_activations(self, x, predict=False):
-        _activations = [self._layers[0].activate(x, self._weights[0], self._bias[0], predict)]
+        activations = [self._layers[0].activate(x, self._weights[0], self._bias[0], predict)]
         for i, layer in enumerate(self._layers[1:]):
-            _activations.append(layer.activate(
-                _activations[-1], self._weights[i + 1], self._bias[i + 1], predict))
-        return _activations
+            activations.append(layer.activate(
+                activations[-1], self._weights[i + 1], self._bias[i + 1], predict))
+        return activations
 
     @NNTiming.timeit(level=3)
     def _append_log(self, x, y, name, get_loss=True):
         y_pred = self._get_prediction(x, name)
         for i, metric in enumerate(self._metrics):
-            self._logs[name][i].append(metric(y, y_pred))
+            self._logs[name][i].append(metric(
+                np.argmax(y, axis=1), np.argmax(y_pred, axis=1)
+            ))
         if get_loss:
             self._logs[name][-1].append(self._layers[-1].calculate(y, y_pred) / len(y))
 
@@ -308,70 +272,11 @@ class NNDist:
         print("=" * 47)
 
     @NNTiming.timeit(level=1)
-    def _draw_network(self, show, radius=6, width=1200, height=800, padding=0.2,
-                      sub_layer_height_scale=0, activations=None):
-        layers = len(self._layers) + 1
-        units = [layer.shape[0] for layer in self._layers] + [self._layers[-1].shape[1]]
-        whether_sub_layers = np.array([False] + [isinstance(layer, SubLayer) for layer in self._layers])
-        n_sub_layers = np.sum(whether_sub_layers)  # type: int
-
-        img = np.zeros((height, width, 3), np.uint8)
-        axis0_padding = int(height / (layers - 1 + 2 * padding)) * padding
-        axis0_step = (height - 2 * axis0_padding) / layers
-        sub_layer_decrease = int((1 - sub_layer_height_scale) * axis0_step)
-        axis0 = np.linspace(
-            axis0_padding,
-            height + n_sub_layers * sub_layer_decrease - axis0_padding,
-            layers, dtype=np.int)
-        axis0 -= sub_layer_decrease * np.cumsum(whether_sub_layers)
-        axis1_divide = [int(width / (unit + 1)) for unit in units]
-        axis1 = [np.linspace(divide, width - divide, units[i], dtype=np.int)
-                 for i, divide in enumerate(axis1_divide)]
-
-        colors, thicknesses, masks = [], [], []
-        for weight in self._weights:
-            line_info = VisUtil.get_line_info(weight.copy())
-            colors.append(line_info[0])
-            thicknesses.append(line_info[1])
-            masks.append(line_info[2])
-
-        activations = [np.average(np.abs(activation), axis=0) for activation in activations]
-        activations = [activation / np.max(activation) for activation in activations]
-        for i, (y, xs) in enumerate(zip(axis0, axis1)):
-            for j, x in enumerate(xs):
-                if i == 0:
-                    cv2.circle(img, (x, y), radius, (20, 215, 20), int(radius / 2))
-                else:
-                    activation = activations[i - 1][j]
-                    try:
-                        cv2.circle(img, (x, y), radius, (
-                            int(255 * activation), int(255 * activation), int(255 * activation)), int(radius / 2))
-                    except ValueError:
-                        cv2.circle(img, (x, y), radius, (0, 0, 255), int(radius / 2))
-            if i > 0:
-                cv2.putText(img, self._layers[i - 1].name, (12, y - 36), cv2.LINE_AA, 0.6, (255, 255, 255), 2)
-
-        for i, y in enumerate(axis0):
-            if i == len(axis0) - 1:
-                break
-            for j, x in enumerate(axis1[i]):
-                new_y = axis0[i + 1]
-                whether_sub_layer = isinstance(self._layers[i], SubLayer)
-                for k, new_x in enumerate(axis1[i + 1]):
-                    if whether_sub_layer and j != k:
-                        continue
-                    if masks[i][j][k]:
-                        cv2.line(img, (x, y), (new_x, new_y), colors[i][j][k], thicknesses[i][j][k])
-        if show:
-            cv2.imshow("Neural Network", img)
-            cv2.waitKey(1)
-        return img
-
-    @NNTiming.timeit(level=1)
-    def _draw_detailed_network(self, show, radius=6, width=1200, height=800, padding=0.2,
-                               plot_scale=2, plot_precision=0.03,
-                               sub_layer_height_scale=0):
-
+    def _draw_2d_network(self, radius=6, width=1200, height=800, padding=0.2,
+                         plot_scale=2, plot_precision=0.03,
+                         sub_layer_height_scale=0, **kwargs):
+        if not kwargs["show"] and not kwargs["mp4"]:
+            return
         layers = len(self._layers) + 1
         units = [layer.shape[0] for layer in self._layers] + [self._layers[-1].shape[1]]
         whether_sub_layers = np.array([False] + [isinstance(layer, SubLayer) for layer in self._layers])
@@ -391,9 +296,16 @@ class NNDist:
         graphs = []
         for j, activation in enumerate(activations):
             graph_group = []
-            for ac in activation:
+            if j == len(activations) - 1:
+                classes = np.argmax(activation, axis=0)
+            else:
+                classes = None
+            for k, ac in enumerate(activation):
                 data = np.zeros((plot_num, plot_num, 3), np.uint8)
-                mask = ac >= np.average(ac)
+                if j != len(activations) - 1:
+                    mask = ac >= np.average(ac)
+                else:
+                    mask = classes == k
                 data[mask], data[~mask] = [0, 165, 255], [255, 165, 0]
                 graph_group.append(data)
             graphs.append(graph_group)
@@ -428,7 +340,6 @@ class NNDist:
                     img[y - half_plot_num:y + half_plot_num, x - half_plot_num:x + half_plot_num] = graph
             if i > 0:
                 cv2.putText(img, self._layers[i - 1].name, (12, y - 36), cv2.LINE_AA, 0.6, (0, 0, 0), 1)
-
         for i, y in enumerate(axis0):
             if i == len(axis0) - 1:
                 break
@@ -441,101 +352,8 @@ class NNDist:
                     if masks[i][j][k]:
                         cv2.line(img, (x, y + half_plot_num), (new_x, new_y - half_plot_num),
                                  colors[i][j][k], thicknesses[i][j][k])
-        if show:
-            cv2.imshow("Neural Network", img)
-            cv2.waitKey(1)
+
         return img
-
-    @NNTiming.timeit(level=1)
-    def _draw_img_network(self, show, img_shape, width=1200, height=800, padding=0.2,
-                          sub_layer_height_scale=0):
-
-        img_width, img_height = img_shape
-        half_width = int(img_width * 0.5) if img_width % 2 == 0 else int(img_width * 0.5) + 1
-        half_height = int(img_height * 0.5) if img_height % 2 == 0 else int(img_height * 0.5) + 1
-
-        layers = len(self._layers)
-        units = [layer.shape[1] for layer in self._layers]
-        whether_sub_layers = np.array([isinstance(layer, SubLayer) for layer in self._layers])
-        n_sub_layers = np.sum(whether_sub_layers)  # type: int
-
-        _activations = [self._weights[0].copy().T]
-        for weight in self._weights[1:]:
-            _activations.append(weight.T.dot(_activations[-1]))
-        _graphs = []
-        for j, activation in enumerate(_activations):
-            _graph_group = []
-            for ac in activation:
-                ac = ac.reshape(img_width, img_height)
-                ac -= np.average(ac)
-                data = np.zeros((img_width, img_height, 3), np.uint8)
-                mask = ac >= 0.25
-                data[mask], data[~mask] = [0, 130, 255], [255, 130, 0]
-                _graph_group.append(data)
-            _graphs.append(_graph_group)
-
-        img = np.zeros((height, width, 3), np.uint8)
-        axis0_padding = int(height / (layers - 1 + 2 * padding)) * padding + img_height
-        axis0_step = (height - 2 * axis0_padding) / layers
-        sub_layer_decrease = int((1 - sub_layer_height_scale) * axis0_step)
-        axis0 = np.linspace(
-            axis0_padding,
-            height + n_sub_layers * sub_layer_decrease - axis0_padding,
-            layers, dtype=np.int)
-        axis0 -= sub_layer_decrease * np.cumsum(whether_sub_layers)
-        axis1_padding = img_width
-        axis1 = [np.linspace(axis1_padding, width - axis1_padding, unit + 2, dtype=np.int)
-                 for unit in units]
-        axis1 = [axis[1:-1] for axis in axis1]
-
-        colors, thicknesses, masks = [], [], []
-        for weight in self._weights:
-            line_info = VisUtil.get_line_info(weight.copy())
-            colors.append(line_info[0])
-            thicknesses.append(line_info[1])
-            masks.append(line_info[2])
-
-        for i, (y, xs) in enumerate(zip(axis0, axis1)):
-            for j, x in enumerate(xs):
-                graph = _graphs[i][j]
-                img[y - half_height:y + half_height, x - half_width:x + half_width] = graph
-            cv2.putText(img, self._layers[i].name, (12, y - 36), cv2.LINE_AA, 0.6, (255, 255, 255), 2)
-
-        for i, y in enumerate(axis0):
-            if i == len(axis0) - 1:
-                break
-            for j, x in enumerate(axis1[i]):
-                new_y = axis0[i + 1]
-                whether_sub_layer = isinstance(self._layers[i + 1], SubLayer)
-                for k, new_x in enumerate(axis1[i + 1]):
-                    if whether_sub_layer and j != k:
-                        continue
-                    if masks[i][j][k]:
-                        cv2.line(img, (x, y + half_height), (new_x, new_y - half_height),
-                                 colors[i + 1][j][k], thicknesses[i + 1][j][k])
-        if show:
-            cv2.imshow("Neural Network", img)
-            cv2.waitKey(1)
-        return img
-
-    # Metrics
-
-    @staticmethod
-    @NNTiming.timeit(level=2, prefix="[Private StaticMethod] ")
-    def _acc(y, y_pred):
-        y_arg, y_pred_arg = np.argmax(y, axis=1), np.argmax(y_pred, axis=1)
-        return np.sum(y_arg == y_pred_arg) / len(y_arg)
-
-    @staticmethod
-    @NNTiming.timeit(level=2, prefix="[Private StaticMethod] ")
-    def _f1_score(y, y_pred):
-        y_true, y_pred = np.argmax(y, axis=1), np.argmax(y_pred, axis=1)
-        tp = np.sum(y_true * y_pred)
-        if tp == 0:
-            return .0
-        fp = np.sum((1 - y_true) * y_pred)
-        fn = np.sum(y_true * (1 - y_pred))
-        return 2 * tp / (2 * tp + fn + fp)
 
     # Optimizing Process
 
@@ -571,10 +389,6 @@ class NNDist:
                 self._bias[i] += self._b_optimizer.run(i, _delta[2])
 
     # API
-
-    @NNTiming.timeit(level=4, prefix="[API] ")
-    def feed(self, x, y):
-        self._feed_data(x, y)
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def add(self, layer, *args, **kwargs):
@@ -710,12 +524,7 @@ class NNDist:
             lr=0.001, lb=0.001, epoch=20, weight_scale=1, apply_bias=True,
             show_loss=True, metrics=None, do_log=True, verbose=None,
             visualize=False, visualize_setting=None,
-            draw_weights=False, draw_network=False, draw_detailed_network=False,
-            draw_img_network=False, img_shape=None, show_animation=False, make_mp4=False):
-
-        if draw_img_network and img_shape is None:
-            raise BuildNetworkError("Please provide image's shape to draw_img_network")
-
+            draw_weights=False, animation_params=None):
         x, y = self._feed_data(x, y)
         self._lr, self._epoch = lr, epoch
         for weight in self._weights:
@@ -776,35 +585,38 @@ class NNDist:
             bar.start()
         img, ims = None, []
 
-        weight_trace = [[[org] for org in weight] for weight in self._weights]
+        if draw_weights:
+            weight_trace = [[[org] for org in weight] for weight in self._weights]
+        else:
+            weight_trace = []
+
+        *animation_properties, animation_params = self._get_animation_params(animation_params)
         sub_bar = ProgressBar(max_value=train_repeat * record_period - 1, name="Iteration", start=False)
         for counter in range(epoch):
             self._w_optimizer.update()
             self._b_optimizer.update()
-            _xs, _activations = [], []
+            xs, activations = [], []
             if self.verbose >= NNVerbose.ITER and counter % record_period == 0:
                 sub_bar.start()
-
-            for _i in range(train_repeat):
+            for _ in range(train_repeat):
                 if do_random_batch:
                     batch = np.random.choice(train_len, batch_size)
                     x_batch, y_batch = x_train[batch], y_train[batch]
                 else:
                     x_batch, y_batch = x_train, y_train
-
-                _activations = self._get_activations(x_batch)
+                activations = self._get_activations(x_batch)
                 if self.verbose >= NNVerbose.DEBUG:
-                    _xs = [x_batch.dot(self._weights[0])]
+                    xs = [x_batch.dot(self._weights[0])]
                     for i, weight in enumerate(self._weights[1:]):
-                        _xs.append(_activations[i].dot(weight))
+                        xs.append(activations[i].dot(weight))
 
-                _deltas = [self._layers[-1].bp_first(y_batch, _activations[-1])]
-                for i in range(-1, -len(_activations), -1):
-                    _deltas.append(self._layers[i - 1].bp(_activations[i - 1], self._weights[i], _deltas[-1]))
+                _deltas = [self._layers[-1].bp_first(y_batch, activations[-1])]
+                for i in range(-1, -len(activations), -1):
+                    _deltas.append(self._layers[i - 1].bp(activations[i - 1], self._weights[i], _deltas[-1]))
 
                 for i in range(layer_width - 1, 0, -1):
                     if not isinstance(self._layers[i], SubLayer):
-                        self._opt(i, _activations[i - 1], _deltas[layer_width - i - 1])
+                        self._opt(i, activations[i - 1], _deltas[layer_width - i - 1])
                 self._opt(0, x_batch, _deltas[-1])
 
                 if draw_weights:
@@ -815,9 +627,9 @@ class NNDist:
 
                     print("")
                     print("## Activations ##")
-                    for i, ac in enumerate(_activations):
+                    for i, ac in enumerate(activations):
                         print("-- Layer {} ({}) --".format(i + 1, self._layers[i].name))
-                        print(_xs[i])
+                        print(xs[i])
                         print(ac)
 
                     print("")
@@ -833,9 +645,12 @@ class NNDist:
                         self._append_log(x_test, y_test, "cv", get_loss=show_loss)
                         self._print_metric_logs(show_loss, "train")
                         self._print_metric_logs(show_loss, "cv")
-
             if self.verbose >= NNVerbose.ITER:
                 sub_bar.update()
+            self._handle_animation(
+                counter, x, y, ims, animation_params, *animation_properties,
+                img=self._draw_2d_network(**animation_params), name="Neural Network"
+            )
             if do_log:
                 self._append_log(x, y, "train", get_loss=show_loss)
                 self._append_log(x_test, y_test, "cv", get_loss=show_loss)
@@ -848,15 +663,6 @@ class NNDist:
                         self.visualize2d(x_test, y_test)
                     else:
                         self.visualize2d(x_test, y_test, *visualize_setting)
-                if x_test.shape[1] == 2:
-                    if draw_network:
-                        img = self._draw_network(show_animation, activations=_activations)
-                    if draw_detailed_network:
-                        img = self._draw_detailed_network(show_animation)
-                elif draw_img_network:
-                    img = self._draw_img_network(show_animation, img_shape)
-                if img is not None and make_mp4:
-                    ims.append(img)
                 if self.verbose >= NNVerbose.EPOCH:
                     bar.update(counter // record_period + 1)
                     if self.verbose >= NNVerbose.ITER:
@@ -867,9 +673,6 @@ class NNDist:
         if img is not None:
             cv2.waitKey(0)
             cv2.destroyAllWindows()
-        if ims:
-            VisUtil.make_mp4(ims, "NN", 20, 1)
-
         if draw_weights:
             ts = np.arange(epoch * train_repeat + 1)
             for i, weight in enumerate(self._weights):
@@ -878,7 +681,7 @@ class NNDist:
                     plt.plot(ts, weight_trace[i][j])
                 plt.title("Weights toward layer {} ({})".format(i + 1, self._layers[i].name))
                 plt.show()
-
+        self._handle_mp4(ims, animation_properties, "NN")
         return self._logs
 
     @NNTiming.timeit(level=2, prefix="[API] ")
@@ -948,77 +751,17 @@ class NNDist:
             raise BuildNetworkError("Failed to load Network ({}), structure initialized".format(err))
 
     @NNTiming.timeit(level=4, prefix="[API] ")
-    def predict(self, x):
+    def predict(self, x, get_raw_results=False, **kwargs):
         x = np.asarray(x)
         if len(x.shape) == 1:
             x = x.reshape(1, -1)
-        return self._get_prediction(x)
-
-    @NNTiming.timeit(level=4, prefix="[API] ")
-    def predict_classes(self, x, flatten=True):
-        x = np.asarray(x)
-        if len(x.shape) == 1:
-            x = x.reshape(1, -1)
-        if flatten:
-            return np.argmax(self._get_prediction(x), axis=1)
-        return np.argmax([self._get_prediction(x)], axis=2).T
-
-    @NNTiming.timeit(level=4, prefix="[API] ")
-    def evaluate(self, x, y, metrics=None):
-        if metrics is None:
-            metrics = self._metrics
-        else:
-            for i in range(len(metrics) - 1, -1, -1):
-                metric = metrics[i]
-                if isinstance(metric, str):
-                    if metric not in self._available_metrics:
-                        metrics.pop(i)
-                    else:
-                        metrics[i] = self._available_metrics[metric]
-        logs, y_pred = [], self._get_prediction(x, verbose=2)
-        for metric in metrics:
-            logs.append(metric(y, y_pred))
-        return logs
-
-    @NNTiming.timeit(level=5, prefix="[API] ")
-    def visualize2d(self, x=None, y=None, plot_scale=2, plot_precision=0.01):
-
-        x = self._x if x is None else x
-        y = self._y if y is None else y
-
-        plot_num = int(1 / plot_precision)
-
-        xf = np.linspace(self._x_min * plot_scale, self._x_max * plot_scale, plot_num)
-        yf = np.linspace(self._x_min * plot_scale, self._x_max * plot_scale, plot_num)
-        input_x, input_y = np.meshgrid(xf, yf)
-        input_xs = np.c_[input_x.ravel(), input_y.ravel()]
-
-        if self._x.shape[1] != 2:
-            return
-        output_ys_2d = np.argmax(self.predict(input_xs), axis=1).reshape(len(xf), len(yf))
-        output_ys_3d = self.predict(input_xs)[:, 0].reshape(len(xf), len(yf))
-
-        xf, yf = np.meshgrid(xf, yf, sparse=True)
-
-        plt.contourf(input_x, input_y, output_ys_2d, cmap=cm.Spectral)
-        plt.scatter(x[:, 0], x[:, 1], c=np.argmax(y, axis=1), s=40, cmap=cm.Spectral)
-        plt.axis("off")
-        plt.show()
-
-        if self._y.shape[1] == 2:
-            fig = plt.figure()
-            ax = fig.add_subplot(111, projection='3d')
-
-            ax.plot_surface(xf, yf, output_ys_3d, cmap=cm.coolwarm, )
-            ax.set_xlabel("x")
-            ax.set_ylabel("y")
-            ax.set_zlabel("z")
-            plt.show()
+        y_pred = self._get_prediction(x)
+        return y_pred if get_raw_results else np.argmax(y_pred, axis=1)
 
     def draw_results(self):
-        metrics_log, cost_log = {}, {}
+        metrics_log, loss_log = {}, {}
         for key, value in sorted(self._logs.items()):
-            metrics_log[key], cost_log[key] = value[:-1], value[-1]
+            metrics_log[key], loss_log[key] = value[:-1], value[-1]
 
         for i, name in enumerate(sorted(self._metric_names)):
             plt.figure()
@@ -1034,7 +777,7 @@ class NNDist:
 
         plt.figure()
         plt.title("Cost")
-        for key, loss in sorted(cost_log.items()):
+        for key, loss in sorted(loss_log.items()):
             if key == "test":
                 continue
             xs = np.arange(len(loss)) + 1

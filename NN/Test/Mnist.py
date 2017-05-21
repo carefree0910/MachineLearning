@@ -3,9 +3,6 @@ from Util.Util import DataUtil
 
 
 def main():
-    timing = Timing(enabled=True)
-    timing_level = 1
-
     x, y = DataUtil.get_dataset("mnist", "../../_Data/mnist.txt", quantized=True, one_hot=True)
     x = x.reshape(len(x), 1, 28, 28)
 
@@ -36,10 +33,10 @@ def main():
 
     nn.optimizer = "Adam"
     nn.preview()
-    nn.fit(x, y, verbose=2, do_log=True, show_loss=True)
+    nn.fit(x, y, verbose=2, do_log=True)
+    nn.evaluate(x, y)
     nn.draw_results()
-
-    timing.show_timing_log(timing_level)
+    nn.show_timing_log()
 
 if __name__ == '__main__':
     main()

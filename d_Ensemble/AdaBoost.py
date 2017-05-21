@@ -93,7 +93,7 @@ class AdaBoost(ClassifierBase):
             bar.update()
 
     @AdaBoostTiming.timeit(level=1, prefix="[API] ")
-    def predict(self, x, bound=None, get_raw_results=False):
+    def predict(self, x, get_raw_results=False, bound=None):
         x = np.atleast_2d(x)
         rs = np.zeros(len(x))
         if bound is None:

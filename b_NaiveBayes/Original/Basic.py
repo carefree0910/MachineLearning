@@ -83,7 +83,7 @@ class NaiveBayes(ClassifierBase):
         return m_probability
 
     @NaiveBayesTiming.timeit(level=3, prefix="[API] ")
-    def predict(self, x, get_raw_result=False):
+    def predict(self, x, get_raw_result=False, **kwargs):
         return np.array([self.predict_one(xx, get_raw_result) for xx in x])
 
     def _transfer_x(self, x):

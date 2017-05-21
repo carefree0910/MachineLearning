@@ -70,18 +70,24 @@ class ModelBase:
         show, mp4, period = animation_params["show"], animation_params["mp4"], animation_params["period"]
         return show or mp4, show, mp4, period, animation_params
 
-    def _handle_animation(self, i, x, y, ims, animation_params, draw_ani, show_ani, make_mp4, ani_period):
+    def _handle_animation(self, i, x, y, ims, animation_params, draw_ani, show_ani, make_mp4, ani_period,
+                          name=None, img=None):
         if draw_ani and x.shape[1] == 2 and (i + 1) % ani_period == 0:
-            img = self.get_2d_plot(x, y, **animation_params)
+            if img is None:
+                img = self.get_2d_plot(x, y, **animation_params)
+            if name is None:
+                name = str(self)
             if show_ani:
-                cv2.imshow(str(self), img)
+                cv2.imshow(name, img)
                 cv2.waitKey(1)
             if make_mp4:
                 ims.append(img)
 
-    def _handle_mp4(self, ims, animation_properties):
+    def _handle_mp4(self, ims, animation_properties, name=None):
+        if name is None:
+            name = str(self)
         if animation_properties[2] and ims:
-            VisUtil.make_mp4(ims, str(self))
+            VisUtil.make_mp4(ims, name)
 
     def get_2d_plot(self, x, y, padding=1, dense=200, draw_background=False, emphasize=None, extra=None, **kwargs):
         pass
@@ -171,7 +177,7 @@ class ModelBase:
                   ncol=math.ceil(math.sqrt(len(_scatters))), fontsize=8)
         plt.show()
 
-    def predict(self, x, **kwargs):
+    def predict(self, x, get_raw_results=False, **kwargs):
         pass
 
 
@@ -185,13 +191,10 @@ class ClassifierBase(ModelBase):
 
     @staticmethod
     def acc(y, y_pred, weights=None):
-        if not isinstance(y, np.ndarray):
-            y = np.asarray(y)
-        if not isinstance(y_pred, np.ndarray):
-            y_pred = np.asarray(y_pred)
+        y, y_pred = np.asarray(y), np.asarray(y_pred)
         if weights is not None:
-            return np.sum((y == y_pred) * weights) / len(y)
-        return np.sum(y == y_pred) / len(y)
+            return np.average((y == y_pred) * weights)
+        return np.average(y == y_pred)
 
     # noinspection PyTypeChecker
     @staticmethod
@@ -218,7 +221,7 @@ class ClassifierBase(ModelBase):
         return metrics
 
     @clf_timing.timeit(level=1, prefix="[API] ")
-    def evaluate(self, x, y, metrics=None, tar=None, prefix="Acc"):
+    def evaluate(self, x, y, metrics=None, tar=0, prefix="Acc"):
         if metrics is None:
             metrics = ["acc"]
         self.get_metrics(metrics)
@@ -228,8 +231,6 @@ class ClassifierBase(ModelBase):
             y = np.argmax(y, axis=1)
         for metric in metrics:
             logs.append(metric(y, y_pred))
-        if tar is None:
-            tar = 0
         if isinstance(tar, int):
             print(prefix + ": {:12.8}".format(logs[tar]))
         return logs
@@ -298,7 +299,7 @@ class ClassifierBase(ModelBase):
         axis, labels = np.asarray(x).T, np.asarray(y)
 
         print("=" * 30 + "\n" + str(self))
-        decision_function = lambda _xx: self.predict(_xx)
+        decision_function = lambda xx: self.predict(xx)
 
         nx, ny, padding = dense, dense, padding
         x_min, x_max = np.min(axis[0]), np.max(axis[0])
@@ -512,15 +513,20 @@ class TFClassifierBase(ClassifierBase):
         self._y_pred_raw = self._y_pred = None
         self._sess = tf.Session()
 
-    def batch_training(self, x, y, batch_size, cost, train_step, *args):
+    def _get_train_repeat(self, x, batch_size):
         train_len = len(x)
         batch_size = min(batch_size, train_len)
         do_random_batch = train_len > batch_size
-        train_repeat = 1 if not do_random_batch else int(train_len / batch_size) + 1
+        return 1 if not do_random_batch else int(train_len / batch_size) + 1
+
+    def _batch_work(self, *args):
+        pass
+
+    def batch_training(self, x, y, batch_size, train_repeat, cost, train_step, *args):
         epoch_cost = 0
         for i in range(train_repeat):
-            if do_random_batch:
-                batch = np.random.choice(train_len, batch_size)
+            if train_repeat != 1:
+                batch = np.random.choice(len(x), batch_size)
                 x_batch, y_batch = x[batch], y[batch]
             else:
                 x_batch, y_batch = x, y
@@ -529,9 +535,6 @@ class TFClassifierBase(ClassifierBase):
             })[0]
             self._batch_work(i, *args)
         return epoch_cost / train_repeat
-
-    def _batch_work(self, *args):
-        pass
 
 
 class KernelBase(ClassifierBase):
@@ -680,7 +683,7 @@ class KernelBase(ClassifierBase):
 class TFKernelBase(KernelBase, TFClassifierBase):
     def __init__(self, **kwargs):
         super(TFKernelBase, self).__init__(**kwargs)
-        self._cost = None
+        self._loss = None
 
 
 class RegressorBase(ModelBase):

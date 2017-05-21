@@ -51,7 +51,7 @@ class Perceptron(ClassifierBase):
         self._handle_mp4(ims, animation_properties)
 
     @PerceptronTiming.timeit(level=1, prefix="[API] ")
-    def predict(self, x, get_raw_results=False):
+    def predict(self, x, get_raw_results=False, **kwargs):
         rs = np.sum(self._w * x, axis=1) + self._b
         if not get_raw_results:
             return np.sign(rs)

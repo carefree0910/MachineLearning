@@ -11,7 +11,7 @@ def main():
     show_loss = True
     train_only = False
     do_log = True
-    verbose = 2
+    verbose = 4
 
     lr = 0.001
     lb = 0.001
@@ -21,12 +21,9 @@ def main():
     optimizer = "Adam"
     nn.optimizer = optimizer
 
-    timing = Timing(enabled=True)
-    timing_level = 1
-
     x, y = DataUtil.get_dataset("cifar10", "../../_Data/cifar10.txt", quantized=True, one_hot=True)
 
-    draw = False
+    draw = True
     img_shape = (3, 32, 32)
     x = x.reshape(len(x), *img_shape)
 
@@ -51,27 +48,22 @@ def main():
         nn.add("CrossEntropy", (y.shape[1], ))
 
         nn.preview()
-        nn.feed_timing(timing)
-
         nn.fit(x, y,
                lr=lr, lb=0, epoch=epoch, weight_scale=weight_scale,
                record_period=record_period, show_loss=show_loss, train_only=train_only,
                do_log=do_log, verbose=verbose)
-        # nn.draw_results()
+        nn.draw_results()
 
         if save:
             nn.save()
         if draw:
             # nn.draw_conv_weights()
             nn.draw_conv_series(x[:3], img_shape)
-
     else:
-
         nn.load()
-        nn.feed(x, y)
         print("Optimizer: " + nn.optimizer)
         nn.preview()
-        nn.fit(epoch=1, lr=lr, lb=lb, verbose=verbose)
+        nn.fit(x, y, epoch=1, lr=lr, lb=lb, verbose=verbose)
         # nn.fit(x, y, x_cv, y_cv, x_test, y_test, epoch=1, lr=lr, lb=lb, verbose=verbose)
         if draw:
             # nn.draw_conv_weights()
@@ -83,7 +75,7 @@ def main():
         print("=" * 30 + "\n" + "Results\n" + "-" * 30)
         print(log)
 
-    timing.show_timing_log(timing_level)
+    nn.show_timing_log()
 
 if __name__ == '__main__':
     main()

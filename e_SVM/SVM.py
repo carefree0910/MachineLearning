@@ -103,6 +103,7 @@ class TFSVM(TFKernelBase):
         super(TFSVM, self).__init__(**kwargs)
         self._fit_args, self._fit_args_names = [1e-3], ["tol"]
         self._batch_size = kwargs.get("batch_size", 128)
+        self._train_repeat = None
 
     def _prepare(self, sample_weight, **kwargs):
         lr = kwargs.get("lr", self._params["lr"])
@@ -113,17 +114,20 @@ class TFSVM(TFKernelBase):
         self._tfy = tf.placeholder(tf.float32, [None])
         self._y_pred_raw = tf.matmul(self._w, self._tfx, transpose_b=True) + self._b
         self._y_pred = tf.sign(self._y_pred_raw)
-        self._cost = tf.reduce_sum(
+        self._loss = tf.reduce_sum(
             tf.maximum(1 - self._tfy * self._y_pred_raw, 0) * sample_weight
         ) + 0.5 * tf.matmul(
             self._w, tf.matmul(self._tfx, self._w, transpose_b=True)
         )[0][0]
-        self._train_step = tf.train.AdamOptimizer(learning_rate=lr).minimize(self._cost)
+        self._train_step = tf.train.AdamOptimizer(learning_rate=lr).minimize(self._loss)
         self._sess.run(tf.global_variables_initializer())
 
     @TFSVMTiming.timeit(level=1, prefix="[API] ")
     def _fit(self, sample_weight, tol):
-        l = self.batch_training(self._gram, self._y, self._batch_size, self._cost, self._train_step)
+        if self._train_repeat is None:
+            self._train_repeat = self._get_train_repeat(self._x, self._batch_size)
+        l = self.batch_training(self._gram, self._y, self._batch_size, self._train_repeat,
+                                self._loss, self._train_step)
         if l < tol:
             return True
 

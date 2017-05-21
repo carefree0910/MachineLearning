@@ -32,7 +32,7 @@ def main():
 
     # nn.disable_timing()
     nn.fit(x, y, lr=0.001, epoch=epoch, train_rate=0.8,
-           metrics=["acc"], record_period=1, verbose=2)
+           metrics=["acc"], record_period=1, verbose=4)
     nn.evaluate(x, y)
     nn.show_timing_log()
     nn.draw_logs()

@@ -57,7 +57,7 @@ class RandomForest(ClassifierBase):
             bar.update()
 
     @RandomForestTiming.timeit(level=1, prefix="[API] ")
-    def predict(self, x, bound=None):
+    def predict(self, x, get_raw_results=False, bound=None):
         if bound is None:
             _matrix = np.array([_tree.predict(x) for _tree in self._trees]).T
         else:

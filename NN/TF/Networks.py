@@ -3,7 +3,6 @@ import cv2
 import time
 import pickle
 import datetime
-import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 from math import floor, sqrt
 from mpl_toolkits.mplot3d import Axes3D
@@ -12,10 +11,11 @@ from tensorflow.python.tools import freeze_graph
 
 from NN.TF.Layers import *
 
-from Util.ProgressBar import ProgressBar
 from Util.Util import Util, VisUtil
+from Util.Bases import TFClassifierBase
+from Util.ProgressBar import ProgressBar
 
-# TODO: Optimize the codes
+
 # TODO: Saving NNPipe; Add 'idx' param to 'get_rs' method
 
 
@@ -37,62 +37,30 @@ class NNConfig:
 
 # Neural Network
 
-class NNBase:
+class NNBase(TFClassifierBase):
     NNTiming = Timing()
 
-    def __init__(self):
+    def __init__(self, **kwargs):
+        super(NNBase, self).__init__(**kwargs)
         self._layers = []
+        self._optimizer = None
+        self._w_stds, self._b_inits = [], []
         self._layer_names, self._layer_params = [], []
         self._lr = 0
-        self._w_stds, self._b_inits = [], []
-        self._optimizer = None
-        self._data_size = 0
         self.verbose = 1
-
         self._current_dimension = 0
 
         self._logs = {}
-        self._timings = {}
         self._metrics, self._metric_names, self._metric_rs = [], [], []
 
-        self._x = self._y = None
+        self._loaded = False
         self._x_min = self._x_max = self._y_min = self._y_max = 0
         self._transferred_flags = {"train": False, "test": False}
 
-        self._tfx = self._tfy = None
-        self._tf_weights, self._tf_bias = [], []
-        self._loss = self._y_pred = self._activations = None
-
-        self._loaded = False
-        self._train_step = None
-
+        self._activations = None
+        self._loss = self._train_step = None
         self._layer_factory = LayerFactory()
-
-    def __getitem__(self, item):
-        if isinstance(item, int):
-            if item < 0 or item >= len(self._layers):
-                return
-            bias = self._tf_bias[item]
-            return {
-                "name": self._layers[item].name,
-                "weight": self._tf_weights[item],
-                "bias": bias
-            }
-        if isinstance(item, str):
-            return getattr(self, "_" + item)
-        return
-
-    def __str__(self):
-        return "Neural Network"
-
-    __repr__ = __str__
-
-    @NNTiming.timeit(level=4, prefix="[API] ")
-    def feed_timing(self, timing):
-        if isinstance(timing, Timing):
-            self.NNTiming = timing
-            for layer in self._layers:
-                layer.feed_timing(timing)
+        self._tf_weights, self._tf_bias = [], []
 
     @property
     def name(self):
@@ -228,26 +196,26 @@ class NNBase:
     @NNTiming.timeit(level=1, prefix="[API] ")
     def get_rs(self, x, predict=True, pipe=False):
         if not isinstance(self._layers[0], NNPipe):
-            _cache = self._layers[0].activate(x, self._tf_weights[0], self._tf_bias[0], predict)
+            cache = self._layers[0].activate(x, self._tf_weights[0], self._tf_bias[0], predict)
         else:
-            _cache = self._layers[0].get_rs(x, predict)
+            cache = self._layers[0].get_rs(x, predict)
         for i, layer in enumerate(self._layers[1:]):
             if i == len(self._layers) - 2:
                 if not pipe:
                     if NNDist._is_conv(self._layers[i]):
-                        fc_shape = np.prod(_cache.get_shape()[1:])  # type: float
-                        _cache = tf.reshape(_cache, [-1, int(fc_shape)])
+                        fc_shape = np.prod(cache.get_shape()[1:])  # type: float
+                        cache = tf.reshape(cache, [-1, int(fc_shape)])
                     if self._tf_bias[-1] is not None:
-                        return tf.matmul(_cache, self._tf_weights[-1]) + self._tf_bias[-1]
-                    return tf.matmul(_cache, self._tf_weights[-1])
+                        return tf.matmul(cache, self._tf_weights[-1]) + self._tf_bias[-1]
+                    return tf.matmul(cache, self._tf_weights[-1])
                 else:
                     if not isinstance(layer, NNPipe):
-                        return layer.activate(_cache, self._tf_weights[i + 1], self._tf_bias[i + 1], predict)
-                    return layer.get_rs(_cache, predict)
+                        return layer.activate(cache, self._tf_weights[i + 1], self._tf_bias[i + 1], predict)
+                    return layer.get_rs(cache, predict)
             if not isinstance(layer, NNPipe):
-                _cache = layer.activate(_cache, self._tf_weights[i + 1], self._tf_bias[i + 1], predict)
+                cache = layer.activate(cache, self._tf_weights[i + 1], self._tf_bias[i + 1], predict)
             else:
-                _cache = layer.get_rs(_cache, predict)
+                cache = layer.get_rs(cache, predict)
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def add(self, layer, *args, **kwargs):
@@ -338,7 +306,7 @@ class NNBase:
                 _batch[0], SubLayer) and not isinstance(
                 _batch[0], CostLayer) and not isinstance(
                 _batch[0], ConvPoolLayer)])
-            )
+                  )
         if verbose >= 2:
             for _layer in self._layers:
                 if isinstance(_layer, NNPipe):
@@ -356,36 +324,31 @@ class NNDist(NNBase):
         self._optimizer_factory = OptFactory()
 
         self._available_metrics = {
-            "acc": NNDist._acc, "_acc": NNDist._acc,
-            "f1": NNDist._f1_score, "_f1_score": NNDist._f1_score
+            "acc": NNDist.acc, "_acc": NNDist.acc,
+            "f1": NNDist.f1_score, "_f1_score": NNDist.f1_score
         }
 
     @NNTiming.timeit(level=4, prefix="[Initialize] ")
     def initialize(self):
         self._layers = []
+        self._optimizer = None
+        self._w_stds, self._b_inits = [], []
         self._layer_names, self._layer_params = [], []
         self._lr = 0
-        self._w_stds, self._b_inits = [], []
-        self._optimizer = None
-        self._data_size = 0
-        self.verbose = 0
-
+        self.verbose = 1
         self._current_dimension = 0
 
         self._logs = {}
-        self._timings = {}
         self._metrics, self._metric_names, self._metric_rs = [], [], []
 
-        self._x = self._y = None
+        self._loaded = False
         self._x_min = self._x_max = self._y_min = self._y_max = 0
         self._transferred_flags = {"train": False, "test": False}
 
-        self._tfx = self._tfy = None
+        self._activations = None
+        self._loss = self._train_step = None
+        self._layer_factory = LayerFactory()
         self._tf_weights, self._tf_bias = [], []
-        self._loss = self._y_pred = self._activations = None
-
-        self._loaded = False
-        self._train_step = None
 
         self._sess = tf.Session()
 
@@ -430,43 +393,30 @@ class NNDist(NNBase):
 
     @NNTiming.timeit(level=4)
     def _feed_data(self, x, y):
-        if x is None:
-            if self._x is None:
-                raise BuildNetworkError("Please provide input matrix")
-            x = self._x
-        else:
-            if not self._transferred_flags["train"]:
-                x = NNDist._transfer_x(x)
-                self._transferred_flags["train"] = True
-        if y is None:
-            if self._y is None:
-                raise BuildNetworkError("Please provide input matrix")
-            y = self._y
-        else:
-            y = np.asarray(y, dtype=np.float32)
+        if not self._transferred_flags["train"]:
+            x = NNDist._transfer_x(x)
+            self._transferred_flags["train"] = True
+        y = np.asarray(y, dtype=np.float32)
         if len(x) != len(y):
             raise BuildNetworkError("Data fed to network should be identical in length, x: {} and y: {} found".format(
                 len(x), len(y)
             ))
-        self._x, self._y = x, y
         self._x_min, self._x_max = np.min(x), np.max(x)
         self._y_min, self._y_max = np.min(y), np.max(y)
-        self._data_size = len(x)
-        del x, y
+        return x, y
 
     @NNTiming.timeit(level=2)
-    def _get_prediction(self, x, name=None, verbose=None, out_of_sess=False):
+    def _get_prediction(self, x, name=None, verbose=None):
         if verbose is None:
             verbose = self.verbose
         fc_shape = np.prod(x.shape[1:])  # type: float
         single_batch = int(NNConfig.BATCH_SIZE / fc_shape)
         if not single_batch:
             single_batch = 1
+        if not single_batch:
+            single_batch = 1
         if single_batch >= len(x):
-            if not out_of_sess:
-                return self._y_pred.eval(feed_dict={self._tfx: x})
-            with self._sess.as_default():
-                return self.get_rs(x).eval(feed_dict={self._tfx: x})
+            return self._sess.run(self._y_pred, {self._tfx: x})
         epoch = int(len(x) / single_batch)
         if not len(x) % single_batch:
             epoch += 1
@@ -478,44 +428,35 @@ class NNDist(NNBase):
         while count < len(x):
             count += single_batch
             if count >= len(x):
-                if not out_of_sess:
-                    rs.append(self._y_pred.eval(feed_dict={self._tfx: x[count - single_batch:]}))
-                else:
-                    rs.append(self.get_rs(x[count - single_batch:]))
+                rs.append(self._sess.run(self._y_pred, {self._tfx: x[count - single_batch:]}))
             else:
-                if not out_of_sess:
-                    rs.append(self._y_pred.eval(feed_dict={self._tfx: x[count - single_batch:count]}))
-                else:
-                    rs.append(self.get_rs(x[count - single_batch:count]))
+                rs.append(self._sess.run(self._y_pred, {self._tfx: x[count - single_batch:count]}))
             if verbose >= NNVerbose.METRICS:
                 sub_bar.update()
-        if out_of_sess:
-            with self._sess.as_default():
-                rs = [_rs.eval() for _rs in rs]
         return np.vstack(rs)
 
     @NNTiming.timeit(level=4)
     def _get_activations(self, x, predict=False):
         if not isinstance(self._layers[0], NNPipe):
-            _activations = [self._layers[0].activate(x, self._tf_weights[0], self._tf_bias[0], predict)]
+            activations = [self._layers[0].activate(x, self._tf_weights[0], self._tf_bias[0], predict)]
         else:
-            _activations = [self._layers[0].get_rs(x, predict)]
+            activations = [self._layers[0].get_rs(x, predict)]
         for i, layer in enumerate(self._layers[1:]):
             if i == len(self._layers) - 2:
                 if NNDist._is_conv(self._layers[i]):
-                    fc_shape = np.prod(_activations[-1].get_shape()[1:])  # type: float
-                    _activations[-1] = tf.reshape(_activations[-1], [-1, int(fc_shape)])
+                    fc_shape = np.prod(activations[-1].get_shape()[1:])  # type: float
+                    activations[-1] = tf.reshape(activations[-1], [-1, int(fc_shape)])
                 if self._tf_bias[-1] is not None:
-                    _activations.append(tf.matmul(_activations[-1], self._tf_weights[-1]) + self._tf_bias[-1])
+                    activations.append(tf.matmul(activations[-1], self._tf_weights[-1]) + self._tf_bias[-1])
                 else:
-                    _activations.append(tf.matmul(_activations[-1], self._tf_weights[-1]))
+                    activations.append(tf.matmul(activations[-1], self._tf_weights[-1]))
             else:
                 if not isinstance(layer, NNPipe):
-                    _activations.append(layer.activate(
-                        _activations[-1], self._tf_weights[i + 1], self._tf_bias[i + 1], predict))
+                    activations.append(layer.activate(
+                        activations[-1], self._tf_weights[i + 1], self._tf_bias[i + 1], predict))
                 else:
-                    _activations.append(layer.get_rs(_activations[-1], predict))
-        return _activations
+                    activations.append(layer.get_rs(activations[-1], predict))
+        return activations
 
     @NNTiming.timeit(level=1)
     def _get_l2_losses(self, lb):
@@ -527,8 +468,8 @@ class NNDist(NNBase):
     @NNTiming.timeit(level=1)
     def _get_acts(self, x):
         with self._sess.as_default():
-            _activations = [_ac.eval() for _ac in self._get_activations(x, True)]
-        return _activations
+            activations = [_ac.eval() for _ac in self._get_activations(x, True)]
+        return activations
 
     @NNTiming.timeit(level=3)
     def _append_log(self, x, y, y_pred, name, get_loss):
@@ -542,21 +483,23 @@ class NNDist(NNBase):
             self._logs[name][-1].append(self._layers[-1].calculate(y, y_pred).eval())
 
     @NNTiming.timeit(level=3)
-    def _print_metric_logs(self, show_loss, data_type):
+    def _print_metric_logs(self, name, show_loss):
         print()
         print("=" * 47)
-        for i, name in enumerate(self._metric_names):
+        for i, metric in enumerate(self._metric_names):
             print("{:<16s} {:<16s}: {:12.8}".format(
-                data_type, name, self._logs[data_type][i][-1]))
+                name, metric, self._logs[name][i][-1]))
         if show_loss:
             print("{:<16s} {:<16s}: {:12.8}".format(
-                data_type, "loss", self._logs[data_type][-1][-1]))
+                name, "loss", self._logs[name][-1][-1]))
         print("=" * 47)
 
     @NNTiming.timeit(level=1)
-    def _draw_detailed_network(self, radius=6, width=1200, height=800, padding=0.2,
-                               plot_scale=2, plot_precision=0.03,
-                               sub_layer_height_scale=0, delay=1):
+    def _draw_2d_network(self, radius=6, width=1200, height=800, padding=0.2,
+                         plot_scale=2, plot_precision=0.03,
+                         sub_layer_height_scale=0, **kwargs):
+        if not kwargs["show"] and not kwargs["mp4"]:
+            return
         layers = len(self._layers) + 1
         units = [layer.shape[0] for layer in self._layers] + [self._layers[-1].shape[1]]
         whether_sub_layers = np.array([False] + [isinstance(layer, SubLayer) for layer in self._layers])
@@ -571,18 +514,25 @@ class NNDist(NNBase):
         input_x, input_y = np.meshgrid(xf, yf)
         input_xs = np.c_[input_x.ravel().astype(np.float32), input_y.ravel().astype(np.float32)]
 
-        _activations = self._sess.run(self._activations, {self._tfx: input_xs})
-        _activations = [activation.T.reshape(units[i + 1], plot_num, plot_num)
-                        for i, activation in enumerate(_activations)]
-        _graphs = []
-        for j, activation in enumerate(_activations):
-            _graph_group = []
-            for ac in activation:
+        activations = self._sess.run(self._activations, {self._tfx: input_xs})
+        activations = [activation.T.reshape(units[i + 1], plot_num, plot_num)
+                       for i, activation in enumerate(activations)]
+        graphs = []
+        for j, activation in enumerate(activations):
+            graph_group = []
+            if j == len(activations) - 1:
+                classes = np.argmax(activation, axis=0)
+            else:
+                classes = None
+            for k, ac in enumerate(activation):
                 data = np.zeros((plot_num, plot_num, 3), np.uint8)
-                mask = ac >= np.average(ac)
-                data[mask], data[~mask] = [0, 125, 255], [255, 125, 0]
-                _graph_group.append(data)
-            _graphs.append(_graph_group)
+                if j != len(activations) - 1:
+                    mask = ac >= np.average(ac)
+                else:
+                    mask = classes == k
+                data[mask], data[~mask] = [0, 165, 255], [255, 165, 0]
+                graph_group.append(data)
+            graphs.append(graph_group)
 
         img = np.full([height, width, 3], 255, dtype=np.uint8)
         axis0_padding = int(height / (layers - 1 + 2 * padding)) * padding + plot_num
@@ -610,11 +560,10 @@ class NNDist(NNBase):
                 if i == 0:
                     cv2.circle(img, (x, y), radius, (20, 215, 20), int(radius / 2))
                 else:
-                    graph = _graphs[i - 1][j]
+                    graph = graphs[i - 1][j]
                     img[y - half_plot_num:y + half_plot_num, x - half_plot_num:x + half_plot_num] = graph
             if i > 0:
                 cv2.putText(img, self._layers[i - 1].name, (12, y - 36), cv2.LINE_AA, 0.6, (0, 0, 0), 1)
-
         for i, y in enumerate(axis0):
             if i == len(axis0) - 1:
                 break
@@ -628,21 +577,22 @@ class NNDist(NNBase):
                         cv2.line(img, (x, y + half_plot_num), (new_x, new_y - half_plot_num),
                                  colors[i][j][k], thicknesses[i][j][k])
 
-        cv2.imshow("Neural Network", img)
-        cv2.waitKey(delay)
         return img
 
     # Metrics
 
     @staticmethod
     @NNTiming.timeit(level=2, prefix="[Private StaticMethod] ")
-    def _acc(y, y_pred):
+    def acc(y, y_pred, weights=None):
         y_arg, y_pred_arg = tf.argmax(y, axis=1), tf.argmax(y_pred, axis=1)
-        return tf.reduce_mean(tf.cast(tf.equal(y_arg, y_pred_arg), tf.float32))
+        same = tf.cast(tf.equal(y_arg, y_pred_arg), tf.float32)
+        if weights is not None:
+            same *= weights
+        return tf.reduce_mean(same)
 
     @staticmethod
     @NNTiming.timeit(level=2, prefix="[Private StaticMethod] ")
-    def _f1_score(y, y_pred_arg):
+    def f1_score(y, y_pred_arg):
         y_arg, y_pred_arg = tf.argmax(y, axis=1), tf.argmax(y_pred_arg, axis=1)
         tp = tf.reduce_sum(y_arg * y_pred_arg)
         if tp == 0:
@@ -697,6 +647,33 @@ class NNDist(NNBase):
             self._train_step = self._optimizer.minimize(self._loss)
             sess.run(tf.variables_initializer(set(tf.global_variables()) - _var_cache))
 
+    # Batch Work
+    @NNTiming.timeit(level=2)
+    def _batch_work(self, i, bar, counter, x_train, y_train, x_test, y_test, show_loss, condition,
+                    tensorboard_verbose, train_repeat, sess, train_merge_op, test_merge_op,
+                    train_writer, test_writer):
+        if tensorboard_verbose > 0:
+            count = counter * train_repeat + i
+            y_train_pred = self.predict(x_train, get_raw_results=True, transfer_x=False)
+            y_test_pred = self.predict(x_test, get_raw_results=True, transfer_x=False)
+            train_summary = sess.run(train_merge_op, feed_dict={
+                self._tfy: y_train, self._y_pred: y_train_pred
+            })
+            test_summary = sess.run(test_merge_op, feed_dict={
+                self._tfy: y_test, self._y_pred: y_test_pred
+            })
+            train_writer.add_summary(train_summary, count)
+            test_writer.add_summary(test_summary, count)
+        else:
+            y_train_pred = y_test_pred = None
+        if bar is not None:
+            condition = bar.update() and condition
+        if condition:
+            self._append_log(x_train, y_train, y_train_pred, "Train", show_loss)
+            self._append_log(x_test, y_test, y_test_pred, "Test", show_loss)
+            self._print_metric_logs("Train", show_loss)
+            self._print_metric_logs("Test", show_loss)
+
     # API
 
     @NNTiming.timeit(level=4, prefix="[API] ")
@@ -705,10 +682,6 @@ class NNDist(NNBase):
         if not isinstance(_last_layer, NNPipe):
             return
         return _last_layer["nn_lst"][idx]
-
-    @NNTiming.timeit(level=4, prefix="[API] ")
-    def feed(self, x, y):
-        self._feed_data(x, y)
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def build(self, units="load"):
@@ -728,7 +701,7 @@ class NNDist(NNBase):
             _input_shape = (units[0], units[1])
             self.initialize()
             self.add("ReLU", _input_shape)
-            for unit_num in units[2:]:
+            for unit_num in units[2:-1]:
                 self.add("ReLU", (unit_num,))
             self.add("CrossEntropy", (units[-1],))
 
@@ -773,14 +746,12 @@ class NNDist(NNBase):
 
     @NNTiming.timeit(level=1, prefix="[API] ")
     def fit(self,
-            x=None, y=None, x_test=None, y_test=None,
+            x, y, x_test=None, y_test=None,
             lr=0.001, lb=0.001, epoch=10, weight_scale=1,
             batch_size=128, record_period=1, train_only=False, optimizer=None,
             show_loss=True, metrics=None, do_log=False, verbose=None,
-            tensorboard_verbose=0, draw_detailed_network=False):
-
-        self._feed_data(x, y)
-        x, y = self._x, self._y
+            tensorboard_verbose=0, animation_params=None):
+        x, y = self._feed_data(x, y)
         self._lr = lr
         self._init_optimizer(optimizer)
         print("Optimizer: ", self._optimizer.name)
@@ -798,7 +769,6 @@ class NNDist(NNBase):
         batch_size = min(batch_size, train_len)
         do_random_batch = train_len > batch_size
         train_repeat = 1 if not do_random_batch else int(train_len / batch_size) + 1
-        self._feed_data(x_train, y_train)
 
         with tf.name_scope("Entry"):
             self._tfx = tf.placeholder(tf.float32, shape=[None, *x.shape[1:]])
@@ -816,7 +786,7 @@ class NNDist(NNBase):
 
         self._logs = {
             name: [[] for _ in range(len(self._metrics) + 1)] for name in ("Train", "Test")
-            }
+        }
         if verbose is not None:
             self.verbose = verbose
 
@@ -825,6 +795,7 @@ class NNDist(NNBase):
             bar.start()
         img = None
 
+        *animation_properties, animation_params = self._get_animation_params(animation_params)
         with self._sess.as_default() as sess:
             with tf.name_scope("ActivationFlow"):
                 self._activations = self._get_activations(self._tfx)
@@ -863,61 +834,38 @@ class NNDist(NNBase):
             else:
                 train_writer = test_writer = train_merge_op = test_merge_op = None
 
-            y_train_pred = y_test_pred = None
-            sub_bar = ProgressBar(max_value=train_repeat * record_period - 1, name="Iteration", start=False)
+            args = (
+                x_train, y_train, x_test, y_test, show_loss,
+                self.verbose >= NNVerbose.METRICS_DETAIL,
+                tensorboard_verbose, train_repeat, sess, train_merge_op, test_merge_op,
+                train_writer, test_writer
+            )
+            ims = []
             for counter in range(epoch):
                 if self.verbose >= NNVerbose.ITER and counter % record_period == 0:
-                    sub_bar.start()
-                for i in range(train_repeat):
-                    if do_random_batch:
-                        train_batch = np.random.choice(train_len, batch_size)
-                        x_train_batch, y_train_batch = x_train[train_batch], y_train[train_batch]
-                    else:
-                        x_train_batch, y_train_batch = x_train, y_train
-                    train_dict = {self._tfx: x_train_batch, self._tfy: y_train_batch}
-                    self._train_step.run(feed_dict=train_dict)
-
-                    if tensorboard_verbose > 0:
-                        count = counter * train_repeat + i
-                        train_summary = sess.run(train_merge_op, feed_dict=train_dict)
-                        y_test_pred = self._get_prediction(x_test, name="Test")
-                        test_summary = sess.run(test_merge_op, feed_dict={
-                            self._tfy: y_test, self._y_pred: y_test_pred
-                        })
-                        train_writer.add_summary(train_summary, count)
-                        test_writer.add_summary(test_summary, count)
-
-                    if self.verbose >= NNVerbose.DEBUG:
-                        pass
-                    if self.verbose >= NNVerbose.ITER:
-                        if sub_bar.update() and self.verbose >= NNVerbose.METRICS_DETAIL:
-                            y_train_pred = self._get_prediction(x_train, "Train")
-                            self._append_log(x_train, y_train, y_train_pred, "Train", show_loss)
-                            self._append_log(x_test, y_test, y_test_pred, "Test", show_loss)
-                            self._print_metric_logs(show_loss, "Train")
-                            self._print_metric_logs(show_loss, "Test")
-                if self.verbose >= NNVerbose.ITER:
-                    sub_bar.update()
-
+                    sub_bar = ProgressBar(max_value=train_repeat * record_period - 1, name="Iteration")
+                else:
+                    sub_bar = None
+                self.batch_training(
+                    x_train, y_train, batch_size, train_repeat,
+                    self._loss, self._train_step, sub_bar, counter, *args)
+                self._handle_animation(
+                    counter, x, y, ims, animation_params, *animation_properties,
+                    img=self._draw_2d_network(**animation_params), name="Neural Network"
+                )
                 if (counter + 1) % record_period == 0:
                     if do_log:
-                        self._append_log(x_train, y_train, y_train_pred, "Train", show_loss)
-                        self._append_log(x_test, y_test, y_test_pred, "Test", show_loss)
+                        self._append_log(x_train, y_train, None, "Train", show_loss)
+                        self._append_log(x_test, y_test, None,  "Test", show_loss)
                         if self.verbose >= NNVerbose.METRICS:
-                            self._print_metric_logs(show_loss, "Train")
-                            self._print_metric_logs(show_loss, "Test")
-                    if x_test.shape[1] == 2:
-                        if draw_detailed_network:
-                            img = self._draw_detailed_network()
+                            self._print_metric_logs("Train", show_loss)
+                            self._print_metric_logs("Test", show_loss)
                     if self.verbose >= NNVerbose.EPOCH:
                         bar.update(counter // record_period + 1)
-                        if self.verbose >= NNVerbose.ITER:
-                            sub_bar = ProgressBar(
-                                max_value=train_repeat * record_period - 1, name="Iteration", start=False)
-
         if img is not None:
             cv2.waitKey(0)
             cv2.destroyAllWindows()
+        self._handle_mp4(ims, animation_properties, "NN")
 
     @NNTiming.timeit(level=2, prefix="[API] ")
     def save(self, path=None, name=None, overwrite=True):
@@ -1024,67 +972,28 @@ class NNDist(NNBase):
         print("=" * 30)
 
     @NNTiming.timeit(level=4, prefix="[API] ")
-    def predict(self, x):
-        x = NNDist._transfer_x(np.asarray(x))
-        return self._get_prediction(x, out_of_sess=True)
+    def predict(self, x, get_raw_results=False, transfer_x=True):
+        x = np.asarray(x, dtype=np.float32)
+        if transfer_x:
+            x = NNDist._transfer_x(x)
+        y_pred = self._get_prediction(x)
+        return y_pred if get_raw_results else np.argmax(y_pred, axis=1)
 
-    @NNTiming.timeit(level=4, prefix="[API] ")
-    def evaluate(self, x, y, metrics=None):
-        x = NNDist._transfer_x(np.asarray(x))
-        if metrics is None:
-            metrics = self._metrics
-        else:
-            for i in range(len(metrics) - 1, -1, -1):
-                metric = metrics[i]
-                if isinstance(metric, str):
-                    if metric not in self._available_metrics:
-                        metrics.pop(i)
-                    else:
-                        metrics[i] = self._available_metrics[metric]
-        logs, y_pred = [], self._get_prediction(x, verbose=2, out_of_sess=True)
-        for metric in metrics:
-            logs.append(metric(y, y_pred))
+    @NNTiming.timeit()
+    def evaluate(self, x, y, metrics=None, tar=0, prefix="Acc"):
+        logs, y_pred = [], self._get_prediction(NNDist._transfer_x(x))
+        for i, metric_rs in enumerate(self._metric_rs):
+            logs.append(self._sess.run(metric_rs, {
+                self._tfy: y, self._y_pred: y_pred
+            }))
+        if isinstance(tar, int):
+            print(prefix + ": {:12.8}".format(logs[tar]))
         return logs
 
-    @NNTiming.timeit(level=5, prefix="[API] ")
-    def visualize2d(self, x=None, y=None, plot_scale=2, plot_precision=0.01):
-
-        x = self._x if x is None else x
-        y = self._y if y is None else y
-
-        plot_num = int(1 / plot_precision)
-
-        xf = np.linspace(self._x_min * plot_scale, self._x_max * plot_scale, plot_num)
-        yf = np.linspace(self._x_min * plot_scale, self._x_max * plot_scale, plot_num)
-        input_x, input_y = np.meshgrid(xf, yf)
-        input_xs = np.c_[input_x.ravel(), input_y.ravel()]
-
-        if self._x.shape[1] != 2:
-            return
-        output_ys_2d = np.argmax(self.predict(input_xs), axis=1).reshape(len(xf), len(yf))
-        output_ys_3d = self.predict(input_xs)[..., 0].reshape(len(xf), len(yf))
-
-        xf, yf = np.meshgrid(xf, yf, sparse=True)
-
-        plt.contourf(input_x, input_y, output_ys_2d, cmap=cm.Spectral)
-        plt.scatter(x[..., 0], x[..., 1], c=np.argmax(y, axis=1), s=40, cmap=cm.Spectral)
-        plt.axis("off")
-        plt.show()
-
-        if self._y.shape[1] == 2:
-            fig = plt.figure()
-            ax = fig.add_subplot(111, projection='3d')
-
-            ax.plot_surface(xf, yf, output_ys_3d, cmap=cm.coolwarm, )
-            ax.set_xlabel("x")
-            ax.set_ylabel("y")
-            ax.set_zlabel("z")
-            plt.show()
-
     def draw_results(self):
-        metrics_log, cost_log = {}, {}
+        metrics_log, loss_log = {}, {}
         for key, value in sorted(self._logs.items()):
-            metrics_log[key], cost_log[key] = value[:-1], value[-1]
+            metrics_log[key], loss_log[key] = value[:-1], value[-1]
 
         for i, name in enumerate(sorted(self._metric_names)):
             plt.figure()
@@ -1098,7 +1007,7 @@ class NNDist(NNBase):
 
         plt.figure()
         plt.title("Cost")
-        for key, loss in sorted(cost_log.items()):
+        for key, loss in sorted(loss_log.items()):
             xs = np.arange(len(loss)) + 1
             plt.plot(xs, loss, label="Data Type: {}".format(key))
         plt.legend()
@@ -1171,7 +1080,7 @@ class NNFrozen(NNBase):
         print("=" * 30)
 
     @NNTiming.timeit(level=2, prefix="[API] ")
-    def predict(self, x):
+    def predict(self, x, get_raw_results=False, **kwargs):
         x = NNDist._transfer_x(np.asarray(x))
         rs = []
         batch_size = floor(1e6 / np.prod(x.shape[1:]))
@@ -1188,10 +1097,11 @@ class NNFrozen(NNBase):
                     self._entry: x[i * batch_size:(i + 1) * batch_size]
                 }))
             bar.update()
-        return np.vstack(rs).astype(np.float32)
+        y_pred = np.vstack(rs).astype(np.float32)
+        return y_pred if get_raw_results else np.argmax(y_pred, axis=1)
 
     @NNTiming.timeit(level=1, prefix="[API] ")
-    def evaluate(self, x, y):
+    def evaluate(self, x, y, metrics=None, tar=None, prefix="Acc"):
         y_pred = self.predict(x)
         print("Acc: {:8.6} %".format(100 * np.sum(np.argmax(y, axis=1) == np.argmax(y_pred, axis=1)) / len(y)))
 
@@ -1269,4 +1179,4 @@ class NNPipe:
 
     @NNTiming.timeit(level=1, prefix="[API] ")
     def get_rs(self, x, predict):
-        return tf.concat([_nn.get_rs(x, predict=predict, pipe=True) for _nn in self._nn_lst], 3)
+        return tf.concat([nn.get_rs(x, predict=predict, pipe=True) for nn in self._nn_lst], 3)

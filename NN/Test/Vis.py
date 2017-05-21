@@ -10,9 +10,7 @@ def main():
     lr = 0.001
     lb = 0.001
     epoch = 1000
-
-    timing = Timing(enabled=True)
-    timing_level = 1
+    record_period = 4
 
     x, y = DataUtil.gen_spiral(50, 3, 3, 2.5)
 
@@ -20,20 +18,19 @@ def main():
         nn.build([x.shape[1], 6, 6, 6, y.shape[1]])
         nn.optimizer = "Adam"
         nn.preview()
-        nn.feed_timing(timing)
-        nn.fit(x, y, lr=lr, lb=lb, verbose=1, record_period=4,
+        nn.fit(x, y, lr=lr, lb=lb, verbose=1, record_period=record_period,
                epoch=epoch, batch_size=128, train_only=True,
-               draw_detailed_network=True, make_mp4=True, show_animation=True)
+               animation_params={"show": True, "mp4": True, "period": record_period})
         if save:
             nn.save()
+        nn.visualize2d(x, y)
         nn.draw_results()
-        nn.visualize2d()
     else:
         nn.load()
         nn.preview()
         nn.evaluate(x, y)
 
-    timing.show_timing_log(timing_level)
+    nn.show_timing_log()
 
 if __name__ == '__main__':
     main()
