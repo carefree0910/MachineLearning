@@ -5,8 +5,9 @@ from Util.Util import DataUtil
 from Util.ProgressBar import ProgressBar
 
 
-def rf_task(x, trees):
-    return [tree.predict(x) for tree in trees]
+def rf_task(args):
+    x, trees, n_cores = args
+    return [tree.predict(x, n_cores=n_cores) for tree in trees]
 
 
 class RandomForest(ClassifierBase):
@@ -51,39 +52,25 @@ class RandomForest(ClassifierBase):
         bar = ProgressBar(max_value=epoch, name="RF")
         for _ in range(epoch):
             tmp_tree = RandomForest.cvd_trees[tree](**kwargs)
-            _indices = np.random.randint(n_sample, size=n_sample)
+            indices = np.random.randint(n_sample, size=n_sample)
             if sample_weight is None:
-                _local_weight = None
+                local_weight = None
             else:
-                _local_weight = sample_weight[_indices]
-                _local_weight /= _local_weight.sum()
-            tmp_tree.fit(x[_indices], y[_indices], sample_weight=_local_weight, feature_bound=feature_bound)
+                local_weight = sample_weight[indices]
+                local_weight /= local_weight.sum()
+            tmp_tree.fit(x[indices], y[indices], sample_weight=local_weight, feature_bound=feature_bound)
             self._trees.append(deepcopy(tmp_tree))
             bar.update()
 
     @RandomForestTiming.timeit(level=1, prefix="[API] ")
-    def predict(self, x, get_raw_results=False, bound=None, cores=1):
-        cores = multiprocessing.cpu_count() if cores <= 0 else cores
+    def predict(self, x, get_raw_results=False, bound=None, **kwargs):
+        n_cores = kwargs.get("n_cores", 2)
+        n_cores = multiprocessing.cpu_count() if n_cores <= 0 else n_cores
         trees = self._trees if bound is None else self._trees[:bound]
-        if cores == 1:
+        if n_cores == 1:
             matrix = np.array([tree.predict(x) for tree in trees]).T
         else:
-            pool = multiprocessing.Pool(processes=cores)
-            batch_size = int(len(trees) / cores)
-            batch_trees, cursor = [], 0
-            for i in range(cores):
-                if i == cores - 1:
-                    batch_trees.append(trees[cursor:])
-                else:
-                    batch_trees.append(trees[cursor:cursor+batch_size])
-                cursor += batch_size
-            del trees
-            matrix = [pool.apply_async(rf_task, args=(x, trees)) for trees in batch_trees]
-            pool.close()
-            pool.join()
-            matrix = np.vstack([
-                mat.get() for mat in matrix
-            ]).T
+            matrix = self._multi_clf(x, trees, rf_task, kwargs)
         return np.array([RandomForest.most_appearance(rs) for rs in matrix])
 
 if __name__ == '__main__':

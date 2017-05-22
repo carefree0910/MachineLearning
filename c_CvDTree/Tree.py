@@ -7,6 +7,11 @@ from Util.Timing import Timing
 from Util.Bases import ClassifierBase
 
 
+def cvd_task(args):
+    x, clf, n_cores = args
+    return np.array([clf.predict_one(xx) for xx in x])
+
+
 class CvDBase(ClassifierBase):
     CvDBaseTiming = Timing()
 
@@ -172,7 +177,7 @@ class CvDBase(ClassifierBase):
 
     @CvDBaseTiming.timeit(level=3, prefix="[API] ")
     def predict(self, x, get_raw_results=False, **kwargs):
-        return np.array([self.predict_one(xx) for xx in x])
+        return self._multi_data(x, self, cvd_task, kwargs)
 
     @CvDBaseTiming.timeit(level=3, prefix="[API] ")
     def view(self):

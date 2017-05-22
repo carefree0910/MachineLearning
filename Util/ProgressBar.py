@@ -38,11 +38,11 @@ class ProgressBar:
             tmp_avg_min = int((tmp_avg - tmp_avg_hour * 3600) / 60)
             tmp_avg_sec = tmp_avg % 60
             print(
-                "\r" + "##{}({:d} : {:d} -> {:d}) Task Finished. "
-                       "Time Cost: {:3d} h {:3d} min {:6.4} s; Average: {:3d} h {:3d} min {:6.4} s ".format(
-                            self._bar_name, self._task_length, self._min, self._counter - self._min,
-                            tmp_hour, tmp_min, tmp_sec, tmp_avg_hour, tmp_avg_min, tmp_avg_sec
-                        ) + " ##\n", end=""
+                "\r\r" + "##{}({:d} : {:d} -> {:d}) Task Finished. "
+                         "Time Cost: {:3d} h {:3d} min {:6.4} s; Average: {:3d} h {:3d} min {:6.4} s ".format(
+                    self._bar_name, self._task_length, self._min, self._counter - self._min,
+                    tmp_hour, tmp_min, tmp_sec, tmp_avg_hour, tmp_avg_min, tmp_avg_sec
+                ) + " ##\n", end=""
             )
             self._ended = True
             return True
@@ -78,7 +78,7 @@ class ProgressBar:
             tmp_hour, tmp_min, tmp_sec, tmp_avg_hour, tmp_avg_min, tmp_avg_sec
         ) if self._counter != self._min else "##{}Progress bar initialized  ##".format(
             self._bar_name), end=""
-        )
+              )
         return True
 
     def set_min(self, min_val):
@@ -116,6 +116,7 @@ class ProgressBar:
         self._terminated = True
         self._flush()
 
+
 if __name__ == '__main__':
 
     def task(cost=0.25, epoch=3, name="", _sub_task=None):
@@ -126,7 +127,9 @@ if __name__ == '__main__':
                 if _sub_task is not None:
                     _sub_task()
                 bar.update()
+
         return _sub
+
 
     task(name="Task1", _sub_task=task(
         name="Task2", _sub_task=task(

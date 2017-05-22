@@ -2,11 +2,13 @@ import io
 import cv2
 import time
 import math
+import multiprocessing
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from PIL import Image
 from mpl_toolkits.mplot3d import Axes3D
+from concurrent.futures import ProcessPoolExecutor as Pool
 
 from Util.Util import VisUtil
 from Util.Timing import Timing
@@ -206,6 +208,50 @@ class ClassifierBase(ModelBase):
         fn = np.sum(y * (1 - y_pred))
         return 2 * tp / (2 * tp + fn + fp)
 
+    @staticmethod
+    def _multi_clf(x, clfs, task, kwargs, stack=np.vstack):
+        n_cores = kwargs.get("n_cores", 2)
+        n_cores = multiprocessing.cpu_count() if n_cores <= 0 else n_cores
+        if n_cores == 1:
+            matrix = np.array([clf.predict(x) for clf in clfs], dtype=np.double).T
+        else:
+            pool = Pool(max_workers=n_cores)
+            batch_size = int(len(clfs) / n_cores)
+            batch_clfs, cursor = [], 0
+            for i in range(n_cores):
+                if i == n_cores - 1:
+                    batch_clfs.append(clfs[cursor:])
+                else:
+                    batch_clfs.append(clfs[cursor:cursor + batch_size])
+                cursor += batch_size
+            del clfs
+            matrix = stack(
+                pool.map(task, ((x, clfs, n_cores) for clfs in batch_clfs))
+            ).T.astype(np.double)
+        return matrix
+
+    @staticmethod
+    def _multi_data(x, clf, task, kwargs, stack=np.hstack):
+        n_cores = kwargs.get("n_cores", 2)
+        n_cores = multiprocessing.cpu_count() if n_cores <= 0 else n_cores
+        if n_cores == 1:
+            matrix = task((x, clf, n_cores))
+        else:
+            pool = Pool(max_workers=n_cores)
+            batch_size = int(len(x) / n_cores)
+            batch_data, cursor = [], 0
+            for i in range(n_cores):
+                if i == n_cores - 1:
+                    batch_data.append(x[cursor:])
+                else:
+                    batch_data.append(x[cursor:cursor + batch_size])
+                cursor += batch_size
+            del x
+            matrix = stack(
+                pool.map(task, ((x, clf, n_cores) for x in batch_data))
+            )
+        return matrix.astype(np.double)
+
     def get_metrics(self, metrics):
         if len(metrics) == 0:
             for metric in self._metrics:
@@ -221,11 +267,11 @@ class ClassifierBase(ModelBase):
         return metrics
 
     @clf_timing.timeit(level=1, prefix="[API] ")
-    def evaluate(self, x, y, metrics=None, tar=0, prefix="Acc"):
+    def evaluate(self, x, y, metrics=None, tar=0, prefix="Acc", **kwargs):
         if metrics is None:
             metrics = ["acc"]
         self.get_metrics(metrics)
-        logs, y_pred = [], self.predict(x)
+        logs, y_pred = [], self.predict(x, **kwargs)
         y = np.asarray(y)
         if y.ndim == 2:
             y = np.argmax(y, axis=1)
@@ -295,11 +341,11 @@ class ClassifierBase(ModelBase):
         return canvas
 
     def visualize2d(self, x, y, padding=0.1, dense=200, title=None,
-                    show_org=False, draw_background=True, emphasize=None, extra=None):
+                    show_org=False, draw_background=True, emphasize=None, extra=None, **kwargs):
         axis, labels = np.asarray(x).T, np.asarray(y)
 
         print("=" * 30 + "\n" + str(self))
-        decision_function = lambda xx: self.predict(xx)
+        decision_function = lambda xx: self.predict(xx, **kwargs)
 
         nx, ny, padding = dense, dense, padding
         x_min, x_max = np.min(axis[0]), np.max(axis[0])
@@ -365,13 +411,13 @@ class ClassifierBase(ModelBase):
         print("Done.")
 
     def visualize3d(self, x, y, padding=0.1, dense=100, title=None,
-                    show_org=False, draw_background=True, emphasize=None, extra=None):
+                    show_org=False, draw_background=True, emphasize=None, extra=None, **kwargs):
         if False:
             print(Axes3D.add_artist)
         axis, labels = np.asarray(x).T, np.asarray(y)
 
         print("=" * 30 + "\n" + str(self))
-        decision_function = lambda _x: self.predict(_x)
+        decision_function = lambda xx: self.predict(xx, **kwargs)
 
         nx, ny, nz, padding = dense, dense, dense, padding
         x_min, x_max = np.min(axis[0]), np.max(axis[0])
@@ -513,7 +559,8 @@ class TFClassifierBase(ClassifierBase):
         self._y_pred_raw = self._y_pred = None
         self._sess = tf.Session()
 
-    def _get_train_repeat(self, x, batch_size):
+    @staticmethod
+    def _get_train_repeat(x, batch_size):
         train_len = len(x)
         batch_size = min(batch_size, train_len)
         do_random_batch = train_len > batch_size

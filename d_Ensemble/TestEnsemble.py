@@ -18,8 +18,8 @@ def test(x, y, algorithm="AdaBoost", clf="Cart", epoch=10, **kwargs):
         ensemble.fit(x, y)
     else:
         ensemble.fit(x, y, None, clf, epoch, **kwargs)
-    ensemble.visualize2d(x, y)
-    ensemble.evaluate(x, y)
+    ensemble.visualize2d(x, y, **kwargs)
+    ensemble.evaluate(x, y, **kwargs)
 
 
 def cv_test(x, y, xt, yt, algorithm="AdaBoost", clf="Cart", epoch=10, **kwargs):
@@ -51,7 +51,7 @@ if __name__ == '__main__':
     # test(_x, _y, clf="SKTree", epoch=10)
     # test(_x, _y, clf="SKTree", epoch=1000)
     # test(_x, _y, algorithm="RF", epoch=10)
-    test(_x, _y, algorithm="RF", epoch=10)
+    test(_x, _y, algorithm="RF", epoch=50, n_cores=2)
     # test(_x, _y, algorithm="SKAdaBoost")
 
     train_num = 6000

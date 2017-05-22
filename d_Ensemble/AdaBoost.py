@@ -15,6 +15,11 @@ from _SKlearn.Tree import SKTree
 from _SKlearn.SVM import SKSVM
 
 
+def boost_task(args):
+    x, clfs, n_cores = args
+    return [clf.predict(x, n_cores=n_cores) for clf in clfs]
+
+
 class AdaBoost(ClassifierBase):
     AdaBoostTiming = Timing()
     _weak_clf = {
@@ -93,15 +98,16 @@ class AdaBoost(ClassifierBase):
             bar.update()
 
     @AdaBoostTiming.timeit(level=1, prefix="[API] ")
-    def predict(self, x, get_raw_results=False, bound=None):
+    def predict(self, x, get_raw_results=False, bound=None, **kwargs):
         x = np.atleast_2d(x)
-        rs = np.zeros(len(x))
         if bound is None:
-            _clfs, _clfs_weights = self._clfs, self._clfs_weights
+            clfs, clfs_weights = self._clfs, self._clfs_weights
         else:
-            _clfs, _clfs_weights = self._clfs[:bound], self._clfs_weights[:bound]
-        for clf, am in zip(_clfs, _clfs_weights):
-            rs += am * clf.predict(x)
+            clfs, clfs_weights = self._clfs[:bound], self._clfs_weights[:bound]
+        matrix = self._multi_clf(x, clfs, boost_task, kwargs)
+        matrix *= clfs_weights
+        rs = np.sum(matrix, axis=1)
+        del matrix
         if not get_raw_results:
             return np.sign(rs)
         return rs

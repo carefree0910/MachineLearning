@@ -980,7 +980,7 @@ class NNDist(NNBase):
         return y_pred if get_raw_results else np.argmax(y_pred, axis=1)
 
     @NNTiming.timeit()
-    def evaluate(self, x, y, metrics=None, tar=0, prefix="Acc"):
+    def evaluate(self, x, y, metrics=None, tar=0, prefix="Acc", **kwargs):
         logs, y_pred = [], self._get_prediction(NNDist._transfer_x(x))
         for i, metric_rs in enumerate(self._metric_rs):
             logs.append(self._sess.run(metric_rs, {
@@ -1101,7 +1101,7 @@ class NNFrozen(NNBase):
         return y_pred if get_raw_results else np.argmax(y_pred, axis=1)
 
     @NNTiming.timeit(level=1, prefix="[API] ")
-    def evaluate(self, x, y, metrics=None, tar=None, prefix="Acc"):
+    def evaluate(self, x, y, metrics=None, tar=None, prefix="Acc", **kwargs):
         y_pred = self.predict(x)
         print("Acc: {:8.6} %".format(100 * np.sum(np.argmax(y, axis=1) == np.argmax(y_pred, axis=1)) / len(y)))
 

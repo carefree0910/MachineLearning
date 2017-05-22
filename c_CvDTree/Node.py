@@ -8,7 +8,7 @@ from Util.Metas import TimingMeta
 
 class CvDNode(metaclass=TimingMeta):
     def __init__(self, tree=None, base=2, chaos=None,
-                 depth=0, parent=None, is_root=True, prev_feat="Root"):
+                 depth=0, parent=None, is_root=True, prev_feat="Root", **kwargs):
         self._x = self._y = None
         self.base, self.chaos = base, chaos
         self.criterion = self.category = None
