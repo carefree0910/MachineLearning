@@ -294,8 +294,8 @@ class ClassifierBase(ModelBase):
         buffer_.close()
         return canvas
 
-    def visualize2d(self, x, y, padding=0.1, dense=200,
-                    title=None, show_org=False, draw_background=True, emphasize=None, extra=None):
+    def visualize2d(self, x, y, padding=0.1, dense=200, title=None,
+                    show_org=False, draw_background=True, emphasize=None, extra=None):
         axis, labels = np.asarray(x).T, np.asarray(y)
 
         print("=" * 30 + "\n" + str(self))
@@ -364,8 +364,8 @@ class ClassifierBase(ModelBase):
 
         print("Done.")
 
-    def visualize3d(self, x, y, padding=0.1, dense=100,
-                    title=None, show_org=False, draw_background=True, emphasize=None, extra=None):
+    def visualize3d(self, x, y, padding=0.1, dense=100, title=None,
+                    show_org=False, draw_background=True, emphasize=None, extra=None):
         if False:
             print(Axes3D.add_artist)
         axis, labels = np.asarray(x).T, np.asarray(y)
