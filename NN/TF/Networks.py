@@ -203,7 +203,7 @@ class NNBase(TFClassifierBase):
             if i == len(self._layers) - 2:
                 if not pipe:
                     if NNDist._is_conv(self._layers[i]):
-                        fc_shape = np.prod(cache.get_shape()[1:])  # type: float
+                        fc_shape = np.prod(cache.get_shape()[1:])  # type: int
                         cache = tf.reshape(cache, [-1, int(fc_shape)])
                     if self._tf_bias[-1] is not None:
                         return tf.matmul(cache, self._tf_weights[-1]) + self._tf_bias[-1]
@@ -409,7 +409,7 @@ class NNDist(NNBase):
     def _get_prediction(self, x, name=None, verbose=None):
         if verbose is None:
             verbose = self.verbose
-        fc_shape = np.prod(x.shape[1:])  # type: float
+        fc_shape = np.prod(x.shape[1:])  # type: int
         single_batch = int(NNConfig.BATCH_SIZE / fc_shape)
         if not single_batch:
             single_batch = 1
@@ -444,7 +444,7 @@ class NNDist(NNBase):
         for i, layer in enumerate(self._layers[1:]):
             if i == len(self._layers) - 2:
                 if NNDist._is_conv(self._layers[i]):
-                    fc_shape = np.prod(activations[-1].get_shape()[1:])  # type: float
+                    fc_shape = np.prod(activations[-1].get_shape()[1:])  # type: int
                     activations[-1] = tf.reshape(activations[-1], [-1, int(fc_shape)])
                 if self._tf_bias[-1] is not None:
                     activations.append(tf.matmul(activations[-1], self._tf_weights[-1]) + self._tf_bias[-1])

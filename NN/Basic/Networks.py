@@ -215,7 +215,7 @@ class NNDist(ClassifierBase):
     def _get_prediction(self, x, name=None, batch_size=1e6, verbose=None):
         if verbose is None:
             verbose = self.verbose
-        fc_shape = np.prod(x.shape[1:])  # type: float
+        fc_shape = np.prod(x.shape[1:])  # type: int
         single_batch = int(batch_size / fc_shape)
         if not single_batch:
             single_batch = 1

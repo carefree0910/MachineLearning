@@ -38,8 +38,9 @@ class ProgressBar:
             tmp_avg_min = int((tmp_avg - tmp_avg_hour * 3600) / 60)
             tmp_avg_sec = tmp_avg % 60
             print(
-                "\r\r" + "##{}({:d} : {:d} -> {:d}) Task Finished. "
-                         "Time Cost: {:3d} h {:3d} min {:6.4} s; Average: {:3d} h {:3d} min {:6.4} s ".format(
+                "\r" +
+                "##{}({:d} : {:d} -> {:d}) Task Finished. "
+                "Time Cost: {:3d} h {:3d} min {:6.4} s; Average: {:3d} h {:3d} min {:6.4} s ".format(
                     self._bar_name, self._task_length, self._min, self._counter - self._min,
                     tmp_hour, tmp_min, tmp_sec, tmp_avg_hour, tmp_avg_min, tmp_avg_sec
                 ) + " ##\n", end=""
@@ -70,15 +71,17 @@ class ProgressBar:
             tmp_avg_min = 0
             tmp_avg_sec = 0
         passed = int(self._counter * self._bar_width / self._max)
-        print("\r" + "##{}[".format(
-            self._bar_name
-        ) + "-" * passed + " " * (self._bar_width - passed) + "] : {} / {}".format(
-            self._counter, self._max
-        ) + " ##  Time Cost: {:3d} h {:3d} min {:6.4} s; Average: {:3d} h {:3d} min {:6.4} s ".format(
-            tmp_hour, tmp_min, tmp_sec, tmp_avg_hour, tmp_avg_min, tmp_avg_sec
-        ) if self._counter != self._min else "##{}Progress bar initialized  ##".format(
-            self._bar_name), end=""
-              )
+        print(
+            "\r" + "##{}[".format(
+                self._bar_name
+            ) + "-" * passed + " " * (self._bar_width - passed) + "] : {} / {}".format(
+                self._counter, self._max
+            ) + " ##  Time Cost: {:3d} h {:3d} min {:6.4} s; Average: {:3d} h {:3d} min {:6.4} s ".format(
+                tmp_hour, tmp_min, tmp_sec, tmp_avg_hour, tmp_avg_min, tmp_avg_sec
+            ) if self._counter != self._min else "##{}Progress bar initialized  ##".format(
+                self._bar_name
+            ), end=""
+        )
         return True
 
     def set_min(self, min_val):
@@ -115,7 +118,6 @@ class ProgressBar:
     def terminate(self):
         self._terminated = True
         self._flush()
-
 
 if __name__ == '__main__':
 

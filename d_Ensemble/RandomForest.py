@@ -1,6 +1,5 @@
-import multiprocessing
-
 from c_CvDTree.Tree import *
+
 from Util.Util import DataUtil
 from Util.ProgressBar import ProgressBar
 
@@ -64,13 +63,8 @@ class RandomForest(ClassifierBase):
 
     @RandomForestTiming.timeit(level=1, prefix="[API] ")
     def predict(self, x, get_raw_results=False, bound=None, **kwargs):
-        n_cores = kwargs.get("n_cores", 2)
-        n_cores = multiprocessing.cpu_count() if n_cores <= 0 else n_cores
         trees = self._trees if bound is None else self._trees[:bound]
-        if n_cores == 1:
-            matrix = np.array([tree.predict(x) for tree in trees]).T
-        else:
-            matrix = self._multi_clf(x, trees, rf_task, kwargs)
+        matrix = self._multi_clf(x, trees, rf_task, kwargs)
         return np.array([RandomForest.most_appearance(rs) for rs in matrix])
 
 if __name__ == '__main__':

@@ -2,13 +2,11 @@ import io
 import cv2
 import time
 import math
-import multiprocessing
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from PIL import Image
 from mpl_toolkits.mplot3d import Axes3D
-from concurrent.futures import ProcessPoolExecutor as Pool
 
 from Util.Util import VisUtil
 from Util.Timing import Timing
@@ -208,49 +206,65 @@ class ClassifierBase(ModelBase):
         fn = np.sum(y * (1 - y_pred))
         return 2 * tp / (2 * tp + fn + fp)
 
+    # noinspection PyUnusedLocal
     @staticmethod
     def _multi_clf(x, clfs, task, kwargs, stack=np.vstack):
-        n_cores = kwargs.get("n_cores", 2)
-        n_cores = multiprocessing.cpu_count() if n_cores <= 0 else n_cores
-        if n_cores == 1:
-            matrix = np.array([clf.predict(x) for clf in clfs], dtype=np.double).T
-        else:
-            pool = Pool(max_workers=n_cores)
-            batch_size = int(len(clfs) / n_cores)
-            batch_clfs, cursor = [], 0
-            for i in range(n_cores):
-                if i == n_cores - 1:
-                    batch_clfs.append(clfs[cursor:])
-                else:
-                    batch_clfs.append(clfs[cursor:cursor + batch_size])
-                cursor += batch_size
-            del clfs
-            matrix = stack(
-                pool.map(task, ((x, clfs, n_cores) for clfs in batch_clfs))
-            ).T.astype(np.double)
-        return matrix
+        # n_cores = kwargs.get("n_cores", 2)
+        # n_cores = multiprocessing.cpu_count() if n_cores <= 0 else n_cores
+        # if n_cores == 1:
+        #     matrix = np.array([clf.predict(x, n_cores=1) for clf in clfs], dtype=np.double).T
+        # else:
+        #     pool = Pool(max_workers=n_cores)
+        #     batch_size = int(len(clfs) / n_cores)
+        #     batch_clfs, cursor = [], 0
+        #     for i in range(n_cores):
+        #         if i == n_cores - 1:
+        #             batch_clfs.append(clfs[cursor:])
+        #         else:
+        #             batch_clfs.append(clfs[cursor:cursor + batch_size])
+        #         cursor += batch_size
+        #     x_size = np.prod(x.shape)  # type: int
+        #     shared_base = multiprocessing.Array(ctypes.c_double, int(x_size))
+        #     shared_matrix = np.ctypeslib.as_array(shared_base.get_obj()).reshape(x.shape)
+        #     shared_matrix[:] = x
+        #     del x, clfs, shared_base
+        #     matrix = stack(
+        #         pool.map(task, ((shared_matrix, clfs, 1) for clfs in batch_clfs))
+        #     ).T.astype(np.double)
+        # return matrix
+        return np.array([clf.predict(x) for clf in clfs]).T
 
-    @staticmethod
-    def _multi_data(x, clf, task, kwargs, stack=np.hstack):
-        n_cores = kwargs.get("n_cores", 2)
-        n_cores = multiprocessing.cpu_count() if n_cores <= 0 else n_cores
-        if n_cores == 1:
-            matrix = task((x, clf, n_cores))
-        else:
-            pool = Pool(max_workers=n_cores)
-            batch_size = int(len(x) / n_cores)
-            batch_data, cursor = [], 0
-            for i in range(n_cores):
-                if i == n_cores - 1:
-                    batch_data.append(x[cursor:])
-                else:
-                    batch_data.append(x[cursor:cursor + batch_size])
-                cursor += batch_size
-            del x
-            matrix = stack(
-                pool.map(task, ((x, clf, n_cores) for x in batch_data))
-            )
-        return matrix.astype(np.double)
+    # noinspection PyUnusedLocal
+    def _multi_data(self, x, task, kwargs, stack=np.hstack):
+        # n_cores = kwargs.get("n_cores", 2)
+        # n_cores = multiprocessing.cpu_count() if n_cores <= 0 else n_cores
+        # if n_cores == 1:
+        #     matrix = task((x, self, n_cores))
+        # else:
+        #     pool = Pool(max_workers=n_cores)
+        #     batch_size = int(len(x) / n_cores)
+        #     batch_base, batch_data, cursor = [], [], 0
+        #     x_dim = x.shape[1]
+        #     for i in range(n_cores):
+        #         if i == n_cores - 1:
+        #             batch_data.append(x[cursor:])
+        #             batch_base.append(multiprocessing.Array(ctypes.c_double, (len(x) - cursor) * x_dim))
+        #         else:
+        #             batch_data.append(x[cursor:cursor + batch_size])
+        #             batch_base.append(multiprocessing.Array(ctypes.c_double, batch_size * x_dim))
+        #         cursor += batch_size
+        #     shared_arrays = [
+        #         np.ctypeslib.as_array(shared_base.get_obj()).reshape(-1, x_dim)
+        #         for shared_base in batch_base
+        #     ]
+        #     for i, data in enumerate(batch_data):
+        #         shared_arrays[i][:] = data
+        #     del x, batch_base, batch_data
+        #     matrix = stack(
+        #         pool.map(task, ((x, self, n_cores) for x in shared_arrays))
+        #     )
+        # return matrix.astype(np.double)
+        return task((x, self, 1))
 
     def get_metrics(self, metrics):
         if len(metrics) == 0:

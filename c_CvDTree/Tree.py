@@ -177,7 +177,7 @@ class CvDBase(ClassifierBase):
 
     @CvDBaseTiming.timeit(level=3, prefix="[API] ")
     def predict(self, x, get_raw_results=False, **kwargs):
-        return self._multi_data(x, self, cvd_task, kwargs)
+        return self._multi_data(x, cvd_task, kwargs)
 
     @CvDBaseTiming.timeit(level=3, prefix="[API] ")
     def view(self):

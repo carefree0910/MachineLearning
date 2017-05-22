@@ -51,7 +51,7 @@ if __name__ == '__main__':
     # test(_x, _y, clf="SKTree", epoch=10)
     # test(_x, _y, clf="SKTree", epoch=1000)
     # test(_x, _y, algorithm="RF", epoch=10)
-    test(_x, _y, algorithm="RF", epoch=50, n_cores=2)
+    test(_x, _y, algorithm="RF", epoch=10)
     # test(_x, _y, algorithm="SKAdaBoost")
 
     train_num = 6000

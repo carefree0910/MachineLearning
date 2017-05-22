@@ -70,7 +70,7 @@ class Layer:
     @LayerTiming.timeit(level=1, prefix="[Core] ")
     def activate(self, x, w, bias=None, predict=False):
         if self.is_fc:
-            fc_shape = np.prod(x.get_shape()[1:])  # type: float
+            fc_shape = np.prod(x.get_shape()[1:])  # type: int
             x = tf.reshape(x, [-1, int(fc_shape)])
         if self.is_sub_layer:
             if not self.apply_bias:
