@@ -1,7 +1,7 @@
 # SVM
 Implemented `Perceptron`, `Kernel Perceptron`, `LinearSVM` & `SVM`
 
-Implemented `Tensorflow` backend for `LinearSVM` & `SVM`
+Implemented `Tensorflow` & `PyTorch` backend for `LinearSVM` & `SVM`
 
 ## Visualization
 
