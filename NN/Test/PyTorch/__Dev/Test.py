@@ -1,4 +1,4 @@
-from NN.PyTorch.Basic.Networks import *
+from NN.PyTorch.__Dev.Networks import *
 
 from Util.Util import DataUtil
 
@@ -15,13 +15,24 @@ def main():
     lb = 0.001
     epoch = 5
     record_period = 1
+    use_cnn = False
 
     x, y = DataUtil.get_dataset("mnist", "../../../../_Data/mnist.txt", quantized=True, one_hot=True)
-    batch_size = 128
+    if use_cnn:
+        x = x.reshape(len(x), 1, 28, 28)
+        batch_size = 32
+    else:
+        batch_size = 128
 
     if not load:
-        nn.add("ReLU", (x.shape[1], 1024))
-        nn.add("ReLU", (1024,))
+        if use_cnn:
+            nn.add("ConvReLU", (x.shape[1:], (16, 3, 3)))
+            nn.add("MaxPool", ((3, 3),), 1)
+            nn.add("ConvNorm")
+            nn.add("ConvDrop")
+        else:
+            nn.add("ReLU", (x.shape[1], 1024))
+            nn.add("ReLU", (1024,))
         nn.add("CrossEntropy", (y.shape[1],))
         nn.optimizer = "Adam"
         nn.preview()

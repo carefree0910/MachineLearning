@@ -1,3 +1,5 @@
+import torch.nn.functional as F
+
 from NN.Errors import *
 from NN.PyTorch.Optimizers import *
 
@@ -146,54 +148,32 @@ class SubLayer(Layer):
 
 class Tanh(Layer):
     def _activate(self, x, predict):
-        return torch.tanh(x)
-
-    def _derivative(self, y, delta=None):
-        return 1 - y * y
+        return F.tanh(x)
 
 
 class Sigmoid(Layer):
     def _activate(self, x, predict):
-        return 1 / (1 + torch.exp(-x))
-
-    def _derivative(self, y, delta=None):
-        return y * (1 - y)
+        return F.sigmoid(x)
 
 
 class ELU(Layer):
     def _activate(self, x, predict):
-        rs, mask = torch.Tensor(x.size()).copy_(x), x < 0
-        rs[mask] = torch.exp(rs[mask]) - 1
-        return rs
-
-    def _derivative(self, y, delta=None):
-        rs, mask = torch.ones(y.size()), y < 0
-        rs[mask] = y[mask] + 1
-        return rs
+        return F.elu(x)
 
 
 class ReLU(Layer):
     def _activate(self, x, predict):
-        return x.clamp(min=0)
-
-    def _derivative(self, y, delta=None):
-        return (y > 0).float()
+        return F.relu(x)
 
 
 class Softplus(Layer):
     def _activate(self, x, predict):
-        return torch.log(1 + torch.exp(x))
-
-    def _derivative(self, y, delta=None):
-        return 1 - 1 / torch.exp(y)
+        return F.softplus(x)
 
 
 class Identical(Layer):
     def _activate(self, x, predict):
         return x
-
-    def _derivative(self, y, delta=None):
-        return 1
 
 
 # Special Layer
@@ -204,19 +184,13 @@ class Dropout(SubLayer):
             raise BuildLayerError("Probability of Dropout should be a positive float smaller than 1")
         SubLayer.__init__(self, parent, shape)
         self._prob = prob
-        self._prob_inv = 1 / (1 - prob)
         self.description = "(Drop prob: {})".format(prob)
 
     def get_params(self):
         return self._prob,
 
     def _activate(self, x, predict):
-        if not predict:
-            return x.mm(torch.diag(torch.rand(x.size()[1]) >= self._prob) * self._prob_inv)
-        return x
-
-    def _derivative(self, y, delta=None):
-        return self._prob_inv * delta
+        F.dropout(x, self._prob, not predict)
 
 
 class Normalize(SubLayer):
@@ -278,27 +252,6 @@ class Normalize(SubLayer):
             out = self.gamma * x_normalized + self.beta
         return out
 
-    def _derivative(self, y, delta=None):
-        n, d = self.x_cache.shape
-        dx_normalized = delta * self.gamma
-        x_mu = self.x_cache - self.sample_mean
-        sample_std_inv = 1.0 / torch.sqrt(self.sample_var + self._eps)
-        ds_var = -0.5 * torch.sum(dx_normalized * x_mu, dim=0) * (
-            sample_std_inv * sample_std_inv * sample_std_inv
-        )
-        ds_mean = (-1.0 * torch.sum(dx_normalized * sample_std_inv, dim=0) - 2.0 *
-                   ds_var * torch.mean(x_mu, dim=0))
-        dx1 = dx_normalized * sample_std_inv
-        dx2 = 2.0 / n * ds_var * x_mu
-        dx = dx1 + dx2 + 1.0 / n * ds_mean
-        dg = torch.sum(delta * self.x_normalized_cache, dim=0)
-        db = torch.sum(delta, dim=0)
-        self.gamma += self._g_optimizer.run(0, dg)
-        self.beta += self._b_optimizer.run(0, db)
-        self._g_optimizer.update()
-        self._b_optimizer.update()
-        return dx
-
 
 # Cost Layer
 
@@ -332,21 +285,9 @@ class CostLayer(Layer):
             return x
         return self._transform_function(x)
 
-    def _derivative(self, y, delta=None):
-        raise LayerError("derivative function should not be called in CostLayer")
-
-    def bp_first(self, y, y_pred):
-        if self._cost_function_name == "CrossEntropy" and (
-                self._transform == "Softmax" or self._transform == "Sigmoid"):
-            return y - y_pred
-        dy = -self._cost_function(y, y_pred)
-        if self._transform_function is None:
-            return dy
-        return dy * self._transform_function(y_pred, diff=True)
-
     @property
     def calculate(self):
-        return lambda y, y_pred: self._cost_function(y, y_pred, False)
+        return lambda y, y_pred: self._cost_function(y, y_pred)
 
     @property
     def cost_function(self):
@@ -367,35 +308,23 @@ class CostLayer(Layer):
     # Transform Functions
 
     @staticmethod
-    def _softmax(y, diff=False):
-        if diff:
-            return y * (1 - y)
-        exp_y = CostLayer.safe_exp(y)
-        return exp_y / torch.sum(exp_y, dim=1).expand_as(exp_y)
+    def _softmax(y):
+        return F.log_softmax(y)
 
     @staticmethod
-    def _sigmoid(y, diff=False):
-        if diff:
-            return y * (1 - y)
-        return 1 / (1 + torch.exp(-y))
+    def _sigmoid(y):
+        return F.sigmoid(y)
 
     # Cost Functions
 
     @staticmethod
-    def _mse(y, y_pred, diff=True):
-        if diff:
-            return -y + y_pred
-        dis = y - y_pred
-        return 0.5 * torch.mean(dis * dis)
+    def _mse(y, y_pred):
+        return torch.nn.MSELoss()(y_pred, y)
 
     @staticmethod
-    def _cross_entropy(y, y_pred, diff=True):
-        if diff:
-            return -y / y_pred + (1 - y) / (1 - y_pred)
-        # noinspection PyTypeChecker
-        return torch.mean(
-            -y * torch.log(torch.clamp(y_pred, min=1e-12)) -
-            (1 - y) * torch.log(torch.clamp(1 - y_pred, min=1e-12))
+    def _cross_entropy(y, y_pred):
+        return F.cross_entropy(
+            y_pred, torch.squeeze(torch.max(y, dim=1)[1], 1)
         )
 
     

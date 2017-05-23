@@ -4,20 +4,21 @@ import time
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+from math import sqrt, ceil
+from torch.autograd import Variable
 
-from NN.PyTorch.Basic.Layers import *
+from NN.PyTorch.Auto.Layers import *
 from NN.Basic.Networks import NNConfig, NNVerbose
-from NN.PyTorch.Optimizers import OptFactory
+from NN.PyTorch.Auto.Optimizers import OptFactory
 
 from Util.Util import VisUtil
 from Util.ProgressBar import ProgressBar
-from Util.Bases import TorchBasicClassifierBase
+from Util.Bases import TorchAutoClassifierBase
 
 
-# PyTorch Implementation without using auto-grad
+# PyTorch Implementation with auto-grad & custom Optimizers
 
-class NNDist(TorchBasicClassifierBase):
+class NNDist(TorchAutoClassifierBase):
     NNTiming = Timing()
 
     def __init__(self, **kwargs):
@@ -25,10 +26,9 @@ class NNDist(TorchBasicClassifierBase):
         self._layers, self._weights, self._bias = [], [], []
         self._layer_names, self._layer_shapes, self._layer_params = [], [], []
         self._lr, self._epoch, self._regularization_param = 0, 0, 0
-        self._w_optimizer, self._b_optimizer, self._optimizer_name = None, None, ""
         self.verbose = 1
 
-        self._whether_apply_bias = False
+        self._apply_bias = False
         self._current_dimension = 0
 
         self._logs = {}
@@ -50,10 +50,9 @@ class NNDist(TorchBasicClassifierBase):
         self._layers, self._weights, self._bias = [], [], []
         self._layer_names, self._layer_shapes, self._layer_params = [], [], []
         self._lr, self._epoch, self._regularization_param = 0, 0, 0
-        self._w_optimizer, self._b_optimizer, self._optimizer_name = None, None, ""
         self.verbose = 1
 
-        self._whether_apply_bias = False
+        self._apply_bias = False
         self._current_dimension = 0
 
         self._logs = []
@@ -105,22 +104,11 @@ class NNDist(TorchBasicClassifierBase):
             if sp_param is not None:
                 layer.set_special_params(sp_param)
 
-    @property
-    def optimizer(self):
-        return self._optimizer_name
-
-    @optimizer.setter
-    def optimizer(self, value):
-        try:
-            self._optimizer_name = value
-        except KeyError:
-            raise BuildNetworkError("Invalid Optimizer '{}' provided".format(value))
-
     # Utils
 
     @NNTiming.timeit(level=4)
     def _get_min_max(self, x, y):
-        x, y = x.numpy(), y.numpy()
+        x, y = x.data.numpy(), y.data.numpy()
         self._x_min, self._x_max = np.min(x), np.max(x)
         self._y_min, self._y_max = np.min(y), np.max(y)
 
@@ -160,9 +148,25 @@ class NNDist(TorchBasicClassifierBase):
         return (x_train, x_test), (y_train, y_test)
 
     @NNTiming.timeit(level=4)
-    def _add_weight(self, shape):
-        self._weights.append(torch.randn(*shape))
-        self._bias.append(torch.zeros((1, shape[1])))
+    def _add_weight(self, shape, conv_channel=None, fc_shape=None):
+        if fc_shape is not None:
+            self._weights.append(Variable(torch.randn(fc_shape, shape[1]), requires_grad=True))
+            self._bias.append(Variable(torch.zeros((1, shape[1])), requires_grad=True))
+        elif conv_channel is not None:
+            if len(shape[1]) <= 2:
+                self._weights.append(Variable(
+                    torch.randn(conv_channel, conv_channel, shape[1][0], shape[1][1]),
+                    requires_grad=True
+                ))
+            else:
+                self._weights.append(Variable(
+                    torch.randn(shape[1][0], conv_channel, shape[1][1], shape[1][2]),
+                    requires_grad=True
+                ))
+            self._bias.append(Variable(torch.zeros((1, shape[1][0])), requires_grad=True))
+        else:
+            self._weights.append(Variable(torch.randn(*shape), requires_grad=True))
+            self._bias.append(Variable(torch.zeros((1, shape[1])), requires_grad=True))
 
     @NNTiming.timeit(level=4)
     def _add_layer(self, layer, *args, **kwargs):
@@ -195,9 +199,18 @@ class NNDist(TorchBasicClassifierBase):
             self._bias.append(torch.Tensor(0))
             self._current_dimension = _next
         else:
-            last_layer = self._layers[-1]
+            fc_shape, conv_channel, last_layer = None, None, self._layers[-1]
+            if isinstance(last_layer, ConvLayer):
+                if isinstance(layer, ConvLayer):
+                    conv_channel = last_layer.n_filters
+                    _current = (conv_channel, last_layer.out_h, last_layer.out_w)
+                    layer.feed_shape((_current, _next))
+                else:
+                    layer.is_fc = True
+                    last_layer.is_fc_base = True
+                    fc_shape = last_layer.out_h * last_layer.out_w * last_layer.n_filters
             self._layers.append(layer)
-            self._add_weight((_current, _next))
+            self._add_weight((_current, _next), conv_channel, fc_shape)
             self._current_dimension = _next
         self._update_layer_information(layer)
 
@@ -245,16 +258,24 @@ class NNDist(TorchBasicClassifierBase):
                 activations[-1], self._weights[i + 1], self._bias[i + 1], predict))
         return activations
 
+    @NNTiming.timeit(level=1)
+    def _get_final_activation(self, x, predict=False):
+        activation = self._layers[0].activate(x, self._weights[0], self._bias[0], predict)
+        for i, layer in enumerate(self._layers[1:]):
+            activation = layer.activate(activation, self._weights[i + 1], self._bias[i + 1], predict)
+        return activation
+
     @NNTiming.timeit(level=3)
     def _append_log(self, x, y, name, get_loss=True):
         y_pred = self._get_prediction(x, name)
         for i, metric in enumerate(self._metrics):
             self._logs[name][i].append(metric(
-                torch.max(y, dim=1)[1].numpy(), torch.max(y_pred, dim=1)[1].numpy()
+                torch.max(y, dim=1)[1].data.numpy(),
+                torch.max(y_pred, dim=1)[1].data.numpy()
             ))
         if get_loss:
             self._logs[name][-1].append(
-                (self._layers[-1].calculate(y, y_pred) / len(y))
+                (self._layers[-1].calculate(y, y_pred) / len(y)).data.numpy()[0]
             )
 
     @NNTiming.timeit(level=3)
@@ -287,12 +308,12 @@ class NNDist(TorchBasicClassifierBase):
         half_plot_num = int(plot_num * 0.5)
         xf = torch.linspace(self._x_min * plot_scale, self._x_max * plot_scale, plot_num)
         yf = torch.linspace(self._x_min * plot_scale, self._x_max * plot_scale, plot_num) * -1
-        input_xs = torch.stack([
+        input_xs = Variable(torch.stack([
             xf.repeat(plot_num), yf.repeat(plot_num, 1).t().contiguous().view(-1)
-        ], 1)
+        ], 1))
 
         activations = [
-            activation.numpy().T.reshape(units[i + 1], plot_num, plot_num)
+            activation.data.numpy().T.reshape(units[i + 1], plot_num, plot_num)
             for i, activation in enumerate(
                 self._get_activations(input_xs, predict=True)
             )]
@@ -329,7 +350,7 @@ class NNDist(TorchBasicClassifierBase):
 
         colors, thicknesses, masks = [], [], []
         for weight in self._weights:
-            line_info = VisUtil.get_line_info(weight.numpy().copy())
+            line_info = VisUtil.get_line_info(weight.data.numpy().copy())
             colors.append(line_info[0])
             thicknesses.append(line_info[1])
             masks.append(line_info[2])
@@ -362,27 +383,34 @@ class NNDist(TorchBasicClassifierBase):
 
     @NNTiming.timeit(level=4)
     def _init_optimizer(self):
-        if not isinstance(self._w_optimizer, Optimizer):
-            self._w_optimizer = self._optimizer_factory.get_optimizer_by_name(
-                self._w_optimizer, self._weights, self._lr, self._epoch)
-        if not isinstance(self._b_optimizer, Optimizer):
-            self._b_optimizer = self._optimizer_factory.get_optimizer_by_name(
-                self._b_optimizer, self._bias, self._lr, self._epoch)
-        if self._w_optimizer.name != self._b_optimizer.name:
-            self._optimizer_name = None
-        else:
-            self._optimizer_name = self._w_optimizer.name
+        if not isinstance(self._optimizer, Optimizer):
+            self._optimizer = self._optimizer_factory.get_optimizer_by_name(
+                self._optimizer, self._model_parameters, self._lr, self._epoch)
 
-    @NNTiming.timeit(level=1)
-    def _opt(self, i, activation, delta):
-        self._weights[i] *= self._regularization_param
-        self._weights[i] += self._w_optimizer.run(
-            i, activation.view(activation.size()[0], -1).t().mm(delta)
-        )
-        if self._whether_apply_bias:
-            self._bias[i] += self._b_optimizer.run(
-                i, torch.sum(delta, dim=0)
-            )
+    # Batch Work
+
+    @NNTiming.timeit(level=2)
+    def _batch_work(self, i, sub_bar, x, y, x_test, y_test,
+                    draw_weights, weight_trace, show_loss):
+        if draw_weights:
+            for i, weight in enumerate(self._weights):
+                for j, new_weight in enumerate(weight.copy()):
+                    weight_trace[i][j].append(new_weight)
+        if self.verbose >= NNVerbose.DEBUG:
+            pass
+        if self.verbose >= NNVerbose.ITER:
+            if sub_bar.update() and self.verbose >= NNVerbose.METRICS_DETAIL:
+                self._append_log(x, y, "train", get_loss=show_loss)
+                self._append_log(x_test, y_test, "cv", get_loss=show_loss)
+                self._print_metric_logs(show_loss, "train")
+                self._print_metric_logs(show_loss, "cv")
+
+    @NNTiming.timeit(level=2)
+    def _predict(self, x, get_raw_results=False, **kwargs):
+        rs = self._get_final_activation(x)
+        if get_raw_results:
+            return rs
+        return torch.sign(rs)
 
     # API
 
@@ -403,7 +431,10 @@ class NNDist(TorchBasicClassifierBase):
                     ))
                 self._layers, self._current_dimension = [layer], layer.shape[1]
                 self._update_layer_information(layer)
-                self._add_weight(layer.shape)
+                if isinstance(layer, ConvLayer):
+                    self._add_weight(layer.shape, layer.n_channels)
+                else:
+                    self._add_weight(layer.shape)
             else:
                 if len(layer.shape) > 2:
                     raise BuildLayerError("Invalid Layer provided (shape should be {}, {} found)".format(
@@ -416,7 +447,7 @@ class NNDist(TorchBasicClassifierBase):
                             raise BuildLayerError("Invalid SubLayer provided (shape[1] should be {}, {} found)".format(
                                 self._current_dimension, _next
                             ))
-                    elif _current != self._current_dimension:
+                    elif not isinstance(layer, ConvLayer) and _current != self._current_dimension:
                         raise BuildLayerError("Invalid Layer provided (shape[0] should be {}, {} found)".format(
                             self._current_dimension, _current
                         ))
@@ -462,7 +493,11 @@ class NNDist(TorchBasicClassifierBase):
                 "\n".join([
                     "Layer  :  {:<16s} - {} {}".format(
                         _layer.name, _layer.shape[1], _layer.description
-                    ) if isinstance(_layer, SubLayer) else "Layer  :  {:<10s} - {}".format(
+                    ) if isinstance(_layer, SubLayer) else
+                    "Layer  :  {:<16s} - {:<14s} - strides: {:2d} - padding: {:2d} - out: {}".format(
+                        _layer.name, str(_layer.shape[1]), _layer.stride, _layer.padding,
+                        (_layer.n_filters, _layer.out_h, _layer.out_w)
+                    ) if isinstance(_layer, ConvLayer) else "Layer  :  {:<10s} - {}".format(
                         _layer.name, _layer.shape[1]
                     ) for _layer in self._layers[:-1]
                 ]) + "\nCost   :  {:<10s}".format(str(self._layers[-1]))
@@ -473,44 +508,36 @@ class NNDist(TorchBasicClassifierBase):
     def fit(self,
             x, y, x_test=None, y_test=None,
             batch_size=128, record_period=1, train_only=False,
-            optimizer=None, w_optimizer=None, b_optimizer=None,
-            lr=0.001, lb=0.001, epoch=20, weight_scale=1, apply_bias=True,
+            optimizer="Adam", lr=0.001, lb=0.001, epoch=20, weight_scale=1, apply_bias=True,
             show_loss=True, metrics=None, do_log=True, verbose=None,
             visualize=False, visualize_setting=None,
             draw_weights=False, animation_params=None):
+
         self._lr, self._epoch = lr, epoch
         for weight in self._weights:
-            weight *= weight_scale
-        if not self._w_optimizer or not self._b_optimizer:
-            if not self._optimizer_name:
-                if optimizer is None:
-                    optimizer = "Adam"
-                self._w_optimizer = optimizer if w_optimizer is None else w_optimizer
-                self._b_optimizer = optimizer if b_optimizer is None else b_optimizer
-            else:
-                if not self._w_optimizer:
-                    self._w_optimizer = self._optimizer_name
-                if not self._b_optimizer:
-                    self._b_optimizer = self._optimizer_name
+            weight.data *= weight_scale
+        self._model_parameters = self._weights
+        if apply_bias:
+            self._model_parameters += self._bias
+        self._optimizer = optimizer
         self._init_optimizer()
-        assert isinstance(self._w_optimizer, Optimizer) and isinstance(self._b_optimizer, Optimizer)
+        assert isinstance(self._optimizer, Optimizer)
         print()
         print("=" * 30)
         print("Optimizers")
         print("-" * 30)
-        print("w: {}\nb: {}".format(self._w_optimizer, self._b_optimizer))
+        print(self._optimizer)
         print("-" * 30)
+
         if not self._layers:
             raise BuildNetworkError("Please provide layers before fitting data")
         if y.shape[1] != self._current_dimension:
             raise BuildNetworkError("Output layer's shape should be {}, {} found".format(
                 self._current_dimension, y.shape[1]))
 
-        x = torch.from_numpy(np.asarray(x, dtype=np.float32))
-        y = torch.from_numpy(np.asarray(y, dtype=np.float32))
+        x, y = self._arr_to_variable(False, x, y)
         if x_test is not None and y_test is not None:
-            x_test = torch.from_numpy(np.asarray(x_test, dtype=np.float32))
-            y_test = torch.from_numpy(np.asarray(y_test, dtype=np.float32))
+            x_test, y_test = self._arr_to_variable(False, x_test, y_test)
         (x_train, x_test), (y_train, y_test) = self._split_data(
             x, y, x_test, y_test, train_only)
         train_len = len(x_train)
@@ -534,8 +561,7 @@ class NNDist(TorchBasicClassifierBase):
         if verbose is not None:
             self.verbose = verbose
 
-        layer_width = len(self._layers)
-        self._whether_apply_bias = apply_bias
+        self._apply_bias = apply_bias
 
         bar = ProgressBar(max_value=max(1, epoch // record_period), name="Epoch", start=False)
         if self.verbose >= NNVerbose.EPOCH:
@@ -547,42 +573,21 @@ class NNDist(TorchBasicClassifierBase):
         else:
             weight_trace = []
 
+        loss_function = self._layers[-1].calculate
+        args = (
+            x_train, y_train, x_test, y_test,
+            draw_weights, weight_trace, show_loss
+        )
+
         *animation_properties, animation_params = self._get_animation_params(animation_params)
         sub_bar = ProgressBar(max_value=train_repeat * record_period - 1, name="Iteration", start=False)
         for counter in range(epoch):
-            self._w_optimizer.update()
-            self._b_optimizer.update()
+            self._optimizer.update()
             if self.verbose >= NNVerbose.ITER and counter % record_period == 0:
                 sub_bar.start()
-            for _ in range(train_repeat):
-                if do_random_batch:
-                    batch = torch.randperm(train_len)[:batch_size]
-                    x_batch, y_batch = x_train[batch], y_train[batch]
-                else:
-                    x_batch, y_batch = x_train, y_train
-                activations = self._get_activations(x_batch)
-
-                deltas = [self._layers[-1].bp_first(y_batch, activations[-1])]
-                for i in range(-1, -len(activations), -1):
-                    deltas.append(self._layers[i - 1].bp(activations[i - 1], self._weights[i], deltas[-1]))
-
-                for i in range(layer_width - 1, 0, -1):
-                    if not isinstance(self._layers[i], SubLayer):
-                        self._opt(i, activations[i - 1], deltas[layer_width - i - 1])
-                self._opt(0, x_batch, deltas[-1])
-
-                if draw_weights:
-                    for i, weight in enumerate(self._weights):
-                        for j, new_weight in enumerate(weight.copy()):
-                            weight_trace[i][j].append(new_weight)
-                if self.verbose >= NNVerbose.DEBUG:
-                    pass
-                if self.verbose >= NNVerbose.ITER:
-                    if sub_bar.update() and self.verbose >= NNVerbose.METRICS_DETAIL:
-                        self._append_log(x, y, "train", get_loss=show_loss)
-                        self._append_log(x_test, y_test, "cv", get_loss=show_loss)
-                        self._print_metric_logs(show_loss, "train")
-                        self._print_metric_logs(show_loss, "cv")
+            self.batch_training(
+                x_train, y_train, batch_size, train_repeat, loss_function, sub_bar, *args
+            )
             if self.verbose >= NNVerbose.ITER:
                 sub_bar.update()
             self._handle_animation(
@@ -654,9 +659,7 @@ class NNDist(TorchBasicClassifierBase):
                     "_metric_names": self._metric_names,
                     "_weights": self._weights,
                     "_bias": self._bias,
-                    "_optimizer_name": self._optimizer_name,
-                    "_w_optimizer": self._w_optimizer,
-                    "_b_optimizer": self._b_optimizer,
+                    "_optimizer": self._optimizer,
                     "layer_special_params": self.layer_special_params,
                 }
             }, file)
@@ -692,11 +695,11 @@ class NNDist(TorchBasicClassifierBase):
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def predict(self, x, get_raw_results=False, **kwargs):
-        if not isinstance(x, torch.Tensor):
-            x = torch.Tensor(np.asarray(x, dtype=np.float32))
+        if not isinstance(x, Variable):
+            x = Variable(torch.from_numpy(np.asarray(x, dtype=np.float32)))
         if len(x.size()) == 1:
             x = x.view(1, -1)
-        y_pred = self._get_prediction(x).numpy()
+        y_pred = self._get_prediction(x).data.numpy()
         return y_pred if get_raw_results else np.argmax(y_pred, axis=1)
 
     def draw_results(self):
@@ -726,6 +729,43 @@ class NNDist(TorchBasicClassifierBase):
         plt.legend()
         plt.show()
 
-    @staticmethod
-    def fuck_pycharm_warning():
-        print(Axes3D.acorr)
+    def draw_conv_weights(self):
+        for i, (name, weight) in enumerate(zip(self.layer_names, self._weights)):
+            if len(weight.size()) != 4:
+                return
+            for j, _w in enumerate(weight):
+                for k, _ww in enumerate(_w):
+                    VisUtil.show_img(_ww, "{} {} filter {} channel {}".format(name, i+1, j+1, k+1))
+
+    def draw_conv_series(self, x, shape=None):
+        for xx in x:
+            VisUtil.show_img(VisUtil.trans_img(xx, shape), "Original")
+            activations = self._get_activations(np.array([xx]), predict=True)
+            for i, (layer, ac) in enumerate(zip(self._layers, activations)):
+                if len(ac.shape) == 4:
+                    for n in ac:
+                        _n, height, width = n.shape
+                        a = int(ceil(sqrt(_n)))
+                        g = np.ones((a * height + a, a * width + a), n.dtype)
+                        g *= np.min(n)
+                        _i = 0
+                        for y in range(a):
+                            for x in range(a):
+                                if _i < _n:
+                                    g[y * height + y:(y + 1) * height + y, x * width + x:(x + 1) * width + x] = n[
+                                        _i, :, :]
+                                    _i += 1
+                        # normalize to [0,1]
+                        max_g = g.max()
+                        min_g = g.min()
+                        g = (g - min_g) / (max_g - min_g)
+                        VisUtil.show_img(g, "Layer {} ({})".format(i + 1, layer.name))
+                else:
+                    ac = ac[0]
+                    length = sqrt(np.prod(ac.shape))
+                    if length < 10:
+                        continue
+                    (height, width) = xx.shape[1:] if shape is None else shape[1:]
+                    sqrt_shape = sqrt(height * width)
+                    oh, ow = int(length * height / sqrt_shape), int(length * width / sqrt_shape)
+                    VisUtil.show_img(ac[:oh*ow].reshape(oh, ow), "Layer {} ({})".format(i + 1, layer.name))
