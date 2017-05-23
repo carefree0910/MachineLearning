@@ -4,7 +4,7 @@ import tensorflow as tf
 from torch.autograd import Variable
 
 from NN.TF.Optimizers import OptFactory as TFOptFac
-from NN.PyTorch.Auto.Optimizers import OptFactory as PyTorchOptFac
+from NN.PyTorch.Optimizers import OptFactory as PyTorchOptFac
 
 from Util.Timing import Timing
 from Util.ProgressBar import ProgressBar
