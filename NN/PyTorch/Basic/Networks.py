@@ -15,7 +15,7 @@ from Util.ProgressBar import ProgressBar
 from Util.Bases import TorchBasicClassifierBase
 
 
-# Neural Network
+# PyTorch Implementation without using auto-grad
 
 class NNDist(TorchBasicClassifierBase):
     NNTiming = Timing()
@@ -250,7 +250,7 @@ class NNDist(TorchBasicClassifierBase):
         y_pred = self._get_prediction(x, name)
         for i, metric in enumerate(self._metrics):
             self._logs[name][i].append(metric(
-                torch.max(y, dim=1)[1], torch.max(y_pred, dim=1)[1]
+                torch.max(y, dim=1)[1].numpy(), torch.max(y_pred, dim=1)[1].numpy()
             ))
         if get_loss:
             self._logs[name][-1].append(
@@ -471,7 +471,7 @@ class NNDist(TorchBasicClassifierBase):
 
     @NNTiming.timeit(level=1, prefix="[API] ")
     def fit(self,
-            x=None, y=None, x_test=None, y_test=None,
+            x, y, x_test=None, y_test=None,
             batch_size=128, record_period=1, train_only=False,
             optimizer=None, w_optimizer=None, b_optimizer=None,
             lr=0.001, lb=0.001, epoch=20, weight_scale=1, apply_bias=True,
@@ -562,14 +562,14 @@ class NNDist(TorchBasicClassifierBase):
                     x_batch, y_batch = x_train, y_train
                 activations = self._get_activations(x_batch)
 
-                _deltas = [self._layers[-1].bp_first(y_batch, activations[-1])]
+                deltas = [self._layers[-1].bp_first(y_batch, activations[-1])]
                 for i in range(-1, -len(activations), -1):
-                    _deltas.append(self._layers[i - 1].bp(activations[i - 1], self._weights[i], _deltas[-1]))
+                    deltas.append(self._layers[i - 1].bp(activations[i - 1], self._weights[i], deltas[-1]))
 
                 for i in range(layer_width - 1, 0, -1):
                     if not isinstance(self._layers[i], SubLayer):
-                        self._opt(i, activations[i - 1], _deltas[layer_width - i - 1])
-                self._opt(0, x_batch, _deltas[-1])
+                        self._opt(i, activations[i - 1], deltas[layer_width - i - 1])
+                self._opt(0, x_batch, deltas[-1])
 
                 if draw_weights:
                     for i, weight in enumerate(self._weights):
@@ -692,7 +692,8 @@ class NNDist(TorchBasicClassifierBase):
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def predict(self, x, get_raw_results=False, **kwargs):
-        x = torch.Tensor(np.asarray(x, dtype=np.float32))
+        if not isinstance(x, torch.Tensor):
+            x = torch.Tensor(np.asarray(x, dtype=np.float32))
         if len(x.size()) == 1:
             x = x.view(1, -1)
         y_pred = self._get_prediction(x).numpy()

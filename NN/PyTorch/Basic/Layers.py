@@ -1,8 +1,6 @@
 from NN.Errors import *
 from NN.PyTorch.Basic.Optimizers import *
 
-# TODO: Support 'SAME' padding
-
 
 # Abstract Layers
 

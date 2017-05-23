@@ -627,6 +627,7 @@ class NNDist(NNBase):
             sess.run(tf.variables_initializer(set(tf.global_variables()) - _var_cache))
 
     # Batch Work
+
     @NNTiming.timeit(level=2)
     def _batch_work(self, i, bar, counter, x_train, y_train, x_test, y_test, show_loss, condition,
                     tensorboard_verbose, train_repeat, sess, train_merge_op, test_merge_op,

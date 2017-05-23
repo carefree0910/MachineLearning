@@ -12,8 +12,8 @@ from Util.Util import VisUtil
 from Util.Bases import ClassifierBase
 from Util.ProgressBar import ProgressBar
 
-# Naive pure numpy version
 
+# Naive pure numpy version
 
 class NNVerbose:
     NONE = 0
