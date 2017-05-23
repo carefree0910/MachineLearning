@@ -20,6 +20,11 @@ Implemented `Tensorflow` & `PyTorch` backend for `LinearSVM` & `SVM`
 
 ![TFLinearSVM on Two Clusters](https://cdn.rawgit.com/carefree0910/Resources/d269faeb/Backgrounds/TFLinearSVM.gif)
 
+### TorchLinearSVM
+![TorchLinearSVM on Two Clusters](https://cdn.rawgit.com/carefree0910/Resources/cbd5675e/Lines/TorchLinearSVM.gif)
+
+![TorchLinearSVM on Two Clusters](https://cdn.rawgit.com/carefree0910/Resources/cbd5675e/Backgrounds/TorchLinearSVM.gif)
+
 ### Kernel Perceptron
 ![Kernel Perceptron on Spiral](https://cdn.rawgit.com/carefree0910/Resources/d269faeb/Lines/KP.gif)
 
