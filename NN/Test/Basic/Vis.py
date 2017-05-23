@@ -1,4 +1,5 @@
 from NN.Basic.Networks import *
+
 from Util.Util import DataUtil
 
 
@@ -20,7 +21,7 @@ def main():
         nn.preview()
         nn.fit(x, y, lr=lr, lb=lb, verbose=1, record_period=record_period,
                epoch=epoch, batch_size=128, train_only=True,
-               animation_params={"show": True, "mp4": True, "period": record_period})
+               animation_params={"show": True, "mp4": False, "period": record_period})
         if save:
             nn.save()
         nn.visualize2d(x, y)

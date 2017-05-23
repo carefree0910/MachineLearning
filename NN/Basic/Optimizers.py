@@ -25,10 +25,6 @@ class Optimizer:
             np.zeros(var.shape) for var in variables
         ]
 
-    def feed_timing(self, timing):
-        if isinstance(timing, Timing):
-            self.OptTiming = timing
-
     @OptTiming.timeit(level=1, prefix="[API] ")
     def run(self, i, dw):
         return self._run(i, dw)
@@ -111,7 +107,6 @@ class NAG(Momentum):
 
 
 class RMSProp(Optimizer):
-
     def __init__(self, lr=0.01, cache=None, decay_rate=0.9, eps=1e-8):
         Optimizer.__init__(self, lr, cache)
         self.decay_rate, self.eps = decay_rate, eps
@@ -125,7 +120,6 @@ class RMSProp(Optimizer):
 
 
 class Adam(Optimizer):
-
     def __init__(self, lr=0.01, cache=None, beta1=0.9, beta2=0.999, eps=1e-8):
         Optimizer.__init__(self, lr, cache)
         self.beta1, self.beta2, self.eps = beta1, beta2, eps
@@ -148,19 +142,17 @@ class Adam(Optimizer):
 # Factory
 
 class OptFactory:
-
     available_optimizers = {
         "MBGD": MBGD, "Momentum": Momentum, "NAG": NAG, "Adam": Adam, "RMSProp": RMSProp
     }
 
-    def get_optimizer_by_name(self, name, variables, timing, lr, epoch):
+    def get_optimizer_by_name(self, name, variables, lr, epoch):
         try:
-            _optimizer = self.available_optimizers[name](lr)
+            optimizer = self.available_optimizers[name](lr)
             if variables is not None:
-                _optimizer.feed_variables(variables)
-            _optimizer.feed_timing(timing)
-            if epoch is not None and isinstance(_optimizer, Momentum):
-                _optimizer.epoch = epoch
-            return _optimizer
+                optimizer.feed_variables(variables)
+            if epoch is not None and isinstance(optimizer, Momentum):
+                optimizer.epoch = epoch
+            return optimizer
         except KeyError:
             raise NotImplementedError("Undefined Optimizer '{}' found".format(name))

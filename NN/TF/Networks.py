@@ -317,15 +317,15 @@ class NNBase(TFClassifierBase):
 class NNDist(NNBase):
     NNTiming = Timing()
 
-    def __init__(self):
-        super(NNDist, self).__init__()
+    def __init__(self, **kwargs):
+        super(NNDist, self).__init__(**kwargs)
 
         self._sess = tf.Session()
         self._optimizer_factory = OptFactory()
 
         self._available_metrics = {
-            "acc": NNDist.acc, "_acc": NNDist.acc,
-            "f1": NNDist.f1_score, "_f1_score": NNDist.f1_score
+            "acc": self.acc, "_acc": self.acc,
+            "f1": self.f1_score, "_f1_score": self.f1_score
         }
 
     @NNTiming.timeit(level=4, prefix="[Initialize] ")
@@ -480,7 +480,9 @@ class NNDist(NNBase):
                 self._tfy: y, self._y_pred: y_pred
             }))
         if get_loss:
-            self._logs[name][-1].append(self._layers[-1].calculate(y, y_pred).eval())
+            self._logs[name][-1].append(
+                self._loss.eval({self._tfy: y, self._y_pred: y_pred})
+            )
 
     @NNTiming.timeit(level=3)
     def _print_metric_logs(self, name, show_loss):
@@ -579,28 +581,6 @@ class NNDist(NNBase):
 
         return img
 
-    # Metrics
-
-    @staticmethod
-    @NNTiming.timeit(level=2, prefix="[Private StaticMethod] ")
-    def acc(y, y_pred, weights=None):
-        y_arg, y_pred_arg = tf.argmax(y, axis=1), tf.argmax(y_pred, axis=1)
-        same = tf.cast(tf.equal(y_arg, y_pred_arg), tf.float32)
-        if weights is not None:
-            same *= weights
-        return tf.reduce_mean(same)
-
-    @staticmethod
-    @NNTiming.timeit(level=2, prefix="[Private StaticMethod] ")
-    def f1_score(y, y_pred_arg):
-        y_arg, y_pred_arg = tf.argmax(y, axis=1), tf.argmax(y_pred_arg, axis=1)
-        tp = tf.reduce_sum(y_arg * y_pred_arg)
-        if tp == 0:
-            return .0
-        fp = tf.reduce_sum((1 - y_arg) * y_pred_arg)
-        fn = tf.reduce_sum(y_arg * (1 - y_pred_arg))
-        return 2 * tp / (2 * tp + fn + fp)
-
     # Init
 
     @NNTiming.timeit(level=4)
@@ -615,8 +595,7 @@ class NNDist(NNBase):
                     return
                 raise BuildNetworkError("Invalid optimizer '{}' provided".format(self._optimizer))
         if isinstance(optimizer, str):
-            self._optimizer = self._optimizer_factory.get_optimizer_by_name(
-                optimizer, self.NNTiming, self._lr)
+            self._optimizer = self._optimizer_factory.get_optimizer_by_name(optimizer, self._lr)
         elif isinstance(optimizer, Optimizer):
             self._optimizer = optimizer
         else:
@@ -1164,10 +1143,6 @@ class NNPipe:
         for i, _nn in enumerate(self._nn_lst):
             print("-" * 60 + "\n" + str(i) + "\n" + "-" * 60)
             _nn.preview()
-
-    @NNTiming.timeit(level=4, prefix="[API] ")
-    def feed_timing(self, timing):
-        self.NNTiming = timing
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def add(self, idx, layer, shape, *args, **kwargs):

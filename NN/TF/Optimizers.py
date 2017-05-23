@@ -22,10 +22,6 @@ class Optimizer:
     def name(self):
         return str(self)
 
-    def feed_timing(self, timing):
-        if isinstance(timing, Timing):
-            self.OptTiming = timing
-
     @OptTiming.timeit(level=1, prefix="[API] ")
     def minimize(self, x, *args, **kwargs):
         return self._opt.minimize(x, *args, **kwargs)
@@ -82,10 +78,9 @@ class OptFactory:
         "Adam": Adam, "RMSProp": RMSProp
     }
 
-    def get_optimizer_by_name(self, name, timing, lr, *args, **kwargs):
+    def get_optimizer_by_name(self, name, lr, *args, **kwargs):
         try:
-            _optimizer = self.available_optimizers[name](lr, *args, **kwargs)
-            _optimizer.feed_timing(timing)
-            return _optimizer
+            optimizer = self.available_optimizers[name](lr, *args, **kwargs)
+            return optimizer
         except KeyError:
             raise NotImplementedError("Undefined Optimizer '{}' found".format(name))

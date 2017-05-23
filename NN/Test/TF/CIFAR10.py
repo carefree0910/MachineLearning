@@ -1,4 +1,5 @@
-from NN.NN import *
+from NN.TF.Networks import *
+
 from Util.Util import DataUtil
 
 
@@ -21,7 +22,7 @@ def main():
     optimizer = "Adam"
     nn.optimizer = optimizer
 
-    x, y = DataUtil.get_dataset("cifar10", "../../_Data/cifar10.txt", quantized=True, one_hot=True)
+    x, y = DataUtil.get_dataset("cifar10", "../../../_Data/cifar10.txt", quantized=True, one_hot=True)
 
     draw = True
     img_shape = (3, 32, 32)

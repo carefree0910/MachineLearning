@@ -5,7 +5,6 @@ try:
     from NN.Basic.CFunc.core import col2im_6d_cython
     cython_flag = True
 except ImportError:
-    print("Cython codes are not compiled, naive cnn bp algorithm will be used.")
     col2im_6d_cython = lambda *_args, **_kwargs: np.array([])
     cython_flag = False
 
@@ -35,10 +34,6 @@ class Layer:
 
     def __repr__(self):
         return str(self)
-
-    def feed_timing(self, timing):
-        if isinstance(timing, Timing):
-            self.LayerTiming = timing
 
     @property
     def name(self):
@@ -74,12 +69,12 @@ class Layer:
 
     @property
     def last_sub_layer(self):
-        _child = self.child
-        if not _child:
+        child = self.child
+        if not child:
             return None
-        while _child.child:
-            _child = _child.child
-        return _child
+        while child.child:
+            child = child.child
+        return child
 
     @last_sub_layer.setter
     def last_sub_layer(self, value):
@@ -136,10 +131,10 @@ class SubLayer(Layer):
 
     @property
     def root(self):
-        _parent = self.parent
-        while _parent.parent:
-            _parent = _parent.parent
-        return _parent
+        parent = self.parent
+        while parent.parent:
+            parent = parent.parent
+        return parent
 
     @root.setter
     def root(self, value):
@@ -170,8 +165,8 @@ class ConvLayer(Layer):
         :param padding:  zero-padding
         """
         if parent is not None:
-            _parent = parent.root if parent.is_sub_layer else parent
-            shape = _parent.shape
+            parent = parent.root if parent.is_sub_layer else parent
+            shape = parent.shape
         Layer.__init__(self, shape)
         self._stride, self._padding = stride, padding
         if len(shape) == 1:
@@ -414,9 +409,9 @@ class Sigmoid(Layer):
 
 class ELU(Layer):
     def _activate(self, x, predict):
-        _rs, _rs0 = x.copy(), x < 0
-        _rs[_rs0] = np.exp(_rs[_rs0]) - 1
-        return _rs
+        rs, mask = x.copy(), x < 0
+        rs[mask] = np.exp(rs[mask]) - 1
+        return rs
 
     def _derivative(self, y, delta=None):
         _rs, _indices = np.ones(y.shape), y < 0
@@ -597,11 +592,11 @@ class Normalize(SubLayer):
         _opt_fac = OptFactory()
         if not isinstance(self._g_optimizer, Optimizer):
             self._g_optimizer = _opt_fac.get_optimizer_by_name(
-                self._g_optimizer, None, self.LayerTiming, self._lr, None
+                self._g_optimizer, None, self._lr, None
             )
         if not isinstance(self._b_optimizer, Optimizer):
             self._b_optimizer = _opt_fac.get_optimizer_by_name(
-                self._b_optimizer, None, self.LayerTiming, self._lr, None
+                self._b_optimizer, None, self._lr, None
             )
         self._g_optimizer.feed_variables([self.gamma])
         self._b_optimizer.feed_variables([self.beta])

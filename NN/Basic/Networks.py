@@ -4,7 +4,6 @@ import time
 import pickle
 import matplotlib.pyplot as plt
 from math import sqrt, ceil
-from mpl_toolkits.mplot3d import Axes3D
 
 from NN.Basic.Layers import *
 from NN.Basic.Optimizers import OptFactory
@@ -44,7 +43,7 @@ class NNDist(ClassifierBase):
         self._w_optimizer, self._b_optimizer, self._optimizer_name = None, None, ""
         self.verbose = 1
 
-        self._whether_apply_bias = False
+        self._apply_bias = False
         self._current_dimension = 0
 
         self._logs = {}
@@ -57,8 +56,8 @@ class NNDist(ClassifierBase):
         self._optimizer_factory = OptFactory()
 
         self._available_metrics = {
-            "acc": NNDist.acc, "_acc": NNDist.acc,
-            "f1": NNDist.f1_score, "_f1_score": NNDist.f1_score
+            "acc": self.acc, "_acc": self.acc,
+            "f1": self.f1_score, "_f1_score": self.f1_score
         }
 
     @NNTiming.timeit(level=4, prefix="[Initialize] ")
@@ -69,7 +68,7 @@ class NNDist(ClassifierBase):
         self._w_optimizer, self._b_optimizer, self._optimizer_name = None, None, ""
         self.verbose = 1
 
-        self._whether_apply_bias = False
+        self._apply_bias = False
         self._current_dimension = 0
 
         self._logs = []
@@ -135,14 +134,47 @@ class NNDist(ClassifierBase):
     # Utils
 
     @NNTiming.timeit(level=4)
-    def _feed_data(self, x, y):
-        if len(x) != len(y):
-            raise BuildNetworkError("Data fed to network should be identical in length, x: {} and y: {} found".format(
-                len(x), len(y)
-            ))
+    def _get_min_max(self, x, y):
         self._x_min, self._x_max = np.min(x), np.max(x)
         self._y_min, self._y_max = np.min(y), np.max(y)
-        return x, y
+
+    @NNTiming.timeit(level=4)
+    def _split_data(self, x, y, x_test, y_test,
+                    train_only, training_scale=NNConfig.TRAINING_SCALE):
+        x, y = np.asarray(x), np.asarray(y)
+        if x_test is not None and y_test is not None:
+            x_test, y_test = np.asarray(x_test), np.asarray(y_test)
+        if train_only:
+            if x_test is not None and y_test is not None:
+                x, y = np.vstack((x, x_test)), np.vstack((y, y_test))
+            x_train, y_train, x_test, y_test = x, y, x, y
+        else:
+            shuffle_suffix = np.random.permutation(len(x))
+            x, y = x[shuffle_suffix], y[shuffle_suffix]
+            if x_test is None or y_test is None:
+                train_len = int(len(x) * training_scale)
+                x_train, y_train = x[:train_len], y[:train_len]
+                x_test, y_test = x[train_len:], y[train_len:]
+            elif x_test is None or y_test is None:
+                raise BuildNetworkError("Please provide test sets if you want to split data on your own")
+            else:
+                x_train, y_train = x, y
+        if NNConfig.BOOST_LESS_SAMPLES:
+            if y_train.shape[1] != 2:
+                raise BuildNetworkError("It is not permitted to boost less samples in multiple classification")
+            y_train_arg = np.argmax(y_train, axis=1)
+            y0 = y_train_arg == 0
+            y1 = ~y0
+            y_len, y0_len = len(y_train), np.sum(y0)  # type: int
+            if y0_len > int(0.5 * y_len):
+                y0, y1 = y1, y0
+                y0_len = y_len - y0_len
+            boost_suffix = np.random.randint(y0_len, size=y_len - y0_len)
+            x_train = np.vstack((x_train[y1], x_train[y0][boost_suffix]))
+            y_train = np.vstack((y_train[y1], y_train[y0][boost_suffix]))
+            shuffle_suffix = np.random.permutation(len(x_train))
+            x_train, y_train = x_train[shuffle_suffix], y_train[shuffle_suffix]
+        return (x_train, x_test), (y_train, y_test)
 
     @NNTiming.timeit(level=4)
     def _add_weight(self, shape, conv_channel=None, fc_shape=None):
@@ -361,32 +393,32 @@ class NNDist(ClassifierBase):
     def _init_optimizer(self):
         if not isinstance(self._w_optimizer, Optimizer):
             self._w_optimizer = self._optimizer_factory.get_optimizer_by_name(
-                self._w_optimizer, self._weights, self.NNTiming, self._lr, self._epoch)
+                self._w_optimizer, self._weights, self._lr, self._epoch)
         if not isinstance(self._b_optimizer, Optimizer):
             self._b_optimizer = self._optimizer_factory.get_optimizer_by_name(
-                self._b_optimizer, self._bias, self.NNTiming, self._lr, self._epoch)
+                self._b_optimizer, self._bias, self._lr, self._epoch)
         if self._w_optimizer.name != self._b_optimizer.name:
             self._optimizer_name = None
         else:
             self._optimizer_name = self._w_optimizer.name
 
     @NNTiming.timeit(level=1)
-    def _opt(self, i, _activation, _delta):
+    def _opt(self, i, activation, delta):
         if not isinstance(self._layers[i], ConvLayer):
             self._weights[i] *= self._regularization_param
             self._weights[i] += self._w_optimizer.run(
-                i, _activation.reshape(_activation.shape[0], -1).T.dot(_delta)
+                i, activation.reshape(activation.shape[0], -1).T.dot(delta)
             )
-            if self._whether_apply_bias:
+            if self._apply_bias:
                 self._bias[i] += self._b_optimizer.run(
-                    i, np.sum(_delta, axis=0, keepdims=True)
+                    i, np.sum(delta, axis=0, keepdims=True)
                 )
         else:
             self._weights[i] *= self._regularization_param
-            if _delta[1] is not None:
-                self._weights[i] += self._w_optimizer.run(i, _delta[1])
-            if self._whether_apply_bias and _delta[2] is not None:
-                self._bias[i] += self._b_optimizer.run(i, _delta[2])
+            if delta[1] is not None:
+                self._weights[i] += self._w_optimizer.run(i, delta[1])
+            if self._apply_bias and delta[2] is not None:
+                self._bias[i] += self._b_optimizer.run(i, delta[2])
 
     # API
 
@@ -479,43 +511,6 @@ class NNDist(ClassifierBase):
             )
         print("=" * 30 + "\n" + "Structure\n" + "-" * 30 + "\n" + rs + "\n" + "-" * 30 + "\n")
 
-    @NNTiming.timeit(level=4, prefix="[API] ")
-    def split_data(self, x, y, x_test, y_test,
-                   train_only, training_scale=NNConfig.TRAINING_SCALE):
-        if train_only:
-            if x_test is not None and y_test is not None:
-                x, y = np.vstack((x, x_test)), np.vstack((y, y_test))
-            x_train, y_train = np.asarray(x), np.asarray(y)
-            x_test, y_test = x_train, y_train
-        else:
-            shuffle_suffix = np.random.permutation(len(x))
-            x, y = x[shuffle_suffix], y[shuffle_suffix]
-            if x_test is None or y_test is None:
-                train_len = int(len(x) * training_scale)
-                x_train, y_train = np.asarray(x[:train_len]), np.asarray(y[:train_len])
-                x_test, y_test = np.asarray(x[train_len:]), np.asarray(y[train_len:])
-            elif x_test is None or y_test is None:
-                raise BuildNetworkError("Please provide test sets if you want to split data on your own")
-            else:
-                x_train, y_train = np.asarray(x), np.asarray(y)
-                x_test, y_test = np.asarray(x_test), np.asarray(y_test)
-        if NNConfig.BOOST_LESS_SAMPLES:
-            if y_train.shape[1] != 2:
-                raise BuildNetworkError("It is not permitted to boost less samples in multiple classification")
-            y_train_arg = np.argmax(y_train, axis=1)
-            y0 = y_train_arg == 0
-            y1 = ~y0
-            y_len, y0_len = len(y_train), np.sum(y0)  # type: int
-            if y0_len > int(0.5 * y_len):
-                y0, y1 = y1, y0
-                y0_len = y_len - y0_len
-            boost_suffix = np.random.randint(y0_len, size=y_len - y0_len)
-            x_train = np.vstack((x_train[y1], x_train[y0][boost_suffix]))
-            y_train = np.vstack((y_train[y1], y_train[y0][boost_suffix]))
-            shuffle_suffix = np.random.permutation(len(x_train))
-            x_train, y_train = x_train[shuffle_suffix], y_train[shuffle_suffix]
-        return (x_train, x_test), (y_train, y_test)
-
     @NNTiming.timeit(level=1, prefix="[API] ")
     def fit(self,
             x=None, y=None, x_test=None, y_test=None,
@@ -525,7 +520,6 @@ class NNDist(ClassifierBase):
             show_loss=True, metrics=None, do_log=True, verbose=None,
             visualize=False, visualize_setting=None,
             draw_weights=False, animation_params=None):
-        x, y = self._feed_data(x, y)
         self._lr, self._epoch = lr, epoch
         for weight in self._weights:
             weight *= weight_scale
@@ -554,14 +548,14 @@ class NNDist(ClassifierBase):
             raise BuildNetworkError("Output layer's shape should be {}, {} found".format(
                 self._current_dimension, y.shape[1]))
 
-        (x_train, x_test), (y_train, y_test) = self.split_data(
+        (x_train, x_test), (y_train, y_test) = self._split_data(
             x, y, x_test, y_test, train_only)
         train_len = len(x_train)
         batch_size = min(batch_size, train_len)
         do_random_batch = train_len > batch_size
         train_repeat = 1 if not do_random_batch else int(train_len / batch_size) + 1
         self._regularization_param = 1 - lb * lr / batch_size
-        self._feed_data(x_train, y_train)
+        self._get_min_max(x_train, y_train)
 
         self._metrics = ["acc"] if metrics is None else metrics
         for i, metric in enumerate(self._metrics):
@@ -578,7 +572,7 @@ class NNDist(ClassifierBase):
             self.verbose = verbose
 
         layer_width = len(self._layers)
-        self._whether_apply_bias = apply_bias
+        self._apply_bias = apply_bias
 
         bar = ProgressBar(max_value=max(1, epoch // record_period), name="Epoch", start=False)
         if self.verbose >= NNVerbose.EPOCH:
@@ -595,7 +589,6 @@ class NNDist(ClassifierBase):
         for counter in range(epoch):
             self._w_optimizer.update()
             self._b_optimizer.update()
-            xs, activations = [], []
             if self.verbose >= NNVerbose.ITER and counter % record_period == 0:
                 sub_bar.start()
             for _ in range(train_repeat):
@@ -605,40 +598,22 @@ class NNDist(ClassifierBase):
                 else:
                     x_batch, y_batch = x_train, y_train
                 activations = self._get_activations(x_batch)
-                if self.verbose >= NNVerbose.DEBUG:
-                    xs = [x_batch.dot(self._weights[0])]
-                    for i, weight in enumerate(self._weights[1:]):
-                        xs.append(activations[i].dot(weight))
 
-                _deltas = [self._layers[-1].bp_first(y_batch, activations[-1])]
+                deltas = [self._layers[-1].bp_first(y_batch, activations[-1])]
                 for i in range(-1, -len(activations), -1):
-                    _deltas.append(self._layers[i - 1].bp(activations[i - 1], self._weights[i], _deltas[-1]))
+                    deltas.append(self._layers[i - 1].bp(activations[i - 1], self._weights[i], deltas[-1]))
 
                 for i in range(layer_width - 1, 0, -1):
                     if not isinstance(self._layers[i], SubLayer):
-                        self._opt(i, activations[i - 1], _deltas[layer_width - i - 1])
-                self._opt(0, x_batch, _deltas[-1])
+                        self._opt(i, activations[i - 1], deltas[layer_width - i - 1])
+                self._opt(0, x_batch, deltas[-1])
 
                 if draw_weights:
                     for i, weight in enumerate(self._weights):
                         for j, new_weight in enumerate(weight.copy()):
                             weight_trace[i][j].append(new_weight)
                 if self.verbose >= NNVerbose.DEBUG:
-
-                    print("")
-                    print("## Activations ##")
-                    for i, ac in enumerate(activations):
-                        print("-- Layer {} ({}) --".format(i + 1, self._layers[i].name))
-                        print(xs[i])
-                        print(ac)
-
-                    print("")
-                    print("## Deltas ##")
-                    for i, delta in zip(range(len(_deltas) - 1, -1, -1), _deltas):
-                        print("-- Layer {} ({}) --".format(i + 1, self._layers[i].name))
-                        print(delta)
-
-                    _ = input("Press any key to continue...")
+                    pass
                 if self.verbose >= NNVerbose.ITER:
                     if sub_bar.update() and self.verbose >= NNVerbose.METRICS_DETAIL:
                         self._append_log(x, y, "train", get_loss=show_loss)
@@ -825,7 +800,3 @@ class NNDist(ClassifierBase):
                     sqrt_shape = sqrt(height * width)
                     oh, ow = int(length * height / sqrt_shape), int(length * width / sqrt_shape)
                     VisUtil.show_img(ac[:oh*ow].reshape(oh, ow), "Layer {} ({})".format(i + 1, layer.name))
-
-    @staticmethod
-    def fuck_pycharm_warning():
-        print(Axes3D.acorr)

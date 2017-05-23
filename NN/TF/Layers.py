@@ -29,10 +29,6 @@ class Layer:
     def init(self, sess):
         pass
 
-    def feed_timing(self, timing):
-        if isinstance(timing, Timing):
-            self.LayerTiming = timing
-
     @property
     def name(self):
         return str(self)

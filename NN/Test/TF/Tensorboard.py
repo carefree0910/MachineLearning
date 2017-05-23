@@ -1,4 +1,5 @@
 from NN.TF.Networks import *
+
 from Util.Util import DataUtil
 
 
@@ -14,7 +15,7 @@ def main():
     epoch = 10
     record_period = 1
 
-    x, y = DataUtil.get_dataset("mnist", "../../_Data/mnist.txt", quantized=True, one_hot=True)
+    x, y = DataUtil.get_dataset("mnist", "../../../_Data/mnist.txt", quantized=True, one_hot=True)
     x = x.reshape(len(x), 1, 28, 28)
 
     if not load:

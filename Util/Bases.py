@@ -2,6 +2,7 @@ import io
 import cv2
 import time
 import math
+import torch
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
@@ -190,6 +191,7 @@ class ClassifierBase(ModelBase):
         ClassifierBase._refresh_animation_params(self._params["animation_params"])
 
     @staticmethod
+    @clf_timing.timeit(level=2, prefix="[Metric] ")
     def acc(y, y_pred, weights=None):
         y, y_pred = np.asarray(y), np.asarray(y_pred)
         if weights is not None:
@@ -198,6 +200,7 @@ class ClassifierBase(ModelBase):
 
     # noinspection PyTypeChecker
     @staticmethod
+    @clf_timing.timeit(level=2, prefix="[Metric] ")
     def f1_score(y, y_pred):
         tp = np.sum(y * y_pred)
         if tp == 0:
@@ -265,6 +268,19 @@ class ClassifierBase(ModelBase):
         #     )
         # return matrix.astype(np.double)
         return task((x, self, 1))
+
+    @staticmethod
+    def _get_train_repeat(x, batch_size):
+        train_len = len(x)
+        batch_size = min(batch_size, train_len)
+        do_random_batch = train_len > batch_size
+        return 1 if not do_random_batch else int(train_len / batch_size) + 1
+
+    def _batch_work(self, *args):
+        pass
+
+    def batch_training(self, x, y, batch_size, train_repeat, cost, train_step, *args):
+        pass
 
     def get_metrics(self, metrics):
         if len(metrics) == 0:
@@ -567,6 +583,8 @@ class ClassifierBase(ModelBase):
 
 
 class TFClassifierBase(ClassifierBase):
+    clf_timing = Timing()
+
     def __init__(self, **kwargs):
         super(TFClassifierBase, self).__init__(**kwargs)
         self._tfx = self._tfy = None
@@ -574,14 +592,24 @@ class TFClassifierBase(ClassifierBase):
         self._sess = tf.Session()
 
     @staticmethod
-    def _get_train_repeat(x, batch_size):
-        train_len = len(x)
-        batch_size = min(batch_size, train_len)
-        do_random_batch = train_len > batch_size
-        return 1 if not do_random_batch else int(train_len / batch_size) + 1
+    @clf_timing.timeit(level=2, prefix="[Metric] ")
+    def acc(y, y_pred, weights=None):
+        y_arg, y_pred_arg = tf.argmax(y, axis=1), tf.argmax(y_pred, axis=1)
+        same = tf.cast(tf.equal(y_arg, y_pred_arg), tf.float32)
+        if weights is not None:
+            same *= weights
+        return tf.reduce_mean(same)
 
-    def _batch_work(self, *args):
-        pass
+    @staticmethod
+    @clf_timing.timeit(level=2, prefix="[Metric] ")
+    def f1_score(y, y_pred_arg):
+        y_arg, y_pred_arg = tf.argmax(y, axis=1), tf.argmax(y_pred_arg, axis=1)
+        tp = tf.reduce_sum(y_arg * y_pred_arg)
+        if tp == 0:
+            return .0
+        fp = tf.reduce_sum((1 - y_arg) * y_pred_arg)
+        fn = tf.reduce_sum(y_arg * (1 - y_pred_arg))
+        return 2 * tp / (2 * tp + fn + fp)
 
     def batch_training(self, x, y, batch_size, train_repeat, cost, train_step, *args):
         epoch_cost = 0
@@ -596,6 +624,46 @@ class TFClassifierBase(ClassifierBase):
             })[0]
             self._batch_work(i, *args)
         return epoch_cost / train_repeat
+
+
+class TorchBasicClassifierBase(ClassifierBase):
+    clf_timing = Timing()
+
+    @staticmethod
+    @clf_timing.timeit(level=2, prefix="[Metric] ")
+    def acc(y, y_pred, weights=None):
+        y, y_pred = y.float(), y_pred.float()
+        if weights is not None:
+            return torch.mean((y == y_pred).float() * weights)
+        return torch.mean((y == y_pred).float())
+
+    # noinspection PyTypeChecker
+    @staticmethod
+    @clf_timing.timeit(level=2, prefix="[Metric] ")
+    def f1_score(y, y_pred):
+        y, y_pred = y.float(), y_pred.float()
+        tp = torch.sum(y * y_pred)
+        if tp == 0:
+            return .0
+        fp = torch.sum((1 - y) * y_pred)
+        fn = torch.sum(y * (1 - y_pred))
+        return 2 * tp / (2 * tp + fn + fp)
+
+    def _handle_animation(self, i, x, y, ims, animation_params, draw_ani, show_ani, make_mp4, ani_period,
+                          name=None, img=None):
+        x, y = x.numpy(), y.numpy()
+        super(TorchBasicClassifierBase, self)._handle_animation(
+            i, x, y, ims, animation_params, draw_ani, show_ani, make_mp4, ani_period, name, img
+        )
+
+
+class TorchAutoClassifierBase(TorchBasicClassifierBase):
+    def _handle_animation(self, i, x, y, ims, animation_params, draw_ani, show_ani, make_mp4, ani_period,
+                          name=None, img=None):
+        x, y = x.data.numpy(), y.data.numpy()
+        super(TorchBasicClassifierBase, self)._handle_animation(
+            i, x, y, ims, animation_params, draw_ani, show_ani, make_mp4, ani_period, name, img
+        )
 
 
 class KernelBase(ClassifierBase):
