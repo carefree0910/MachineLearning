@@ -1,5 +1,5 @@
 # NN
-Implemented **Neural Network** & **Convolutional Neural Network** with `numpy` & `Tensorflow`
+Implemented **Neural Network** & **Convolutional Neural Network** with `Numpy` & `Tensorflow`
 
 ## Visualization
 ![Neural Network on Spiral](https://cdn.rawgit.com/carefree0910/Resources/641e8228/NN.gif)
