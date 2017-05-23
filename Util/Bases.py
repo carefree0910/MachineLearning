@@ -7,6 +7,7 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from PIL import Image
+from torch.autograd import Variable
 from mpl_toolkits.mplot3d import Axes3D
 
 from Util.Util import VisUtil
@@ -279,7 +280,7 @@ class ClassifierBase(ModelBase):
     def _batch_work(self, *args):
         pass
 
-    def batch_training(self, x, y, batch_size, train_repeat, cost, train_step, *args):
+    def batch_training(self, x, y, batch_size, train_repeat, *args):
         pass
 
     def get_metrics(self, metrics):
@@ -611,7 +612,8 @@ class TFClassifierBase(ClassifierBase):
         fn = tf.reduce_sum(y_arg * (1 - y_pred_arg))
         return 2 * tp / (2 * tp + fn + fp)
 
-    def batch_training(self, x, y, batch_size, train_repeat, cost, train_step, *args):
+    def batch_training(self, x, y, batch_size, train_repeat, *args):
+        loss, train_step, *args = args
         epoch_cost = 0
         for i in range(train_repeat):
             if train_repeat != 1:
@@ -619,7 +621,7 @@ class TFClassifierBase(ClassifierBase):
                 x_batch, y_batch = x[batch], y[batch]
             else:
                 x_batch, y_batch = x, y
-            epoch_cost += self._sess.run([cost, train_step], {
+            epoch_cost += self._sess.run([loss, train_step], {
                 self._tfx: x_batch, self._tfy: y_batch
             })[0]
             self._batch_work(i, *args)
@@ -627,28 +629,6 @@ class TFClassifierBase(ClassifierBase):
 
 
 class TorchBasicClassifierBase(ClassifierBase):
-    clf_timing = Timing()
-
-    @staticmethod
-    @clf_timing.timeit(level=2, prefix="[Metric] ")
-    def acc(y, y_pred, weights=None):
-        y, y_pred = y.float(), y_pred.float()
-        if weights is not None:
-            return torch.mean((y == y_pred).float() * weights)
-        return torch.mean((y == y_pred).float())
-
-    # noinspection PyTypeChecker
-    @staticmethod
-    @clf_timing.timeit(level=2, prefix="[Metric] ")
-    def f1_score(y, y_pred):
-        y, y_pred = y.float(), y_pred.float()
-        tp = torch.sum(y * y_pred)
-        if tp == 0:
-            return .0
-        fp = torch.sum((1 - y) * y_pred)
-        fn = torch.sum(y * (1 - y_pred))
-        return 2 * tp / (2 * tp + fn + fp)
-
     def _handle_animation(self, i, x, y, ims, animation_params, draw_ani, show_ani, make_mp4, ani_period,
                           name=None, img=None):
         x, y = x.numpy(), y.numpy()
@@ -658,12 +638,57 @@ class TorchBasicClassifierBase(ClassifierBase):
 
 
 class TorchAutoClassifierBase(TorchBasicClassifierBase):
+    def __init__(self, **kwargs):
+        super(TorchAutoClassifierBase, self).__init__(**kwargs)
+        self._optimizer = self._model_parameters = None
+
+    @staticmethod
+    def _arr_to_variable(requires_grad, *args):
+        return [
+            Variable(
+                torch.from_numpy(np.asarray(arr, dtype=np.float32)),
+                requires_grad=requires_grad
+            ) for arr in args
+        ]
+
     def _handle_animation(self, i, x, y, ims, animation_params, draw_ani, show_ani, make_mp4, ani_period,
                           name=None, img=None):
         x, y = x.data.numpy(), y.data.numpy()
         super(TorchBasicClassifierBase, self)._handle_animation(
             i, x, y, ims, animation_params, draw_ani, show_ani, make_mp4, ani_period, name, img
         )
+
+    def _update_model_params(self):
+        for i, param in enumerate(self._model_parameters):
+            param.data -= self._optimizer.run(i, param.grad.data)
+
+    def _reset_grad(self):
+        for param in self._model_parameters:
+            param.grad.data.zero_()
+
+    def batch_training(self, x, y, batch_size, train_repeat, *args):
+        loss_function, *args = args
+        epoch_cost = 0
+        for i in range(train_repeat):
+            if train_repeat != 1:
+                batch = torch.randperm(len(x))[:batch_size]
+                x_batch, y_batch = x[batch], y[batch]
+            else:
+                x_batch, y_batch = x, y
+            y_pred = self._predict(x_batch, get_raw_results=True)
+            local_loss = loss_function(y_batch, y_pred)
+            epoch_cost += local_loss
+            local_loss.backward()
+            self._update_model_params()
+            self._reset_grad()
+            self._batch_work(i, *args)
+        return float((epoch_cost / train_repeat).data.numpy()[0])
+
+    def _predict(self, x, get_raw_results=False, **kwargs):
+        pass
+
+    def predict(self, x, get_raw_results=False, **kwargs):
+        return self._predict(x, get_raw_results, **kwargs).data.numpy()
 
 
 class KernelBase(ClassifierBase):
@@ -672,6 +697,7 @@ class KernelBase(ClassifierBase):
     def __init__(self, **kwargs):
         super(KernelBase, self).__init__(**kwargs)
         self._do_log = True
+        self._is_torch = False
         self._fit_args, self._fit_args_names = None, []
         self._x = self._y = self._gram = None
         self._w = self._b = self._alpha = None
@@ -720,6 +746,9 @@ class KernelBase(ClassifierBase):
             self._prediction_cache += self._dw_cache.dot(self._gram[args, ...])
 
     def _prepare(self, sample_weight, **kwargs):
+        pass
+
+    def _torch_transform(self, y_cv):
         pass
 
     def _fit(self, *args):
@@ -781,6 +810,10 @@ class KernelBase(ClassifierBase):
                 x_cv, y_cv = self._x, self._y
         else:
             y_cv = test_gram = None
+
+        if self._is_torch:
+            y_cv, self._x, self._y = self._torch_transform(y_cv)
+
         bar = ProgressBar(max_value=epoch, name=str(self))
         for i in range(epoch):
             if self._fit(sample_weight, *fit_args):
@@ -790,11 +823,19 @@ class KernelBase(ClassifierBase):
                 local_logs = []
                 for metric in metrics:
                     if test_gram is None:
-                        local_logs.append(metric(self._y, np.sign(self._prediction_cache)))
+                        if self._is_torch:
+                            local_y = self._y.data.numpy()
+                        else:
+                            local_y = self._y
+                        local_logs.append(metric(local_y, np.sign(self._prediction_cache)))
                     else:
-                        local_logs.append(metric(y_cv, self.predict(test_gram, gram_provided=True)))
+                        if self._is_torch:
+                            local_y = y_cv.data.numpy()
+                        else:
+                            local_y = y_cv
+                        local_logs.append(metric(local_y, self.predict(test_gram, gram_provided=True)))
                 logs.append(local_logs)
-            self._handle_animation(i, x, y, ims, animation_params, *animation_properties)
+            self._handle_animation(i, self._x, self._y, ims, animation_params, *animation_properties)
             bar.update()
         self._handle_mp4(ims, animation_properties)
         return logs
@@ -813,6 +854,16 @@ class TFKernelBase(KernelBase, TFClassifierBase):
     def __init__(self, **kwargs):
         super(TFKernelBase, self).__init__(**kwargs)
         self._loss = None
+
+
+class TorchKernelBase(KernelBase, TorchAutoClassifierBase):
+    def __init__(self, **kwargs):
+        super(TorchKernelBase, self).__init__(**kwargs)
+        self._loss_function = None
+        self._is_torch = True
+
+    def _torch_transform(self, y_cv):
+        return self._arr_to_variable(False, y_cv, self._x, self._y)
 
 
 class RegressorBase(ModelBase):

@@ -1,5 +1,5 @@
 from e_SVM.Perceptron import Perceptron
-from e_SVM.LinearSVM import LinearSVM, TFLinearSVM
+from e_SVM.LinearSVM import LinearSVM, TFLinearSVM, TorchLinearSVM
 
 from Util.Util import DataUtil
 
@@ -20,6 +20,11 @@ def main():
     svm.visualize2d(x, y, padding=0.1, dense=400)
 
     svm = TFLinearSVM(animation_params=animation_params)
+    svm.fit(x, y)
+    svm.evaluate(x, y)
+    svm.visualize2d(x, y, padding=0.1, dense=400)
+
+    svm = TorchLinearSVM(animation_params=animation_params)
     svm.fit(x, y)
     svm.evaluate(x, y)
     svm.visualize2d(x, y, padding=0.1, dense=400)

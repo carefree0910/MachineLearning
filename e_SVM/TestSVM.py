@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 
-from e_SVM.SVM import SVM, TFSVM
+from e_SVM.SVM import SVM, TFSVM, TorchSVM
 from _SKlearn.SVM import SKSVM
 
 from Util.Util import DataUtil
@@ -19,6 +19,11 @@ def main():
     }
 
     svm = SVM(animation_params=animation_params)
+    svm.fit(x, y, kernel="poly", p=12)
+    svm.evaluate(x, y)
+    svm.visualize2d(x, y, padding=0.1, dense=400, emphasize=svm["alpha"] > 0)
+
+    svm = TorchSVM(animation_params=animation_params)
     svm.fit(x, y, kernel="poly", p=12)
     svm.evaluate(x, y)
     svm.visualize2d(x, y, padding=0.1, dense=400, emphasize=svm["alpha"] > 0)
@@ -48,6 +53,23 @@ def main():
     svm.fit(x_train, y_train)
     svm.evaluate(x_train, y_train)
     svm.evaluate(x_test, y_test)
+
+    svm = TorchSVM()
+    svm.fit(x_train, y_train)
+    svm.evaluate(x_train, y_train)
+    svm.evaluate(x_test, y_test)
+
+    svm = TorchSVM()
+    logs = [log[0] for log in svm.fit(
+        x_train, y_train, metrics=["acc"], x_test=x_test, y_test=y_test
+    )]
+    svm.evaluate(x_train, y_train)
+    svm.evaluate(x_test, y_test)
+
+    plt.figure()
+    plt.title(svm.title)
+    plt.plot(range(len(logs)), logs)
+    plt.show()
 
     svm = SVM()
     logs = [log[0] for log in svm.fit(
