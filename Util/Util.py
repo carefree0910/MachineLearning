@@ -1,5 +1,6 @@
 import os
 import cv2
+import math
 import pickle
 import imageio
 import numpy as np
@@ -315,4 +316,98 @@ class VisUtil:
                     interpolation = cv2.INTER_CUBIC if scale > 1 else cv2.INTER_AREA
                     im = cv2.resize(im, new_shape, interpolation=interpolation)
                 writer.append_data(im[..., ::-1])
+        print("Done")
+
+
+class Overview:
+    def __init__(self, label_dic, shape=(1440, 576)):
+        self.shape = shape
+        self.label_dic = label_dic
+        self.n_col = self.n_row = 0
+        self.ans = self.pred = self.results = self.prob = None
+
+    def _get_detail(self, event, x, y, *_):
+        if event == cv2.EVENT_LBUTTONDBLCLK:
+            w, h = self.shape
+            pw, ph = w / self.n_col, h / self.n_row
+            idx = int(x // pw + self.n_col * (y // ph))
+            prob = self.prob[idx]
+            if self.ans is None or self.ans[idx] == self.pred[idx]:
+                title = "Detail (prob: {:6.4})".format(prob)
+            else:
+                title = "True label: {} (prob: {:6.4})".format(
+                    self.label_dic[self.ans[idx]], prob)
+            while 1:
+                cv2.imshow(title, self.results[idx])
+                if cv2.waitKey(20) & 0xFF == 27:
+                    break
+            cv2.destroyWindow(title)
+
+    def _get_results(self, ans, y_pred, images):
+        y_pred = np.exp(y_pred)
+        y_pred /= np.sum(y_pred, axis=1, keepdims=True)
+        pred_classes = np.argmax(y_pred, axis=1)
+        if ans is not None:
+            true_classes = np.argmax(ans, axis=1)
+            true_prob = y_pred[range(len(y_pred)), true_classes]
+        else:
+            true_classes = None
+            true_prob = y_pred[range(len(y_pred)), pred_classes]
+        self.ans, self.pred, self.prob = true_classes, pred_classes, true_prob
+        c_base = 60
+        results = []
+        for i, img in enumerate(images):
+            pred = y_pred[i]
+            indices = np.argsort(pred)[-3:][::-1]
+            ps, labels = pred[indices], self.label_dic[indices]
+            if true_classes is None:
+                color = np.array([255, 255, 255], dtype=np.uint8)
+            else:
+                p = ps[0]
+                if p <= 1 / 2:
+                    _l, _r = 2 * c_base + (255 - 2 * c_base) * 2 * p, c_base + (255 - c_base) * 2 * p
+                else:
+                    _l, _r = 255, 510 * (1 - p)
+                if true_classes[i] == pred_classes[i]:
+                    color = np.array([0, _l, _r], dtype=np.uint8)
+                else:
+                    color = np.array([0, _r, _l], dtype=np.uint8)
+            rs = np.zeros((256, 640, 3), dtype=np.uint8)
+            img = cv2.resize(img, (256, 256))
+            rs[:, :256] = img
+            rs[:, 256:] = color
+            bar_len = 180
+            for j, (p, _label) in enumerate(zip(ps, labels)):
+                cv2.putText(rs, _label, (288, 64 + 64 * j), cv2.LINE_AA, 0.6, (0, 0, 0), 1)
+                cv2.rectangle(rs, (420, 49 + 64 * j), (420 + int(bar_len * p), 69 + 64 * j), (125, 0, 125), -1)
+            results.append(rs)
+        return results
+
+    def run(self, ans, y_pred, images):
+        print("-" * 30)
+        print("Visualizing results...")
+        results = self._get_results(ans, y_pred, images)
+        n_row = math.ceil(math.sqrt(len(results)))  # type: int
+        n_col = math.ceil(len(results) / n_row)
+        pictures = []
+        for i in range(n_row):
+            if i == n_row - 1:
+                pictures.append(np.hstack(
+                    [*results[i * n_col:], np.zeros((256, 640 * (n_row * n_col - len(results)), 3)) + 255]).astype(
+                    np.uint8))
+            else:
+                pictures.append(np.hstack(
+                    results[i * n_col:(i + 1) * n_col]).astype(np.uint8))
+        self.results = results
+        self.n_row, self.n_col = n_row, n_col
+        big_canvas = np.vstack(pictures).astype(np.uint8)
+        overview = cv2.resize(big_canvas, self.shape)
+
+        cv2.namedWindow("Overview")
+        cv2.setMouseCallback("Overview", self._get_detail)
+        cv2.imshow("Overview", overview)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+        print("-" * 30)
         print("Done")
