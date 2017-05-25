@@ -552,7 +552,9 @@ class Dropout(SubLayer):
 
     def _activate(self, x, predict):
         if not predict:
-            return x.dot(np.diag(np.random.random(x.shape[1]) >= self._prob) * self._prob_inv)
+            return x.dot(np.diag(
+                (np.random.random(x.shape[1]) >= self._prob) * self._prob_inv
+            ))
         return x
 
     def _derivative(self, y, delta=None):

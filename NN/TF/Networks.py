@@ -293,24 +293,24 @@ class NNBase(TFClassifierBase):
             rs = "None"
         else:
             rs = (
-                "Input  :  {:<10s} - {}\n".format("Dimension", self._layers[0].shape[0]) +
+                "Input  :  {:<16s} - {}\n".format("Dimension", self._layers[0].shape[0]) +
                 "\n".join([_layer.info for _layer in self._layers]))
         print("=" * 30 + "\n" + "Structure\n" + "-" * 30 + "\n" + rs + "\n" + "-" * 30)
         if verbose >= 1:
             print("Initial Values\n" + "-" * 30)
             print("\n".join(["({:^16s}) w_std: {:8.6} ; b_init: {:8.6}".format(
-                _batch[0].name, float(_batch[1]), float(_batch[2])) if not isinstance(
-                _batch[0], NNPipe) else "({:^16s}) ({:^3d})".format(
-                "Pipe", len(_batch[0]["nn_lst"])
-            ) for _batch in zip(self._layers, self._w_stds, self._b_inits) if not isinstance(
-                _batch[0], SubLayer) and not isinstance(
-                _batch[0], CostLayer) and not isinstance(
-                _batch[0], ConvPoolLayer)])
+                batch[0].name, float(batch[1]), float(batch[2])) if not isinstance(
+                batch[0], NNPipe) else "({:^16s}) ({:^3d})".format(
+                "Pipe", len(batch[0]["nn_lst"])
+            ) for batch in zip(self._layers, self._w_stds, self._b_inits) if not isinstance(
+                batch[0], SubLayer) and not isinstance(
+                batch[0], CostLayer) and not isinstance(
+                batch[0], ConvPoolLayer)])
                   )
         if verbose >= 2:
-            for _layer in self._layers:
-                if isinstance(_layer, NNPipe):
-                    _layer.preview()
+            for layer in self._layers:
+                if isinstance(layer, NNPipe):
+                    layer.preview()
         print("-" * 30)
 
 
@@ -1141,9 +1141,9 @@ class NNPipe:
     def preview(self):
         print("=" * 90)
         print("Pipe Structure")
-        for i, _nn in enumerate(self._nn_lst):
+        for i, nn in enumerate(self._nn_lst):
             print("-" * 60 + "\n" + str(i) + "\n" + "-" * 60)
-            _nn.preview()
+            nn.preview()
 
     @NNTiming.timeit(level=4, prefix="[API] ")
     def add(self, idx, layer, shape, *args, **kwargs):

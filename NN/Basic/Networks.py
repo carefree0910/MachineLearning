@@ -194,16 +194,16 @@ class NNDist(ClassifierBase):
     @NNTiming.timeit(level=4)
     def _add_layer(self, layer, *args, **kwargs):
         if not self._layers and isinstance(layer, str):
-            _layer = self._layer_factory.get_root_layer_by_name(layer, *args, **kwargs)
-            if _layer:
-                self.add(_layer)
+            layer = self._layer_factory.get_root_layer_by_name(layer, *args, **kwargs)
+            if layer:
+                self.add(layer)
                 return
-        _parent = self._layers[-1]
-        if isinstance(_parent, CostLayer):
+        parent = self._layers[-1]
+        if isinstance(parent, CostLayer):
             raise BuildLayerError("Adding layer after CostLayer is not permitted")
         if isinstance(layer, str):
             layer, shape = self._layer_factory.get_layer_by_name(
-                layer, _parent, self._current_dimension, *args, **kwargs
+                layer, parent, self._current_dimension, *args, **kwargs
             )
             if shape is None:
                 self.add(layer)
@@ -212,11 +212,11 @@ class NNDist(ClassifierBase):
         else:
             _current, _next = args
         if isinstance(layer, SubLayer):
-            _parent.child = layer
+            parent.child = layer
             layer.is_sub_layer = True
             layer.root = layer.root
             layer.root.last_sub_layer = layer
-            self.parent = _parent
+            self.parent = parent
             self._layers.append(layer)
             self._weights.append(np.array([.0]))
             self._bias.append(np.array([.0]))
@@ -498,16 +498,16 @@ class NNDist(ClassifierBase):
             rs = (
                 "Input  :  {:<10s} - {}\n".format("Dimension", self._layers[0].shape[0]) +
                 "\n".join([
-                    "Layer  :  {:<16s} - {} {}".format(
-                        _layer.name, _layer.shape[1], _layer.description
-                    ) if isinstance(_layer, SubLayer) else
-                    "Layer  :  {:<16s} - {:<14s} - strides: {:2d} - padding: {:2d} - out: {}".format(
-                        _layer.name, str(_layer.shape[1]), _layer.stride, _layer.padding,
-                        (_layer.n_filters, _layer.out_h, _layer.out_w)
-                    ) if isinstance(_layer, ConvLayer) else "Layer  :  {:<10s} - {}".format(
-                        _layer.name, _layer.shape[1]
-                    ) for _layer in self._layers[:-1]
-                ]) + "\nCost   :  {:<10s}".format(str(self._layers[-1]))
+                    "Layer  :  {:<10s} - {} {}".format(
+                        layer.name, layer.shape[1], layer.description
+                    ) if isinstance(layer, SubLayer) else
+                    "Layer  :  {:<10s} - {:<14s} - strides: {:2d} - padding: {:2d} - out: {}".format(
+                        layer.name, str(layer.shape[1]), layer.stride, layer.padding,
+                        (layer.n_filters, layer.out_h, layer.out_w)
+                    ) if isinstance(layer, ConvLayer) else "Layer  :  {:<10s} - {}".format(
+                        layer.name, layer.shape[1]
+                    ) for layer in self._layers[:-1]
+                ]) + "\nCost   :  {:<16s}".format(str(self._layers[-1]))
             )
         print("=" * 30 + "\n" + "Structure\n" + "-" * 30 + "\n" + rs + "\n" + "-" * 30 + "\n")
 

@@ -660,7 +660,8 @@ class TorchAutoClassifierBase(TorchBasicClassifierBase):
 
     def _update_model_params(self):
         for i, param in enumerate(self._model_parameters):
-            param.data -= self._optimizer.run(i, param.grad.data)
+            if param.grad is not None:
+                param.data -= self._optimizer.run(i, param.grad.data)
 
     def _reset_grad(self):
         for param in self._model_parameters:

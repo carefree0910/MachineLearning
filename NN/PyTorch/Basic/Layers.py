@@ -79,7 +79,7 @@ class Layer:
         if self.is_sub_layer:
             if bias is None:
                 return self._activate(x, predict)
-            return self._activate(x + bias, predict)
+            return self._activate(x + bias.expand_as(x), predict)
         mul = x.mm(w)
         if bias is None:
             return self._activate(mul, predict)
@@ -212,7 +212,9 @@ class Dropout(SubLayer):
 
     def _activate(self, x, predict):
         if not predict:
-            return x.mm(torch.diag(torch.rand(x.size()[1]) >= self._prob) * self._prob_inv)
+            return x.mm(torch.diag(
+                (torch.rand(x.size()[1]) >= self._prob).float() * self._prob_inv
+            ))
         return x
 
     def _derivative(self, y, delta=None):
@@ -264,39 +266,42 @@ class Normalize(SubLayer):
     # noinspection PyTypeChecker
     def _activate(self, x, predict):
         if self.running_mean is None or self.running_var is None:
-            self.running_mean, self.running_var = torch.zeros(x.size()[1]), torch.zeros(x.size()[1])
+            self.running_mean = torch.zeros(x.size()[1])
+            self.running_var = torch.zeros(x.size()[1])
         if not predict:
             self.sample_mean = torch.mean(x, dim=0)
             self.sample_var = torch.var(x, dim=0)
-            x_normalized = (x - self.sample_mean) / torch.sqrt(self.sample_var + self._eps)
+            x_normalized = (x - self.sample_mean.expand_as(x)) / torch.sqrt(self.sample_var + self._eps).expand_as(x)
             self.x_cache, self.x_normalized_cache = x, x_normalized
-            out = self.gamma * x_normalized + self.beta
+            out = self.gamma.expand_as(x_normalized) * x_normalized + self.beta.expand_as(x_normalized)
             self.running_mean = self._momentum * self.running_mean + (1 - self._momentum) * self.sample_mean
             self.running_var = self._momentum * self.running_var + (1 - self._momentum) * self.sample_var
         else:
-            x_normalized = (x - self.running_mean) / torch.sqrt(self.running_var + self._eps)
-            out = self.gamma * x_normalized + self.beta
+            x_normalized = (x - self.running_mean.expand_as(x)) / torch.sqrt(self.running_var + self._eps).expand_as(x)
+            out = self.gamma.expand_as(x) * x_normalized + self.beta.expand_as(x)
         return out
 
     def _derivative(self, y, delta=None):
-        n, d = self.x_cache.shape
-        dx_normalized = delta * self.gamma
-        x_mu = self.x_cache - self.sample_mean
+        n, d = self.x_cache.size()
+        dx_normalized = delta * self.gamma.expand_as(delta)
+        x_mu = self.x_cache - self.sample_mean.expand_as(self.x_cache)
         sample_std_inv = 1.0 / torch.sqrt(self.sample_var + self._eps)
-        ds_var = -0.5 * torch.sum(dx_normalized * x_mu, dim=0) * (
+        ds_var = -0.5 * torch.sum(dx_normalized * x_mu, dim=0).expand_as(sample_std_inv) * (
             sample_std_inv * sample_std_inv * sample_std_inv
         )
-        ds_mean = (-1.0 * torch.sum(dx_normalized * sample_std_inv, dim=0) - 2.0 *
-                   ds_var * torch.mean(x_mu, dim=0))
-        dx1 = dx_normalized * sample_std_inv
-        dx2 = 2.0 / n * ds_var * x_mu
-        dx = dx1 + dx2 + 1.0 / n * ds_mean
+        ds_mean = (
+            -1.0 * torch.sum(dx_normalized * sample_std_inv.expand_as(x_mu), dim=0) - 2.0 *
+            ds_var * torch.mean(x_mu, dim=0)
+        )
+        dx1 = dx_normalized * sample_std_inv.expand_as(x_mu)
+        dx2 = 2.0 / n * ds_var.expand_as(x_mu) * x_mu
+        dx = dx1 + dx2 + 1.0 / n * ds_mean.expand_as(x_mu)
         dg = torch.sum(delta * self.x_normalized_cache, dim=0)
         db = torch.sum(delta, dim=0)
-        self.gamma += self._g_optimizer.run(0, dg)
-        self.beta += self._b_optimizer.run(0, db)
         self._g_optimizer.update()
         self._b_optimizer.update()
+        self.gamma += self._g_optimizer.run(0, dg)
+        self.beta += self._b_optimizer.run(0, db)
         return dx
 
 

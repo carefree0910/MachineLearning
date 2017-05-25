@@ -3,8 +3,6 @@ import cv2
 import time
 import pickle
 import numpy as np
-import matplotlib.pyplot as plt
-from torch.autograd import Variable
 
 from NN.PyTorch.Auto.Layers import *
 from NN.Basic.Networks import NNConfig, NNVerbose
@@ -147,23 +145,23 @@ class NNDist(TorchAutoClassifierBase):
         return (x_train, x_test), (y_train, y_test)
 
     @NNTiming.timeit(level=4)
-    def _add_weight(self, shape):
+    def _add_params(self, shape):
         self._weights.append(Variable(torch.randn(*shape), requires_grad=True))
         self._bias.append(Variable(torch.zeros((1, shape[1])), requires_grad=True))
 
     @NNTiming.timeit(level=4)
     def _add_layer(self, layer, *args, **kwargs):
         if not self._layers and isinstance(layer, str):
-            _layer = self._layer_factory.get_root_layer_by_name(layer, *args, **kwargs)
-            if _layer:
-                self.add(_layer)
+            layer = self._layer_factory.get_root_layer_by_name(layer, *args, **kwargs)
+            if layer:
+                self.add(layer)
                 return
-        _parent = self._layers[-1]
-        if isinstance(_parent, CostLayer):
+        parent = self._layers[-1]
+        if isinstance(parent, CostLayer):
             raise BuildLayerError("Adding layer after CostLayer is not permitted")
         if isinstance(layer, str):
             layer, shape = self._layer_factory.get_layer_by_name(
-                layer, _parent, self._current_dimension, *args, **kwargs
+                layer, parent, self._current_dimension, *args, **kwargs
             )
             if shape is None:
                 self.add(layer)
@@ -172,18 +170,18 @@ class NNDist(TorchAutoClassifierBase):
         else:
             _current, _next = args
         if isinstance(layer, SubLayer):
-            _parent.child = layer
+            parent.child = layer
             layer.is_sub_layer = True
             layer.root = layer.root
             layer.root.last_sub_layer = layer
-            self.parent = _parent
+            self.parent = parent
             self._layers.append(layer)
-            self._weights.append(torch.Tensor(0))
-            self._bias.append(torch.Tensor(0))
+            self._weights.append(None)
+            self._bias.append(Variable(torch.zeros((1, _next)), requires_grad=True))
             self._current_dimension = _next
         else:
             self._layers.append(layer)
-            self._add_weight((_current, _next))
+            self._add_params((_current, _next))
             self._current_dimension = _next
         self._update_layer_information(layer)
 
@@ -404,7 +402,7 @@ class NNDist(TorchAutoClassifierBase):
                     ))
                 self._layers, self._current_dimension = [layer], layer.shape[1]
                 self._update_layer_information(layer)
-                self._add_weight(layer.shape)
+                self._add_params(layer.shape)
             else:
                 if len(layer.shape) > 2:
                     raise BuildLayerError("Invalid Layer provided (shape should be {}, {} found)".format(
@@ -461,13 +459,13 @@ class NNDist(TorchAutoClassifierBase):
             rs = (
                 "Input  :  {:<10s} - {}\n".format("Dimension", self._layers[0].shape[0]) +
                 "\n".join([
-                    "Layer  :  {:<16s} - {} {}".format(
-                        _layer.name, _layer.shape[1], _layer.description
-                    ) if isinstance(_layer, SubLayer) else
+                    "Layer  :  {:<10s} - {} {}".format(
+                        layer.name, layer.shape[1], layer.description
+                    ) if isinstance(layer, SubLayer) else
                     "Layer  :  {:<10s} - {}".format(
-                        _layer.name, _layer.shape[1]
-                    ) for _layer in self._layers[:-1]
-                ]) + "\nCost   :  {:<10s}".format(str(self._layers[-1]))
+                        layer.name, layer.shape[1]
+                    ) for layer in self._layers[:-1]
+                ]) + "\nCost   :  {:<16s}".format(str(self._layers[-1]))
             )
         print("=" * 30 + "\n" + "Structure\n" + "-" * 30 + "\n" + rs + "\n" + "-" * 30 + "\n")
 
@@ -482,8 +480,9 @@ class NNDist(TorchAutoClassifierBase):
 
         self._lr, self._epoch = lr, epoch
         for weight in self._weights:
-            weight.data *= weight_scale
-        self._model_parameters = self._weights
+            if weight is not None:
+                weight.data *= weight_scale
+        self._model_parameters = [w for w in self._weights if w is not None]
         if apply_bias:
             self._model_parameters += self._bias
         self._optimizer = optimizer

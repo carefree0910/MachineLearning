@@ -1,4 +1,5 @@
 import torch.nn.functional as F
+from torch.autograd import Variable
 
 from NN.Errors import *
 from NN.PyTorch.Optimizers import *
@@ -81,7 +82,7 @@ class Layer:
         if self.is_sub_layer:
             if bias is None:
                 return self._activate(x, predict)
-            return self._activate(x + bias, predict)
+            return self._activate(x + bias.expand_as(x), predict)
         mul = x.mm(w)
         if bias is None:
             return self._activate(mul, predict)
@@ -190,7 +191,7 @@ class Dropout(SubLayer):
         return self._prob,
 
     def _activate(self, x, predict):
-        F.dropout(x, self._prob, not predict)
+        return F.dropout(x, self._prob, not predict)
 
 
 class Normalize(SubLayer):
@@ -204,7 +205,8 @@ class Normalize(SubLayer):
             self._g_optimizer, self._b_optimizer = Adam(self._lr), Adam(self._lr)
         else:
             self._g_optimizer, self._b_optimizer = optimizers
-        self.gamma, self.beta = torch.ones(self.shape[1]), torch.zeros(self.shape[1])
+        self.gamma = Variable(torch.ones(self.shape[1]), requires_grad=True)
+        self.beta = Variable(torch.ones(self.shape[1]), requires_grad=True)
         self._momentum = momentum
         self.init_optimizers()
         self.description = "(lr: {}, eps: {}, momentum: {}, optimizer: ({}, {}))".format(
@@ -238,18 +240,26 @@ class Normalize(SubLayer):
     # noinspection PyTypeChecker
     def _activate(self, x, predict):
         if self.running_mean is None or self.running_var is None:
-            self.running_mean, self.running_var = torch.zeros(x.size()[1]), torch.zeros(x.size()[1])
+            self.running_mean = Variable(torch.zeros(x.size()[1]))
+            self.running_var = Variable(torch.zeros(x.size()[1]))
         if not predict:
             self.sample_mean = torch.mean(x, dim=0)
             self.sample_var = torch.var(x, dim=0)
-            x_normalized = (x - self.sample_mean) / torch.sqrt(self.sample_var + self._eps)
+            x_normalized = (x - self.sample_mean.expand_as(x)) / torch.sqrt(self.sample_var + self._eps).expand_as(x)
             self.x_cache, self.x_normalized_cache = x, x_normalized
-            out = self.gamma * x_normalized + self.beta
+            out = self.gamma.expand_as(x_normalized) * x_normalized + self.beta.expand_as(x_normalized)
             self.running_mean = self._momentum * self.running_mean + (1 - self._momentum) * self.sample_mean
             self.running_var = self._momentum * self.running_var + (1 - self._momentum) * self.sample_var
+            if self.gamma.grad is not None and self.beta.grad is not None:
+                self._g_optimizer.update()
+                self._b_optimizer.update()
+                self.gamma.data -= self._g_optimizer.run(0, self.gamma.grad.data)
+                self.beta.data -= self._b_optimizer.run(0, self.beta.grad.data)
+                self.gamma.grad.data.zero_()
+                self.beta.grad.data.zero_()
         else:
-            x_normalized = (x - self.running_mean) / torch.sqrt(self.running_var + self._eps)
-            out = self.gamma * x_normalized + self.beta
+            x_normalized = (x - self.running_mean.expand_as(x)) / torch.sqrt(self.running_var + self._eps).expand_as(x)
+            out = self.gamma.expand_as(x) * x_normalized + self.beta.expand_as(x)
         return out
 
 
