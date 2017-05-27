@@ -1,14 +1,44 @@
+import numba
+
 from NN.Errors import *
 from NN.Basic.Optimizers import *
 
-try:
-    from NN.Basic.CFunc.core import col2im_6d_cython
-    cython_flag = True
-except ImportError:
-    col2im_6d_cython = lambda *_args, **_kwargs: np.array([])
-    cython_flag = False
-
 # TODO: Support 'SAME' padding
+
+
+@numba.jit(nopython=True)
+def conv_bp(n, n_filters, out_h, out_w, dx_padded,
+            filter_height, filter_width, sd, inner_weight, delta):
+    for i in range(n):
+        for f in range(n_filters):
+            for j in range(out_h):
+                for k in range(out_w):
+                    dx_padded[i, ..., j * sd:filter_height + j * sd, k * sd:filter_width + k * sd] += (
+                        inner_weight[f] * delta[i, f, j, k])
+
+
+@numba.jit(nopython=True)
+def max_pool(n, n_channels, out_h, out_w, x, out,
+             pool_height, pool_width, sd):
+    for i in range(n):
+        for j in range(n_channels):
+            for k in range(out_h):
+                for l in range(out_w):
+                    window = x[i, j, k * sd:pool_height + k * sd, l * sd:pool_width + l * sd]
+                    out[i, j, k, l] = np.max(window)
+
+
+@numba.jit(nopython=True)
+def max_pool_bp(n, n_channels, out_h, out_w, x_cache,
+                pool_height, pool_width, sd, dx, delta):
+    for i in range(n):
+        for j in range(n_channels):
+            for k in range(out_h):
+                for l in range(out_w):
+                    window = x_cache[i, j, k * sd:pool_height + k * sd, l * sd:pool_width + l * sd]
+                    dx[i, j, k * sd:pool_height + k * sd, l * sd:pool_width + l * sd] = (
+                        (window == np.max(window)) * delta[i, j, k, l]
+                    )
 
 
 # Abstract Layers
@@ -306,22 +336,12 @@ class ConvMeta(type):
             n_filters, _, filter_height, filter_width = self.inner_weight.shape
             *_, out_h, out_w = delta.shape
 
-            if cython_flag:
-                dx_cols = self.inner_weight.reshape(n_filters, -1).T.dot(
-                    delta.transpose(1, 0, 2, 3).reshape(n_filters, -1))
-                dx_cols.shape = (n_channels, filter_height, filter_width, n, out_h, out_w)
-                dx = col2im_6d_cython(
-                    dx_cols, n, n_channels, height, width, filter_height, filter_width, self._padding, self._stride)
-            else:
-                dx_padded = np.zeros((n, n_channels, height + 2 * p, width + 2 * p))
-                for i in range(n):
-                    for f in range(n_filters):
-                        for j in range(self.out_h):
-                            for k in range(self.out_w):
-                                # noinspection PyTypeChecker
-                                dx_padded[i, ..., j * sd:filter_height + j * sd, k * sd:filter_width + k * sd] += (
-                                    self.inner_weight[f] * delta[i, f, j, k])
-                dx = dx_padded[..., p:-p, p:-p] if p > 0 else dx_padded
+            dx_padded = np.zeros((n, n_channels, height + 2 * p, width + 2 * p))
+            conv_bp(
+                n, n_filters, out_h, out_w, dx_padded,
+                filter_height, filter_width, sd, self.inner_weight, delta
+            )
+            dx = dx_padded[..., p:-p, p:-p] if p > 0 else dx_padded
             return dx, dw, db
 
         def activate(self, x, w, bias=None, predict=False):
@@ -488,12 +508,10 @@ class MaxPool(ConvPoolLayer):
             self._pool_cache["method"] = "reshape"
         else:
             out = np.zeros((n, n_channels, self.out_h, self.out_w))
-            for i in range(n):
-                for j in range(n_channels):
-                    for k in range(self.out_h):
-                        for l in range(self.out_w):
-                            window = x[i, j, k * sd:pool_height + k * sd, l * sd:pool_width + l * sd]
-                            out[i, j, k, l] = np.max(window)
+            max_pool(
+                n, n_channels, self.out_h, self.out_w, x, out,
+                pool_height, pool_width, sd
+            )
             self._pool_cache["method"] = "original"
         return out
 
@@ -523,14 +541,10 @@ class MaxPool(ConvPoolLayer):
             n, n_channels, *_ = self.x_cache.shape
             # noinspection PyTupleAssignmentBalance
             _, pool_height, pool_width = self._shape[1]
-            for i in range(n):
-                for j in range(n_channels):
-                    for k in range(self.out_h):
-                        for l in range(self.out_w):
-                            window = self.x_cache[i, j, k*sd:pool_height+k*sd, l*sd:pool_width+l*sd]
-                            # noinspection PyTypeChecker
-                            dx[i, j, k*sd:pool_height+k*sd, l*sd:pool_width+l*sd] = (
-                                window == np.max(window)) * delta[i, j, k, l]
+            max_pool_bp(
+                n, n_channels, self.out_h, self.out_w, self.x_cache,
+                pool_height, pool_width, sd, dx, delta
+            )
         else:
             raise LayerError("Undefined pooling method '{}' found".format(method))
         return dx, None, None
