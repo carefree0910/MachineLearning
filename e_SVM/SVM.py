@@ -1,13 +1,17 @@
-import torch
 import numpy as np
 import tensorflow as tf
-from torch.autograd import Variable
 
 from NN.TF.Optimizers import OptFactory as TFOptFac
-from NN.PyTorch.Optimizers import OptFactory as PyTorchOptFac
 
 from Util.Timing import Timing
 from Util.Bases import KernelBase, TFKernelBase, TorchKernelBase
+
+try:
+    import torch
+    from torch.autograd import Variable
+    from NN.PyTorch.Optimizers import OptFactory as PyTorchOptFac
+except ImportError:
+    torch = Variable = PyTorchOptFac = None
 
 
 class SVM(KernelBase):
@@ -150,59 +154,62 @@ class TFSVM(TFKernelBase):
         return self._sess.run(rs, {self._tfx: self._kernel(np.atleast_2d(x), self._x)}).ravel()
 
 
-class TorchSVM(TorchKernelBase):
-    TorchSVMTiming = Timing()
+if TorchKernelBase is not None:
+    class TorchSVM(TorchKernelBase):
+        TorchSVMTiming = Timing()
 
-    def __init__(self, **kwargs):
-        super(TorchSVM, self).__init__(**kwargs)
-        self._fit_args, self._fit_args_names = [1e-3], ["tol"]
-        self._batch_size = kwargs.get("batch_size", 128)
-        self._optimizer = kwargs.get("optimizer", "Adam")
-        self._train_repeat = None
+        def __init__(self, **kwargs):
+            super(TorchSVM, self).__init__(**kwargs)
+            self._fit_args, self._fit_args_names = [1e-3], ["tol"]
+            self._batch_size = kwargs.get("batch_size", 128)
+            self._optimizer = kwargs.get("optimizer", "Adam")
+            self._train_repeat = None
 
-    @TorchSVMTiming.timeit(level=1, prefix="[Core] ")
-    def _loss(self, y, y_pred, sample_weight):
-        return torch.sum(
-            torch.clamp(1 - y * y_pred, min=0) * sample_weight
-        ) + 0.5 * (y_pred - self._b.expand_as(y_pred)).unsqueeze(0).mm(self._w)
+        @TorchSVMTiming.timeit(level=1, prefix="[Core] ")
+        def _loss(self, y, y_pred, sample_weight):
+            return torch.sum(
+                torch.clamp(1 - y * y_pred, min=0) * sample_weight
+            ) + 0.5 * (y_pred - self._b.expand_as(y_pred)).unsqueeze(0).mm(self._w)
 
-    def _prepare(self, sample_weight, **kwargs):
-        lr = kwargs.get("lr", self._params["lr"])
-        self._w = Variable(torch.zeros([len(self._x), 1]), requires_grad=True)
-        self._b = Variable(torch.Tensor([.0]), requires_grad=True)
-        self._model_parameters = [self._w, self._b]
-        self._optimizer = PyTorchOptFac().get_optimizer_by_name(
-            self._optimizer, self._model_parameters, lr, self._params["epoch"]
-        )
-        sample_weight, = self._arr_to_variable(False, sample_weight)
-        self._loss_function = lambda y, y_pred: self._loss(y, y_pred, sample_weight)
+        def _prepare(self, sample_weight, **kwargs):
+            lr = kwargs.get("lr", self._params["lr"])
+            self._w = Variable(torch.zeros([len(self._x), 1]), requires_grad=True)
+            self._b = Variable(torch.Tensor([.0]), requires_grad=True)
+            self._model_parameters = [self._w, self._b]
+            self._optimizer = PyTorchOptFac().get_optimizer_by_name(
+                self._optimizer, self._model_parameters, lr, self._params["epoch"]
+            )
+            sample_weight, = self._arr_to_variable(False, sample_weight)
+            self._loss_function = lambda y, y_pred: self._loss(y, y_pred, sample_weight)
 
-    @TorchSVMTiming.timeit(level=1, prefix="[API] ")
-    def _fit(self, sample_weight, tol):
-        if self._train_repeat is None:
-            self._train_repeat = self._get_train_repeat(self._x, self._batch_size)
-        l = self.batch_training(
-            self._gram, self._y, self._batch_size, self._train_repeat,
-            self._loss_function
-        )
-        if l < tol:
-            return True
+        @TorchSVMTiming.timeit(level=1, prefix="[API] ")
+        def _fit(self, sample_weight, tol):
+            if self._train_repeat is None:
+                self._train_repeat = self._get_train_repeat(self._x, self._batch_size)
+            l = self.batch_training(
+                self._gram, self._y, self._batch_size, self._train_repeat,
+                self._loss_function
+            )
+            if l < tol:
+                return True
 
-    @TorchSVMTiming.timeit(level=1, prefix="[Core] ")
-    def _predict(self, x, get_raw_results=False, **kwargs):
-        if not isinstance(x, Variable):
-            x = Variable(torch.from_numpy(np.asarray(x).astype(np.float32)))
-        rs = x.mm(self._w)
-        rs = rs.add_(self._b.expand_as(rs)).squeeze(1)
-        if get_raw_results:
-            return rs
-        return torch.sign(rs)
+        @TorchSVMTiming.timeit(level=1, prefix="[Core] ")
+        def _predict(self, x, get_raw_results=False, **kwargs):
+            if not isinstance(x, Variable):
+                x = Variable(torch.from_numpy(np.asarray(x).astype(np.float32)))
+            rs = x.mm(self._w)
+            rs = rs.add_(self._b.expand_as(rs)).squeeze(1)
+            if get_raw_results:
+                return rs
+            return torch.sign(rs)
 
-    @TorchSVMTiming.timeit(level=1, prefix="[API] ")
-    def predict(self, x, get_raw_results=False, gram_provided=False):
-        if not gram_provided:
-            x = self._kernel(np.atleast_2d(x), self._x.data.numpy())
-        y_pred = (x.dot(self._w.data.numpy()) + self._b.data.numpy()).ravel()
-        if not get_raw_results:
-            return np.sign(y_pred)
-        return y_pred
+        @TorchSVMTiming.timeit(level=1, prefix="[API] ")
+        def predict(self, x, get_raw_results=False, gram_provided=False):
+            if not gram_provided:
+                x = self._kernel(np.atleast_2d(x), self._x.data.numpy())
+            y_pred = (x.dot(self._w.data.numpy()) + self._b.data.numpy()).ravel()
+            if not get_raw_results:
+                return np.sign(y_pred)
+            return y_pred
+else:
+    TorchSVM = None

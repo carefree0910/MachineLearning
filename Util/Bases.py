@@ -2,17 +2,21 @@ import io
 import cv2
 import time
 import math
-import torch
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from PIL import Image
-from torch.autograd import Variable
 from mpl_toolkits.mplot3d import Axes3D
 
 from Util.Util import VisUtil
 from Util.Timing import Timing
 from Util.ProgressBar import ProgressBar
+
+try:
+    import torch
+    from torch.autograd import Variable
+except ImportError:
+    torch = Variable = None
 
 
 class TimingBase:
@@ -612,6 +616,7 @@ class TFClassifierBase(ClassifierBase):
         fn = tf.reduce_sum(y_arg * (1 - y_pred_arg))
         return 2 * tp / (2 * tp + fn + fp)
 
+    @clf_timing.timeit(level=2, prefix="[Core] ")
     def batch_training(self, x, y, batch_size, train_repeat, *args):
         loss, train_step, *args = args
         epoch_cost = 0
@@ -628,68 +633,70 @@ class TFClassifierBase(ClassifierBase):
         return epoch_cost / train_repeat
 
 
-class TorchBasicClassifierBase(ClassifierBase):
-    def _handle_animation(self, i, x, y, ims, animation_params, draw_ani, show_ani, make_mp4, ani_period,
-                          name=None, img=None):
-        x, y = x.numpy(), y.numpy()
-        super(TorchBasicClassifierBase, self)._handle_animation(
-            i, x, y, ims, animation_params, draw_ani, show_ani, make_mp4, ani_period, name, img
-        )
+if torch is not None:
+    class TorchBasicClassifierBase(ClassifierBase):
+        def _handle_animation(self, i, x, y, ims, animation_params, draw_ani, show_ani, make_mp4, ani_period,
+                              name=None, img=None):
+            x, y = x.numpy(), y.numpy()
+            super(TorchBasicClassifierBase, self)._handle_animation(
+                i, x, y, ims, animation_params, draw_ani, show_ani, make_mp4, ani_period, name, img
+            )
 
+    class TorchAutoClassifierBase(TorchBasicClassifierBase):
+        def __init__(self, **kwargs):
+            super(TorchAutoClassifierBase, self).__init__(**kwargs)
+            self._optimizer = self._model_parameters = None
 
-class TorchAutoClassifierBase(TorchBasicClassifierBase):
-    def __init__(self, **kwargs):
-        super(TorchAutoClassifierBase, self).__init__(**kwargs)
-        self._optimizer = self._model_parameters = None
+        @staticmethod
+        def _arr_to_variable(requires_grad, *args):
+            return [
+                Variable(
+                    torch.from_numpy(np.asarray(arr, dtype=np.float32)),
+                    requires_grad=requires_grad
+                ) for arr in args
+            ]
 
-    @staticmethod
-    def _arr_to_variable(requires_grad, *args):
-        return [
-            Variable(
-                torch.from_numpy(np.asarray(arr, dtype=np.float32)),
-                requires_grad=requires_grad
-            ) for arr in args
-        ]
+        def _handle_animation(self, i, x, y, ims, animation_params, draw_ani, show_ani, make_mp4, ani_period,
+                              name=None, img=None):
+            x, y = x.data.numpy(), y.data.numpy()
+            super(TorchBasicClassifierBase, self)._handle_animation(
+                i, x, y, ims, animation_params, draw_ani, show_ani, make_mp4, ani_period, name, img
+            )
 
-    def _handle_animation(self, i, x, y, ims, animation_params, draw_ani, show_ani, make_mp4, ani_period,
-                          name=None, img=None):
-        x, y = x.data.numpy(), y.data.numpy()
-        super(TorchBasicClassifierBase, self)._handle_animation(
-            i, x, y, ims, animation_params, draw_ani, show_ani, make_mp4, ani_period, name, img
-        )
+        def _update_model_params(self):
+            for i, param in enumerate(self._model_parameters):
+                if param.grad is not None:
+                    param.data -= self._optimizer.run(i, param.grad.data)
 
-    def _update_model_params(self):
-        for i, param in enumerate(self._model_parameters):
-            if param.grad is not None:
-                param.data -= self._optimizer.run(i, param.grad.data)
+        def _reset_grad(self):
+            for param in self._model_parameters:
+                param.grad.data.zero_()
 
-    def _reset_grad(self):
-        for param in self._model_parameters:
-            param.grad.data.zero_()
+        def batch_training(self, x, y, batch_size, train_repeat, *args):
+            loss_function, *args = args
+            epoch_cost = 0
+            for i in range(train_repeat):
+                if train_repeat != 1:
+                    batch = torch.randperm(len(x))[:batch_size]
+                    x_batch, y_batch = x[batch], y[batch]
+                else:
+                    x_batch, y_batch = x, y
+                y_pred = self._predict(x_batch, get_raw_results=True)
+                local_loss = loss_function(y_batch, y_pred)
+                epoch_cost += local_loss
+                local_loss.backward()
+                self._update_model_params()
+                self._reset_grad()
+                self._batch_work(i, *args)
+            return float((epoch_cost / train_repeat).data.numpy()[0])
 
-    def batch_training(self, x, y, batch_size, train_repeat, *args):
-        loss_function, *args = args
-        epoch_cost = 0
-        for i in range(train_repeat):
-            if train_repeat != 1:
-                batch = torch.randperm(len(x))[:batch_size]
-                x_batch, y_batch = x[batch], y[batch]
-            else:
-                x_batch, y_batch = x, y
-            y_pred = self._predict(x_batch, get_raw_results=True)
-            local_loss = loss_function(y_batch, y_pred)
-            epoch_cost += local_loss
-            local_loss.backward()
-            self._update_model_params()
-            self._reset_grad()
-            self._batch_work(i, *args)
-        return float((epoch_cost / train_repeat).data.numpy()[0])
+        def _predict(self, x, get_raw_results=False, **kwargs):
+            pass
 
-    def _predict(self, x, get_raw_results=False, **kwargs):
-        pass
-
-    def predict(self, x, get_raw_results=False, **kwargs):
-        return self._predict(x, get_raw_results, **kwargs).data.numpy()
+        def predict(self, x, get_raw_results=False, **kwargs):
+            return self._predict(x, get_raw_results, **kwargs).data.numpy()
+else:
+    TorchBasicClassifierBase = TorchAutoClassifierBase = None
 
 
 class KernelBase(ClassifierBase):
@@ -857,14 +864,17 @@ class TFKernelBase(KernelBase, TFClassifierBase):
         self._loss = None
 
 
-class TorchKernelBase(KernelBase, TorchAutoClassifierBase):
-    def __init__(self, **kwargs):
-        super(TorchKernelBase, self).__init__(**kwargs)
-        self._loss_function = None
-        self._is_torch = True
+if TorchAutoClassifierBase is not None:
+    class TorchKernelBase(KernelBase, TorchAutoClassifierBase):
+        def __init__(self, **kwargs):
+            super(TorchKernelBase, self).__init__(**kwargs)
+            self._loss_function = None
+            self._is_torch = True
 
-    def _torch_transform(self, y_cv):
-        return self._arr_to_variable(False, y_cv, self._x, self._y)
+        def _torch_transform(self, y_cv):
+            return self._arr_to_variable(False, y_cv, self._x, self._y)
+else:
+    TorchKernelBase = None
 
 
 class RegressorBase(ModelBase):

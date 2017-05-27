@@ -15,6 +15,7 @@ from pylab import mpl
 mpl.rcParams['font.sans-serif'] = ['FangSong']
 mpl.rcParams['axes.unicode_minus'] = False
 
+plt.switch_backend("Qt5Agg")
 np.random.seed(142857)
 
 
@@ -113,14 +114,9 @@ class DataUtil:
         y = np.array([xx.pop(tar_idx) for xx in x])
         if quantized:
             x = np.asarray(x, dtype=np.float32)
+            y = y.astype(np.int8)
             if one_hot:
-                z = []
-                y = y.astype(np.int8)
-                for yy in y:
-                    z.append([0 if i != yy else 1 for i in range(np.max(y) + 1)])
-                y = np.asarray(z, dtype=np.int8)
-            else:
-                y = y.astype(np.int8)
+                y = (y[..., None] == np.arange(np.max(y) + 1))
         else:
             x = np.asarray(x)
         if quantized or not quantize:
@@ -129,10 +125,7 @@ class DataUtil:
             return (x[:train_num], y[:train_num]), (x[train_num:], y[train_num:])
         x, y, wc, features, feat_dics, label_dic = DataUtil.quantize_data(x, y, **kwargs)
         if one_hot:
-            z = []
-            for yy in y:
-                z.append([0 if i != yy else 1 for i in range(len(label_dic))])
-            y = np.asarray(z)
+            y = (y[..., None] == np.arange(np.max(y)+1)).astype(np.int8)
         if train_num is None:
             return x, y, wc, features, feat_dics, label_dic
         return (
