@@ -96,6 +96,7 @@ class AdaBoost(ClassifierBase):
             self._clfs.append(deepcopy(tmp_clf))
             self._clfs_weights.append(am)
             bar.update()
+        self._clfs_weights = np.array(self._clfs_weights, dtype=np.float32)
 
     @AdaBoostTiming.timeit(level=1, prefix="[API] ")
     def predict(self, x, get_raw_results=False, bound=None, **kwargs):

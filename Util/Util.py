@@ -198,12 +198,12 @@ class DataUtil:
             if np.all(~wc):
                 dtype = np.int
             else:
-                dtype = np.double
+                dtype = np.float32
             x = np.array([[feat_dics[i][_l] if not wc[i] else _l for i, _l in enumerate(sample)]
                           for sample in x], dtype=dtype)
         else:
             x = np.array([[feat_dics[i][_l] if not wc[i] else _l for i, _l in enumerate(sample)]
-                          for sample in x], dtype=np.double)
+                          for sample in x], dtype=np.float32)
             x = (x[:, ~wc].astype(np.int), x[:, wc])
         label_dic = {_l: i for i, _l in enumerate(set(y))}
         y = np.array([label_dic[yy] for yy in y], dtype=np.int8)

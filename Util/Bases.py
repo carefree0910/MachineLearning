@@ -196,7 +196,6 @@ class ClassifierBase(ModelBase):
         ClassifierBase._refresh_animation_params(self._params["animation_params"])
 
     @staticmethod
-    @clf_timing.timeit(level=2, prefix="[Metric] ")
     def acc(y, y_pred, weights=None):
         y, y_pred = np.asarray(y), np.asarray(y_pred)
         if weights is not None:
@@ -205,7 +204,6 @@ class ClassifierBase(ModelBase):
 
     # noinspection PyTypeChecker
     @staticmethod
-    @clf_timing.timeit(level=2, prefix="[Metric] ")
     def f1_score(y, y_pred):
         tp = np.sum(y * y_pred)
         if tp == 0:
@@ -220,7 +218,7 @@ class ClassifierBase(ModelBase):
         # n_cores = kwargs.get("n_cores", 2)
         # n_cores = multiprocessing.cpu_count() if n_cores <= 0 else n_cores
         # if n_cores == 1:
-        #     matrix = np.array([clf.predict(x, n_cores=1) for clf in clfs], dtype=np.double).T
+        #     matrix = np.array([clf.predict(x, n_cores=1) for clf in clfs], dtype=np.float32).T
         # else:
         #     pool = Pool(max_workers=n_cores)
         #     batch_size = int(len(clfs) / n_cores)
@@ -232,15 +230,15 @@ class ClassifierBase(ModelBase):
         #             batch_clfs.append(clfs[cursor:cursor + batch_size])
         #         cursor += batch_size
         #     x_size = np.prod(x.shape)  # type: int
-        #     shared_base = multiprocessing.Array(ctypes.c_double, int(x_size))
+        #     shared_base = multiprocessing.Array(ctypes.c_float, int(x_size))
         #     shared_matrix = np.ctypeslib.as_array(shared_base.get_obj()).reshape(x.shape)
         #     shared_matrix[:] = x
         #     del x, clfs, shared_base
         #     matrix = stack(
         #         pool.map(task, ((shared_matrix, clfs, 1) for clfs in batch_clfs))
-        #     ).T.astype(np.double)
+        #     ).T.astype(np.float32)
         # return matrix
-        return np.array([clf.predict(x) for clf in clfs]).T
+        return np.array([clf.predict(x) for clf in clfs], dtype=np.float32).T
 
     # noinspection PyUnusedLocal
     def _multi_data(self, x, task, kwargs, stack=np.hstack):
@@ -256,10 +254,10 @@ class ClassifierBase(ModelBase):
         #     for i in range(n_cores):
         #         if i == n_cores - 1:
         #             batch_data.append(x[cursor:])
-        #             batch_base.append(multiprocessing.Array(ctypes.c_double, (len(x) - cursor) * x_dim))
+        #             batch_base.append(multiprocessing.Array(ctypes.c_float, (len(x) - cursor) * x_dim))
         #         else:
         #             batch_data.append(x[cursor:cursor + batch_size])
-        #             batch_base.append(multiprocessing.Array(ctypes.c_double, batch_size * x_dim))
+        #             batch_base.append(multiprocessing.Array(ctypes.c_float, batch_size * x_dim))
         #         cursor += batch_size
         #     shared_arrays = [
         #         np.ctypeslib.as_array(shared_base.get_obj()).reshape(-1, x_dim)
@@ -271,7 +269,7 @@ class ClassifierBase(ModelBase):
         #     matrix = stack(
         #         pool.map(task, ((x, self, n_cores) for x in shared_arrays))
         #     )
-        # return matrix.astype(np.double)
+        # return matrix.astype(np.float32)
         return task((x, self, 1))
 
     @staticmethod
