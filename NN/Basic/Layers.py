@@ -6,18 +6,26 @@ from NN.Basic.Optimizers import *
 # TODO: Support 'SAME' padding
 
 
-@numba.jit(nopython=True)
+@numba.jit([
+    "void(int64, int64, int64, int64, float32[:,:,:,:],"
+    "int64, int64, int64, float32[:,:,:,:], float32[:,:,:,:])"
+], nopython=True)
 def conv_bp(n, n_filters, out_h, out_w, dx_padded,
             filter_height, filter_width, sd, inner_weight, delta):
     for i in range(n):
         for f in range(n_filters):
             for j in range(out_h):
                 for k in range(out_w):
-                    dx_padded[i, ..., j * sd:filter_height + j * sd, k * sd:filter_width + k * sd] += (
-                        inner_weight[f] * delta[i, f, j, k])
+                    for h in range(dx_padded.shape[1]):
+                        dx_padded[i, h, j * sd:filter_height + j * sd, k * sd:filter_width + k * sd] += (
+                            inner_weight[f][h] * delta[i, f, j, k]
+                        )
 
 
-@numba.jit(nopython=True)
+@numba.jit([
+    "void(int64, int64, int64, int64, float32[:,:,:,:], float32[:,:,:,:],"
+    "int64, int64, int64)"
+], nopython=True)
 def max_pool(n, n_channels, out_h, out_w, x, out,
              pool_height, pool_width, sd):
     for i in range(n):
@@ -28,7 +36,10 @@ def max_pool(n, n_channels, out_h, out_w, x, out,
                     out[i, j, k, l] = np.max(window)
 
 
-@numba.jit(nopython=True)
+@numba.jit([
+    "void(int64, int64, int64, int64, float32[:,:,:,:],"
+    "int64, int64, int64, float32[:,:,:,:], float32[:,:,:,:])"
+], nopython=True)
 def max_pool_bp(n, n_channels, out_h, out_w, x_cache,
                 pool_height, pool_width, sd, dx, delta):
     for i in range(n):
@@ -336,7 +347,7 @@ class ConvMeta(type):
             n_filters, _, filter_height, filter_width = self.inner_weight.shape
             *_, out_h, out_w = delta.shape
 
-            dx_padded = np.zeros((n, n_channels, height + 2 * p, width + 2 * p))
+            dx_padded = np.zeros((n, n_channels, height + 2 * p, width + 2 * p), dtype=np.float32)
             conv_bp(
                 n, n_filters, out_h, out_w, dx_padded,
                 filter_height, filter_width, sd, self.inner_weight, delta
@@ -371,7 +382,8 @@ class ConvSubMeta(type):
             sub_layer.__init__(self, parent, shape, *_args, **_kwargs)
             self._shape = ((shape[0][0], self.out_h, self.out_w), shape[0])
             if name == "ConvNorm":
-                self.gamma, self.beta = np.ones(self.n_filters), np.zeros(self.n_filters)
+                self.gamma = np.ones(self.n_filters, dtype=np.float32)
+                self.beta = np.ones(self.n_filters, dtype=np.float32)
                 self.init_optimizers()
 
         def _activate(self, x, predict):
@@ -383,7 +395,6 @@ class ConvSubMeta(type):
             if self.is_fc_base:
                 delta = delta.dot(w.T).reshape(y.shape)
             n, n_channels, height, width = delta.shape
-            # delta_new = delta.transpose(0, 2, 3, 1).reshape(-1, n_channels)
             dx = sub_layer._derivative(self, y, delta.transpose(0, 2, 3, 1).reshape(-1, n_channels))
             return dx.reshape(n, height, width, n_channels).transpose(0, 3, 1, 2)
 
@@ -507,7 +518,7 @@ class MaxPool(ConvPoolLayer):
             out = x_reshaped.max(axis=3).max(axis=4)
             self._pool_cache["method"] = "reshape"
         else:
-            out = np.zeros((n, n_channels, self.out_h, self.out_w))
+            out = np.zeros((n, n_channels, self.out_h, self.out_w), dtype=np.float32)
             max_pool(
                 n, n_channels, self.out_h, self.out_w, x, out,
                 pool_height, pool_width, sd
@@ -528,18 +539,16 @@ class MaxPool(ConvPoolLayer):
             x_reshaped_cache = self._pool_cache["x_reshaped"]
             dx_reshaped = np.zeros_like(x_reshaped_cache)
             out_newaxis = y[..., None, :, None]
-            mask = (x_reshaped_cache == out_newaxis)
+            mask = (x_reshaped_cache == out_newaxis)  # type: np.ndarray
             dout_newaxis = delta[..., None, :, None]
             dout_broadcast, _ = np.broadcast_arrays(dout_newaxis, dx_reshaped)
             dx_reshaped[mask] = dout_broadcast[mask]
-            # noinspection PyTypeChecker
             dx_reshaped /= np.sum(mask, axis=(3, 5), keepdims=True)
             dx = dx_reshaped.reshape(self.x_cache.shape)
         elif method == "original":
             sd = self._stride
             dx = np.zeros_like(self.x_cache)
             n, n_channels, *_ = self.x_cache.shape
-            # noinspection PyTupleAssignmentBalance
             _, pool_height, pool_width = self._shape[1]
             max_pool_bp(
                 n, n_channels, self.out_h, self.out_w, self.x_cache,
@@ -557,6 +566,7 @@ class Dropout(SubLayer):
         if prob < 0 or prob >= 1:
             raise BuildLayerError("Probability of Dropout should be a positive float smaller than 1")
         SubLayer.__init__(self, parent, shape)
+        self._mask = None
         self._prob = prob
         self._prob_inv = 1 / (1 - prob)
         self.description = "(Drop prob: {})".format(prob)
@@ -566,13 +576,15 @@ class Dropout(SubLayer):
 
     def _activate(self, x, predict):
         if not predict:
-            return x.dot(np.diag(
-                (np.random.random(x.shape[1]) >= self._prob) * self._prob_inv
-            ))
+            # noinspection PyTypeChecker
+            self._mask = np.random.binomial(
+                [np.ones(x.shape)], 1 - self._prob
+            )[0].astype(np.float32) * self._prob_inv
+            return x * self._mask
         return x
 
     def _derivative(self, y, delta=None):
-        return self._prob_inv * delta
+        return delta * self._mask
 
 
 class Normalize(SubLayer):
@@ -586,7 +598,8 @@ class Normalize(SubLayer):
             self._g_optimizer, self._b_optimizer = Adam(self._lr), Adam(self._lr)
         else:
             self._g_optimizer, self._b_optimizer = optimizers
-        self.gamma, self.beta = np.ones(self.shape[1]), np.zeros(self.shape[1])
+        self.gamma = np.ones(self.shape[1], dtype=np.float32)
+        self.beta = np.ones(self.shape[1], dtype=np.float32)
         self._momentum = momentum
         self.init_optimizers()
         self.description = "(lr: {}, eps: {}, momentum: {}, optimizer: ({}, {}))".format(
@@ -620,7 +633,8 @@ class Normalize(SubLayer):
     # noinspection PyTypeChecker
     def _activate(self, x, predict):
         if self.running_mean is None or self.running_var is None:
-            self.running_mean, self.running_var = np.zeros(x.shape[1]), np.zeros(x.shape[1])
+            self.running_mean = np.zeros(x.shape[1], dtype=np.float32)
+            self.running_var = np.zeros(x.shape[1], dtype=np.float32)
         if not predict:
             self.sample_mean = np.mean(x, axis=0, keepdims=True)
             self.sample_var = np.var(x, axis=0, keepdims=True)
@@ -748,8 +762,6 @@ class CostLayer(Layer):
     def _mse(y, y_pred, diff=True):
         if diff:
             return -y + y_pred
-        assert_string = "y or y_pred should be np.ndarray in cost function"
-        assert isinstance(y, np.ndarray) or isinstance(y_pred, np.ndarray), assert_string
         return 0.5 * np.average((y - y_pred) ** 2)
 
     @staticmethod

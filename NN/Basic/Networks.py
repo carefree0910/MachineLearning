@@ -141,9 +141,9 @@ class NNDist(ClassifierBase):
     @NNTiming.timeit(level=4)
     def _split_data(self, x, y, x_test, y_test,
                     train_only, training_scale=NNConfig.TRAINING_SCALE):
-        x, y = np.asarray(x), np.asarray(y)
+        x, y = np.asarray(x, dtype=np.float32), np.asarray(y, dtype=np.float32)
         if x_test is not None and y_test is not None:
-            x_test, y_test = np.asarray(x_test), np.asarray(y_test)
+            x_test, y_test = np.asarray(x_test, dtype=np.float32), np.asarray(y_test, dtype=np.float32)
         if train_only:
             if x_test is not None and y_test is not None:
                 x, y = np.vstack((x, x_test)), np.vstack((y, y_test))
@@ -177,19 +177,23 @@ class NNDist(ClassifierBase):
         return (x_train, x_test), (y_train, y_test)
 
     @NNTiming.timeit(level=4)
-    def _add_weight(self, shape, conv_channel=None, fc_shape=None):
+    def _add_params(self, shape, conv_channel=None, fc_shape=None):
         if fc_shape is not None:
-            self._weights.append(np.random.randn(fc_shape, shape[1]))
-            self._bias.append(np.zeros((1, shape[1])))
+            self._weights.append(np.random.randn(fc_shape, shape[1]).astype(np.float32))
+            self._bias.append(np.zeros((1, shape[1]), dtype=np.float32))
         elif conv_channel is not None:
             if len(shape[1]) <= 2:
-                self._weights.append(np.random.randn(conv_channel, conv_channel, shape[1][0], shape[1][1]))
+                self._weights.append(np.random.randn(
+                    conv_channel, conv_channel, shape[1][0], shape[1][1]).astype(np.float32)
+                )
             else:
-                self._weights.append(np.random.randn(shape[1][0], conv_channel, shape[1][1], shape[1][2]))
-            self._bias.append(np.zeros((1, shape[1][0])))
+                self._weights.append(np.random.randn(
+                    shape[1][0], conv_channel, shape[1][1], shape[1][2]).astype(np.float32)
+                )
+            self._bias.append(np.zeros((1, shape[1][0]), dtype=np.float32))
         else:
-            self._weights.append(np.random.randn(*shape))
-            self._bias.append(np.zeros((1, shape[1])))
+            self._weights.append(np.random.randn(*shape).astype(np.float32))
+            self._bias.append(np.zeros((1, shape[1]), dtype=np.float32))
 
     @NNTiming.timeit(level=4)
     def _add_layer(self, layer, *args, **kwargs):
@@ -233,7 +237,7 @@ class NNDist(ClassifierBase):
                     last_layer.is_fc_base = True
                     fc_shape = last_layer.out_h * last_layer.out_w * last_layer.n_filters
             self._layers.append(layer)
-            self._add_weight((_current, _next), conv_channel, fc_shape)
+            self._add_params((_current, _next), conv_channel, fc_shape)
             self._current_dimension = _next
         self._update_layer_information(layer)
 
@@ -440,9 +444,9 @@ class NNDist(ClassifierBase):
                 self._layers, self._current_dimension = [layer], layer.shape[1]
                 self._update_layer_information(layer)
                 if isinstance(layer, ConvLayer):
-                    self._add_weight(layer.shape, layer.n_channels)
+                    self._add_params(layer.shape, layer.n_channels)
                 else:
-                    self._add_weight(layer.shape)
+                    self._add_params(layer.shape)
             else:
                 if len(layer.shape) > 2:
                     raise BuildLayerError("Invalid Layer provided (shape should be {}, {} found)".format(
