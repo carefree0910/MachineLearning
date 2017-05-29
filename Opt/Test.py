@@ -151,10 +151,10 @@ class RBFNRegressor(RegressorBase):
         k_mat = self.rbf(x, self._sigma2)
         return k_mat.dot(alpha)
 
-data = np.linspace(0, 20, 100)[..., None]  # type: np.ndarray
-labels = data.ravel() ** 2 + np.random.rand(100) * 25
+data = np.linspace(0, 20, 100)  # type: np.ndarray
+labels = data ** 2 + np.random.rand(100) * 25
 indices = np.random.permutation(len(data))
-data, labels = data[indices], labels[indices]
+data, labels = data[..., None][indices], labels[indices]
 rbfn = RBFNRegressor(BFGS, Armijo)
 cv_idx, test_idx = 70, 85
 rbfn.fit(data[:cv_idx], labels[:cv_idx], data[cv_idx:test_idx], labels[cv_idx:test_idx])

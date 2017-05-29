@@ -41,7 +41,7 @@ class Perceptron(ClassifierBase):
             _indices = np.random.permutation(len(y))
             _idx = _indices[np.argmax(_err[_indices])]
             if y_pred[_idx] == y[_idx]:
-                bar.update(epoch)
+                bar.terminate()
                 break
             _delta = lr * y[_idx] * sample_weight[_idx]
             self._w += _delta * x[_idx]

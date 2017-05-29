@@ -44,7 +44,7 @@ class CvDNode(metaclass=TimingMeta):
             return "CvDNode ({}) ({} -> {})".format(
                 self._depth, self.prev_feat, self.feature_dim)
         return "CvDNode ({}) ({} -> class: {})".format(
-            self._depth, self.prev_feat, self.tree.label_dic[self.category])
+            self._depth, self.prev_feat, self.tree.y_transformer[self.category])
 
     @property
     def children(self):

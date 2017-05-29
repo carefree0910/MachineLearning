@@ -891,7 +891,7 @@ class RegressorBase(ModelBase):
         x_max += x_padding
 
         t = time.time()
-        x_base = np.linspace(x_min, x_max, dense)
+        x_base = np.linspace(x_min, x_max, dense)  # type: np.ndarray
         y_pred = self.predict(x_base[..., None])
         print("Decision Time: {:8.6} s".format(time.time() - t))
 

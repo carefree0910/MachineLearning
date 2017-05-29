@@ -9,7 +9,7 @@ from Util.Bases import ClassifierBase
 
 def cvd_task(args):
     x, clf, n_cores = args
-    return np.array([clf.predict_one(xx) for xx in x])
+    return np.array([clf.root.predict_one(xx) for xx in x])
 
 
 class CvDBase(ClassifierBase):
@@ -21,8 +21,8 @@ class CvDBase(ClassifierBase):
         self.max_depth = max_depth
         self.root = node
         self.feature_sets = []
-        self.label_dic = {}
         self.prune_alpha = 1
+        self.y_transformer = None
         self.whether_continuous = whether_continuous
 
         self._params["alpha"] = kwargs.get("alpha", None)
@@ -60,9 +60,7 @@ class CvDBase(ClassifierBase):
             train_only = self._params["train_only"]
         if feature_bound is None:
             feature_bound = self._params["feature_bound"]
-        dic = {c: i for i, c in enumerate(set(y))}
-        y = np.array([dic[yy] for yy in y])
-        self.label_dic = {value: key for key, value in dic.items()}
+        self.y_transformer, y = np.unique(y, return_inverse=True)
         x = np.atleast_2d(x)
         self.prune_alpha = alpha if alpha is not None else x.shape[1] / 2
         if not train_only and self.root.is_cart:
@@ -173,11 +171,11 @@ class CvDBase(ClassifierBase):
 
     @CvDBaseTiming.timeit(level=1, prefix="[API] ")
     def predict_one(self, x):
-        return self.label_dic[self.root.predict_one(x)]
+        return self.y_transformer[self.root.predict_one(x)]
 
     @CvDBaseTiming.timeit(level=3, prefix="[API] ")
     def predict(self, x, get_raw_results=False, **kwargs):
-        return self._multi_data(x, cvd_task, kwargs)
+        return self.y_transformer[self._multi_data(x, cvd_task, kwargs)]
 
     @CvDBaseTiming.timeit(level=3, prefix="[API] ")
     def view(self):
@@ -208,7 +206,7 @@ class CvDBase(ClassifierBase):
                     text = str(node.feature_dim + 1)
                     color = (0, 0, 255)
                 else:
-                    text = str(self.label_dic[node.category])
+                    text = str(self.y_transformer[node.category])
                     color = (0, 255, 0)
                 cv2.putText(img, text, (x-7*len(text)+2, y+3), cv2.LINE_AA, 0.6, color, 1)
 

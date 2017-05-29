@@ -52,7 +52,7 @@ class Cluster(metaclass=TimingMeta):
             raise NotImplementedError("Conditional info criterion '{}' not defined".format(criterion))
         data = self._x[idx]
         if features is None:
-            features = set(data)
+            features = np.unique(data)
         tmp_labels = [data == feature for feature in features]
         # noinspection PyTypeChecker
         self._con_chaos_cache = [np.sum(label) for label in tmp_labels]

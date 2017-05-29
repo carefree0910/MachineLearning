@@ -67,7 +67,7 @@ class NaiveBayes(ClassifierBase):
         pass
 
     @NaiveBayesTiming.timeit(level=1, prefix="[API] ")
-    def predict(self, x, get_raw_result=False):
+    def predict(self, x, get_raw_result=False, **kwargs):
         if isinstance(x, np.ndarray):
             x = x.tolist()
         else:
