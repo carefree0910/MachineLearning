@@ -33,9 +33,8 @@ class NaiveBayes(ClassifierBase):
 
     def __init__(self, **kwargs):
         super(NaiveBayes, self).__init__(**kwargs)
-        self._x = self._y = None
-        self._data = self._func = None
-        self._n_possibilities = None
+        self._x = self._y = self._data = None
+        self._n_possibilities = self._p_category = None
         self._labelled_x = self._label_zip = None
         self._cat_counter = self._con_counter = None
         self.label_dic = self._feat_dics = None
@@ -61,9 +60,12 @@ class NaiveBayes(ClassifierBase):
             lb = self._params["lb"]
         if x is not None and y is not None:
             self.feed_data(x, y, sample_weight)
-        self._func = self._fit(lb)
+        self._fit(lb)
 
     def _fit(self, lb):
+        pass
+
+    def _func(self, x, i):
         pass
 
     @NaiveBayesTiming.timeit(level=1, prefix="[API] ")

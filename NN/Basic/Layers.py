@@ -17,39 +17,47 @@ def conv_bp(n, n_filters, out_h, out_w, dx_padded,
             for j in range(out_h):
                 for k in range(out_w):
                     for h in range(dx_padded.shape[1]):
-                        dx_padded[i, h, j * sd:filter_height + j * sd, k * sd:filter_width + k * sd] += (
-                            inner_weight[f][h] * delta[i, f, j, k]
-                        )
+                        jsd, ksd = j * sd, k * sd
+                        for p in range(filter_height):
+                            for q in range(filter_width):
+                                dx_padded[i, h, jsd+p, ksd+q] += (
+                                    inner_weight[f][h][p][q] * delta[i, f, j, k]
+                                )
 
 
 @numba.jit([
     "void(int64, int64, int64, int64, float32[:,:,:,:], float32[:,:,:,:],"
-    "int64, int64, int64)"
+    "int64, int64, int64, int32[:,:,:,:,:])"
 ], nopython=True)
 def max_pool(n, n_channels, out_h, out_w, x, out,
-             pool_height, pool_width, sd):
+             pool_height, pool_width, sd, pos_cache):
     for i in range(n):
         for j in range(n_channels):
             for k in range(out_h):
                 for l in range(out_w):
-                    window = x[i, j, k * sd:pool_height + k * sd, l * sd:pool_width + l * sd]
-                    out[i, j, k, l] = np.max(window)
+                    ksd, lsd = k * sd, l * sd
+                    _max = x[i, j, ksd, lsd]
+                    pos = (0, 0)
+                    for p in range(pool_height):
+                        for q in range(pool_width):
+                            if x[i, j, ksd+p, lsd+q] > _max:
+                                _max = x[i, j, ksd+p, lsd+q]
+                                pos = (p, q)
+                    pos_cache[i, j, k, l] = pos
+                    out[i, j, k, l] = _max
 
 
 @numba.jit([
-    "void(int64, int64, int64, int64, float32[:,:,:,:],"
-    "int64, int64, int64, float32[:,:,:,:], float32[:,:,:,:])"
+    "void(int64, int64, int64, int64, int64, float32[:,:,:,:], float32[:,:,:,:], int32[:,:,:,:,:])"
 ], nopython=True)
-def max_pool_bp(n, n_channels, out_h, out_w, x_cache,
-                pool_height, pool_width, sd, dx, delta):
+def max_pool_bp(n, n_channels, out_h, out_w, sd, dx, delta, pos_cache):
     for i in range(n):
         for j in range(n_channels):
             for k in range(out_h):
                 for l in range(out_w):
-                    window = x_cache[i, j, k * sd:pool_height + k * sd, l * sd:pool_width + l * sd]
-                    dx[i, j, k * sd:pool_height + k * sd, l * sd:pool_width + l * sd] = (
-                        (window == np.max(window)) * delta[i, j, k, l]
-                    )
+                    ksd, lsd = k * sd, l * sd
+                    pos = pos_cache[i, j, k, l]
+                    dx[i, j, ksd+pos[0], lsd+pos[1]] = delta[i, j, k, l]
 
 
 # Abstract Layers
@@ -519,11 +527,13 @@ class MaxPool(ConvPoolLayer):
             self._pool_cache["method"] = "reshape"
         else:
             out = np.zeros((n, n_channels, self.out_h, self.out_w), dtype=np.float32)
+            pos_cache = np.zeros((n, n_channels, self.out_h, self.out_w, 2), dtype=np.int32)
             max_pool(
                 n, n_channels, self.out_h, self.out_w, x, out,
-                pool_height, pool_width, sd
+                pool_height, pool_width, sd, pos_cache
             )
             self._pool_cache["method"] = "original"
+            self._pool_cache["pos_cache"] = pos_cache
         return out
 
     def _derivative(self, y, *args):
@@ -549,10 +559,8 @@ class MaxPool(ConvPoolLayer):
             sd = self._stride
             dx = np.zeros_like(self.x_cache)
             n, n_channels, *_ = self.x_cache.shape
-            _, pool_height, pool_width = self._shape[1]
             max_pool_bp(
-                n, n_channels, self.out_h, self.out_w, self.x_cache,
-                pool_height, pool_width, sd, dx, delta
+                n, n_channels, self.out_h, self.out_w, sd, dx, delta, self._pool_cache["pos_cache"]
             )
         else:
             raise LayerError("Undefined pooling method '{}' found".format(method))

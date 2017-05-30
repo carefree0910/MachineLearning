@@ -64,8 +64,13 @@ class RandomForest(ClassifierBase):
     @RandomForestTiming.timeit(level=1, prefix="[API] ")
     def predict(self, x, get_raw_results=False, bound=None, **kwargs):
         trees = self._trees if bound is None else self._trees[:bound]
-        matrix = self._multi_clf(x, trees, rf_task, kwargs)
+        matrix = self._multi_clf(x, trees, rf_task, kwargs, target=kwargs.get("target", "parallel"))
         return np.array([RandomForest.most_appearance(rs) for rs in matrix])
+
+    @RandomForestTiming.timeit(level=1, prefix="[API] ")
+    def evaluate(self, x, y, metrics=None, tar=0, prefix="Acc", **kwargs):
+        kwargs["target"] = "single"
+        super(RandomForest, self).evaluate(x, y, metrics, tar, prefix, **kwargs)
 
 if __name__ == '__main__':
     import time

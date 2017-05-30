@@ -51,8 +51,8 @@ if __name__ == '__main__':
     # test(_x, _y, clf="SKTree", epoch=10)
     # test(_x, _y, clf="SKTree", epoch=1000)
     # test(_x, _y, algorithm="RF", epoch=10)
-    test(_x, _y, algorithm="RF", epoch=10)
-    # test(_x, _y, algorithm="SKAdaBoost")
+    test(_x, _y, algorithm="RF", epoch=30, n_cores=4)
+    test(_x, _y, algorithm="SKAdaBoost")
 
     train_num = 6000
     (x_train, y_train), (x_test, y_test), *_ = DataUtil.get_dataset(

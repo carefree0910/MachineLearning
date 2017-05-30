@@ -42,7 +42,7 @@ class MultinomialNB(NaiveBayes):
     def _fit(self, lb):
         n_dim = len(self._n_possibilities)
         n_category = len(self._cat_counter)
-        p_category = self.get_prior_probability(lb)
+        self._p_category = self.get_prior_probability(lb)
 
         data = [[] for _ in range(n_dim)]
         for dim, n_possibilities in enumerate(self._n_possibilities):
@@ -51,14 +51,13 @@ class MultinomialNB(NaiveBayes):
                  for p in range(n_possibilities)] for c in range(n_category)]
         self._data = [np.asarray(dim_info) for dim_info in data]
 
-        def func(input_x, tar_category):
-            input_x = np.atleast_2d(input_x).T
-            rs = np.ones(input_x.shape[1])
-            for d, xx in enumerate(input_x):
-                rs *= self._data[d][tar_category][xx]
-            return rs * p_category[tar_category]
-
-        return func
+    @MultinomialNBTiming.timeit(level=1, prefix="[Core] ")
+    def _func(self, x, i):
+        x = np.atleast_2d(x).T
+        rs = np.ones(x.shape[1])
+        for d, xx in enumerate(x):
+            rs *= self._data[d][i][xx]
+        return rs * self._p_category[i]
 
     @MultinomialNBTiming.timeit(level=1, prefix="[Core] ")
     def _transfer_x(self, x):

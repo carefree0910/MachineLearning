@@ -36,20 +36,19 @@ class GaussianNB(NaiveBayes):
     def _fit(self, lb):
         lb = 0
         n_category = len(self._cat_counter)
-        p_category = self.get_prior_probability(lb)
+        self._p_category = self.get_prior_probability(lb)
         data = [
             NBFunctions.gaussian_maximum_likelihood(
                 self._labelled_x, n_category, dim) for dim in range(len(self._x))]
         self._data = data
 
-        def func(input_x, tar_category):
-            input_x = np.atleast_2d(input_x).T
-            rs = np.ones(input_x.shape[1])
-            for d, xx in enumerate(input_x):
-                rs *= data[d][tar_category](xx)
-            return rs * p_category[tar_category]
-
-        return func
+    @GaussianNBTiming.timeit(level=1, prefix="[Core] ")
+    def _func(self, x, i):
+        x = np.atleast_2d(x).T
+        rs = np.ones(x.shape[1])
+        for d, xx in enumerate(x):
+            rs *= self._data[d][i](xx)
+        return rs * self._p_category[i]
 
     def visualize(self, save=False):
         colors = plt.cm.Paired([i / len(self.label_dic) for i in range(len(self.label_dic))])
