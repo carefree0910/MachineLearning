@@ -25,14 +25,14 @@ class KernelPerceptron(KernelBase):
 
     @KernelPerceptronTiming.timeit(level=1, prefix="[Core] ")
     def _fit(self, sample_weight, lr):
-        _err = (np.sign(self._prediction_cache) != self._y) * sample_weight
-        _indices = np.random.permutation(len(self._y))
-        _idx = _indices[np.argmax(_err[_indices])]
-        if self._prediction_cache[_idx] == self._y[_idx]:
+        err = (np.sign(self._prediction_cache) != self._y) * sample_weight
+        indices = np.random.permutation(len(self._y))
+        idx = indices[np.argmax(err[indices])]
+        if self._prediction_cache[idx] == self._y[idx]:
             return True
-        self._update_dw_cache(_idx, lr, sample_weight)
-        self._update_db_cache(_idx, lr, sample_weight)
-        self._update_pred_cache(_idx)
+        self._update_dw_cache(idx, lr, sample_weight)
+        self._update_db_cache(idx, lr, sample_weight)
+        self._update_pred_cache(idx)
 
 if __name__ == '__main__':
     # xs, ys = DataUtil.gen_two_clusters(center=5, dis=1, scale=2, one_hot=False)
@@ -55,7 +55,7 @@ if __name__ == '__main__':
     y_test[y_test == 0] = -1
 
     perceptron = KernelPerceptron()
-    _logs = [_log[0] for _log in perceptron.fit(
+    logs = [log[0] for log in perceptron.fit(
         x_train, y_train, metrics=["acc"], x_test=x_test, y_test=y_test
     )]
     perceptron.evaluate(x_train, y_train)
@@ -63,7 +63,7 @@ if __name__ == '__main__':
 
     plt.figure()
     plt.title(perceptron.title)
-    plt.plot(range(len(_logs)), _logs)
+    plt.plot(range(len(logs)), logs)
     plt.show()
 
     perceptron.show_timing_log()

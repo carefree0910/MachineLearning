@@ -32,27 +32,27 @@ class Perceptron(ClassifierBase):
             sample_weight = np.asarray(sample_weight) * len(y)
 
         self._w = np.zeros(x.shape[1])
-        self._b = 0
+        self._b = 0.
         ims = []
         bar = ProgressBar(max_value=epoch, name="Perceptron")
         for i in range(epoch):
             y_pred = self.predict(x)
-            _err = (y_pred != y) * sample_weight
-            _indices = np.random.permutation(len(y))
-            _idx = _indices[np.argmax(_err[_indices])]
-            if y_pred[_idx] == y[_idx]:
+            err = np.maximum(0, y_pred * y) * sample_weight
+            indices = np.random.permutation(len(y))
+            idx = indices[np.argmin(err[indices])]
+            if y_pred[idx] == y[idx]:
                 bar.terminate()
                 break
-            _delta = lr * y[_idx] * sample_weight[_idx]
-            self._w += _delta * x[_idx]
-            self._b += _delta
+            delta = lr * y[idx] * sample_weight[idx]
+            self._w += delta * x[idx]
+            self._b += delta
             self._handle_animation(i, x, y, ims, animation_params, *animation_properties)
             bar.update()
         self._handle_mp4(ims, animation_properties)
 
     @PerceptronTiming.timeit(level=1, prefix="[API] ")
     def predict(self, x, get_raw_results=False, **kwargs):
-        rs = np.sum(self._w * x, axis=1) + self._b
-        if not get_raw_results:
-            return np.sign(rs)
-        return rs
+        rs = np.asarray(x, dtype=np.float32).dot(self._w) + self._b
+        if get_raw_results:
+            return rs
+        return np.sign(rs).astype(np.float32)

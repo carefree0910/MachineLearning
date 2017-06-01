@@ -53,10 +53,10 @@ class SubLayer(Layer):
 
     @property
     def root(self):
-        _root = self.parent
-        while _root.parent:
-            _root = _root.parent
-        return _root
+        root = self.parent
+        while root.parent:
+            root = root.parent
+        return root
 
     @property
     def info(self):
@@ -291,18 +291,18 @@ class Normalize(SubLayer):
             self.tf_rm = tf.Variable(tf.zeros(shape), trainable=False, name="norm_mean")
             self.tf_rv = tf.Variable(tf.ones(shape), trainable=False, name="norm_var")
         if not predict:
-            _sm, _sv = tf.nn.moments(x, list(range(len(x.get_shape()) - 1)))
-            _rm = tf.assign(self.tf_rm, self._momentum * self.tf_rm + (1 - self._momentum) * _sm)
-            _rv = tf.assign(self.tf_rv, self._momentum * self.tf_rv + (1 - self._momentum) * _sv)
-            with tf.control_dependencies([_rm, _rv]):
-                _norm = tf.nn.batch_normalization(x, _sm, _sv, self.tf_beta, self.tf_gamma, self._eps)
+            sm, sv = tf.nn.moments(x, list(range(len(x.get_shape()) - 1)))
+            rm = tf.assign(self.tf_rm, self._momentum * self.tf_rm + (1 - self._momentum) * sm)
+            rv = tf.assign(self.tf_rv, self._momentum * self.tf_rv + (1 - self._momentum) * sv)
+            with tf.control_dependencies([rm, rv]):
+                norm = tf.nn.batch_normalization(x, sm, sv, self.tf_beta, self.tf_gamma, self._eps)
         else:
-            _norm = tf.nn.batch_normalization(x, self.tf_rm, self.tf_rv, self.tf_beta, self.tf_gamma, self._eps)
+            norm = tf.nn.batch_normalization(x, self.tf_rm, self.tf_rv, self.tf_beta, self.tf_gamma, self._eps)
         if self._activation == "ReLU":
-            return tf.nn.relu(_norm)
+            return tf.nn.relu(norm)
         if self._activation == "Sigmoid":
-            return tf.nn.sigmoid(_norm)
-        return _norm
+            return tf.nn.sigmoid(norm)
+        return norm
 
 
 class ConvDrop(ConvLayer, Dropout, metaclass=ConvSubLayerMeta):
@@ -371,17 +371,17 @@ class LayerFactory:
         return None
 
     def get_layer_by_name(self, name, parent, current_dimension, *args, **kwargs):
-        _layer = self.get_root_layer_by_name(name, *args, **kwargs)
-        if _layer:
-            return _layer, None
+        layer = self.get_root_layer_by_name(name, *args, **kwargs)
+        if layer:
+            return layer, None
         _current, _next = parent.shape[1], current_dimension
         layer_param = self.special_layer_default_params[name]
-        _layer = self.available_special_layers[name]
+        layer = self.available_special_layers[name]
         if args or kwargs:
-            _layer = _layer(parent, (_current, _next), *args, **kwargs)
+            layer = layer(parent, (_current, _next), *args, **kwargs)
         else:
-            _layer = _layer(parent, (_current, _next), *layer_param)
-        return _layer, (_current, _next)
+            layer = layer(parent, (_current, _next), *layer_param)
+        return layer, (_current, _next)
 
 if __name__ == '__main__':
     with tf.Session().as_default() as sess:

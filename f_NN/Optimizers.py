@@ -95,11 +95,11 @@ class OptFactory:
 
     def get_optimizer_by_name(self, name, variables, lr, epoch=100):
         try:
-            _optimizer = self.available_optimizers[name](lr)
+            optimizer = self.available_optimizers[name](lr)
             if variables is not None:
-                _optimizer.feed_variables(variables)
-            if epoch is not None and isinstance(_optimizer, Momentum):
-                _optimizer.epoch = epoch
-            return _optimizer
+                optimizer.feed_variables(variables)
+            if epoch is not None and isinstance(optimizer, Momentum):
+                optimizer.epoch = epoch
+            return optimizer
         except KeyError:
             raise NotImplementedError("Undefined Optimizer '{}' found".format(name))

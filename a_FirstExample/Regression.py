@@ -5,9 +5,9 @@ import matplotlib.pyplot as plt
 # Read dataset
 x, y = [], []
 for sample in open("../_Data/prices.txt", "r"):
-    _x, _y = sample.split(",")
-    x.append(float(_x))
-    y.append(float(_y))
+    xx, yy = sample.split(",")
+    x.append(float(xx))
+    y.append(float(yy))
 x, y = np.array(x), np.array(y)
 # Perform normalization
 x = (x - x.mean()) / x.std()

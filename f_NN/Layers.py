@@ -70,14 +70,14 @@ class ReLU(Layer):
 
 class ELU(Layer):
     def _activate(self, x, predict):
-        _rs, _rs0 = x.copy(), x < 0
-        _rs[_rs0] = np.exp(_rs[_rs0]) - 1
-        return _rs
+        rs, rs0 = x.copy(), x < 0
+        rs[rs0] = np.exp(rs[rs0]) - 1
+        return rs
 
     def derivative(self, y):
-        _rs, _indices = np.ones(y.shape), y < 0
-        _rs[_indices] = y[_indices] + 1
-        return _rs
+        rs, indices = np.ones(y.shape), y < 0
+        rs[indices] = y[indices] + 1
+        return rs
 
 
 class Softplus(Layer):
@@ -100,7 +100,7 @@ class Identical(Layer):
 
 class CostLayer(Layer):
     # Optimization
-    _batch_range = None
+    batch_range = None
 
     def __init__(self, shape, cost_function="MSE", transform=None):
         super(CostLayer, self).__init__(shape)

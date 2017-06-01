@@ -116,40 +116,40 @@ class NN(TFClassifierBase):
     @NNTiming.timeit(level=4)
     def _add_layer(self, layer, *args, **kwargs):
         if not self._layers and isinstance(layer, str):
-            _layer = self._layer_factory.get_root_layer_by_name(layer, *args, **kwargs)
-            if _layer:
-                self.add(_layer)
+            layer = self._layer_factory.get_root_layer_by_name(layer, *args, **kwargs)
+            if layer:
+                self.add(layer)
                 return
-        _parent = self._layers[-1]
+        parent = self._layers[-1]
         if isinstance(layer, str):
             layer, shape = self._layer_factory.get_layer_by_name(
-                layer, _parent, self._current_dimension, *args, **kwargs
+                layer, parent, self._current_dimension, *args, **kwargs
             )
             if shape is None:
                 self.add(layer)
                 return
-            _current, _next = shape
+            current, nxt = shape
         else:
-            _current, _next = args
+            current, nxt = args
         if isinstance(layer, SubLayer):
-            self.parent = _parent
+            self.parent = parent
             self._layers.append(layer)
             self._add_param_placeholder()
-            self._current_dimension = _next
+            self._current_dimension = nxt
         else:
             fc_shape, conv_channel, last_layer = None, None, self._layers[-1]
             if isinstance(last_layer, ConvLayer):
                 if isinstance(layer, ConvLayer):
                     conv_channel = last_layer.n_filters
-                    _current = (conv_channel, last_layer.out_h, last_layer.out_w)
-                    layer.feed_shape((_current, _next))
+                    current = (conv_channel, last_layer.out_h, last_layer.out_w)
+                    layer.feed_shape((current, nxt))
                 else:
                     layer.is_fc = True
                     last_layer.is_fc_base = True
                     fc_shape = last_layer.out_h * last_layer.out_w * last_layer.n_filters
             self._layers.append(layer)
-            self._add_params((_current, _next), conv_channel, fc_shape, layer.apply_bias)
-            self._current_dimension = _next
+            self._add_params((current, nxt), conv_channel, fc_shape, layer.apply_bias)
+            self._current_dimension = nxt
 
     @NNTiming.timeit(level=1)
     def _get_rs(self, x, predict=True, idx=-1):

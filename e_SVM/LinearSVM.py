@@ -2,7 +2,6 @@ import numpy as np
 import tensorflow as tf
 
 from NN.TF.Optimizers import OptFactory as TFOptFac
-from NN.PyTorch.Optimizers import OptFactory as PyTorchOptFac
 
 from Util.Timing import Timing
 from Util.ProgressBar import ProgressBar
@@ -11,8 +10,9 @@ from Util.Bases import ClassifierBase, TFClassifierBase, TorchAutoClassifierBase
 try:
     import torch
     from torch.autograd import Variable
+    from NN.PyTorch.Optimizers import OptFactory as PyTorchOptFac
 except ImportError:
-    torch = Variable = None
+    torch = Variable = PyTorchOptFac = None
 
 
 class LinearSVM(ClassifierBase):

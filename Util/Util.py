@@ -174,8 +174,8 @@ class DataUtil:
         cluster2 = (np.random.randn(size, n_dim) + center2) * scale
         data = np.vstack((cluster1, cluster2)).astype(np.float32)
         labels = np.array([1] * size + [0] * size)
-        _indices = np.random.permutation(size * 2)
-        data, labels = data[_indices], labels[_indices]
+        indices = np.random.permutation(size * 2)
+        data, labels = data[indices], labels[indices]
         if not one_hot:
             return data, labels
         labels = np.array([[0, 1] if label == 1 else [1, 0] for label in labels], dtype=np.int8)

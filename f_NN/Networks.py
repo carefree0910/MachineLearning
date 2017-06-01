@@ -38,18 +38,18 @@ class NaiveNN(ClassifierBase):
 
     @NaiveNNTiming.timeit(level=4)
     def _add_layer(self, layer, *args):
-        _current, _next = args
-        self._add_params((_current, _next))
-        self._current_dimension = _next
+        current, nxt = args
+        self._add_params((current, nxt))
+        self._current_dimension = nxt
         self._layers.append(layer)
 
     @NaiveNNTiming.timeit(level=1)
     def _get_activations(self, x):
-        _activations = [self._layers[0].activate(x, self._weights[0], self._bias[0])]
+        activations = [self._layers[0].activate(x, self._weights[0], self._bias[0])]
         for i, layer in enumerate(self._layers[1:]):
-            _activations.append(layer.activate(
-                _activations[-1], self._weights[i + 1], self._bias[i + 1]))
-        return _activations
+            activations.append(layer.activate(
+                activations[-1], self._weights[i + 1], self._bias[i + 1]))
+        return activations
 
     @NaiveNNTiming.timeit(level=1)
     def _get_prediction(self, x):
@@ -59,10 +59,10 @@ class NaiveNN(ClassifierBase):
 
     @NaiveNNTiming.timeit(level=4)
     def _init_optimizers(self, optimizer, lr, epoch):
-        _opt_fac = OptFactory()
-        self._w_optimizer = _opt_fac.get_optimizer_by_name(
+        opt_fac = OptFactory()
+        self._w_optimizer = opt_fac.get_optimizer_by_name(
             optimizer, self._weights, lr, epoch)
-        self._b_optimizer = _opt_fac.get_optimizer_by_name(
+        self._b_optimizer = opt_fac.get_optimizer_by_name(
             optimizer, self._bias, lr, epoch)
 
     @NaiveNNTiming.timeit(level=1)
@@ -82,9 +82,9 @@ class NaiveNN(ClassifierBase):
             self._layers, self._current_dimension = [layer], layer.shape[1]
             self._add_params(layer.shape)
         else:
-            _next = layer.shape[0]
-            layer.shape = (self._current_dimension, _next)
-            self._add_layer(layer, self._current_dimension, _next)
+            nxt = layer.shape[0]
+            layer.shape = (self._current_dimension, nxt)
+            self._add_layer(layer, self._current_dimension, nxt)
 
     @NaiveNNTiming.timeit(level=1, prefix="[API] ")
     def fit(self, x, y, lr=None, epoch=None, optimizer=None):
@@ -99,15 +99,15 @@ class NaiveNN(ClassifierBase):
         for counter in range(epoch):
             self._w_optimizer.update()
             self._b_optimizer.update()
-            _activations = self._get_activations(x)
-            _deltas = [self._layers[-1].bp_first(y, _activations[-1])]
-            for i in range(-1, -len(_activations), -1):
-                _deltas.append(self._layers[i - 1].bp(
-                    _activations[i - 1], self._weights[i], _deltas[-1]
+            activations = self._get_activations(x)
+            deltas = [self._layers[-1].bp_first(y, activations[-1])]
+            for i in range(-1, -len(activations), -1):
+                deltas.append(self._layers[i - 1].bp(
+                    activations[i - 1], self._weights[i], deltas[-1]
                 ))
             for i in range(layer_width - 1, 0, -1):
-                self._opt(i, _activations[i - 1], _deltas[layer_width - i - 1])
-            self._opt(0, x, _deltas[-1])
+                self._opt(i, activations[i - 1], deltas[layer_width - i - 1])
+            self._opt(0, x, deltas[-1])
 
     @NaiveNNTiming.timeit(level=4, prefix="[API] ")
     def predict(self, x, get_raw_results=False, **kwargs):

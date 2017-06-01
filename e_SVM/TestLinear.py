@@ -24,10 +24,11 @@ def main():
     svm.evaluate(x, y)
     svm.visualize2d(x, y, padding=0.1, dense=400)
 
-    svm = TorchLinearSVM(animation_params=animation_params)
-    svm.fit(x, y)
-    svm.evaluate(x, y)
-    svm.visualize2d(x, y, padding=0.1, dense=400)
+    if TorchLinearSVM is not None:
+        svm = TorchLinearSVM(animation_params=animation_params)
+        svm.fit(x, y)
+        svm.evaluate(x, y)
+        svm.visualize2d(x, y, padding=0.1, dense=400)
 
     perceptron = Perceptron()
     perceptron.fit(x, y)

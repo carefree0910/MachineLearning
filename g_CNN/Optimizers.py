@@ -74,7 +74,7 @@ class OptFactory:
 
     def get_optimizer_by_name(self, name, lr, *args, **kwargs):
         try:
-            _optimizer = self.available_optimizers[name](lr, *args, **kwargs)
-            return _optimizer
+            optimizer = self.available_optimizers[name](lr, *args, **kwargs)
+            return optimizer
         except KeyError:
             raise NotImplementedError("Undefined Optimizer '{}' found".format(name))
