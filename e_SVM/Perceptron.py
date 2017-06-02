@@ -36,11 +36,9 @@ class Perceptron(ClassifierBase):
         ims = []
         bar = ProgressBar(max_value=epoch, name="Perceptron")
         for i in range(epoch):
-            y_pred = self.predict(x)
-            err = np.maximum(0, y_pred * y) * sample_weight
-            indices = np.random.permutation(len(y))
-            idx = indices[np.argmin(err[indices])]
-            if y_pred[idx] == y[idx]:
+            y_pred = self.predict(x, True)
+            idx = np.argmax(np.maximum(0, -y_pred * y) * sample_weight)
+            if y_pred[idx] * y[idx] > 0:
                 bar.terminate()
                 break
             delta = lr * y[idx] * sample_weight[idx]
