@@ -31,6 +31,7 @@ class ModelBase:
     clf_timing = Timing()
 
     def __init__(self, **kwargs):
+        self._plot_label_dic = {}
         self._title = self._name = None
         self._metrics, self._available_metrics = [], {
             "acc": ClassifierBase.acc
@@ -115,9 +116,11 @@ class ModelBase:
         y_max += y_padding
 
         if labels.ndim == 1:
-            _dic = {c: i for i, c in enumerate(set(labels))}
-            n_label = len(_dic)
-            labels = np.array([_dic[label] for label in labels])
+            if not self._plot_label_dic:
+                self._plot_label_dic = {c: i for i, c in enumerate(set(labels))}
+            dic = self._plot_label_dic
+            n_label = len(dic)
+            labels = np.array([dic[label] for label in labels])
         else:
             n_label = labels.shape[1]
             labels = np.argmax(labels, axis=1)
@@ -126,14 +129,14 @@ class ModelBase:
         if title is None:
             title = self.title
 
-        _indices = [labels == i for i in range(np.max(labels) + 1)]
-        _scatters = []
+        indices = [labels == i for i in range(np.max(labels) + 1)]
+        scatters = []
         plt.figure()
         plt.title(title)
-        for _index in _indices:
-            _scatters.append(plt.scatter(axis[0][_index], axis[1][_index], c=colors[_index]))
-        plt.legend(_scatters, ["$c_{}$".format("{" + str(i) + "}") for i in range(len(_scatters))],
-                   ncol=math.ceil(math.sqrt(len(_scatters))), fontsize=8)
+        for idx in indices:
+            scatters.append(plt.scatter(axis[0][idx], axis[1][idx], c=colors[idx]))
+        plt.legend(scatters, ["$c_{}$".format("{" + str(i) + "}") for i in range(len(scatters))],
+                   ncol=math.ceil(math.sqrt(len(scatters))), fontsize=8)
         plt.xlim(x_min, x_max)
         plt.ylim(y_min, y_max)
         plt.show()
@@ -335,9 +338,11 @@ class ClassifierBase(ModelBase):
         z = decision_function(base_matrix).reshape((nx, ny))
 
         if labels.ndim == 1:
-            _dic = {c: i for i, c in enumerate(set(labels))}
-            n_label = len(_dic)
-            labels = np.array([_dic[label] for label in labels])
+            if not self._plot_label_dic:
+                self._plot_label_dic = {c: i for i, c in enumerate(set(labels))}
+            dic = self._plot_label_dic
+            n_label = len(dic)
+            labels = np.array([dic[label] for label in labels])
         else:
             n_label = labels.shape[1]
             labels = np.argmax(labels, axis=1)
@@ -402,9 +407,11 @@ class ClassifierBase(ModelBase):
         print("Drawing figures...")
         xy_xf, xy_yf = np.meshgrid(xf, yf, sparse=True)
         if labels.ndim == 1:
-            _dic = {c: i for i, c in enumerate(set(labels))}
-            n_label = len(_dic)
-            labels = np.array([_dic[label] for label in labels])
+            if not self._plot_label_dic:
+                self._plot_label_dic = {c: i for i, c in enumerate(set(labels))}
+            dic = self._plot_label_dic
+            n_label = len(dic)
+            labels = np.array([dic[label] for label in labels])
         else:
             n_label = labels.shape[1]
             labels = np.argmax(labels, axis=1)
