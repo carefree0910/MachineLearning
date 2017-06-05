@@ -11,9 +11,9 @@ Implemented `Tensorflow` & `PyTorch` backend for `LinearSVM` & `SVM`
 ![Perceptron on Two Clusters](https://cdn.rawgit.com/carefree0910/Resources/d269faeb/Backgrounds/Perceptron.gif)
 
 ### LinearSVM
-![LinearSVM on Two Clusters](https://cdn.rawgit.com/carefree0910/Resources/d269faeb/Lines/LinearSVM.gif)
+![LinearSVM on Two Clusters](https://cdn.rawgit.com/carefree0910/Resources/83441596/Lines/LinearSVM.gif)
 
-![LinearSVM on Two Clusters](https://cdn.rawgit.com/carefree0910/Resources/d269faeb/Backgrounds/LinearSVM.gif)
+![LinearSVM on Two Clusters](https://cdn.rawgit.com/carefree0910/Resources/83441596/Backgrounds/LinearSVM.gif)
 
 ### TFLinearSVM
 ![TFLinearSVM on Two Clusters](https://cdn.rawgit.com/carefree0910/Resources/d269faeb/Lines/TFLinearSVM.gif)

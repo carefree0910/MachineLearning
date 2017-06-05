@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
+from NN.Basic.Optimizers import OptFactory
 from NN.TF.Optimizers import OptFactory as TFOptFac
 
 from Util.Timing import Timing
@@ -21,20 +22,29 @@ class LinearSVM(ClassifierBase):
     def __init__(self, **kwargs):
         super(LinearSVM, self).__init__(**kwargs)
         self._w = self._b = None
+        self._optimizer = self._model_parameters = None
 
         self._params["c"] = kwargs.get("c", 1)
-        self._params["lr"] = kwargs.get("lr", 0.001)
+        self._params["lr"] = kwargs.get("lr", 0.01)
+        self._params["optimizer"] = kwargs.get("optimizer", "Adam")
+        self._params["batch_size"] = kwargs.get("batch_size", 128)
         self._params["epoch"] = kwargs.get("epoch", 10 ** 4)
-        self._params["tol"] = kwargs.get("tol", 1e-3)
+        self._params["tol"] = kwargs.get("tol", 1e-6)
 
     @LinearSVMTiming.timeit(level=1, prefix="[API] ")
-    def fit(self, x, y, sample_weight=None, c=None, lr=None, epoch=None, tol=None, animation_params=None):
+    def fit(self, x, y, sample_weight=None, c=None, lr=None, optimizer=None,
+            batch_size=None, epoch=None, tol=None, animation_params=None):
         if sample_weight is None:
             sample_weight = self._params["sample_weight"]
         if c is None:
             c = self._params["c"]
         if lr is None:
             lr = self._params["lr"]
+        if optimizer is None:
+            optimizer = self._params["optimizer"]
+        if batch_size is None:
+            batch_size = self._params["batch_size"]
+        batch_size = min(len(x), batch_size)
         if epoch is None:
             epoch = self._params["epoch"]
         if tol is None:
@@ -47,30 +57,56 @@ class LinearSVM(ClassifierBase):
             sample_weight = np.asarray(sample_weight) * len(y)
 
         self._w = np.zeros(x.shape[1])
-        self._b = 0
+        self._b = np.zeros(1)
+        self._model_parameters = (self._w, self._b)
+        self._optimizer = OptFactory().get_optimizer_by_name(
+            optimizer, self._model_parameters, lr, epoch
+        )
         ims = []
+
+        train_repeat = self._get_train_repeat(x, batch_size)
+        args = (c, lr, sample_weight, tol)
+
         bar = ProgressBar(max_value=epoch, name="LinearSVM")
         for i in range(epoch):
-            err = (1 - self.predict(x, get_raw_results=True) * y) * sample_weight
-            indices = np.random.permutation(len(y))
-            idx = indices[np.argmax(err[indices])]
-            if err[idx] <= tol:
+            if c * self.batch_training(
+                x, y, batch_size, train_repeat, *args
+            ) + np.linalg.norm(self._w) <= tol:
                 bar.terminate()
                 break
-            delta = lr * c * y[idx] * sample_weight[idx]
-            self._w *= 1 - lr
-            self._w += delta * x[idx]
-            self._b += delta
             self._handle_animation(i, x, y, ims, animation_params, *animation_properties)
             bar.update()
         self._handle_mp4(ims, animation_properties)
 
+    @LinearSVMTiming.timeit(level=2, prefix="[Core] ")
+    def batch_training(self, x, y, batch_size, train_repeat, *args):
+        c, lr, sample_weight, tol = args
+        epoch_loss = 0.
+        for _ in range(train_repeat):
+            self._w *= 1 - lr
+            if train_repeat != 1:
+                batch = np.random.choice(len(x), batch_size)
+                x_batch, y_batch, sample_weight_batch = x[batch], y[batch], sample_weight[batch]
+            else:
+                x_batch, y_batch, sample_weight_batch = x, y, sample_weight
+            err = (1 - self.predict(x_batch, True) * y_batch) * sample_weight_batch
+            mask = err > 0
+            if not np.any(mask):
+                continue
+            epoch_loss += np.max(err)
+            delta = lr * c * y_batch[mask] * sample_weight_batch[mask]
+            dw = np.mean(delta[..., None] * x_batch[mask], axis=0)
+            db = np.mean(delta)
+            self._w += self._optimizer.run(0, dw)
+            self._b += self._optimizer.run(1, db)
+        return epoch_loss
+
     @LinearSVMTiming.timeit(level=1, prefix="[API] ")
     def predict(self, x, get_raw_results=False, **kwargs):
         rs = np.sum(self._w * x, axis=1) + self._b
-        if not get_raw_results:
-            return np.sign(rs)
-        return rs
+        if get_raw_results:
+            return rs
+        return np.sign(rs)
 
 
 class TFLinearSVM(TFClassifierBase):
@@ -81,7 +117,7 @@ class TFLinearSVM(TFClassifierBase):
         self._w = self._b = None
 
         self._params["c"] = kwargs.get("c", 1)
-        self._params["lr"] = kwargs.get("lr", 0.001)
+        self._params["lr"] = kwargs.get("lr", 0.01)
         self._params["batch_size"] = kwargs.get("batch_size", 128)
         self._params["epoch"] = kwargs.get("epoch", 10 ** 4)
         self._params["tol"] = kwargs.get("tol", 1e-3)
