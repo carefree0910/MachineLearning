@@ -1,6 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+from math import pi
+
+np.random.seed(142857)
+
 # 生成简单的测试数据集
 def gen_two_clusters(size=100, center=0, scale=1, dis=2):
     center1 = (np.random.random(2) + center - 0.5) * scale + dis
@@ -12,6 +16,18 @@ def gen_two_clusters(size=100, center=0, scale=1, dis=2):
     indices = np.random.permutation(size * 2)
     data, labels = data[indices], labels[indices]
     return data, labels
+
+# 生成螺旋线数据集
+def gen_spiral(size=50, n=4, scale=2):
+    xs = np.zeros((size * n, 2), dtype=np.float32)
+    ys = np.zeros(size * n, dtype=np.int8)
+    for i in range(n):
+        ix = range(size * i, size * (i + 1))
+        r = np.linspace(0.0, 1, size+1)[1:]
+        t = np.linspace(2 * i * pi / n, 2 * (i + scale) * pi / n, size) + np.random.random(size=size) * 0.1
+        xs[ix] = np.c_[r * np.sin(t), r * np.cos(t)]
+        ys[ix] = 2 * (i % 2) - 1
+    return xs, ys
 
 # 画出决策边界；如果只关心算法本身，可以略去这一段代码不看
 def visualize2d(clf, x, y, draw_background=False):
