@@ -11,6 +11,8 @@ from PIL import Image
 from multiprocessing import Pool
 from mpl_toolkits.mplot3d import Axes3D
 
+from NN.Basic.Optimizers import OptFactory
+
 from Util.Util import VisUtil
 from Util.Timing import Timing
 from Util.ProgressBar import ProgressBar
@@ -589,6 +591,41 @@ class ClassifierBase(ModelBase):
         print("Done.")
 
 
+class GDBase(ClassifierBase):
+    def __init__(self, **kwargs):
+        super(GDBase, self).__init__(**kwargs)
+        self._optimizer = self._model_parameters = self._model_grads = None
+
+    def _loss(self, y, y_pred, sample_weight):
+        pass
+
+    def _get_grads(self, x_batch, y_batch, y_pred, sample_weight_batch, *args):
+        pass
+
+    def _update_model_params(self):
+        for i, (param, grad) in enumerate(zip(self._model_parameters, self._model_grads)):
+            if grad is not None:
+                param -= self._optimizer.run(i, grad)
+
+    def batch_training(self, x, y, batch_size, train_repeat, *args, **kwargs):
+        sample_weight, *args = args
+        epoch_cost = 0
+        for i in range(train_repeat):
+            if train_repeat != 1:
+                batch = np.random.permutation(len(x))[:batch_size]
+                x_batch, y_batch = x[batch], y[batch]
+                sample_weight_batch = sample_weight[batch]
+            else:
+                x_batch, y_batch, sample_weight_batch = x, y, sample_weight
+            y_pred = self.predict(x_batch, get_raw_results=True, **kwargs)
+            local_loss = self._loss(y_batch, y_pred, sample_weight_batch)
+            epoch_cost += local_loss
+            self._get_grads(x_batch, y_batch, y_pred, sample_weight_batch, *args)
+            self._update_model_params()
+            self._batch_work(i, *args)
+        return epoch_cost / train_repeat
+
+
 class TFClassifierBase(ClassifierBase):
     clf_timing = Timing()
 
@@ -815,7 +852,7 @@ class KernelBase(ClassifierBase):
             test_gram = None
             if x_test is not None and y_test is not None:
                 x_cv, y_cv = np.atleast_2d(x_test), np.asarray(y_test)
-                test_gram = self._kernel(x_cv, self._x)
+                test_gram = self._kernel(self._x, x_cv)
             else:
                 x_cv, y_cv = self._x, self._y
         else:
@@ -827,7 +864,7 @@ class KernelBase(ClassifierBase):
         bar = ProgressBar(max_value=epoch, name=str(self))
         for i in range(epoch):
             if self._fit(sample_weight, *fit_args):
-                bar.update(epoch)
+                bar.terminate()
                 break
             if self._do_log and metrics is not None:
                 local_logs = []
@@ -853,8 +890,47 @@ class KernelBase(ClassifierBase):
     @KernelBaseTiming.timeit(level=1, prefix="[API] ")
     def predict(self, x, get_raw_results=False, gram_provided=False):
         if not gram_provided:
+            x = self._kernel(self._x, np.atleast_2d(x))
+        y_pred = self._w.dot(x) + self._b
+        if not get_raw_results:
+            return np.sign(y_pred)
+        return y_pred
+
+
+class GDKernelBase(KernelBase, GDBase):
+    GDKernelBaseTiming = Timing()
+
+    def __init__(self, **kwargs):
+        super(GDKernelBase, self).__init__(**kwargs)
+        self._batch_size = kwargs.get("batch_size", 128)
+        self._optimizer = kwargs.get("optimizer", "Adam")
+        self._train_repeat = 0
+
+    def _prepare(self, sample_weight, **kwargs):
+        lr = kwargs.get("lr", self._params["lr"])
+        self._alpha = np.zeros(len(self._x), dtype=np.float32)
+        self._b = np.zeros(1, dtype=np.float32)
+        self._model_parameters = [self._alpha, self._b]
+        self._optimizer = OptFactory().get_optimizer_by_name(
+            self._optimizer, self._model_parameters, lr, self._params["epoch"]
+        )
+
+    @GDKernelBaseTiming.timeit(level=1, prefix="[Core] ")
+    def _fit(self, sample_weight, tol):
+        if self._train_repeat == 0:
+            self._train_repeat = self._get_train_repeat(self._x, self._batch_size)
+        l = self.batch_training(
+            self._gram, self._y, self._batch_size, self._train_repeat,
+            sample_weight, gram_provided=True
+        )
+        if l < tol:
+            return True
+
+    @GDKernelBaseTiming.timeit(level=1, prefix="[API] ")
+    def predict(self, x, get_raw_results=False, gram_provided=False):
+        if not gram_provided:
             x = self._kernel(np.atleast_2d(x), self._x)
-        y_pred = x.dot(self._w) + self._b
+        y_pred = (x.dot(self._alpha) + self._b).ravel()
         if not get_raw_results:
             return np.sign(y_pred)
         return y_pred

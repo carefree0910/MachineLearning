@@ -5,7 +5,7 @@ from b_NaiveBayes.Vectorized.GaussianNB import GaussianNB
 from c_CvDTree.Tree import *
 from d_Ensemble.RandomForest import RandomForest
 from e_SVM.Perceptron import Perceptron
-from e_SVM.KP import KernelPerceptron
+from e_SVM.KP import KP
 from e_SVM.SVM import SVM
 
 from Util.ProgressBar import ProgressBar
@@ -35,7 +35,7 @@ class AdaBoost(ClassifierBase):
         "Cart": CartTree,
         "RF": RandomForest,
         "Perceptron": Perceptron,
-        "KP": KernelPerceptron,
+        "KP": KP,
         "SVM": SVM
     }
 

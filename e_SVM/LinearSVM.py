@@ -6,7 +6,7 @@ from NN.TF.Optimizers import OptFactory as TFOptFac
 
 from Util.Timing import Timing
 from Util.ProgressBar import ProgressBar
-from Util.Bases import ClassifierBase, TFClassifierBase, TorchAutoClassifierBase
+from Util.Bases import GDBase, TFClassifierBase, TorchAutoClassifierBase
 
 try:
     import torch
@@ -16,20 +16,38 @@ except ImportError:
     torch = Variable = PyTorchOptFac = None
 
 
-class LinearSVM(ClassifierBase):
+class LinearSVM(GDBase):
     LinearSVMTiming = Timing()
 
     def __init__(self, **kwargs):
         super(LinearSVM, self).__init__(**kwargs)
         self._w = self._b = None
-        self._optimizer = self._model_parameters = None
 
         self._params["c"] = kwargs.get("c", 1)
-        self._params["lr"] = kwargs.get("lr", 0.01)
-        self._params["optimizer"] = kwargs.get("optimizer", "Adam")
+        self._params["lr"] = kwargs.get("lr", 0.001)
         self._params["batch_size"] = kwargs.get("batch_size", 128)
         self._params["epoch"] = kwargs.get("epoch", 10 ** 4)
-        self._params["tol"] = kwargs.get("tol", 1e-6)
+        self._params["tol"] = kwargs.get("tol", 1e-3)
+        self._params["optimizer"] = kwargs.get("optimizer", "Adam")
+
+    @LinearSVMTiming.timeit(level=1, prefix="[Core] ")
+    def _loss(self, y, y_pred, c):
+        return np.sum(
+            np.maximum(0, 1 - y * y_pred)
+        ) + c * np.linalg.norm(self._w)
+
+    @LinearSVMTiming.timeit(level=1, prefix="[Core] ")
+    def _get_grads(self, x_batch, y_batch, y_pred, sample_weight_batch, *args):
+        c = args[0]
+        err = (1 - y_pred * y_batch) * sample_weight_batch
+        mask = err > 0  # type: np.ndarray
+        if not np.any(mask):
+            return [None, None]
+        delta = -c * y_batch[mask] * sample_weight_batch[mask]
+        self._model_grads = [
+            np.sum(delta[..., None] * x_batch[mask], axis=0),
+            np.sum(delta)
+        ]
 
     @LinearSVMTiming.timeit(level=1, prefix="[API] ")
     def fit(self, x, y, sample_weight=None, c=None, lr=None, optimizer=None,
@@ -40,66 +58,43 @@ class LinearSVM(ClassifierBase):
             c = self._params["c"]
         if lr is None:
             lr = self._params["lr"]
-        if optimizer is None:
-            optimizer = self._params["optimizer"]
         if batch_size is None:
             batch_size = self._params["batch_size"]
-        batch_size = min(len(x), batch_size)
         if epoch is None:
             epoch = self._params["epoch"]
         if tol is None:
             tol = self._params["tol"]
+        if optimizer is None:
+            optimizer = self._params["optimizer"]
         *animation_properties, animation_params = self._get_animation_params(animation_params)
-        x, y = np.atleast_2d(x), np.asarray(y)
+        x, y = np.atleast_2d(x), np.asarray(y, dtype=np.float32)
         if sample_weight is None:
             sample_weight = np.ones(len(y))
         else:
             sample_weight = np.asarray(sample_weight) * len(y)
 
-        self._w = np.zeros(x.shape[1])
-        self._b = np.zeros(1)
-        self._model_parameters = (self._w, self._b)
+        self._w = np.zeros(x.shape[1], dtype=np.float32)
+        self._b = np.zeros(1, dtype=np.float32)
+        self._model_parameters = [self._w, self._b]
         self._optimizer = OptFactory().get_optimizer_by_name(
             optimizer, self._model_parameters, lr, epoch
         )
+        loss_function = lambda _y, _y_pred: self._loss(_y, _y_pred, c)
+
+        bar = ProgressBar(max_value=epoch, name="TorchLinearSVM")
         ims = []
-
         train_repeat = self._get_train_repeat(x, batch_size)
-        args = (c, lr, sample_weight, tol)
-
-        bar = ProgressBar(max_value=epoch, name="LinearSVM")
         for i in range(epoch):
-            if c * self.batch_training(
-                x, y, batch_size, train_repeat, *args
-            ) + np.linalg.norm(self._w) <= tol:
+            self._optimizer.update()
+            l = self.batch_training(
+                x, y, batch_size, train_repeat, loss_function, sample_weight, c
+            )
+            if l < tol:
                 bar.terminate()
                 break
             self._handle_animation(i, x, y, ims, animation_params, *animation_properties)
             bar.update()
         self._handle_mp4(ims, animation_properties)
-
-    @LinearSVMTiming.timeit(level=2, prefix="[Core] ")
-    def batch_training(self, x, y, batch_size, train_repeat, *args):
-        c, lr, sample_weight, tol = args
-        epoch_loss = 0.
-        for _ in range(train_repeat):
-            self._w *= 1 - lr
-            if train_repeat != 1:
-                batch = np.random.choice(len(x), batch_size)
-                x_batch, y_batch, sample_weight_batch = x[batch], y[batch], sample_weight[batch]
-            else:
-                x_batch, y_batch, sample_weight_batch = x, y, sample_weight
-            err = (1 - self.predict(x_batch, True) * y_batch) * sample_weight_batch
-            mask = err > 0
-            if not np.any(mask):
-                continue
-            epoch_loss += np.max(err)
-            delta = lr * c * y_batch[mask] * sample_weight_batch[mask]
-            dw = np.mean(delta[..., None] * x_batch[mask], axis=0)
-            db = np.mean(delta)
-            self._w += self._optimizer.run(0, dw)
-            self._b += self._optimizer.run(1, db)
-        return epoch_loss
 
     @LinearSVMTiming.timeit(level=1, prefix="[API] ")
     def predict(self, x, get_raw_results=False, **kwargs):
