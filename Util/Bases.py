@@ -284,7 +284,7 @@ class ClassifierBase(ModelBase):
     def _batch_work(self, *args):
         pass
 
-    def batch_training(self, x, y, batch_size, train_repeat, *args):
+    def _batch_training(self, x, y, batch_size, train_repeat, *args):
         pass
 
     def get_metrics(self, metrics):
@@ -592,24 +592,24 @@ class ClassifierBase(ModelBase):
 
 
 class GDBase(ClassifierBase):
+    GDBaseTiming = Timing()
+
     def __init__(self, **kwargs):
         super(GDBase, self).__init__(**kwargs)
         self._optimizer = self._model_parameters = self._model_grads = None
 
-    def _loss(self, y, y_pred, sample_weight):
-        pass
-
     def _get_grads(self, x_batch, y_batch, y_pred, sample_weight_batch, *args):
-        pass
+        return 0
 
     def _update_model_params(self):
         for i, (param, grad) in enumerate(zip(self._model_parameters, self._model_grads)):
             if grad is not None:
                 param -= self._optimizer.run(i, grad)
 
-    def batch_training(self, x, y, batch_size, train_repeat, *args, **kwargs):
+    @GDBaseTiming.timeit(level=1, prefix="[Core] ")
+    def _batch_training(self, x, y, batch_size, train_repeat, *args, **kwargs):
         sample_weight, *args = args
-        epoch_cost = 0
+        epoch_loss = 0
         for i in range(train_repeat):
             if train_repeat != 1:
                 batch = np.random.permutation(len(x))[:batch_size]
@@ -618,12 +618,10 @@ class GDBase(ClassifierBase):
             else:
                 x_batch, y_batch, sample_weight_batch = x, y, sample_weight
             y_pred = self.predict(x_batch, get_raw_results=True, **kwargs)
-            local_loss = self._loss(y_batch, y_pred, sample_weight_batch)
-            epoch_cost += local_loss
-            self._get_grads(x_batch, y_batch, y_pred, sample_weight_batch, *args)
+            epoch_loss += self._get_grads(x_batch, y_batch, y_pred, sample_weight_batch, *args)
             self._update_model_params()
             self._batch_work(i, *args)
-        return epoch_cost / train_repeat
+        return epoch_loss / train_repeat
 
 
 class TFClassifierBase(ClassifierBase):
@@ -656,7 +654,7 @@ class TFClassifierBase(ClassifierBase):
         return 2 * tp / (2 * tp + fn + fp)
 
     @clf_timing.timeit(level=2, prefix="[Core] ")
-    def batch_training(self, x, y, batch_size, train_repeat, *args):
+    def _batch_training(self, x, y, batch_size, train_repeat, *args):
         loss, train_step, *args = args
         epoch_cost = 0
         for i in range(train_repeat):
@@ -902,14 +900,15 @@ class GDKernelBase(KernelBase, GDBase):
 
     def __init__(self, **kwargs):
         super(GDKernelBase, self).__init__(**kwargs)
+        self._fit_args, self._fit_args_names = [1e-3], ["tol"]
         self._batch_size = kwargs.get("batch_size", 128)
         self._optimizer = kwargs.get("optimizer", "Adam")
         self._train_repeat = 0
 
     def _prepare(self, sample_weight, **kwargs):
         lr = kwargs.get("lr", self._params["lr"])
-        self._alpha = np.zeros(len(self._x), dtype=np.float32)
-        self._b = np.zeros(1, dtype=np.float32)
+        self._alpha = np.random.random(len(self._x)).astype(np.float32)
+        self._b = np.random.random(1).astype(np.float32)
         self._model_parameters = [self._alpha, self._b]
         self._optimizer = OptFactory().get_optimizer_by_name(
             self._optimizer, self._model_parameters, lr, self._params["epoch"]
@@ -919,7 +918,7 @@ class GDKernelBase(KernelBase, GDBase):
     def _fit(self, sample_weight, tol):
         if self._train_repeat == 0:
             self._train_repeat = self._get_train_repeat(self._x, self._batch_size)
-        l = self.batch_training(
+        l = self._batch_training(
             self._gram, self._y, self._batch_size, self._train_repeat,
             sample_weight, gram_provided=True
         )
@@ -929,8 +928,8 @@ class GDKernelBase(KernelBase, GDBase):
     @GDKernelBaseTiming.timeit(level=1, prefix="[API] ")
     def predict(self, x, get_raw_results=False, gram_provided=False):
         if not gram_provided:
-            x = self._kernel(np.atleast_2d(x), self._x)
-        y_pred = (x.dot(self._alpha) + self._b).ravel()
+            x = self._kernel(self._x, np.atleast_2d(x))
+        y_pred = (self._alpha.dot(x) + self._b).ravel()
         if not get_raw_results:
             return np.sign(y_pred)
         return y_pred

@@ -826,7 +826,7 @@ class NNDist(NNBase):
                     sub_bar = ProgressBar(max_value=train_repeat * record_period - 1, name="Iteration")
                 else:
                     sub_bar = None
-                self.batch_training(
+                self._batch_training(
                     x_train, y_train, batch_size, train_repeat,
                     self._loss, self._train_step, sub_bar, counter, *args)
                 self._handle_animation(

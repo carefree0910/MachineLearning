@@ -319,8 +319,8 @@ class NN(TFClassifierBase):
                     sub_bar = ProgressBar(max_value=train_repeat * record_period - 1, name="Iteration")
                 else:
                     sub_bar = None
-                self.batch_training(x_train, y_train, batch_size, train_repeat,
-                                    self._loss, self._train_step, sub_bar, *args[0])
+                self._batch_training(x_train, y_train, batch_size, train_repeat,
+                                     self._loss, self._train_step, sub_bar, *args[0])
                 if (counter + 1) % record_period == 0:
                     self._batch_work(*args[1])
                     if self.verbose >= NNVerbose.EPOCH:
