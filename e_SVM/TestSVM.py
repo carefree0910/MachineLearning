@@ -14,17 +14,17 @@ def main():
     y[y == 0] = -1
 
     animation_params = {
-        "show": False, "period": 50, "mp4": False,
-        "dense": 400, "draw_background": False
+        "show": False, "mp4": False, "period": 50,
+        "dense": 400, "draw_background": True
     }
 
     svm = SVM(animation_params=animation_params)
-    svm.fit(x, y, kernel="poly", p=12)
+    svm.fit(x, y, kernel="poly", p=12, epoch=600)
     svm.evaluate(x, y)
     svm.visualize2d(x, y, padding=0.1, dense=400, emphasize=svm["alpha"] > 0)
 
     svm = GDSVM(animation_params=animation_params)
-    svm.fit(x, y, kernel="poly", p=12)
+    svm.fit(x, y, kernel="poly", p=12, epoch=10000)
     svm.evaluate(x, y)
     svm.visualize2d(x, y, padding=0.1, dense=400, emphasize=svm["alpha"] > 0)
 
@@ -79,6 +79,18 @@ def main():
         plt.show()
 
     svm = SVM()
+    logs = [log[0] for log in svm.fit(
+        x_train, y_train, metrics=["acc"], x_test=x_test, y_test=y_test
+    )]
+    svm.evaluate(x_train, y_train)
+    svm.evaluate(x_test, y_test)
+
+    plt.figure()
+    plt.title(svm.title)
+    plt.plot(range(len(logs)), logs)
+    plt.show()
+
+    svm = GDSVM()
     logs = [log[0] for log in svm.fit(
         x_train, y_train, metrics=["acc"], x_test=x_test, y_test=y_test
     )]

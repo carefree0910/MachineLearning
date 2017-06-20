@@ -108,27 +108,19 @@ class SVM(KernelBase):
 class GDSVM(GDKernelBase):
     GDSVMTiming = Timing()
 
-    def __init__(self, **kwargs):
-        super(GDSVM, self).__init__(**kwargs)
-        self._fit_args, self._fit_args_names = [1e-3], ["tol"]
-
-    @GDSVMTiming.timeit(level=1, prefix="[Core] ")
-    def _loss(self, y, y_pred, sample_weight):
-        return np.sum(
-            np.maximum(0, 1 - y * y_pred) * sample_weight
-        ) + 0.5 * (y_pred - self._b).dot(self._alpha)
-
     @GDSVMTiming.timeit(level=1, prefix="[Core] ")
     def _get_grads(self, x_batch, y_batch, y_pred, sample_weight_batch, *args):
         err = -y_batch * (x_batch.dot(self._alpha) + self._b)
-        if np.max(err) < 0:
-            return [None, None]
         mask = err >= 0
-        delta = -y_batch[mask]
-        self._model_grads = [
-            np.sum(delta[..., None] * x_batch[mask], axis=0),
-            np.sum(delta)
-        ]
+        if np.max(err) < 0:
+            self._model_grads = [None, None]
+        else:
+            delta = -y_batch[mask] * sample_weight_batch[mask]
+            self._model_grads = [
+                np.sum(delta[..., None] * x_batch[mask], axis=0),
+                np.sum(delta)
+            ]
+        return np.sum(err[mask]) + 0.5 * (y_pred - self._b).dot(self._alpha)
 
 
 class TFSVM(TFKernelBase):
@@ -165,7 +157,7 @@ class TFSVM(TFKernelBase):
     def _fit(self, sample_weight, tol):
         if self._train_repeat is None:
             self._train_repeat = self._get_train_repeat(self._x, self._batch_size)
-        l = self.batch_training(
+        l = self._batch_training(
             self._gram, self._y, self._batch_size, self._train_repeat,
             self._loss, self._train_step
         )
@@ -212,7 +204,7 @@ if TorchKernelBase is not None:
         def _fit(self, sample_weight, tol):
             if self._train_repeat is None:
                 self._train_repeat = self._get_train_repeat(self._x, self._batch_size)
-            l = self.batch_training(
+            l = self._batch_training(
                 self._gram, self._y, self._batch_size, self._train_repeat,
                 self._loss_function
             )

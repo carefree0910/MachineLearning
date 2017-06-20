@@ -38,27 +38,19 @@ class KP(KernelBase):
 class GDKP(GDKernelBase):
     GDKPTiming = Timing()
 
-    def __init__(self, **kwargs):
-        super(GDKP, self).__init__(**kwargs)
-        self._fit_args, self._fit_args_names = [1e-3], ["tol"]
-
-    @GDKPTiming.timeit(level=1, prefix="[Core] ")
-    def _loss(self, y, y_pred, sample_weight):
-        return np.sum(
-            np.maximum(0, 1 - y * y_pred) * sample_weight
-        )
-
     @GDKPTiming.timeit(level=1, prefix="[Core] ")
     def _get_grads(self, x_batch, y_batch, y_pred, sample_weight_batch, *args):
-        err = -y_batch * (x_batch.dot(self._alpha) + self._b)
-        if np.max(err) < 0:
-            return [None, None]
-        mask = err >= 0
-        delta = -y_batch[mask]
-        self._model_grads = [
-            np.sum(delta[..., None] * x_batch[mask], axis=0),
-            np.sum(delta)
-        ]
+        err = -y_batch * (x_batch.dot(self._alpha) + self._b) * sample_weight_batch
+        mask = err >= 0  # type: np.ndarray
+        if not np.any(mask):
+            self._model_grads = [None, None]
+        else:
+            delta = -y_batch[mask] * sample_weight_batch[mask]
+            self._model_grads = [
+                np.sum(delta[..., None] * x_batch[mask], axis=0),
+                np.sum(delta)
+            ]
+        return np.sum(err[mask])
 
 if __name__ == '__main__':
     # xs, ys = DataUtil.gen_two_clusters(center=5, dis=1, scale=2, one_hot=False)
@@ -67,17 +59,17 @@ if __name__ == '__main__':
     ys[ys == 0] = -1
 
     animation_params = {
-        "show": False, "mp4": False, "period": 500,
+        "show": False, "mp4": False, "period": 50,
         "dense": 400, "draw_background": True
     }
 
     kp = KP(animation_params=animation_params)
-    kp.fit(xs, ys, p=12, epoch=10 ** 4)
+    kp.fit(xs, ys, kernel="poly", p=12, epoch=200)
     kp.evaluate(xs, ys)
     kp.visualize2d(xs, ys, dense=400)
 
     kp = GDKP(animation_params=animation_params)
-    kp.fit(xs, ys, p=12, epoch=10 ** 4)
+    kp.fit(xs, ys, kernel="poly", p=12, epoch=10000)
     kp.evaluate(xs, ys)
     kp.visualize2d(xs, ys, dense=400)
 

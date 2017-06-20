@@ -31,23 +31,19 @@ class LinearSVM(GDBase):
         self._params["optimizer"] = kwargs.get("optimizer", "Adam")
 
     @LinearSVMTiming.timeit(level=1, prefix="[Core] ")
-    def _loss(self, y, y_pred, c):
-        return np.sum(
-            np.maximum(0, 1 - y * y_pred)
-        ) + c * np.linalg.norm(self._w)
-
-    @LinearSVMTiming.timeit(level=1, prefix="[Core] ")
     def _get_grads(self, x_batch, y_batch, y_pred, sample_weight_batch, *args):
         c = args[0]
         err = (1 - y_pred * y_batch) * sample_weight_batch
         mask = err > 0  # type: np.ndarray
         if not np.any(mask):
-            return [None, None]
-        delta = -c * y_batch[mask] * sample_weight_batch[mask]
-        self._model_grads = [
-            np.sum(delta[..., None] * x_batch[mask], axis=0),
-            np.sum(delta)
-        ]
+            self._model_grads = [None, None]
+        else:
+            delta = -c * y_batch[mask] * sample_weight_batch[mask]
+            self._model_grads = [
+                np.sum(delta[..., None] * x_batch[mask], axis=0),
+                np.sum(delta)
+            ]
+        return np.sum(err[mask]) + c * np.linalg.norm(self._w)
 
     @LinearSVMTiming.timeit(level=1, prefix="[API] ")
     def fit(self, x, y, sample_weight=None, c=None, lr=None, optimizer=None,
@@ -79,15 +75,14 @@ class LinearSVM(GDBase):
         self._optimizer = OptFactory().get_optimizer_by_name(
             optimizer, self._model_parameters, lr, epoch
         )
-        loss_function = lambda _y, _y_pred: self._loss(_y, _y_pred, c)
 
-        bar = ProgressBar(max_value=epoch, name="TorchLinearSVM")
+        bar = ProgressBar(max_value=epoch, name="LinearSVM")
         ims = []
         train_repeat = self._get_train_repeat(x, batch_size)
         for i in range(epoch):
             self._optimizer.update()
-            l = self.batch_training(
-                x, y, batch_size, train_repeat, loss_function, sample_weight, c
+            l = self._batch_training(
+                x, y, batch_size, train_repeat, sample_weight, c
             )
             if l < tol:
                 bar.terminate()
@@ -152,7 +147,7 @@ class TFLinearSVM(TFClassifierBase):
         ims = []
         train_repeat = self._get_train_repeat(x, batch_size)
         for i in range(epoch):
-            l = self.batch_training(x, y_2d, batch_size, train_repeat, loss, train_step)
+            l = self._batch_training(x, y_2d, batch_size, train_repeat, loss, train_step)
             if l < tol:
                 bar.terminate()
                 break
