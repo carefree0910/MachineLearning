@@ -29,9 +29,9 @@ class SVM(KernelBase):
         err1 = self._y * self._prediction_cache - 1
         err2 = err1.copy()
         err3 = err1.copy()
-        err1[con1 | (err1 >= 0)] = 0
-        err2[(~con1 | ~con2) | (err2 == 0)] = 0
-        err3[con2 | (err3 <= 0)] = 0
+        err1[(con1 & (err1 <= 0)) | (~con1 & (err1 > 0))] = 0
+        err2[((~con1 | ~con2) & (err2 != 0)) | ((con1 & con2) & (err2 == 0))] = 0
+        err3[(con2 & (err3 >= 0)) | (~con2 & (err3 < 0))] = 0
         err = err1 ** 2 + err2 ** 2 + err3 ** 2
         idx = np.argmax(err)
         if err[idx] < tol:
