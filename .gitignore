@@ -91,3 +91,5 @@ ENV/
 *.iml
 
 *.xml
+.idea/
+Playground.py
