@@ -3,54 +3,6 @@ import matplotlib.pyplot as plt
 
 from math import pi
 
-np.random.seed(142857)
-
-def gen_xor(size=100, scale=1):
-    x = np.random.randn(size) * scale
-    y = np.random.randn(size) * scale
-    z = np.zeros([size, 2])
-    z[x * y >= 0] = [0, 1]
-    z[x * y < 0] = [1, 0]
-    return np.c_[x, y].astype(np.float32), z
-
-def gen_nine_grid(size=200):
-    x = np.random.randn(size) * 2
-    y = np.random.randn(size) * 2
-    z = np.zeros(size)
-    x_mask1, x_mask2 = x >= 1, x >= -1
-    y_mask1, y_mask2 = y >= 1, y >= -1
-    z[
-        x_mask1 & y_mask1
-    ] = z[
-        x_mask1 & ~y_mask2
-    ] = z[
-        ~x_mask2 & y_mask1
-    ] = z[
-        ~x_mask2 & ~y_mask2
-    ] = 0
-    z[
-        x_mask1 & (y_mask2 & ~y_mask1)
-    ] = z[
-        (x_mask2 & ~x_mask1) & y_mask1
-    ] = z[
-        (x_mask2 & ~x_mask1) & ~y_mask2
-    ] = z[
-        ~x_mask2 & (y_mask2 & ~y_mask1)
-    ] = 1
-    z[(x_mask2 & ~x_mask1) & (y_mask2 & ~y_mask1)] = 2
-    return np.c_[x, y].astype(np.float32), z
-
-def gen_two_clusters(size=100):
-    center1 = np.random.random(2) + 3
-    center2 = -np.random.random(2) - 3
-    cluster1 = np.random.randn(size, 2) + center1
-    cluster2 = np.random.randn(size, 2) + center2
-    data = np.vstack((cluster1, cluster2)).astype(np.float32)
-    labels = np.array([0] * size + [1] * size)
-    indices = np.random.permutation(size * 2)
-    data, labels = data[indices], labels[indices]
-    return data, labels
-
 def gen_five_clusters(size=200):
     x = np.random.randn(size) * 2
     y = np.random.randn(size) * 2
@@ -62,7 +14,9 @@ def gen_five_clusters(size=200):
     z[~mask2 & mask3] = 2
     z[~mask2 & ~mask4] = 3
     z[z == -1] = 4
-    return np.c_[x, y].astype(np.float32), z
+    one_hot = np.zeros([size, 5])
+    one_hot[range(size), z] = 1
+    return np.c_[x, y].astype(np.float32), one_hot
 
 def visualize2d(clf, x, y, padding=0.2, draw_background=False):
     axis, labels = np.array(x).T, np.array(y)
