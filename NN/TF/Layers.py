@@ -350,20 +350,19 @@ class AvgPool(ConvPoolLayer):
 # Special Layers
 
 class Dropout(SubLayer):
-    def __init__(self, parent, shape, drop_prob=0.5, **kwargs):
-        if drop_prob < 0 or drop_prob >= 1:
-            raise BuildLayerError("(Dropout) Probability of Dropout should be a positive float smaller than 1")
+    def __init__(self, parent, shape, keep_prob=0.5, **kwargs):
+        if keep_prob < 0 or keep_prob >= 1:
+            raise BuildLayerError("(Dropout) Keep probability of Dropout should be a positive float smaller than 1")
         SubLayer.__init__(self, parent, shape, **kwargs)
-        self._drop_prob = drop_prob
-        self._prob = 1 - tf.constant(self._drop_prob, dtype=tf.float32)
-        self.description = "(Drop prob: {})".format(drop_prob)
+        self._keep_prob = keep_prob
+        self.description = "(Keep prob: {})".format(keep_prob)
 
     def get_params(self):
-        return self._drop_prob,
+        return self._keep_prob,
 
     def _activate(self, x, predict):
         if not predict:
-            return tf.nn.dropout(x, self._prob)
+            return tf.nn.dropout(x, self._keep_prob)
         return x
 
 

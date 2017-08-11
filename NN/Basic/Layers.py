@@ -570,14 +570,14 @@ class MaxPool(ConvPoolLayer):
 # Special Layer
 
 class Dropout(SubLayer):
-    def __init__(self, parent, shape, prob=0.5):
-        if prob < 0 or prob >= 1:
+    def __init__(self, parent, shape, keep_prob=0.5):
+        if keep_prob < 0 or keep_prob >= 1:
             raise BuildLayerError("Probability of Dropout should be a positive float smaller than 1")
         SubLayer.__init__(self, parent, shape)
         self._mask = None
-        self._prob = prob
-        self._prob_inv = 1 / (1 - prob)
-        self.description = "(Drop prob: {})".format(prob)
+        self._prob = keep_prob
+        self._prob_inv = 1 / keep_prob
+        self.description = "(Keep prob: {})".format(keep_prob)
 
     def get_params(self):
         return self._prob,
@@ -586,7 +586,7 @@ class Dropout(SubLayer):
         if not predict:
             # noinspection PyTypeChecker
             self._mask = np.random.binomial(
-                [np.ones(x.shape)], 1 - self._prob
+                [np.ones(x.shape)], self._prob
             )[0].astype(np.float32) * self._prob_inv
             return x * self._mask
         return x

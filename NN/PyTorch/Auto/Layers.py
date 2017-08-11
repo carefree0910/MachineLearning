@@ -182,16 +182,16 @@ class Identical(Layer):
 class Dropout(SubLayer):
     def __init__(self, parent, shape, prob=0.5):
         if prob < 0 or prob >= 1:
-            raise BuildLayerError("Probability of Dropout should be a positive float smaller than 1")
+            raise BuildLayerError("Keep probability of Dropout should be a positive float smaller than 1")
         SubLayer.__init__(self, parent, shape)
         self._prob = prob
-        self.description = "(Drop prob: {})".format(prob)
+        self.description = "(Keep prob: {})".format(prob)
 
     def get_params(self):
         return self._prob,
 
     def _activate(self, x, predict):
-        return F.dropout(x, self._prob, not predict)
+        return F.dropout(x, 1 - self._prob, not predict)
 
 
 class Normalize(SubLayer):
