@@ -644,8 +644,8 @@ class TFClassifierBase(ClassifierBase):
 
     @staticmethod
     @clf_timing.timeit(level=2, prefix="[Metric] ")
-    def f1_score(y, y_pred_arg):
-        y_arg, y_pred_arg = tf.argmax(y, axis=1), tf.argmax(y_pred_arg, axis=1)
+    def f1_score(y, y_pred):
+        y_arg, y_pred_arg = tf.argmax(y, axis=1), tf.argmax(y_pred, axis=1)
         tp = tf.reduce_sum(y_arg * y_pred_arg)
         if tp == 0:
             return .0
