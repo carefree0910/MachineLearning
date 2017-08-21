@@ -199,26 +199,26 @@ class Identical(Layer):
 # Special Layer
 
 class Dropout(SubLayer):
-    def __init__(self, parent, shape, prob=0.5):
-        if prob < 0 or prob >= 1:
-            raise BuildLayerError("Probability of Dropout should be a positive float smaller than 1")
+    def __init__(self, parent, shape, keep_prob=0.5):
+        if keep_prob < 0 or keep_prob >= 1:
+            raise BuildLayerError("Keep probability of Dropout should be a positive float smaller than 1")
         SubLayer.__init__(self, parent, shape)
-        self._prob = prob
-        self._prob_inv = 1 / (1 - prob)
-        self.description = "(Drop prob: {})".format(prob)
+        self._mask = None
+        self._prob = keep_prob
+        self._prob_inv = 1 / keep_prob
+        self.description = "(Keep prob: {})".format(keep_prob)
 
     def get_params(self):
         return self._prob,
 
     def _activate(self, x, predict):
         if not predict:
-            return x.mm(torch.diag(
-                (torch.rand(x.size()[1]) >= self._prob).float() * self._prob_inv
-            ))
+            self._mask = (torch.rand(x.size()) < self._prob).float() * self._prob_inv
+            return x * self._mask
         return x
 
     def _derivative(self, y, delta=None):
-        return self._prob_inv * delta
+        return delta * self._mask
 
 
 class Normalize(SubLayer):
