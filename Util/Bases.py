@@ -319,7 +319,6 @@ class ClassifierBase(ModelBase):
     def get_2d_plot(self, x, y, padding=1, dense=200, title=None,
                     draw_background=False, emphasize=None, extra=None, **kwargs):
         axis, labels = np.asarray(x).T, np.asarray(y)
-        decision_function = lambda _xx: self.predict(_xx)
         nx, ny, padding = dense, dense, padding
         x_min, x_max = np.min(axis[0]), np.max(axis[0])  # type: float
         y_min, y_max = np.min(axis[1]), np.max(axis[1])  # type: float
@@ -337,7 +336,7 @@ class ClassifierBase(ModelBase):
             return _xf, _yf, np.c_[n_xf.ravel(), n_yf.ravel()]
 
         xf, yf, base_matrix = get_base(nx, ny)
-        z = decision_function(base_matrix).reshape((nx, ny))
+        z = self.predict(base_matrix).reshape((nx, ny))
 
         if labels.ndim == 1:
             if not self._plot_label_dic:
@@ -382,8 +381,6 @@ class ClassifierBase(ModelBase):
         axis, labels = np.asarray(x).T, np.asarray(y)
 
         print("=" * 30 + "\n" + str(self))
-        decision_function = lambda xx: self.predict(xx, **kwargs)
-
         nx, ny, padding = dense, dense, padding
         x_min, x_max = np.min(axis[0]), np.max(axis[0])
         y_min, y_max = np.min(axis[1]), np.max(axis[1])
@@ -403,7 +400,7 @@ class ClassifierBase(ModelBase):
         xf, yf, base_matrix = get_base(nx, ny)
 
         t = time.time()
-        z = decision_function(base_matrix).reshape((nx, ny))
+        z = self.predict(base_matrix, **kwargs).reshape((nx, ny))
         print("Decision Time: {:8.6} s".format(time.time() - t))
 
         print("Drawing figures...")
@@ -456,7 +453,9 @@ class ClassifierBase(ModelBase):
         axis, labels = np.asarray(x).T, np.asarray(y)
 
         print("=" * 30 + "\n" + str(self))
-        decision_function = lambda xx: self.predict(xx, **kwargs)
+
+        def decision_function(xx):
+            return self.predict(xx, **kwargs)
 
         nx, ny, nz, padding = dense, dense, dense, padding
         x_min, x_max = np.min(axis[0]), np.max(axis[0])
@@ -728,6 +727,9 @@ if torch is not None:
             return float((epoch_cost / train_repeat).data.numpy()[0])
 
         def _predict(self, x, get_raw_results=False, **kwargs):
+            """
+            :rtype: np.ndarray
+            """
             pass
 
         def predict(self, x, get_raw_results=False, **kwargs):
