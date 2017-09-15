@@ -30,6 +30,19 @@ class TimingBase:
 
 
 class ModelBase:
+    """
+        Base for all models
+        Magic methods:
+            1) __str__     : return self.name; __repr__ = __str__
+            2) __getitem__ : access to protected members 
+        Properties:
+            1) name  : name of this model, self.__class__.__name__ or self._name
+            2) title : used in matplotlib (plt.title())
+        Static method:
+            1) disable_timing  : disable Timing()
+            2) show_timing_log : show Timing() records
+    """
+
     clf_timing = Timing()
 
     def __init__(self, **kwargs):
@@ -68,6 +81,8 @@ class ModelBase:
     def show_timing_log(level=2):
         ModelBase.clf_timing.show_timing_log(level)
 
+    # Handle animation
+
     @staticmethod
     def _refresh_animation_params(animation_params):
         animation_params["show"] = animation_params.get("show", False)
@@ -103,6 +118,8 @@ class ModelBase:
 
     def get_2d_plot(self, x, y, padding=1, dense=200, draw_background=False, emphasize=None, extra=None, **kwargs):
         pass
+
+    # Visualization
 
     def scatter2d(self, x, y, padding=0.5, title=None):
         axis, labels = np.asarray(x).T, np.asarray(y)
@@ -191,17 +208,28 @@ class ModelBase:
                   ncol=math.ceil(math.sqrt(len(_scatters))), fontsize=8)
         plt.show()
 
+    # Util
+
     def predict(self, x, get_raw_results=False, **kwargs):
         pass
 
 
 class ClassifierBase(ModelBase):
+    """
+        Base for classifiers
+        Static methods:
+            1) acc, f1_score           : Metrics
+            2) _multi_clf, _multi_data : Parallelization
+    """
+
     clf_timing = Timing()
 
     def __init__(self, **kwargs):
         super(ClassifierBase, self).__init__(**kwargs)
         self._params["animation_params"] = kwargs.get("animation_params", {})
         ClassifierBase._refresh_animation_params(self._params["animation_params"])
+
+    # Metrics
 
     @staticmethod
     def acc(y, y_pred, weights=None):
@@ -219,6 +247,8 @@ class ClassifierBase(ModelBase):
         fp = np.sum((1 - y) * y_pred)
         fn = np.sum(y * (1 - y_pred))
         return 2 * tp / (2 * tp + fn + fp)
+
+    # Parallelization
 
     # noinspection PyUnusedLocal
     @staticmethod
@@ -274,6 +304,8 @@ class ClassifierBase(ModelBase):
             )
         return matrix.astype(np.float32)
 
+    # Training
+
     @staticmethod
     def _get_train_repeat(x, batch_size):
         train_len = len(x)
@@ -287,34 +319,7 @@ class ClassifierBase(ModelBase):
     def _batch_training(self, x, y, batch_size, train_repeat, *args):
         pass
 
-    def get_metrics(self, metrics):
-        if len(metrics) == 0:
-            for metric in self._metrics:
-                metrics.append(metric)
-            return metrics
-        for i in range(len(metrics) - 1, -1, -1):
-            metric = metrics[i]
-            if isinstance(metric, str):
-                try:
-                    metrics[i] = self._available_metrics[metric]
-                except AttributeError:
-                    metrics.pop(i)
-        return metrics
-
-    @clf_timing.timeit(level=1, prefix="[API] ")
-    def evaluate(self, x, y, metrics=None, tar=0, prefix="Acc", **kwargs):
-        if metrics is None:
-            metrics = ["acc"]
-        self.get_metrics(metrics)
-        logs, y_pred = [], self.predict(x, **kwargs)
-        y = np.asarray(y)
-        if y.ndim == 2:
-            y = np.argmax(y, axis=1)
-        for metric in metrics:
-            logs.append(metric(y, y_pred))
-        if isinstance(tar, int):
-            print(prefix + ": {:12.8}".format(logs[tar]))
-        return logs
+    # Visualization
 
     def get_2d_plot(self, x, y, padding=1, dense=200, title=None,
                     draw_background=False, emphasize=None, extra=None, **kwargs):
@@ -589,8 +594,48 @@ class ClassifierBase(ModelBase):
 
         print("Done.")
 
+    # Util
+
+    def get_metrics(self, metrics):
+        if len(metrics) == 0:
+            for metric in self._metrics:
+                metrics.append(metric)
+            return metrics
+        for i in range(len(metrics) - 1, -1, -1):
+            metric = metrics[i]
+            if isinstance(metric, str):
+                try:
+                    metrics[i] = self._available_metrics[metric]
+                except AttributeError:
+                    metrics.pop(i)
+        return metrics
+
+    @clf_timing.timeit(level=1, prefix="[API] ")
+    def evaluate(self, x, y, metrics=None, tar=0, prefix="Acc", **kwargs):
+        if metrics is None:
+            metrics = ["acc"]
+        self.get_metrics(metrics)
+        logs, y_pred = [], self.predict(x, **kwargs)
+        y = np.asarray(y)
+        if y.ndim == 2:
+            y = np.argmax(y, axis=1)
+        for metric in metrics:
+            logs.append(metric(y, y_pred))
+        if isinstance(tar, int):
+            print(prefix + ": {:12.8}".format(logs[tar]))
+        return logs
+
 
 class GDBase(ClassifierBase):
+    """
+        Gradient descent classifier framework
+        Requirements:
+            1) Store all parameters in self._model_parameters
+            2) Calculate all gradients of the parameters and store them in self._grads 
+              in self._get_grads() method
+        See self._update_model_params() method for more insights
+    """
+
     GDBaseTiming = Timing()
 
     def __init__(self, **kwargs):
@@ -624,6 +669,11 @@ class GDBase(ClassifierBase):
 
 
 class TFClassifierBase(ClassifierBase):
+    """
+        Tensorfow classifier framework
+        Implemented tensorflow ver. metrics
+    """
+
     clf_timing = Timing()
 
     def __init__(self, **kwargs):
@@ -671,6 +721,7 @@ class TFClassifierBase(ClassifierBase):
 
 if torch is not None:
     class TorchBasicClassifierBase(ClassifierBase):
+        """ Basic torch's classifier base """
         def _handle_animation(self, i, x, y, ims, animation_params, draw_ani, show_ani, make_mp4, ani_period,
                               name=None, img=None):
             x, y = x.numpy(), y.numpy()
@@ -679,6 +730,12 @@ if torch is not None:
             )
 
     class TorchAutoClassifierBase(TorchBasicClassifierBase):
+        """
+            Torch classifier framework
+            Utilizing torch's auto-grad, but not utilizing torch's optimizers
+            Static method:
+                _arr_to_variable : change iterable(s) to torch Variable(s)
+        """
         def __init__(self, **kwargs):
             super(TorchAutoClassifierBase, self).__init__(**kwargs)
             self._optimizer = self._model_parameters = None
@@ -692,12 +749,7 @@ if torch is not None:
                 ) for arr in args
             ]
 
-        def _handle_animation(self, i, x, y, ims, animation_params, draw_ani, show_ani, make_mp4, ani_period,
-                              name=None, img=None):
-            x, y = x.data.numpy(), y.data.numpy()
-            super(TorchBasicClassifierBase, self)._handle_animation(
-                i, x, y, ims, animation_params, draw_ani, show_ani, make_mp4, ani_period, name, img
-            )
+        # Training
 
         def _update_model_params(self):
             for i, param in enumerate(self._model_parameters):
@@ -726,19 +778,27 @@ if torch is not None:
                 self._batch_work(i, *args)
             return float((epoch_cost / train_repeat).data.numpy()[0])
 
+        # Util
+
         def _predict(self, x, get_raw_results=False, **kwargs):
-            """
-            :rtype: np.ndarray
-            """
             pass
 
         def predict(self, x, get_raw_results=False, **kwargs):
             return self._predict(x, get_raw_results, **kwargs).data.numpy()
+
+        def _handle_animation(self, i, x, y, ims, animation_params, draw_ani, show_ani, make_mp4, ani_period,
+                              name=None, img=None):
+            x, y = x.data.numpy(), y.data.numpy()
+            super(TorchBasicClassifierBase, self)._handle_animation(
+                i, x, y, ims, animation_params, draw_ani, show_ani, make_mp4, ani_period, name, img
+            )
 else:
     TorchBasicClassifierBase = TorchAutoClassifierBase = None
 
 
 class KernelBase(ClassifierBase):
+    """ Kernel classifier with SMO-like algorithm """
+
     KernelBaseTiming = Timing()
 
     def __init__(self, **kwargs):
@@ -775,6 +835,8 @@ class KernelBase(ClassifierBase):
     @KernelBaseTiming.timeit(level=1, prefix="[Kernel] ")
     def _rbf(x, y, gamma):
         return np.exp(-gamma * np.sum((x[..., None, :] - y) ** 2, axis=2))
+
+    # Training
 
     def _update_dw_cache(self, *args):
         pass
@@ -887,6 +949,8 @@ class KernelBase(ClassifierBase):
         self._handle_mp4(ims, animation_properties)
         return logs
 
+    # Util
+
     @KernelBaseTiming.timeit(level=1, prefix="[API] ")
     def predict(self, x, get_raw_results=False, gram_provided=False):
         if not gram_provided:
@@ -898,6 +962,8 @@ class KernelBase(ClassifierBase):
 
 
 class GDKernelBase(KernelBase, GDBase):
+    """ Kernel classifier with gradient descent algorithm """
+
     GDKernelBaseTiming = Timing()
 
     def __init__(self, **kwargs):
@@ -938,6 +1004,8 @@ class GDKernelBase(KernelBase, GDBase):
 
 
 class TFKernelBase(KernelBase, TFClassifierBase):
+    """ Kernel classifier with tensorflow """
+
     def __init__(self, **kwargs):
         super(TFKernelBase, self).__init__(**kwargs)
         self._loss = None
@@ -945,6 +1013,8 @@ class TFKernelBase(KernelBase, TFClassifierBase):
 
 if TorchAutoClassifierBase is not None:
     class TorchKernelBase(KernelBase, TorchAutoClassifierBase):
+        """ Kernel classifier with torch """
+
         def __init__(self, **kwargs):
             super(TorchKernelBase, self).__init__(**kwargs)
             self._loss_function = None
