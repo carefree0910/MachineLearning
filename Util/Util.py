@@ -182,6 +182,17 @@ class DataUtil:
         return data, labels
 
     @staticmethod
+    def gen_noisy_linear(size=10000, n_dim=100, n_valid=5, noise_scale=0.5):
+        x_train = np.random.randn(size, n_dim)
+        x_train_noise = x_train + np.random.randn(size, n_dim) * noise_scale
+        x_test = np.random.randn(int(size*0.15), n_dim)
+        idx = np.random.permutation(n_dim)[:n_valid]
+        w = np.random.randn(n_valid, 1)
+        y_train = (x_train[..., idx].dot(w) > 0).astype(np.float32).ravel()
+        y_test = (x_test[..., idx].dot(w) > 0).astype(np.float32).ravel()
+        return (x_train_noise, y_train), (x_test, y_test)
+
+    @staticmethod
     def quantize_data(x, y, wc=None, continuous_rate=0.1, separate=False):
         if isinstance(x, list):
             xt = map(list, zip(*x))
