@@ -120,7 +120,9 @@ class GDSVM(GDKernelBase):
                 np.sum(delta[..., None] * x_batch[mask], axis=0),
                 np.sum(delta)
             ]
-        return np.sum(err[mask]) + 0.5 * (y_pred - self._b).dot(self._alpha)
+        if len(y_pred) == len(self._alpha):
+            return np.sum(err[mask]) + 0.5 * (y_pred - self._b).dot(self._alpha)
+        return np.sum(err[mask]) + 0.5 * self._alpha.dot(self._gram).dot(self._alpha)
 
 
 class TFSVM(TFKernelBase):
@@ -204,7 +206,7 @@ if TorchKernelBase is not None:
         def _fit(self, sample_weight, tol):
             if self._train_repeat is None:
                 self._train_repeat = self._get_train_repeat(self._x, self._batch_size)
-            l = self._batch_training(
+            l = self.batch_training(
                 self._gram, self._y, self._batch_size, self._train_repeat,
                 self._loss_function
             )

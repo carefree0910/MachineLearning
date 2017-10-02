@@ -997,6 +997,8 @@ class GDKernelBase(KernelBase, GDBase):
     def predict(self, x, get_raw_results=False, gram_provided=False):
         if not gram_provided:
             x = self._kernel(self._x, np.atleast_2d(x))
+        elif self._alpha.shape[0] != x.shape[0]:
+            x = x.T
         y_pred = (self._alpha.dot(x) + self._b).ravel()
         if not get_raw_results:
             return np.sign(y_pred)
