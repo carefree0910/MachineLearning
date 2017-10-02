@@ -207,10 +207,22 @@ class DataUtil:
             x = np.array([[feat_dics[i][_l] if not wc[i] else _l for i, _l in enumerate(sample)]
                           for sample in x], dtype=np.float32)
             x = (x[:, ~wc].astype(np.int), x[:, wc])
-        label_dic = {_l: i for i, _l in enumerate(set(y))}
+        label_dic = {l: i for i, l in enumerate(set(y))}
         y = np.array([label_dic[yy] for yy in y], dtype=np.int8)
-        label_dic = {i: _l for _l, i in label_dic.items()}
+        label_dic = {i: l for l, i in label_dic.items()}
         return x, y, wc, features, feat_dics, label_dic
+
+    @staticmethod
+    def transform_data(x, y, wc, feat_dics, label_dic):
+        if np.all(~wc):
+            dtype = np.int
+        else:
+            dtype = np.float32
+        label_dic = {l: i for i, l in label_dic.items()}
+        x = np.array([[feat_dics[i][_l] if not wc[i] else _l for i, _l in enumerate(sample)]
+                      for sample in x], dtype=dtype)
+        y = np.array([label_dic[yy] for yy in y], dtype=np.int8)
+        return x, y
 
 
 class VisUtil:
