@@ -5,19 +5,17 @@ from sklearn.tree import _tree, DecisionTreeClassifier
 
 import sys
 sys.path.append("../../../")
-from _Dist.NeuralNetworks.c_NeuralNetwork.NNCore import NNCore
-from _Dist.NeuralNetworks.c_NeuralNetwork.NNWrapper import NNWrapper
+from _Dist.NeuralNetworks.c_BasicNN.NNCore import NNCore
+from _Dist.NeuralNetworks.c_BasicNN.NNWrapper import NNWrapper
 
 
 # Transformation Core
 class TransformationCore(NNCore):
-    def __init__(self, i, name, numerical_idx, categorical_columns, n_classes,
-                 model_param_settings=None, network_structure_settings=None,
-                 verbose_settings=None, animation_settings=None):
+    def __init__(self, numerical_idx, categorical_columns, n_classes,
+                 model_param_settings=None, network_structure_settings=None, verbose_settings=None):
         super(TransformationCore, self).__init__(
-            i, name, numerical_idx, categorical_columns, n_classes,
-            model_param_settings, network_structure_settings,
-            verbose_settings, animation_settings
+            numerical_idx, categorical_columns, n_classes,
+            model_param_settings, network_structure_settings, verbose_settings
         )
         self._transform_ws = self._transform_bs = None
 
@@ -27,7 +25,6 @@ class TransformationCore(NNCore):
     def init_all_settings(self):
         NNCore.init_all_settings(self)
         self.use_embedding_for_deep = self.use_one_hot_for_deep = False
-        self.pre_processor = None
 
     def build_deep(self, x, y, x_test, y_test):
         self._transform_ws, self._transform_bs = self._transform(x, y, x_test, y_test)
@@ -70,9 +67,8 @@ class NB2NNCore(TransformationCore):
 
 
 class NB2NNWrapper(NNWrapper):
-    def __init__(self, name, core=NB2NNCore, numerical_idx=None, features_lists=None, is_regression=None, **kwargs):
-        super(NB2NNWrapper, self).__init__(name, core, numerical_idx, features_lists, is_regression, **kwargs)
-        self._remove_redundant = False
+    def __init__(self, name, numerical_idx, features_lists, core=NB2NNCore, **kwargs):
+        super(NB2NNWrapper, self).__init__(name, numerical_idx, features_lists, core, **kwargs)
 
 
 # DTree -> NN
@@ -125,17 +121,17 @@ class DT2NNCore(TransformationCore):
                 valid_nodes = set()
                 local_sign_list = node_sign_list[:]
                 for i, ((node_id, node_dim, node_threshold), node_sign) in enumerate(
-                        zip(node_list, node_sign_list)
+                    zip(node_list, node_sign_list)
                 ):
                     new_w = node_sign
                     if i >= 1:
                         for j, ((local_id, local_dim, local_threshold), local_sign) in enumerate(zip(
-                                node_list[:i], local_sign_list[:i]
+                            node_list[:i], local_sign_list[:i]
                         )):
                             if node_sign == local_sign and node_dim == local_dim:
                                 if (
-                                            (node_sign == -1 and node_threshold < local_threshold) or
-                                            (node_sign == 1 and node_threshold > local_threshold)
+                                    (node_sign == -1 and node_threshold < local_threshold) or
+                                    (node_sign == 1 and node_threshold > local_threshold)
                                 ):
                                     local_sign_list[j] = 0
                                     valid_nodes.remove((local_id, local_sign))
@@ -163,5 +159,5 @@ class DT2NNCore(TransformationCore):
 
 
 class DT2NNWrapper(NNWrapper):
-    def __init__(self, name, core=DT2NNCore, numerical_idx=None, features_lists=None, is_regression=None, **kwargs):
-        super(DT2NNWrapper, self).__init__(name, core, numerical_idx, features_lists, is_regression, **kwargs)
+    def __init__(self, name, numerical_idx, features_lists, core=DT2NNCore, **kwargs):
+        super(DT2NNWrapper, self).__init__(name, numerical_idx, features_lists, core, **kwargs)
