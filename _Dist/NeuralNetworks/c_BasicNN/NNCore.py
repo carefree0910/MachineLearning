@@ -14,14 +14,14 @@ class NNCore:
     def __init__(self, numerical_idx, categorical_columns, n_classes,
                  model_param_settings=None, network_structure_settings=None, verbose_settings=None):
         tf.reset_default_graph()
-        self.numerical_idx = [i for i, flag in enumerate(numerical_idx) if flag]
+        self.numerical_idx = [i for i, numerical in enumerate(numerical_idx) if numerical]
         if numerical_idx[-1]:
             self.numerical_idx.pop()
         self.categorical_columns = categorical_columns
         self.n_classes = n_classes
         self.train_data = self.test_data = None
 
-        self.reset_losses = True
+        self.model_built = False
         self.settings_inited = False
 
         if model_param_settings is None:
@@ -185,7 +185,7 @@ class NNCore:
             batch = data[start:end]
             yield batch
 
-    def gen_dicts(self, data, n_batch=None, include_label=True, add_noises=False, predict=False,
+    def gen_dicts(self, data, n_batch=None, include_label=True, predict=False, add_noises=False,
                   shuffle=True, name=None, count=None):
         n_batch = self.n_batch if n_batch is None else int(n_batch)
         if name is not None:
@@ -264,6 +264,9 @@ class NNCore:
         if self.snapshot_step is None:
             self.snapshot_step = (len(x) // self.n_batch) // self.snapshot_ratio
 
+    def init_variables(self):
+        self._sess.run(tf.global_variables_initializer())
+
     def feed_weights(self, ws):
         for i, w in enumerate(ws):
             if w is not None:
@@ -334,8 +337,10 @@ class NNCore:
                     len(self.hidden_units), net,
                     [current_units, self.n_classes], bias=False
                 )
-        self._indicators.append(dnn_output)
         return dnn_output
+
+    def build_wide(self):
+        pass
 
     def build_loss(self):
         with tf.name_scope("Loss"):
@@ -366,20 +371,26 @@ class NNCore:
         # Deep
         deep_output = self.build_deep(x, y, x_test, y_test)
 
+        # Wide
+        wide_output = self.build_wide()
+
         # Output
         with tf.name_scope("Output"):
-            self.build_output(deep_output)
+            self.build_output(deep_output, wide_output)
+        self._indicators.append(self._output)
         self._model_activations.append(self._prob_output)
 
         # Loss
         self.build_loss()
+
+        self.model_built = True
         if print_settings:
             self.print_settings()
 
         # Initialize
-        self._sess.run(tf.global_variables_initializer())
+        self.init_variables()
 
-    def build_output(self, deep_output):
+    def build_output(self, deep_output, _):
         self._output = tf.add(deep_output, self._central_bias[0], name="Raw_output")
         self._prob_output = tf.nn.softmax(self._output, name="Prob_output")
 
@@ -391,7 +402,7 @@ class NNCore:
     def _update_special_cases(self, dic, count):
         pass
 
-    def _calculate(self, data, tensor, name, include_label=False, predict=True, n_elem=1e7, verbose=True):
+    def _calculate(self, data, tensor, name, include_label=False, predict=True, n_elem=1e7, verbose=False):
         n_batch = n_elem // data.shape[1]
         if isinstance(tensor, list):
             return [self._calculate(data, t, name, include_label, predict, n_elem, verbose) for t in tensor]
@@ -418,7 +429,7 @@ class NNCore:
         for data, losses in zip([self.train_data, self.test_data], [train_losses, test_losses]):
             if data is not None:
                 local_indicators, local_prob_pred = self._calculate(
-                    data[..., :-1], ["_indicators", "_prob_output"], None
+                    data[..., :-1], ["_indicators", "_prob_output"], "Predict"
                 )
                 y = data[..., -1]
                 if not self.is_regression:
@@ -456,17 +467,25 @@ class NNCore:
                     tf.cast(abs_var < 1e-12, tf.float32)
                 ))
 
+    def _get_tb_collections(self):
+        return [(self._ws, self._ws_abs, self._w_abs_means, self._w_names)]
+
+    def _prepare_special_tb_verbose(self):
+        pass
+
     def _prepare_tensorboard_verbose(self, sess):
         if self.tensorboard_verbose > 0:
-            self.tb_log_folder = os.path.join(os.path.sep, "tmp", "tbLogs",
-                                              str(datetime.datetime.now())[:19].replace(":", "-"))
-            train_dir = os.path.join(self.tb_log_folder, "train")
-            test_dir = os.path.join(self.tb_log_folder, "test")
+            tb_log_folder = os.path.join(
+                os.path.sep, "tmp", "tbLogs",
+                str(datetime.datetime.now())[:19].replace(":", "-")
+            )
+            train_dir = os.path.join(tb_log_folder, "train")
+            test_dir = os.path.join(tb_log_folder, "test")
             for tmp_dir in (train_dir, test_dir):
                 if not os.path.isdir(tmp_dir):
                     os.makedirs(tmp_dir)
             if self.tensorboard_verbose > 1:
-                collections = [(self._ws, self._ws_abs, self._w_abs_means, self._w_names)]
+                collections = self._get_tb_collections()
                 with tf.name_scope("VarSummaries"):
                     for weights, abs_weights, abs_means, names in collections:
                         for w, w_abs, w_abs_mean, name in zip(weights, abs_weights, abs_means, names):
@@ -476,6 +495,7 @@ class NNCore:
             with tf.name_scope("GlobalSummaries"):
                 test_summary_ops.append(tf.summary.scalar("Loss", self._loss))
                 test_summary_ops.append(tf.summary.scalar(self.metric_name, self._metric_placeholder))
+            self._prepare_special_tb_verbose()
             train_merge_op = tf.summary.merge_all()
             train_writer = tf.summary.FileWriter(train_dir, sess.graph)
             test_writer = tf.summary.FileWriter(test_dir)
@@ -562,7 +582,7 @@ class NNCore:
         print("lb           : " + str(self.lb))
         print("-" * 60)
 
-    def fit(self, x=None, y=None, x_test=None, y_test=None, n_epoch=None, n_batch=None, print_settings=True):
+    def fit(self, x, y, x_test, y_test, n_epoch=None, n_batch=None, print_settings=True):
         if not self.settings_inited:
             self.init_all_settings()
         if n_epoch is not None:
@@ -570,7 +590,8 @@ class NNCore:
         if n_batch is not None:
             self.n_batch = n_batch
         x, y, x_test, y_test = self.prepare_data(x, y, x_test, y_test)
-        self.build_model(x, y, x_test, y_test, print_settings)
+        if not self.model_built:
+            self.build_model(x, y, x_test, y_test, print_settings)
         count = 0
         train_losses, test_losses = [], []
         with self._sess.as_default() as sess:
