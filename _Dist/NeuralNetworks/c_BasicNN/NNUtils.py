@@ -17,6 +17,14 @@ class Losses:
 
 
 class Metrics:
+    sign_dict = {
+        "f1_score": 1,
+        "r2_score": 1,
+        "auc": 1, "acc": 1,
+        "mse": -1, "ber": -1,
+        "log_loss": -1
+    }
+
     @staticmethod
     def check_shape(y, binary=False):
         y = np.asarray(y, np.float32)
@@ -29,7 +37,7 @@ class Metrics:
 
     @staticmethod
     def f1_score(y, pred):
-        return metrics.f1_score(np.argmax(y, 1), np.argmax(pred, 1))
+        return metrics.f1_score(Metrics.check_shape(y), Metrics.check_shape(pred))
 
     @staticmethod
     def r2_score(y, pred):
@@ -49,6 +57,15 @@ class Metrics:
     @staticmethod
     def mse(y, pred):
         return np.mean(np.square(y.ravel() - pred.ravel()))
+
+    @staticmethod
+    def ber(y, pred):
+        mat = metrics.confusion_matrix(Metrics.check_shape(y), Metrics.check_shape(pred))
+        tp = np.diag(mat)
+        fp = mat.sum(axis=0) - tp
+        fn = mat.sum(axis=1) - tp
+        tn = mat.sum() - (tp + fp + fn)
+        return 0.5 * np.mean((fn / (tp + fn) + fp / (tn + fp)))
 
     @staticmethod
     def log_loss(y, pred):

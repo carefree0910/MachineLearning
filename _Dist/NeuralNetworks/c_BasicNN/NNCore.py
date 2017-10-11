@@ -21,6 +21,7 @@ class NNCore:
         self.n_classes = n_classes
         self.train_data = self.test_data = None
 
+        self.reset_losses = True
         self.settings_inited = False
 
         if model_param_settings is None:
@@ -59,6 +60,7 @@ class NNCore:
         self._tfx = self._tfy = None
         self._model_activations = None
         self._output = self._prob_output = self._indicators = self._loss = self._train_step = None
+        self._one_hot = self._embedding = self._embedding_with_one_hot = None
         self._one_hot_concat = self._embedding_concat = self._embedding_with_one_hot_concat = None
         self._categorical_xs = self._deep_input = None
         self._embedding_tables = []
@@ -144,33 +146,30 @@ class NNCore:
         self.test_data = np.hstack([x_test, y_test.reshape([-1, 1])])
         if not self.is_regression:
             y, y_test = Toolbox.get_one_hot(y, self.n_classes), Toolbox.get_one_hot(y_test, self.n_classes)
-        if self.snapshot_step is None:
-            self.snapshot_step = (len(x) // self.n_batch) // self.snapshot_ratio
+        self.init_with_data(x)
         return x, y, x_test, y_test
 
-    def get_feed_dict(self, input_data, include_label=True, predict=False, count=None):
-        def core(d):
-            feed_dict = {}
-            self._update_special_cases(feed_dict, count)
-            if predict:
-                feed_dict.update({self._p_keep: 1, self._is_training: False})
-            else:
-                feed_dict.update({self._p_keep: self.dropout_keep_prob, self._is_training: True})
-            if self.use_embedding_for_deep or self._categorical_xs:
-                feed_dict.update({self._tfx: d[..., self.numerical_idx]})
-            if not self.use_embedding_for_deep:
-                if include_label:
-                    feed_dict.update({self._deep_input: d[..., :-1]})
-                else:
-                    feed_dict.update({self._deep_input: d})
-            for (idx, _), embedding in zip(self.categorical_columns, self._categorical_xs):
-                feed_dict.update({embedding: d[..., idx].astype(np.int)})
+    def get_feed_dict(self, data, include_label=True, predict=False, count=None):
+        feed_dict = {}
+        self._update_special_cases(feed_dict, count)
+        if predict:
+            feed_dict.update({self._p_keep: 1, self._is_training: False})
+        else:
+            feed_dict.update({self._p_keep: self.dropout_keep_prob, self._is_training: True})
+        if self.use_embedding_for_deep or self._categorical_xs:
+            feed_dict.update({self._tfx: data[..., self.numerical_idx]})
+        if not self.use_embedding_for_deep:
             if include_label:
-                y = d[..., -1]
-                y = Toolbox.get_one_hot(y, self.n_classes) if not self.is_regression else y.reshape([-1, 1])
-                feed_dict.update({self._tfy: y})
-            return feed_dict
-        return core(input_data)
+                feed_dict.update({self._deep_input: data[..., :-1]})
+            else:
+                feed_dict.update({self._deep_input: data})
+        for (idx, _), embedding in zip(self.categorical_columns, self._categorical_xs):
+            feed_dict.update({embedding: data[..., idx].astype(np.int)})
+        if include_label:
+            y = data[..., -1]
+            y = Toolbox.get_one_hot(y, self.n_classes) if not self.is_regression else y.reshape([-1, 1])
+            feed_dict.update({self._tfy: y})
+        return feed_dict
 
     def gen_batches(self, data, shuffle=True, n_batch=None):
         n_batch = self.n_batch if n_batch is None else int(n_batch)
@@ -186,7 +185,7 @@ class NNCore:
             batch = data[start:end]
             yield batch
 
-    def gen_dicts(self, data, n_batch=None, include_label=True, predict=False,
+    def gen_dicts(self, data, n_batch=None, include_label=True, add_noises=False, predict=False,
                   shuffle=True, name=None, count=None):
         n_batch = self.n_batch if n_batch is None else int(n_batch)
         if name is not None:
@@ -207,28 +206,38 @@ class NNCore:
         return tf.nn.embedding_lookup(embedding, self._categorical_xs[i], name="Embedded_X{}".format(i))
 
     def prepare_categorical_inputs(self):
-        init = [] if not self.numerical_idx else [self._tfx]
         if not self.use_embedding_for_deep and not self.use_one_hot_for_deep:
             self._categorical_xs = []
         else:
-            self._categorical_xs = [
-                tf.placeholder(tf.int32, shape=[None], name="Categorical_X{}".format(i))
-                for i in range(len(self.categorical_columns))
-            ]
+            with tf.name_scope("Categorical_Xs"):
+                self._categorical_xs = [
+                    tf.placeholder(tf.int32, shape=[None], name="Categorical_X{}".format(i))
+                    for i in range(len(self.categorical_columns))
+                ]
             with tf.name_scope("One_hot"):
                 one_hot_vars = [
                     tf.one_hot(self._categorical_xs[i], n)
                     for i, (_, n) in enumerate(self.categorical_columns)
                 ]
-                self._one_hot_concat = tf.concat(init + one_hot_vars, 1, name="Concat")
+                self._one_hot = self._one_hot_concat = tf.concat(one_hot_vars, 1, name="Raw")
+                if self.numerical_idx:
+                    self._one_hot_concat = tf.concat([self._tfx, self._one_hot], 1, name="Concat")
             with tf.name_scope("Embedding"):
                 embeddings = [
                     self.get_embedding(i, n)
                     for i, (_, n) in enumerate(self.categorical_columns)
                 ]
-                self._embedding_concat = tf.concat(init + embeddings, 1, name="Concat")
+                self._embedding = self._embedding_concat = tf.concat(embeddings, 1, name="Raw")
+                if self.numerical_idx:
+                    self._embedding_concat = tf.concat([self._tfx, self._embedding], 1, name="Concat")
             with tf.name_scope("Embedding_with_one_hot"):
-                self._embedding_with_one_hot_concat = tf.concat(init + embeddings + one_hot_vars, 1, name="Concat")
+                self._embedding_with_one_hot = self._embedding_with_one_hot_concat = tf.concat(
+                    embeddings + one_hot_vars, 1, name="Raw"
+                )
+                if self.numerical_idx:
+                    self._embedding_with_one_hot_concat = tf.concat(
+                        [self._tfx, self._embedding_with_one_hot], 1, name="Concat"
+                    )
 
     # Build
 
@@ -250,6 +259,10 @@ class NNCore:
             self.hidden_units = [1024, 1024]
         else:
             self.hidden_units = [512, 512]
+
+    def init_with_data(self, x):
+        if self.snapshot_step is None:
+            self.snapshot_step = (len(x) // self.n_batch) // self.snapshot_ratio
 
     def feed_weights(self, ws):
         for i, w in enumerate(ws):
@@ -378,24 +391,24 @@ class NNCore:
     def _update_special_cases(self, dic, count):
         pass
 
-    def _calculate(self, data, tensor, name, include_label=False, predict=True, n_elem=1e7, verbose=False):
+    def _calculate(self, data, tensor, name, include_label=False, predict=True, n_elem=1e7, verbose=True):
         n_batch = n_elem // data.shape[1]
-        if not isinstance(tensor, str):
+        if isinstance(tensor, list):
             return [self._calculate(data, t, name, include_label, predict, n_elem, verbose) for t in tensor]
-        target = getattr(self, tensor)
+        target = getattr(self, tensor) if isinstance(tensor, str) else tensor
         if not verbose:
             name = None
         if not isinstance(target, list):
             return np.vstack([self._sess.run(
                 target, local_dict
             ) for local_dict in self.gen_dicts(
-                data, n_batch, include_label=include_label, predict=predict,
+                data, n_batch, include_label=include_label, predict=predict, add_noises=False,
                 shuffle=False, name=name
             )])
         results = [self._sess.run(
             target, local_dict
         ) for local_dict in self.gen_dicts(
-            data, n_batch, include_label=include_label, predict=predict,
+            data, n_batch, include_label=include_label, predict=predict, add_noises=False,
             shuffle=False, name=name
         )]
         return [np.vstack([result[i] for result in results]) for i in range(len(target))]
@@ -405,7 +418,7 @@ class NNCore:
         for data, losses in zip([self.train_data, self.test_data], [train_losses, test_losses]):
             if data is not None:
                 local_indicators, local_prob_pred = self._calculate(
-                    data[..., :-1], ["_indicators", "_prob_output"], "Predict"
+                    data[..., :-1], ["_indicators", "_prob_output"], None
                 )
                 y = data[..., -1]
                 if not self.is_regression:
@@ -425,15 +438,11 @@ class NNCore:
         return predictions
 
     def _get_metrics(self, x, y, x_test, y_test):
-        train_pred = self._predict(x)
-        test_pred = self._predict(x_test) if x_test is not None else None
+        train_pred = self.predict(x, verbose=False)
+        test_pred = self.predict(x_test, verbose=False) if x_test is not None else None
         train_metric = self.metric(y, train_pred)
         test_metric = self.metric(y_test, test_pred) if y_test is not None else None
         return train_metric, test_metric
-
-    def _predict(self, x, get_raw=False, verbose=False):
-        tensor = "_output" if self.is_regression or get_raw else "_prob_output"
-        return self._calculate(x, tensor, "Predict", verbose=verbose)
 
     def _summary_var(self, var, abs_var, abs_mean, summary_sparsity):
         mean, std = tf.nn.moments(var, None)
@@ -465,6 +474,7 @@ class NNCore:
                                 self._summary_var(w, w_abs, w_abs_mean, "pruned" in name.lower())
             test_summary_ops = []
             with tf.name_scope("GlobalSummaries"):
+                test_summary_ops.append(tf.summary.scalar("Loss", self._loss))
                 test_summary_ops.append(tf.summary.scalar(self.metric_name, self._metric_placeholder))
             train_merge_op = tf.summary.merge_all()
             train_writer = tf.summary.FileWriter(train_dir, sess.graph)
@@ -475,15 +485,19 @@ class NNCore:
         return train_writer, test_writer, train_merge_op, test_merge_op
 
     def _do_tensorboard_verbose(self, count, train_info, test_info, train_metric, test_metric):
-        train_merge_op, train_writer = train_info
-        test_merge_op, test_writer = test_info
-        local_dic = {self._metric_placeholder: train_metric}
-        self._update_special_cases(local_dic, count)
-        train_summary = self._sess.run(train_merge_op, local_dic)
+        train_merge_op, train_losses, train_writer = train_info
+        test_merge_op, test_losses, test_writer = test_info
+        local_dict = {
+            self._loss: train_losses[-1],
+            self._metric_placeholder: train_metric
+        }
+        self._update_special_cases(local_dict, count)
+        train_summary = self._sess.run(train_merge_op, local_dict)
         train_writer.add_summary(train_summary, count)
         if test_metric is not None:
             test_summary = self._sess.run(test_merge_op, {
-                self._metric_placeholder: test_metric
+                self._metric_placeholder: test_metric,
+                self._loss: test_losses[-1]
             })
             test_writer.add_summary(test_summary, count)
 
@@ -558,13 +572,15 @@ class NNCore:
         x, y, x_test, y_test = self.prepare_data(x, y, x_test, y_test)
         self.build_model(x, y, x_test, y_test, print_settings)
         count = 0
+        train_losses, test_losses = [], []
         with self._sess.as_default() as sess:
             # Prepare
             i = 0
             train_writer, test_writer, train_merge_op, test_merge_op = self._prepare_tensorboard_verbose(sess)
             bar = ProgressBar(max_value=self.n_epoch, name="Main")
-            train_info = [train_merge_op, train_writer]
-            test_info = [test_merge_op, test_writer]
+            train_info = [train_merge_op, train_losses, train_writer]
+            test_info = [test_merge_op, test_losses, test_writer]
+            self._calculate_loss(train_losses, test_losses)
             train_metric, test_metric = self._get_metrics(x, y, x_test, y_test)
             if self.tensorboard_verbose > 0:
                 self._do_tensorboard_verbose(count, train_info, test_info, train_metric, test_metric)
@@ -578,13 +594,23 @@ class NNCore:
                             train_metric, test_metric = self._get_metrics(x, y, x_test, y_test)
                             self._do_tensorboard_verbose(count, train_info, test_info, train_metric, test_metric)
                 i += 1
-                if self.snapshot_step == 0 and self.tensorboard_verbose > 0:
+                if self.tensorboard_verbose > 0:
+                    if train_metric is None:
+                        y_pred, y_test_pred = self._calculate_loss(train_losses, test_losses, return_pred=True)
+                        train_metric = self.metric(y, y_pred)
+                        test_metric = self.metric(y_test, y_test_pred) if y_test is not None else None
+                    else:
+                        self._calculate_loss(train_losses, test_losses)
                     self._do_tensorboard_verbose(count, train_info, test_info, train_metric, test_metric)
+                else:
+                    self._calculate_loss(train_losses, test_losses)
                 if bar is not None:
                     bar.update()
+        return train_losses, test_losses
 
-    def predict(self, x, get_raw=False, verbose=False):
-        return self._predict(x, get_raw, verbose)
+    def predict(self, x, get_raw=False, verbose=True):
+        tensor = "_output" if self.is_regression or get_raw else "_prob_output"
+        return self._calculate(x, tensor, "Predict", verbose=verbose)
 
     def evaluate(self, x, y, verbose=False):
         print("{}: {:8.6}".format(self.metric_name, self.metric(y, self.predict(x, verbose=verbose))))

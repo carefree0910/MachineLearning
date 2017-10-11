@@ -46,10 +46,10 @@ class NNWrapper:
         self._model = self._core(
             self._numerical_idx, self._categorical_columns, self._n_classes, **self._kwargs
         )
-        self._model.fit(x, y, x_test, y_test, print_settings=print_settings)
+        train_losses, test_losses = self._model.fit(x, y, x_test, y_test, print_settings=print_settings)
         print("Test ", end="")
         self.evaluate(x_test, y_test)
-        return self
+        return train_losses, test_losses
 
     def predict(self, x, get_raw=False, verbose=False):
         return self._model.predict(x, get_raw, verbose)
@@ -62,4 +62,3 @@ class NNWrapper:
 
     def evaluate(self, x, y, verbose=False):
         self._model.evaluate(x, y, verbose)
-        return self
