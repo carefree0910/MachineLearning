@@ -21,15 +21,6 @@ np.random.seed(142857)
 
 class Util:
     @staticmethod
-    def get_and_pop(dic, key, default):
-        try:
-            val = dic[key]
-            dic.pop(key)
-        except KeyError:
-            val = default
-        return val
-
-    @staticmethod
     def callable(obj):
         _str_obj = str(obj)
         if callable(obj):
@@ -123,14 +114,14 @@ class DataUtil:
             if train_num is None:
                 return x, y
             return (x[:train_num], y[:train_num]), (x[train_num:], y[train_num:])
-        x, y, wc, features, feat_dics, label_dic = DataUtil.quantize_data(x, y, **kwargs)
+        x, y, wc, features, feat_dicts, label_dict = DataUtil.quantize_data(x, y, **kwargs)
         if one_hot:
             y = (y[..., None] == np.arange(np.max(y)+1)).astype(np.int8)
         if train_num is None:
-            return x, y, wc, features, feat_dics, label_dic
+            return x, y, wc, features, feat_dicts, label_dict
         return (
             (x[:train_num], y[:train_num]), (x[train_num:], y[train_num:]),
-            wc, features, feat_dics, label_dic
+            wc, features, feat_dicts, label_dict
         )
 
     @staticmethod
@@ -205,34 +196,34 @@ class DataUtil:
             wc = np.array([False] * len(xt))
         else:
             wc = np.asarray(wc)
-        feat_dics = [{_l: i for i, _l in enumerate(feats)} if not wc[i] else None
+        feat_dicts = [{_l: i for i, _l in enumerate(feats)} if not wc[i] else None
                      for i, feats in enumerate(features)]
         if not separate:
             if np.all(~wc):
                 dtype = np.int
             else:
                 dtype = np.float32
-            x = np.array([[feat_dics[i][_l] if not wc[i] else _l for i, _l in enumerate(sample)]
+            x = np.array([[feat_dicts[i][_l] if not wc[i] else _l for i, _l in enumerate(sample)]
                           for sample in x], dtype=dtype)
         else:
-            x = np.array([[feat_dics[i][_l] if not wc[i] else _l for i, _l in enumerate(sample)]
+            x = np.array([[feat_dicts[i][_l] if not wc[i] else _l for i, _l in enumerate(sample)]
                           for sample in x], dtype=np.float32)
             x = (x[:, ~wc].astype(np.int), x[:, wc])
-        label_dic = {l: i for i, l in enumerate(set(y))}
-        y = np.array([label_dic[yy] for yy in y], dtype=np.int8)
-        label_dic = {i: l for l, i in label_dic.items()}
-        return x, y, wc, features, feat_dics, label_dic
+        label_dict = {l: i for i, l in enumerate(set(y))}
+        y = np.array([label_dict[yy] for yy in y], dtype=np.int8)
+        label_dict = {i: l for l, i in label_dict.items()}
+        return x, y, wc, features, feat_dicts, label_dict
 
     @staticmethod
-    def transform_data(x, y, wc, feat_dics, label_dic):
+    def transform_data(x, y, wc, feat_dicts, label_dict):
         if np.all(~wc):
             dtype = np.int
         else:
             dtype = np.float32
-        label_dic = {l: i for i, l in label_dic.items()}
-        x = np.array([[feat_dics[i][_l] if not wc[i] else _l for i, _l in enumerate(sample)]
+        label_dict = {l: i for i, l in label_dict.items()}
+        x = np.array([[feat_dicts[i][_l] if not wc[i] else _l for i, _l in enumerate(sample)]
                       for sample in x], dtype=dtype)
-        y = np.array([label_dic[yy] for yy in y], dtype=np.int8)
+        y = np.array([label_dict[yy] for yy in y], dtype=np.int8)
         return x, y
 
 
@@ -338,9 +329,9 @@ class VisUtil:
 
 
 class Overview:
-    def __init__(self, label_dic, shape=(1440, 576)):
+    def __init__(self, label_dict, shape=(1440, 576)):
         self.shape = shape
-        self.label_dic = label_dic
+        self.label_dict = label_dict
         self.n_col = self.n_row = 0
         self.ans = self.pred = self.results = self.prob = None
 
@@ -354,7 +345,7 @@ class Overview:
                 title = "Detail (prob: {:6.4})".format(prob)
             else:
                 title = "True label: {} (prob: {:6.4})".format(
-                    self.label_dic[self.ans[idx]], prob)
+                    self.label_dict[self.ans[idx]], prob)
             while 1:
                 cv2.imshow(title, self.results[idx])
                 if cv2.waitKey(20) & 0xFF == 27:
@@ -377,7 +368,7 @@ class Overview:
         for i, img in enumerate(images):
             pred = y_pred[i]
             indices = np.argsort(pred)[-3:][::-1]
-            ps, labels = pred[indices], self.label_dic[indices]
+            ps, labels = pred[indices], self.label_dict[indices]
             if true_classes is None:
                 color = np.array([255, 255, 255], dtype=np.uint8)
             else:

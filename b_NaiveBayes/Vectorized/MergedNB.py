@@ -24,12 +24,12 @@ class MergedNB(NaiveBayes):
     def feed_data(self, x, y, sample_weight=None):
         if sample_weight is not None:
             sample_weight = np.asarray(sample_weight)
-        x, y, wc, features, feat_dics, label_dic = DataUtil.quantize_data(
+        x, y, wc, features, feat_dicts, label_dict = DataUtil.quantize_data(
             x, y, wc=self._whether_continuous, separate=True)
         if self._whether_continuous is None:
             self._whether_continuous = wc
             self._whether_discrete = ~self._whether_continuous
-        self.label_dic = label_dic
+        self.label_dict = label_dict
 
         discrete_x, continuous_x = x
 
@@ -42,16 +42,16 @@ class MergedNB(NaiveBayes):
         self._multinomial._x, self._multinomial._y = x, y
         self._multinomial._labelled_x, self._multinomial._label_zip = labelled_x, list(zip(labels, labelled_x))
         self._multinomial._cat_counter = cat_counter
-        self._multinomial._feat_dics = [dic for i, dic in enumerate(feat_dics) if self._whether_discrete[i]]
+        self._multinomial._feat_dicts = [dic for i, dic in enumerate(feat_dicts) if self._whether_discrete[i]]
         self._multinomial._n_possibilities = [len(feats) for i, feats in enumerate(features)
                                               if self._whether_discrete[i]]
-        self._multinomial.label_dic = label_dic
+        self._multinomial.label_dict = label_dict
 
         labelled_x = [continuous_x[label].T for label in labels]
 
         self._gaussian._x, self._gaussian._y = continuous_x.T, y
         self._gaussian._labelled_x, self._gaussian._label_zip = labelled_x, labels
-        self._gaussian._cat_counter, self._gaussian.label_dic = cat_counter, label_dic
+        self._gaussian._cat_counter, self._gaussian.label_dict = cat_counter, label_dict
 
         self.feed_sample_weight(sample_weight)
 
@@ -75,14 +75,14 @@ class MergedNB(NaiveBayes):
 
     @MergedNBTiming.timeit(level=1, prefix="[Core] ")
     def _transfer_x(self, x):
-        feat_dics = self._multinomial["feat_dics"]
+        feat_dicts = self._multinomial["feat_dicts"]
         idx = 0
         for d, discrete in enumerate(self._whether_discrete):
             for i, sample in enumerate(x):
                 if not discrete:
                     x[i][d] = float(x[i][d])
                 else:
-                    x[i][d] = feat_dics[idx][sample[d]]
+                    x[i][d] = feat_dicts[idx][sample[d]]
             if discrete:
                 idx += 1
         return x

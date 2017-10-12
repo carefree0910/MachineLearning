@@ -37,7 +37,7 @@ class NaiveBayes(ClassifierBase):
         self._n_possibilities = self._p_category = None
         self._labelled_x = self._label_zip = None
         self._cat_counter = self._con_counter = None
-        self.label_dic = self._feat_dics = None
+        self.label_dict = self._feat_dicts = None
 
         self._params["lb"] = kwargs.get("lb", 1)
 
@@ -81,7 +81,7 @@ class NaiveBayes(ClassifierBase):
             mask = p > m_probability
             m_arg[mask], m_probability[mask] = i, p[mask]
         if not get_raw_result:
-            return np.array([self.label_dic[arg] for arg in m_arg])
+            return np.array([self.label_dict[arg] for arg in m_arg])
         return m_probability
 
     def _transfer_x(self, x):

@@ -38,7 +38,7 @@ class NaiveBayes(ClassifierBase):
         self._n_possibilities = None
         self._labelled_x = self._label_zip = None
         self._cat_counter = self._con_counter = None
-        self.label_dic = self._feat_dics = None
+        self.label_dict = self._feat_dicts = None
 
         self._params["lb"] = kwargs.get("lb", 1)
 
@@ -79,7 +79,7 @@ class NaiveBayes(ClassifierBase):
             if p > m_probability:
                 m_arg, m_probability = i, p
         if not get_raw_result:
-            return self.label_dic[m_arg]
+            return self.label_dict[m_arg]
         return m_probability
 
     @NaiveBayesTiming.timeit(level=3, prefix="[API] ")

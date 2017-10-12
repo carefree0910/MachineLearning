@@ -59,7 +59,7 @@ class CvDNode(metaclass=TimingMeta):
         return 1 + max([child.height if child is not None else 0 for child in self.children.values()])
 
     @property
-    def info_dic(self):
+    def info_dict(self):
         return {
             "chaos": self.chaos,
             "y": self._y
@@ -89,7 +89,7 @@ class CvDNode(metaclass=TimingMeta):
         self.category = self.get_category()
         parent = self.parent
         while parent is not None:
-            parent.leafs[id(self)] = self.info_dic
+            parent.leafs[id(self)] = self.info_dict
             parent = parent.parent
 
     def prune(self):
@@ -101,7 +101,7 @@ class CvDNode(metaclass=TimingMeta):
             pop = parent.leafs.pop
             for k in pop_lst:
                 pop(k)
-            parent.leafs[id(self)] = self.info_dic
+            parent.leafs[id(self)] = self.info_dict
             parent = parent.parent
         self.mark_pruned()
         self.feature_dim = None

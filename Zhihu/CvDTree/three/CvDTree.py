@@ -90,7 +90,7 @@ class CvDNode:
         self._prev_feat = prev_feat
         self.leafs = {}
         self.pruned = False
-        self.label_dic = {}
+        self.label_dict = {}
 
     def __getitem__(self, item):
         if isinstance(item, str):
@@ -105,7 +105,7 @@ class CvDNode:
             return "CvDNode ({}) ({} -> {})".format(
                 self._depth, self._prev_feat, self.feature_dim)
         return "CvDNode ({}) ({} -> class: {})".format(
-            self._depth, self._prev_feat, self.label_dic[self.category])
+            self._depth, self._prev_feat, self.label_dict[self.category])
 
     __repr__ = __str__
 
@@ -128,7 +128,7 @@ class CvDNode:
         return self._prev_feat
 
     @property
-    def info_dic(self):
+    def info_dict(self):
         return {
             "ent": self.ent,
             "labels": self.labels
@@ -163,25 +163,25 @@ class CvDNode:
 
     def _gen_children(self, feat, con_chaos):
         features = self._data[:, feat]
-        _new_feats = self.feats[:]
-        _new_feats.remove(feat)
+        new_feats = self.feats[:]
+        new_feats.remove(feat)
         for feat in set(features):
-            _feat_mask = features == feat
-            _new_node = self.__class__(
+            feat_mask = features == feat
+            new_node = self.__class__(
                 self.tree, self._base, ent=con_chaos,
                 depth=self._depth + 1, parent=self, is_root=False, prev_feat=feat)
-            _new_node.feats = _new_feats
-            _new_node.label_dic = self.label_dic
-            self.children[feat] = _new_node
-            _local_weights = None if self.sample_weights is None else self.sample_weights[_feat_mask]
-            _new_node.fit(self._data[_feat_mask, :], self.labels[_feat_mask], _local_weights)
+            new_node.feats = new_feats
+            new_node.label_dict = self.label_dict
+            self.children[feat] = new_node
+            _local_weights = None if self.sample_weights is None else self.sample_weights[feat_mask]
+            new_node.fit(self._data[feat_mask, :], self.labels[feat_mask], _local_weights)
 
     def _handle_terminate(self):
         self.category = self.get_class()
-        _parent = self
-        while _parent is not None:
-            _parent.leafs[self.key] = self.info_dic
-            _parent = _parent.parent
+        parent = self
+        while parent is not None:
+            parent.leafs[self.key] = self.info_dict
+            parent = parent.parent
 
     def fit(self, data, labels, sample_weights, eps=1e-8):
         if data is not None and labels is not None:
@@ -212,7 +212,7 @@ class CvDNode:
         while _parent is not None:
             for _k in _pop_lst:
                 _parent.leafs.pop(_k)
-            _parent.leafs[self.key] = self.info_dic
+            _parent.leafs[self.key] = self.info_dict
             _parent = _parent.parent
         self.mark_pruned()
         self.children = {}
@@ -265,7 +265,7 @@ class CvDBase:
         self._max_depth = max_depth
         self.root = node
         self.root.feed_tree(self)
-        self.label_dic = {}
+        self.label_dict = {}
         self.prune_alpha = 1
 
     def __str__(self):
@@ -282,11 +282,11 @@ class CvDBase:
         return np.sum(np.array(y) == np.array(y_pred)) / len(y)
 
     def fit(self, data=None, labels=None, sample_weights=None, eps=1e-8, **kwargs):
-        _dic = {c: i for i, c in enumerate(set(labels))}
-        labels = np.array([_dic[yy] for yy in labels])
-        self.label_dic = {value: key for key, value in _dic.items()}
+        dic = {c: i for i, c in enumerate(set(labels))}
+        labels = np.array([dic[yy] for yy in labels])
+        self.label_dict = {value: key for key, value in dic.items()}
         data = np.array(data)
-        self.root.label_dic = self.label_dic
+        self.root.label_dict = self.label_dict
         self.root.feats = [i for i in range(data.shape[1])]
         self.root.fit(data, labels, sample_weights, eps)
         self.prune_alpha = kwargs.get("alpha", self.prune_alpha)
@@ -318,7 +318,7 @@ class CvDBase:
 
     def predict_one(self, x, transform=True):
         if transform:
-            return self.label_dic[self.root.predict_one(x)]
+            return self.label_dict[self.root.predict_one(x)]
         return self.root.predict_one(x)
 
     def predict(self, x, transform=True):
@@ -357,7 +357,7 @@ class CvDBase:
                     text = str(node.feature_dim)
                     color = (0, 0, 255)
                 else:
-                    text = str(self.label_dic[node.category])
+                    text = str(self.label_dict[node.category])
                     color = (0, 255, 0)
                 cv2.putText(img, text, (x-7*len(text)+2, y+3), cv2.LINE_AA, 0.6, color, 1)
 

@@ -13,7 +13,7 @@ class MultinomialNB(NaiveBayes):
     def feed_data(self, x, y, sample_weight=None):
         if sample_weight is not None:
             sample_weight = np.asarray(sample_weight)
-        x, y, _, features, feat_dics, label_dic = DataUtil.quantize_data(x, y, wc=np.array([False] * len(x[0])))
+        x, y, _, features, feat_dicts, label_dict = DataUtil.quantize_data(x, y, wc=np.array([False] * len(x[0])))
         cat_counter = np.bincount(y)
         n_possibilities = [len(feats) for feats in features]
 
@@ -22,8 +22,8 @@ class MultinomialNB(NaiveBayes):
 
         self._x, self._y = x, y
         self._labelled_x, self._label_zip = labelled_x, list(zip(labels, labelled_x))
-        self._cat_counter, self._feat_dics, self._n_possibilities = cat_counter, feat_dics, n_possibilities
-        self.label_dic = label_dic
+        self._cat_counter, self._feat_dicts, self._n_possibilities = cat_counter, feat_dicts, n_possibilities
+        self.label_dict = label_dict
         self.feed_sample_weight(sample_weight)
 
     @MultinomialNBTiming.timeit(level=1, prefix="[Core] ")
@@ -63,25 +63,25 @@ class MultinomialNB(NaiveBayes):
     def _transfer_x(self, x):
         for i, sample in enumerate(x):
             for j, char in enumerate(sample):
-                x[i][j] = self._feat_dics[j][char]
+                x[i][j] = self._feat_dicts[j][char]
         return x
 
     def visualize(self, save=False):
-        colors = plt.cm.Paired([i / len(self.label_dic) for i in range(len(self.label_dic))])
-        colors = {cat: color for cat, color in zip(self.label_dic.values(), colors)}
-        rev_feat_dics = [{val: key for key, val in feat_dic.items()} for feat_dic in self._feat_dics]
+        colors = plt.cm.Paired([i / len(self.label_dict) for i in range(len(self.label_dict))])
+        colors = {cat: color for cat, color in zip(self.label_dict.values(), colors)}
+        rev_feat_dicts = [{val: key for key, val in feat_dict.items()} for feat_dict in self._feat_dicts]
         for j in range(len(self._n_possibilities)):
-            rev_dic = rev_feat_dics[j]
+            rev_dict = rev_feat_dicts[j]
             sj = self._n_possibilities[j]
             tmp_x = np.arange(1, sj + 1)
             title = "$j = {}; S_j = {}$".format(j + 1, sj)
             plt.figure()
             plt.title(title)
-            for c in range(len(self.label_dic)):
+            for c in range(len(self.label_dict)):
                 plt.bar(tmp_x - 0.35 * c, self._data[j][c, :], width=0.35,
-                        facecolor=colors[self.label_dic[c]], edgecolor="white",
-                        label=u"class: {}".format(self.label_dic[c]))
-            plt.xticks([i for i in range(sj + 2)], [""] + [rev_dic[i] for i in range(sj)] + [""])
+                        facecolor=colors[self.label_dict[c]], edgecolor="white",
+                        label=u"class: {}".format(self.label_dict[c]))
+            plt.xticks([i for i in range(sj + 2)], [""] + [rev_dict[i] for i in range(sj)] + [""])
             plt.ylim(0, 1.0)
             plt.legend()
             if not save:

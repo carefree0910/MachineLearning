@@ -54,7 +54,7 @@ class CvDNode:
         self.ent = ent
         self.children = {}
         self.category = None
-        self.label_dic = {}
+        self.label_dict = {}
 
         self.tree = tree
         if tree is not None:
@@ -103,17 +103,17 @@ class CvDNode:
 
     def _gen_children(self, feat, con_ent):
         features = self._data[:, feat]
-        _new_feats = self.feats[:]
-        _new_feats.remove(feat)
+        new_feats = self.feats[:]
+        new_feats.remove(feat)
         for feat in set(features):
-            _feat_mask = features == feat
-            _new_node = self.__class__(
+            feat_mask = features == feat
+            new_node = self.__class__(
                 self.tree, self._max_depth, self._base, ent=con_ent,
                 depth=self._depth + 1, parent=self, is_root=False, prev_feat=feat)
-            _new_node.feats = _new_feats
-            _new_node.label_dic = self.label_dic
-            self.children[feat] = _new_node
-            _new_node.fit(self._data[_feat_mask, :], self.labels[_feat_mask])
+            new_node.feats = new_feats
+            new_node.label_dict = self.label_dict
+            self.children[feat] = new_node
+            new_node.fit(self._data[feat_mask, :], self.labels[feat_mask])
 
     def _handle_terminate(self):
         self.category = self.get_class()
@@ -182,7 +182,7 @@ class CvDNode:
             return "CvDNode ({}) ({} -> {})".format(
                 self._depth, self.prev_feat, self.feature_dim)
         return "CvDNode ({}) ({} -> class: {})".format(
-            self._depth, self.prev_feat, self.label_dic[self.category])
+            self._depth, self.prev_feat, self.label_dict[self.category])
 
     __repr__ = __str__
 
@@ -194,7 +194,7 @@ class CvDBase:
         self.nodes = []
         self._max_depth = max_depth
         self.root = CvDNode(self, max_depth)
-        self.label_dic = {}
+        self.label_dict = {}
 
     @property
     def depth(self):
@@ -205,11 +205,11 @@ class CvDBase:
         return np.sum(np.array(y) == np.array(y_pred)) / len(y)
 
     def fit(self, data=None, labels=None, sample_weights=None, eps=1e-8):
-        _dic = {c: i for i, c in enumerate(set(labels))}
-        labels = np.array([_dic[yy] for yy in labels])
-        self.label_dic = {value: key for key, value in _dic.items()}
+        dic = {c: i for i, c in enumerate(set(labels))}
+        labels = np.array([dic[yy] for yy in labels])
+        self.label_dict = {value: key for key, value in dic.items()}
         data = np.array(data)
-        self.root.label_dic = self.label_dic
+        self.root.label_dict = self.label_dict
         self.root.feats = [i for i in range(data.shape[1])]
         self.root.fit(data, labels, sample_weights, eps)
 
@@ -233,7 +233,7 @@ class CvDBase:
             self.prune(alpha)
 
     def predict_one(self, x):
-        return self.label_dic[self.root.predict_one(x)]
+        return self.label_dict[self.root.predict_one(x)]
 
     def predict(self, x):
         x = np.atleast_2d(x)

@@ -6,14 +6,14 @@ from _SKlearn.Ensemble import SKAdaBoost, SKRandomForest
 
 from Util.Util import DataUtil
 
-clf_dic = {
+clf_dict = {
     "AdaBoost": AdaBoost, "RF": RandomForest,
     "SKAdaBoost": SKAdaBoost, "SKRandomForest": SKRandomForest
 }
 
 
 def test(x, y, algorithm="AdaBoost", clf="Cart", epoch=10, **kwargs):
-    ensemble = clf_dic[algorithm]()
+    ensemble = clf_dict[algorithm]()
     if "SK" in algorithm:
         ensemble.fit(x, y)
     else:
@@ -27,7 +27,7 @@ def cv_test(x, y, xt, yt, algorithm="AdaBoost", clf="Cart", epoch=10, **kwargs):
     print("Testing {} ({})...".format(algorithm, clf))
     print("-" * 30)
     t = time.time()
-    ensemble = clf_dic[algorithm]()
+    ensemble = clf_dict[algorithm]()
     ensemble.fit(x, y, None, clf, epoch, **kwargs)
     ensemble.evaluate(xt, yt)
     print("Time cost: {:8.6} s".format(time.time() - t))

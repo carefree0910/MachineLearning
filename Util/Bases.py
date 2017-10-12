@@ -46,7 +46,7 @@ class ModelBase:
     clf_timing = Timing()
 
     def __init__(self, **kwargs):
-        self._plot_label_dic = {}
+        self._plot_label_dict = {}
         self._title = self._name = None
         self._metrics, self._available_metrics = [], {
             "acc": ClassifierBase.acc
@@ -135,9 +135,9 @@ class ModelBase:
         y_max += y_padding
 
         if labels.ndim == 1:
-            if not self._plot_label_dic:
-                self._plot_label_dic = {c: i for i, c in enumerate(set(labels))}
-            dic = self._plot_label_dic
+            if not self._plot_label_dict:
+                self._plot_label_dict = {c: i for i, c in enumerate(set(labels))}
+            dic = self._plot_label_dict
             n_label = len(dic)
             labels = np.array([dic[label] for label in labels])
         else:
@@ -181,9 +181,9 @@ class ModelBase:
 
         def transform_arr(arr):
             if arr.ndim == 1:
-                _dic = {c: i for i, c in enumerate(set(arr))}
-                n_dim = len(_dic)
-                arr = np.array([_dic[label] for label in arr])
+                dic = {c: i for i, c in enumerate(set(arr))}
+                n_dim = len(dic)
+                arr = np.array([dic[label] for label in arr])
             else:
                 n_dim = arr.shape[1]
                 arr = np.argmax(arr, axis=1)
@@ -197,15 +197,15 @@ class ModelBase:
 
         labels, n_label = transform_arr(labels)
         colors = plt.cm.rainbow([i / n_label for i in range(n_label)])[labels]
-        _indices = [labels == i for i in range(n_label)]
-        _scatters = []
+        indices = [labels == i for i in range(n_label)]
+        scatters = []
         fig = plt.figure()
         plt.title(title)
         ax = fig.add_subplot(111, projection='3d')
-        for _index in _indices:
-            _scatters.append(ax.scatter(axis[0][_index], axis[1][_index], axis[2][_index], c=colors[_index]))
-        ax.legend(_scatters, ["$c_{}$".format("{" + str(i) + "}") for i in range(len(_scatters))],
-                  ncol=math.ceil(math.sqrt(len(_scatters))), fontsize=8)
+        for _index in indices:
+            scatters.append(ax.scatter(axis[0][_index], axis[1][_index], axis[2][_index], c=colors[_index]))
+        ax.legend(scatters, ["$c_{}$".format("{" + str(i) + "}") for i in range(len(scatters))],
+                  ncol=math.ceil(math.sqrt(len(scatters))), fontsize=8)
         plt.show()
 
     # Util
@@ -344,9 +344,9 @@ class ClassifierBase(ModelBase):
         z = self.predict(base_matrix).reshape((nx, ny))
 
         if labels.ndim == 1:
-            if not self._plot_label_dic:
-                self._plot_label_dic = {c: i for i, c in enumerate(set(labels))}
-            dic = self._plot_label_dic
+            if not self._plot_label_dict:
+                self._plot_label_dict = {c: i for i, c in enumerate(set(labels))}
+            dic = self._plot_label_dict
             n_label = len(dic)
             labels = np.array([dic[label] for label in labels])
         else:
@@ -366,9 +366,9 @@ class ClassifierBase(ModelBase):
             plt.contour(xf, yf, z, c='k-', levels=[0])
         plt.scatter(axis[0], axis[1], c=colors)
         if emphasize is not None:
-            _indices = np.array([False] * len(axis[0]))
-            _indices[np.asarray(emphasize)] = True
-            plt.scatter(axis[0][_indices], axis[1][_indices], s=80,
+            indices = np.array([False] * len(axis[0]))
+            indices[np.asarray(emphasize)] = True
+            plt.scatter(axis[0][indices], axis[1][indices], s=80,
                         facecolors="None", zorder=10)
         if extra is not None:
             plt.scatter(*np.asarray(extra).T, s=80, zorder=25, facecolors="red")
@@ -411,9 +411,9 @@ class ClassifierBase(ModelBase):
         print("Drawing figures...")
         xy_xf, xy_yf = np.meshgrid(xf, yf, sparse=True)
         if labels.ndim == 1:
-            if not self._plot_label_dic:
-                self._plot_label_dic = {c: i for i, c in enumerate(set(labels))}
-            dic = self._plot_label_dic
+            if not self._plot_label_dict:
+                self._plot_label_dict = {c: i for i, c in enumerate(set(labels))}
+            dic = self._plot_label_dict
             n_label = len(dic)
             labels = np.array([dic[label] for label in labels])
         else:
@@ -439,9 +439,9 @@ class ClassifierBase(ModelBase):
             plt.contour(xf, yf, z, c='k-', levels=[0])
         plt.scatter(axis[0], axis[1], c=colors)
         if emphasize is not None:
-            _indices = np.array([False] * len(axis[0]))
-            _indices[np.asarray(emphasize)] = True
-            plt.scatter(axis[0][_indices], axis[1][_indices], s=80,
+            indices = np.array([False] * len(axis[0]))
+            indices[np.asarray(emphasize)] = True
+            plt.scatter(axis[0][indices], axis[1][indices], s=80,
                         facecolors="None", zorder=10)
         if extra is not None:
             plt.scatter(*np.asarray(extra).T, s=80, zorder=25, facecolors="red")
@@ -503,9 +503,9 @@ class ClassifierBase(ModelBase):
 
         def transform_arr(arr):
             if arr.ndim == 1:
-                _dic = {c: i for i, c in enumerate(set(arr))}
-                n_dim = len(_dic)
-                arr = np.array([_dic[label] for label in arr])
+                dic = {c: i for i, c in enumerate(set(arr))}
+                n_dim = len(dic)
+                arr = np.array([dic[label] for label in arr])
             else:
                 n_dim = arr.shape[1]
                 arr = np.argmax(arr, axis=1)
@@ -566,9 +566,9 @@ class ClassifierBase(ModelBase):
         def _emphasize(_ax, axis0, axis1, _c):
             _ax.scatter(axis0, axis1, c=_c)
             if emphasize is not None:
-                _indices = np.array([False] * len(axis[0]))
-                _indices[np.asarray(emphasize)] = True
-                _ax.scatter(axis0[_indices], axis1[_indices], s=80,
+                indices = np.array([False] * len(axis[0]))
+                indices[np.asarray(emphasize)] = True
+                _ax.scatter(axis0[indices], axis1[indices], s=80,
                             facecolors="None", zorder=10)
 
         def _extra(_ax, axis0, axis1, _c, _ex0, _ex1):
