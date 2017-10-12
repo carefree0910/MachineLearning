@@ -225,9 +225,9 @@ class NNBase(TFClassifierBase):
         kwargs["apply_bias"] = kwargs.get("apply_bias", True)
         kwargs["position"] = kwargs.get("position", len(self._layers) + 1)
 
-        self._w_stds.append(Util.get_and_pop(kwargs, "w_std", None))
-        self._b_inits.append(Util.get_and_pop(kwargs, "b_init", 0.1))
-        if Util.get_and_pop(kwargs, "pop_last_init", False):
+        self._w_stds.append(kwargs.pop("w_std", None))
+        self._b_inits.append(kwargs.pop("b_init", 0.1))
+        if kwargs.pop("pop_last_init", False):
             self._w_stds.pop()
             self._b_inits.pop()
         if isinstance(layer, str):
