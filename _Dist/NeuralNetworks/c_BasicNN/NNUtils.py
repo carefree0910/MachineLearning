@@ -5,15 +5,19 @@ from sklearn import metrics
 
 class Losses:
     @staticmethod
-    def mse(y, pred, _):
-        return tf.losses.mean_squared_error(y, pred)
+    def mse(y, pred, _, weights=None):
+        if weights is None:
+            return tf.losses.mean_squared_error(y, pred)
+        return tf.losses.mean_squared_error(y, pred, weights)
 
     @staticmethod
-    def cross_entropy(y, pred, already_prob):
+    def cross_entropy(y, pred, already_prob, weights=None):
         if already_prob:
             eps = 1e-12
             pred = tf.log(tf.clip_by_value(pred, eps, 1 - eps))
-        return tf.losses.softmax_cross_entropy(y, pred)
+        if weights is None:
+            return tf.losses.softmax_cross_entropy(y, pred)
+        return tf.losses.softmax_cross_entropy(y, pred, weights)
 
 
 class Metrics:

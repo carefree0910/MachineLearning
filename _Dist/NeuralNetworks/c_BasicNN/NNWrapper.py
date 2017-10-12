@@ -7,7 +7,6 @@ from _Dist.NeuralNetworks.c_BasicNN.NNCore import NNCore
 
 class NNWrapper:
     def __init__(self, name, numerical_idx, features_lists, core=NNCore, **kwargs):
-        # Core
         self._core = core
         self._model = None
         self._name, self._kwargs = name, kwargs
@@ -27,6 +26,14 @@ class NNWrapper:
         if isinstance(item, str):
             return getattr(self, "_" + item)
 
+    @property
+    def core_params(self):
+        return {
+            "numerical_idx": self._numerical_idx,
+            "categorical_columns": self._categorical_columns,
+            "n_classes": self._n_classes
+        }
+
     @staticmethod
     def get_np_arrays(*args):
         return [np.asarray(arr, np.float32) for arr in args]
@@ -43,9 +50,7 @@ class NNWrapper:
     def fit(self, x, y, x_test, y_test, **kwargs):
         x, y, x_test, y_test = NNWrapper.get_np_arrays(x, y, x_test, y_test)
         print_settings = kwargs.pop("print_settings", True)
-        self._model = self._core(
-            self._numerical_idx, self._categorical_columns, self._n_classes, **self._kwargs
-        )
+        self._model = self._core(**self.core_params, **self._kwargs)
         train_losses, test_losses = self._model.fit(x, y, x_test, y_test, print_settings=print_settings)
         print("Test ", end="")
         self.evaluate(x_test, y_test)
