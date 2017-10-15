@@ -1,5 +1,7 @@
 import numpy as np
 import tensorflow as tf
+
+from scipy import interp
 from sklearn import metrics
 
 
@@ -28,6 +30,8 @@ class Metrics:
         "mse": -1, "ber": -1,
         "log_loss": -1
     }
+    require_prob = {name: False for name in sign_dict}
+    require_prob["auc"] = True
 
     @staticmethod
     def check_shape(y, binary=False):
@@ -53,6 +57,19 @@ class Metrics:
             Metrics.check_shape(y, True),
             Metrics.check_shape(pred, True)
         )
+
+    @staticmethod
+    def multi_auc(y, pred):
+        n_classes = y.shape[1]
+        fpr, tpr = [None] * n_classes, [None] * n_classes
+        for i in range(n_classes):
+            fpr[i], tpr[i], _ = metrics.roc_curve(y[:, i], pred[:, i])
+        new_fpr = np.unique(np.concatenate([fpr[i] for i in range(n_classes)]))
+        new_tpr = np.zeros_like(new_fpr)
+        for i in range(n_classes):
+            new_tpr += interp(new_fpr, fpr[i], tpr[i])
+        new_tpr /= n_classes
+        return metrics.auc(new_fpr, new_tpr)
 
     @staticmethod
     def acc(y, pred):

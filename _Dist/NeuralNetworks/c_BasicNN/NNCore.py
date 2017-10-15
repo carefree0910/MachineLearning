@@ -633,5 +633,9 @@ class NNCore:
         tensor = "_output" if self.is_regression or get_raw else "_prob_output"
         return self._calculate(x, tensor, "Predict", verbose=verbose)
 
+    def predict_classes(self, x, get_raw=False, verbose=True):
+        pred = self.predict(x, get_raw, verbose)
+        return np.argmax(pred, axis=1)
+
     def evaluate(self, x, y, verbose=False):
         print("{}: {:8.6}".format(self.metric_name, self.metric(y, self.predict(x, verbose=verbose))))
