@@ -65,5 +65,5 @@ class NNWrapper:
     def predict_target_prob(self, x, target, verbose=False):
         return self._model.predict(x, False, verbose)[..., target]
 
-    def evaluate(self, x, y, verbose=False):
-        self._model.evaluate(x, y, verbose)
+    def evaluate(self, x, y, metric_name=None, verbose=False):
+        self._model.evaluate(x, y, metric_name, verbose)

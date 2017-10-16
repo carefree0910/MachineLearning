@@ -135,7 +135,7 @@ class NNCore:
             if self.is_regression:
                 self.metric_name = "mse"
             else:
-                self.metric_name = "auc" if self.n_classes == 2 else "acc"
+                self.metric_name = "auc" if self.n_classes == 2 else "multi_auc"
 
     # Util
 
@@ -637,5 +637,16 @@ class NNCore:
         pred = self.predict(x, get_raw, verbose)
         return np.argmax(pred, axis=1)
 
-    def evaluate(self, x, y, verbose=False):
-        print("{}: {:8.6}".format(self.metric_name, self.metric(y, self.predict(x, verbose=verbose))))
+    def evaluate(self, x, y, metric_name=None, verbose=False):
+        if metric_name is None:
+            metric_name = self.metric_name
+            metric = self.metric
+        else:
+            metric = getattr(Metrics, metric_name)
+        if Metrics.require_prob[metric_name]:
+            pred = self.predict(x, verbose=verbose)
+        else:
+            pred = self.predict_classes(x, verbose=verbose)
+        score = metric(y, pred)
+        print("{}: {:8.6f}".format(metric_name, score))
+        return score

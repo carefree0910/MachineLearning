@@ -26,12 +26,13 @@ class Metrics:
     sign_dict = {
         "f1_score": 1,
         "r2_score": 1,
-        "auc": 1, "acc": 1,
+        "auc": 1, "multi_auc": 1, "acc": 1,
         "mse": -1, "ber": -1,
         "log_loss": -1
     }
     require_prob = {name: False for name in sign_dict}
     require_prob["auc"] = True
+    require_prob["multi_auc"] = True
 
     @staticmethod
     def check_shape(y, binary=False):
@@ -60,7 +61,9 @@ class Metrics:
 
     @staticmethod
     def multi_auc(y, pred):
-        n_classes = y.shape[1]
+        if len(y.shape) == 1:
+            y = Toolbox.get_one_hot(y, int(np.max(y) + 1))
+        n_classes = pred.shape[1]
         fpr, tpr = [None] * n_classes, [None] * n_classes
         for i in range(n_classes):
             fpr[i], tpr[i], _ = metrics.roc_curve(y[:, i], pred[:, i])
