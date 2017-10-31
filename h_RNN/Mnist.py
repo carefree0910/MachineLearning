@@ -1,5 +1,10 @@
+import os
+import sys
+root_path = os.path.abspath("../")
+if root_path not in sys.path:
+    sys.path.append(root_path)
+
 import time
-import tflearn
 import numpy as np
 import tensorflow as tf
 
@@ -43,16 +48,3 @@ if __name__ == '__main__':
     rnn.fit(28, 10, generator, n_history=n_history, epoch=10)
     print("Time Cost: {}".format(time.time() - t))
     rnn.draw_err_logs()
-
-    print("=" * 60, "\n" + "Tflearn", "\n" + "-" * 60)
-    generator = MnistGenerator()
-    t = time.time()
-    tf.reset_default_graph()
-    net = tflearn.input_data(shape=[None, 28, 28])
-    net = tf.concat(tflearn.lstm(net, 128, return_seq=True)[-n_history:], axis=1)
-    net = tflearn.fully_connected(net, 10, activation='softmax')
-    net = tflearn.regression(net, optimizer='adam', batch_size=64,
-                             loss='categorical_crossentropy')
-    model = tflearn.DNN(net, tensorboard_verbose=0)
-    model.fit(*generator.gen(0), n_epoch=10, validation_set=generator.gen(0, True), show_metric=True)
-    print("Time Cost: {}".format(time.time() - t))
