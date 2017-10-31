@@ -232,8 +232,8 @@ if TorchKernelBase is not None:
         @TorchSVMTiming.timeit(level=1, prefix="[API] ")
         def predict(self, x, get_raw_results=False, gram_provided=False):
             if not gram_provided:
-                x = self._kernel(np.atleast_2d(x), self._x.data.numpy())
-            y_pred = (x.dot(self._w.data.numpy()) + self._b.data.numpy()).ravel()
+                x = self._kernel(self._x.data.numpy(), np.atleast_2d(x))
+            y_pred = (self._w.data.numpy().ravel().dot(x) + self._b.data.numpy()).ravel()
             if not get_raw_results:
                 return np.sign(y_pred)
             return y_pred

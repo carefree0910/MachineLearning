@@ -682,25 +682,6 @@ class TFClassifierBase(ClassifierBase):
         self._y_pred_raw = self._y_pred = None
         self._sess = tf.Session()
 
-    @staticmethod
-    @clf_timing.timeit(level=2, prefix="[Metric] ")
-    def acc(y, y_pred, weights=None):
-        y_arg, y_pred_arg = tf.argmax(y, axis=1), tf.argmax(y_pred, axis=1)
-        same = tf.cast(tf.equal(y_arg, y_pred_arg), tf.float32)
-        if weights is not None:
-            same *= weights
-        return tf.reduce_mean(same)
-
-    @staticmethod
-    @clf_timing.timeit(level=2, prefix="[Metric] ")
-    def f1_score(y, y_pred):
-        y_arg, y_pred_arg = tf.argmax(y, axis=1), tf.argmax(y_pred, axis=1)
-        tp = tf.reduce_sum(y_arg * y_pred_arg)
-        if tp == 0:
-            return .0
-        fp = tf.reduce_sum((1 - y_arg) * y_pred_arg)
-        fn = tf.reduce_sum(y_arg * (1 - y_pred_arg))
-        return 2 * tp / (2 * tp + fn + fp)
 
     @clf_timing.timeit(level=2, prefix="[Core] ")
     def _batch_training(self, x, y, batch_size, train_repeat, *args):
