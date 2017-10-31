@@ -192,12 +192,12 @@ class DataUtil:
         features = [set(feat) for feat in xt]
         if wc is None:
             wc = np.array([len(feat) >= int(continuous_rate * len(y)) for feat in features])
-        elif not wc:
-            wc = np.array([False] * len(xt))
         else:
             wc = np.asarray(wc)
-        feat_dicts = [{_l: i for i, _l in enumerate(feats)} if not wc[i] else None
-                     for i, feats in enumerate(features)]
+        feat_dicts = [
+            {_l: i for i, _l in enumerate(feats)} if not wc[i] else None
+            for i, feats in enumerate(features)
+        ]
         if not separate:
             if np.all(~wc):
                 dtype = np.int
