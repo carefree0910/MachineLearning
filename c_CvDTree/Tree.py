@@ -1,3 +1,9 @@
+import os
+import sys
+root_path = os.path.abspath("../")
+if root_path not in sys.path:
+    sys.path.append(root_path)
+
 import cv2
 from copy import deepcopy
 

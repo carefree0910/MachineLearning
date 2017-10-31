@@ -1,3 +1,9 @@
+import os
+import sys
+root_path = os.path.abspath("../../")
+if root_path not in sys.path:
+    sys.path.append(root_path)
+
 from b_NaiveBayes.Vectorized.Basic import *
 from b_NaiveBayes.Vectorized.MultinomialNB import MultinomialNB
 from b_NaiveBayes.Vectorized.GaussianNB import GaussianNB
