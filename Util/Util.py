@@ -125,6 +125,12 @@ class DataUtil:
         )
 
     @staticmethod
+    def get_one_hot(y, n_class):
+        one_hot = np.zeros([len(y), n_class])
+        one_hot[range(len(y)), y] = 1
+        return one_hot
+
+    @staticmethod
     def gen_xor(size=100, scale=1, one_hot=True):
         x = np.random.randn(size) * scale
         y = np.random.randn(size) * scale
@@ -147,7 +153,7 @@ class DataUtil:
             ys[ix] = i % n_class
         if not one_hot:
             return xs, ys
-        return xs, np.array(ys[..., None] == np.arange(n_class), dtype=np.int8)
+        return xs, DataUtil.get_one_hot(ys, n_class)
 
     @staticmethod
     def gen_random(size=100, n_dim=2, n_class=2, scale=1, one_hot=True):
@@ -155,7 +161,7 @@ class DataUtil:
         ys = np.random.randint(n_class, size=size).astype(np.int8)
         if not one_hot:
             return xs, ys
-        return xs, np.array(ys[..., None] == np.arange(n_class), dtype=np.int8)
+        return xs, DataUtil.get_one_hot(ys, n_class)
 
     @staticmethod
     def gen_two_clusters(size=100, n_dim=2, center=0, dis=2, scale=1, one_hot=True):
@@ -169,11 +175,10 @@ class DataUtil:
         data, labels = data[indices], labels[indices]
         if not one_hot:
             return data, labels
-        labels = np.array([[0, 1] if label == 1 else [1, 0] for label in labels], dtype=np.int8)
-        return data, labels
+        return data, DataUtil.get_one_hot(labels, 2)
 
     @staticmethod
-    def gen_noisy_linear(size=10000, n_dim=100, n_valid=5, noise_scale=0.5):
+    def gen_noisy_linear(size=10000, n_dim=100, n_valid=5, noise_scale=0.5, one_hot=True):
         x_train = np.random.randn(size, n_dim)
         x_train_noise = x_train + np.random.randn(size, n_dim) * noise_scale
         x_test = np.random.randn(int(size*0.15), n_dim)
@@ -181,7 +186,20 @@ class DataUtil:
         w = np.random.randn(n_valid, 1)
         y_train = (x_train[..., idx].dot(w) > 0).astype(np.float32).ravel()
         y_test = (x_test[..., idx].dot(w) > 0).astype(np.float32).ravel()
-        return (x_train_noise, y_train), (x_test, y_test)
+        if not one_hot:
+            return (x_train_noise, y_train), (x_test, y_test)
+        return (x_train_noise, DataUtil.get_one_hot(y_train, 2)), (x_test, DataUtil.get_one_hot(y_test, 2))
+
+    @staticmethod
+    def gen_simple_non_linear(size=120, one_hot=True):
+        xs = np.random.randn(size, 2).astype(np.float32) * 1.5
+        ys = np.zeros(size, dtype=np.int8)
+        mask = xs[..., 1] >= xs[..., 0] ** 2
+        xs[..., 1][mask] += 2
+        ys[mask] = 1
+        if not one_hot:
+            return xs, ys
+        return xs, DataUtil.get_one_hot(ys, 2)
 
     @staticmethod
     def quantize_data(x, y, wc=None, continuous_rate=0.1, separate=False):
