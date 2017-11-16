@@ -6,23 +6,25 @@ if root_path not in sys.path:
 
 import tensorflow as tf
 
-from _Dist.NeuralNetworks.Util import *
+from _Dist.NeuralNetworks.NNUtil import *
 from _Dist.NeuralNetworks.Base import Base
 
 
 class Basic(Base):
     def __init__(self, *args, **kwargs):
-        super(Basic, self).__init__(*args, *kwargs)
-        self.model_saving_name = "NN"
-        self.activations = kwargs.get("activations", "relu")
-        self.hidden_units = self.kwargs.get("hidden_units", (256, 256))
+        super(Basic, self).__init__(*args, **kwargs)
+
+        self.activations = self._kwargs.get("activations", "relu")
+        self.hidden_units = self._kwargs.get("hidden_units", (256, 256))
+
+        self._settings = str(self.hidden_units)
+
+    @property
+    def name(self):
+        return "BasicNN" if self._name is None else self._name
 
     def _define_py_collections(self):
         self.py_collections = ["hidden_units"]
-
-    def _define_input(self):
-        self._tfx = tf.placeholder(tf.float32, [None, self.n_dim])
-        self._tfy = tf.placeholder(tf.float32, [None, self.n_class])
 
     def _fully_connected_linear(self, net, shape, appendix):
         w = init_w(shape, "W{}".format(appendix))
@@ -39,7 +41,6 @@ class Basic(Base):
 
     def _build_model(self):
         self._model_built = True
-        self._is_training = tf.placeholder(tf.bool)
         net = self._tfx
         current_dimension = self.n_dim
         if self.activations is None:
@@ -55,8 +56,3 @@ class Basic(Base):
         appendix = "_final_projection"
         fc_shape = self.hidden_units[-1] if self.hidden_units else current_dimension
         self._output = self._fully_connected_linear(net, [fc_shape, self.n_class], appendix)
-
-    def _get_feed_dict(self, x, y=None, is_training=True):
-        feed_dict = super(Basic, self)._get_feed_dict(x, y, is_training)
-        feed_dict[self._is_training] = is_training
-        return feed_dict
