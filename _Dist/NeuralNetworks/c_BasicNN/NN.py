@@ -6,9 +6,9 @@ from _Dist.NeuralNetworks.Util import *
 from _Dist.NeuralNetworks.Base import Base
 
 
-class NN(Base):
+class Basic(Base):
     def __init__(self, *args, **kwargs):
-        super(NN, self).__init__(*args, *kwargs)
+        super(Basic, self).__init__(*args, *kwargs)
         self.model_saving_name = "NN"
         self.activations = kwargs.get("activations", "relu")
         self.hidden_units = self.kwargs.get("hidden_units", (256, 256))
@@ -53,6 +53,6 @@ class NN(Base):
         self._output = self._fully_connected_linear(net, [fc_shape, self.n_class], appendix)
 
     def _get_feed_dict(self, x, y=None, is_training=True):
-        feed_dict = super(NN, self)._get_feed_dict(x, y, is_training)
+        feed_dict = super(Basic, self)._get_feed_dict(x, y, is_training)
         feed_dict[self._is_training] = is_training
         return feed_dict
