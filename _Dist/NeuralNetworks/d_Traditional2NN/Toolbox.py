@@ -4,6 +4,11 @@ root_path = os.path.abspath("../../../")
 if root_path not in sys.path:
     sys.path.append(root_path)
 
+import numpy as np
+
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.tree import _tree, DecisionTreeClassifier
+
 from _Dist.NeuralNetworks.c_BasicNN.NN import Basic
 
 
@@ -12,6 +17,10 @@ class TransformationBase(Basic):
     def __init__(self, *args, **kwargs):
         super(TransformationBase, self).__init__(*args, **kwargs)
         self._transform_ws = self._transform_bs = None
+
+    @property
+    def name(self):
+        return "NN" if self._name is None else self._name
 
     def _get_all_data(self, shuffle=True):
         train = self._train_generator.get_all_data()
@@ -69,6 +78,7 @@ class NB2NN(TransformationBase):
         super(NB2NN, self).__init__(*args, **kwargs)
         self.activation = None
         self.hidden_units = []
+        self._settings = "NaiveBayes"
 
     def _transform(self):
         x, y, x_cv, y_cv = self._get_all_data()
@@ -102,6 +112,7 @@ class DT2NN(TransformationBase):
         super(DT2NN, self).__init__(*args, **kwargs)
         if isinstance(self.activations, str):
             self.activations = [self.activations] * 2
+        self._settings = "DTree_" + "_".join(self.activations)
 
     def _transform(self):
         x, y, x_cv, y_cv = self._get_all_data()
