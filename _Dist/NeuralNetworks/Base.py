@@ -1,4 +1,10 @@
 import os
+import sys
+root_path = os.path.abspath("../../")
+if root_path not in sys.path:
+    sys.path.append(root_path)
+
+import os
 import time
 import random
 import pickle
@@ -7,9 +13,7 @@ import logging
 import numpy as np
 import tensorflow as tf
 
-import sys
-sys.path.append("../../")
-from _Dist.NeuralNetworks.Util import *
+from _Dist.NeuralNetworks.NNUtil import *
 
 
 class Generator:
@@ -128,12 +132,13 @@ class Generator:
 
 
 class Base:
-    def __init__(self, x, y, x_cv=None, y_cv=None, name="Base", loss=None, metric=None,
+    def __init__(self, x, y, x_cv=None, y_cv=None, name=None, loss=None, metric=None,
                  n_epoch=32, max_epoch=256, n_iter=128, batch_size=128, optimizer="Adam", lr=1e-3, **kwargs):
         tf.reset_default_graph()
         self.log = {}
-        self.kwargs = kwargs
-        self.model_saving_name = name
+        self._name = name
+        self._kwargs = kwargs
+        self._settings = ""
 
         self._train_generator = Generator(x, y)
         if x_cv is not None and y_cv is not None:
@@ -151,7 +156,6 @@ class Base:
 
         self.n_epoch, self.max_epoch, self.n_iter = n_epoch, max_epoch, n_iter
         self.batch_size, self.lr = batch_size, lr
-        self._is_training = None
 
         if loss is None:
             self._loss_name = "correlation" if self.n_class == 1 else "cross_entropy"
@@ -175,11 +179,23 @@ class Base:
         self._loss = self._train_step = None
         self._tfx = self._tfy = self._output = None
 
+        self._is_training = tf.placeholder(tf.bool)
+
         self._sess = tf.Session()
         self._optimizer = getattr(tf.train, "{}Optimizer".format(optimizer))(lr)
 
     def __str__(self):
         return self.model_saving_name
+
+    __repr__ = __str__
+
+    @property
+    def name(self):
+        return "Base" if self._name is None else self._name
+
+    @property
+    def model_saving_name(self):
+        return "{}_{}".format(self.name, self._settings)
 
     @property
     def model_saving_path(self):
@@ -187,12 +203,14 @@ class Base:
 
     # Core
 
-    def _gen_batch(self, generator, n_batch, gen_random_subset=False):
+    def _gen_batch(self, generator, n_batch, gen_random_subset=False, one_hot=False):
         if gen_random_subset:
             data = generator.gen_random_subset(n_batch)
         else:
             data = generator.gen_batch(n_batch)
         x, y = data[..., :-1], data[..., -1]
+        if not one_hot:
+            return x, y
         if self.n_class == 1:
             y = y.reshape([-1, 1])
         else:
@@ -203,7 +221,8 @@ class Base:
         pass
 
     def _define_input(self):
-        pass
+        self._tfx = tf.placeholder(tf.float32, [None, self.n_dim])
+        self._tfy = tf.placeholder(tf.float32, [None, self.n_class])
 
     def _build_model(self):
         pass
@@ -222,33 +241,47 @@ class Base:
     def _initialize(self):
         self._sess.run(tf.global_variables_initializer())
 
-    def _verbose(self, i_epoch, i_iter, snapshot_cursor):
+    def _snapshot(self, i_epoch, i_iter, snapshot_cursor):
         x_train, y_train = self._gen_batch(self._train_generator, self.n_random_train_subset, gen_random_subset=True)
-        x_cv, y_cv = self._gen_batch(self._cv_generator, self.n_random_cv_subset, gen_random_subset=True)
-        if self.n_class == 1:
-            y_train_true = y_train.ravel()
-            y_cv_true = y_cv.ravel()
+        if self._cv_generator is not None:
+            x_cv, y_cv = self._gen_batch(self._cv_generator, self.n_random_cv_subset, gen_random_subset=True)
         else:
-            y_train_true = np.argmax(y_train, axis=1).ravel()
-            y_cv_true = np.argmax(y_cv, axis=1).ravel()
+            x_cv = y_cv = None
         y_train_pred = self.predict(x_train)
-        y_cv_pred = self.predict(x_cv)
+        if x_cv is not None:
+            y_cv_pred, cv_snapshot_loss = self._calculate(
+                x_cv, Toolbox.get_one_hot(y_cv, self.n_class),
+                [self._output, self._loss], is_training=False
+            )
+            y_cv_pred, cv_snapshot_loss = y_cv_pred[0], cv_snapshot_loss[0]
+            self.log["cv_snapshot_loss"].append(cv_snapshot_loss)
+        else:
+            y_cv_pred = None
         if self.n_class > 1:
-            y_train_pred, y_cv_pred = y_train_pred.argmax(1), y_cv_pred.argmax(1)
-        train_metric = self._metric(y_train_true, y_train_pred)
-        cv_metric = self._metric(y_cv_true, y_cv_pred)
+            y_train_pred = y_train_pred.argmax(1)
+            if y_cv_pred is not None:
+                y_cv_pred = y_cv_pred.argmax(1)
+        elif y_cv_pred is not None:
+            y_cv_pred = y_cv_pred.ravel()
+        train_metric = self._metric(y_train, y_train_pred)
+        if y_cv is not None and y_cv_pred is not None:
+            cv_metric = self._metric(y_cv, y_cv_pred)
+        else:
+            cv_metric = None
         print("\rEpoch {:4}   Iter {:4}   Snapshot {:4} ({})  -  Train : {:8.6}   CV : {:8.6}".format(
             i_epoch, i_iter, snapshot_cursor, self._metric_name, train_metric, cv_metric
         ), end="")
         return train_metric, cv_metric
 
-    def _calculate(self, x, tensor, n_elem=1e7, is_training=False):
+    def _calculate(self, x, y=None, tensor=None, n_elem=1e7, is_training=False):
         n_batch = int(n_elem / x.shape[1])
         n_repeat = int(len(x) / n_batch)
         if n_repeat * n_batch < len(x):
             n_repeat += 1
         cursors = [0]
-        if isinstance(tensor, list):
+        if tensor is None:
+            target = self._output
+        elif isinstance(tensor, list):
             target = []
             for t in tensor:
                 if isinstance(t, str):
@@ -262,11 +295,23 @@ class Base:
         else:
             target = getattr(self, tensor) if isinstance(tensor, str) else tensor
         results = [self._sess.run(
-            target, self._get_feed_dict(x[i * n_batch:(i + 1) * n_batch], is_training=is_training)
+            target, self._get_feed_dict(
+                x[i * n_batch:(i + 1) * n_batch],
+                None if y is None else y[i * n_batch:(i + 1) * n_batch],
+                is_training=is_training
+            )
         ) for i in range(n_repeat)]
         if not isinstance(target, list):
+            if len(results) == 1:
+                return results[0]
             return np.vstack(results)
-        results = [np.vstack([result[i] for result in results]) for i in range(len(target))]
+        if n_repeat > 1:
+            results = [
+                np.vstack([result[i] for result in results])
+                for i in range(len(target))
+            ]
+        else:
+            results = results[0]
         if len(cursors) == 1:
             return results
         return [results[cursor:cursors[i + 1]] for i, cursor in enumerate(cursors[:-1])]
@@ -385,11 +430,12 @@ class Base:
 
         self.log["iter_loss"] = []
         self.log["epoch_loss"] = []
+        self.log["cv_snapshot_loss"] = []
         while i < n_epoch:
             epoch_loss = 0
             for j in range(self.n_iter):
                 counter += 1
-                x_batch, y_batch = self._gen_batch(self._train_generator, self.batch_size)
+                x_batch, y_batch = self._gen_batch(self._train_generator, self.batch_size, one_hot=True)
                 iter_loss = self._sess.run(
                     [self._loss, self._train_step],
                     self._get_feed_dict(x_batch, y_batch)
@@ -398,8 +444,8 @@ class Base:
                 epoch_loss += iter_loss
                 if counter % snapshot_step == 0 and verbose >= 1:
                     snapshot_cursor += 1
-                    train_metric, cv_metric = self._verbose(i + 1, i * n_epoch + j, snapshot_cursor)
-                    if use_monitor:
+                    train_metric, cv_metric = self._snapshot(i + 1, i * n_epoch + j, snapshot_cursor)
+                    if use_monitor and cv_metric is not None:
                         check_rs = monitor.check(cv_metric)
                         over_fitting_flag = monitor.over_fitting_flag
                         if check_rs["terminate"]:
@@ -439,7 +485,7 @@ class Base:
         return self
 
     def predict(self, x):
-        output = self._calculate(x, self._output, is_training=False)
+        output = self._calculate(x, is_training=False)
         if self.n_class == 1:
             return output.ravel()
         return output
@@ -448,3 +494,14 @@ class Base:
         if self.n_class == 1:
             raise ValueError("Predicting classes is not permitted in regression problem")
         return self.predict(x).argmax(1)
+
+    def evaluate(self, x, y, x_cv=None, y_cv=None, x_test=None, y_test=None):
+        pred = self.predict(x)
+        cv_pred = self.predict(x_cv) if x_cv is not None else None
+        test_pred = self.predict(x_test) if x_test is not None else None
+        print("{}  -  Train : {:8.6}   CV : {}   Test : {}".format(
+            self._metric_name, self._metric(y, pred),
+            "None" if y_cv is None else "{:8.6}".format(self._metric(y_cv, cv_pred)),
+            "None" if y_test is None else "{:8.6}".format(self._metric(y_test, test_pred))
+        ))
+        return self
