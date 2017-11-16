@@ -5,11 +5,11 @@ from sklearn.tree import _tree, DecisionTreeClassifier
 
 import sys
 sys.path.append("../../../")
-from _Dist.NeuralNetworks.c_BasicNN.NN import NN
+from _Dist.NeuralNetworks.c_BasicNN.NN import Basic
 
 
 # Transformation base
-class TransformationBase(NN):
+class TransformationBase(Basic):
     def __init__(self, *args, **kwargs):
         super(TransformationBase, self).__init__(*args, **kwargs)
         self._transform_ws = self._transform_bs = None
