@@ -5,70 +5,79 @@ from sklearn.tree import _tree, DecisionTreeClassifier
 
 import sys
 sys.path.append("../../../")
-from _Dist.NeuralNetworks.c_BasicNN.NNCore import NNCore
-from _Dist.NeuralNetworks.c_BasicNN.NNWrapper import NNWrapper
+from _Dist.NeuralNetworks.c_BasicNN.NN import NN
 
 
-# Transformation Core
-class TransformationCore(NNCore):
-    def __init__(self, numerical_idx, categorical_columns, n_classes,
-                 model_param_settings=None, network_structure_settings=None, verbose_settings=None):
-        super(TransformationCore, self).__init__(
-            numerical_idx, categorical_columns, n_classes,
-            model_param_settings, network_structure_settings, verbose_settings
-        )
+# Transformation base
+class TransformationBase(NN):
+    def __init__(self, *args, **kwargs):
+        super(TransformationBase, self).__init__(*args, **kwargs)
         self._transform_ws = self._transform_bs = None
 
-    def _transform(self, x, y, x_test, y_test):
+    def _get_all_data(self, shuffle=True):
+        train = self._train_generator.get_all_data()
+        if shuffle:
+            np.random.shuffle(train)
+        x, y = train[..., :-1], train[..., -1]
+        if self._cv_generator is not None:
+            cv = self._cv_generator.get_all_data()
+            if shuffle:
+                np.random.shuffle(cv)
+            x_cv, y_cv = cv[..., :-1], cv[..., -1]
+        else:
+            x_cv = y_cv = None
+        return x, y, x_cv, y_cv
+
+    def _transform(self):
         pass
 
-    def init_all_settings(self):
-        NNCore.init_all_settings(self)
-        self.use_embedding_for_deep = self.use_one_hot_for_deep = False
+    def _print_model_performance(self, clf, name, x, y, x_cv, y_cv):
+        print("\n".join(["=" * 60, "{} performance".format(name), "-" * 60]))
+        y_train_pred = clf.predict(x)
+        y_cv_pred = clf.predict(x_cv)
+        train_metric = self._metric(y, y_train_pred)
+        test_metric = self._metric(y_cv, y_cv_pred)
+        print("{}  -  Train : {:8.6}   CV : {:8.6}".format(
+            self._metric_name, train_metric, test_metric
+        ))
+        print("-" * 60)
 
-    def build_deep(self, x, y, x_test, y_test):
-        self._transform_ws, self._transform_bs = self._transform(x, y, x_test, y_test)
-        return NNCore.build_deep(self, x, y, x_test, y_test)
+    def _build_model(self):
+        self._transform()
+        super(TransformationBase, self)._build_model()
 
-    def build_model(self, x, y, x_test, y_test, print_settings):
-        NNCore.build_model(self, x, y, x_test, y_test, print_settings)
+    def _initialize(self):
+        super(TransformationBase, self)._initialize()
         self.feed_weights(self._transform_ws)
         self.feed_biases(self._transform_bs)
+        x, y, x_cv, y_cv = self._get_all_data()
         print("\n".join(["=" * 60, "Initial performance", "-" * 60]))
-        print("Train ", end="")
-        self.evaluate(x, y, verbose=False)
-        if x_test is not None and y_test is not None:
-            print("Test  ", end="")
-            self.evaluate(x_test, y_test, verbose=False)
+        y_train_pred = self.predict(x)
+        y_cv_pred = self.predict(x_cv)
+        if self.n_class > 1:
+            y_train_pred, y_cv_pred = y_train_pred.argmax(1), y_cv_pred.argmax(1)
+        train_metric = self._metric(y, y_train_pred)
+        test_metric = self._metric(y_cv, y_cv_pred)
+        print("{}  -  Train : {:8.6}   CV : {:8.6}".format(
+            self._metric_name, train_metric, test_metric
+        ))
         print("-" * 60)
 
 
 # NaiveBayes -> NN
-# noinspection PyTypeChecker
-class NB2NNCore(TransformationCore):
-    def init_all_settings(self):
-        super(NB2NNCore, self).init_all_settings()
-        self.activation_names = ["Linear"]
+class NB2NN(TransformationBase):
+    def __init__(self, *args, **kwargs):
+        super(NB2NN, self).__init__(*args, **kwargs)
+        self.activation = None
         self.hidden_units = []
 
-    def feed_biases(self, bs):
-        self._sess.run(self._central_bias[0].assign(bs[0]))
-
-    def _transform(self, x, y, x_test, y_test):
-        y_argmax = y.argmax(axis=1)
-        y_test_argmax = y_test.argmax(axis=1)
+    def _transform(self):
+        x, y, x_cv, y_cv = self._get_all_data()
         nb = MultinomialNB()
-        nb.fit(x, y_argmax)
-        print("\n".join(["=" * 60, "Naive Bayes performance", "-" * 60]))
-        print("Train : ", np.mean(y_argmax == nb.predict(x)))
-        print("Test  : ", np.mean(y_test_argmax == nb.predict(x_test)))
-        print("-" * 60)
-        return [nb.feature_log_prob_.T], [nb.class_log_prior_]
-
-
-class NB2NNWrapper(NNWrapper):
-    def __init__(self, name, numerical_idx, features_lists, core=NB2NNCore, **kwargs):
-        super(NB2NNWrapper, self).__init__(name, numerical_idx, features_lists, core, **kwargs)
+        nb.fit(x, y)
+        self._print_model_performance(nb, "Naive Bayes", x, y, x_cv, y_cv)
+        self._transform_ws = [nb.feature_log_prob_.T]
+        self._transform_bs = [nb.class_log_prior_]
 
 
 # DTree -> NN
@@ -89,17 +98,17 @@ def export_structure(tree):
     return list(recurse(0, 1))
 
 
-# noinspection PyTypeChecker
-class DT2NNCore(TransformationCore):
-    def _transform(self, x, y, x_test, y_test):
-        y_argmax = y.argmax(axis=1)
-        y_test_argmax = y_test.argmax(axis=1)
+class DT2NN(TransformationBase):
+    def __init__(self, *args, **kwargs):
+        super(DT2NN, self).__init__(*args, **kwargs)
+        if isinstance(self.activations, str):
+            self.activations = [self.activations] * 2
+
+    def _transform(self):
+        x, y, x_cv, y_cv = self._get_all_data()
         tree = DecisionTreeClassifier()
-        tree.fit(x, y_argmax)
-        print("\n".join(["=" * 60, "Decision tree performance", "-" * 60]))
-        print("Train : ", np.mean(y_argmax == tree.predict(x)))
-        print("Test  : ", np.mean(y_test_argmax == tree.predict(x_test)))
-        print("-" * 60)
+        tree.fit(x, y)
+        self._print_model_performance(tree, "Decision Tree", x, y, x_cv, y_cv)
 
         tree_structure = export_structure(tree)
         leafs = sum([1 if pair[1] == -1 else 0 for pair in tree_structure])
@@ -108,7 +117,7 @@ class DT2NNCore(TransformationCore):
         b = np.zeros(internals, dtype=np.float32)
         w1 = np.zeros([x.shape[1], internals], dtype=np.float32)
         w2 = np.zeros([internals, leafs], dtype=np.float32)
-        w3 = np.zeros([leafs, y.shape[1]], dtype=np.float32)
+        w3 = np.zeros([leafs, self.n_class], dtype=np.float32)
         node_list = []
         node_sign_list = []
         node_id_cursor = leaf_id_cursor = 0
@@ -155,9 +164,5 @@ class DT2NNCore(TransformationCore):
                     node_sign_list = node_sign_list[:depth] + [1]
         w2 *= max_route_length
 
-        return [w1, w2, w3], [b]
-
-
-class DT2NNWrapper(NNWrapper):
-    def __init__(self, name, numerical_idx, features_lists, core=DT2NNCore, **kwargs):
-        super(DT2NNWrapper, self).__init__(name, numerical_idx, features_lists, core, **kwargs)
+        self._transform_ws = [w1, w2, w3]
+        self._transform_bs = [b]
