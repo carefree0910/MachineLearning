@@ -1,10 +1,9 @@
-import numpy as np
-
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.tree import _tree, DecisionTreeClassifier
-
+import os
 import sys
-sys.path.append("../../../")
+root_path = os.path.abspath("../../../")
+if root_path not in sys.path:
+    sys.path.append(root_path)
+
 from _Dist.NeuralNetworks.c_BasicNN.NN import Basic
 
 

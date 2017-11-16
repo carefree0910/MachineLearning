@@ -1,7 +1,11 @@
+import os
+import sys
+root_path = os.path.abspath("../../../")
+if root_path not in sys.path:
+    sys.path.append(root_path)
+
 import tensorflow as tf
 
-import sys
-sys.path.append("../../")
 from _Dist.NeuralNetworks.Util import *
 from _Dist.NeuralNetworks.Base import Base
 
