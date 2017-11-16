@@ -184,7 +184,7 @@ class DataUtil:
         x_test = np.random.randn(int(size*0.15), n_dim)
         idx = np.random.permutation(n_dim)[:n_valid]
         w = np.random.randn(n_valid, 1)
-        y_train = (x_train[..., idx].dot(w) > 0).astype(np.float32).ravel()
+        y_train = (x_train[..., idx].dot(w) > 0).astype(np.int8).ravel()
         y_test = (x_test[..., idx].dot(w) > 0).astype(np.float32).ravel()
         if not one_hot:
             return (x_train_noise, y_train), (x_test, y_test)
