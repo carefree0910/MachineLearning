@@ -268,7 +268,7 @@ class Base:
             cv_metric = self._metric(y_cv, y_cv_pred)
         else:
             cv_metric = None
-        print("\rEpoch {:4}   Iter {:4}   Snapshot {:4} ({})  -  Train : {:8.6}   CV : {:8.6}".format(
+        print("\rEpoch {:4}   Iter {:6}   Snapshot {:6} ({})  -  Train : {:8.6}   CV : {:8.6}".format(
             i_epoch, i_iter, snapshot_cursor, self._metric_name, train_metric, cv_metric
         ), end="")
         return train_metric, cv_metric
@@ -307,8 +307,8 @@ class Base:
             return np.vstack(results)
         if n_repeat > 1:
             results = [
-                np.vstack([result[i] for result in results])
-                for i in range(len(target))
+                np.vstack([result[i] for result in results]) if target[i].shape.ndims else
+                np.mean([result[i] for result in results]) for i in range(len(target))
             ]
         else:
             results = results[0]
@@ -411,7 +411,7 @@ class Base:
             self._define_loss_and_train_step()
             self._initialize()
 
-        i = counter = snapshot_cursor = 0
+        i_epoch = i_iter = snapshot_cursor = 0
         if snapshot_ratio == 0:
             use_monitor = False
             snapshot_step = self.n_iter
@@ -431,10 +431,11 @@ class Base:
         self.log["iter_loss"] = []
         self.log["epoch_loss"] = []
         self.log["cv_snapshot_loss"] = []
-        while i < n_epoch:
+        while i_epoch < n_epoch:
+            i_epoch += 1
             epoch_loss = 0
             for j in range(self.n_iter):
-                counter += 1
+                i_iter += 1
                 x_batch, y_batch = self._gen_batch(self._train_generator, self.batch_size, one_hot=True)
                 iter_loss = self._sess.run(
                     [self._loss, self._train_step],
@@ -442,14 +443,14 @@ class Base:
                 )[0]
                 self.log["iter_loss"].append(iter_loss)
                 epoch_loss += iter_loss
-                if counter % snapshot_step == 0 and verbose >= 1:
+                if i_iter % snapshot_step == 0 and verbose >= 1:
                     snapshot_cursor += 1
-                    train_metric, cv_metric = self._snapshot(i + 1, i * n_epoch + j, snapshot_cursor)
+                    train_metric, cv_metric = self._snapshot(i_epoch, i_iter, snapshot_cursor)
                     if use_monitor and cv_metric is not None:
                         check_rs = monitor.check(cv_metric)
                         over_fitting_flag = monitor.over_fitting_flag
                         if check_rs["terminate"]:
-                            n_epoch = i + 1
+                            n_epoch = i_epoch
                             print("  -  Early stopped at n_epoch={} due to '{}'".format(
                                 n_epoch, check_rs["info"]
                             ))
@@ -459,13 +460,12 @@ class Base:
                             print("  -  {}".format(check_rs["info"]))
                             self.save_checkpoint(tmp_checkpoint_folder)
             self.log["epoch_loss"].append(epoch_loss / self.n_iter)
-            i += 1
             if use_monitor:
-                if i == n_epoch and i < self.max_epoch and not monitor.rs["terminate"]:
+                if i_epoch == n_epoch and i_epoch < self.max_epoch and not monitor.rs["terminate"]:
                     monitor.flat_flag = True
                     n_epoch = min(n_epoch + monitor.extension, self.max_epoch)
                     print("  -  Extending n_epoch to {}".format(n_epoch))
-                if i == self.max_epoch:
+                if i_epoch == self.max_epoch:
                     terminate = True
                     if not monitor.rs["terminate"]:
                         print(
