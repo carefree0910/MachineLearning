@@ -42,7 +42,7 @@ class Generator:
         return self._n_valid
 
     def __str__(self):
-        return self._name
+        return "{}_{}".format(self._name, self.shape)
 
     __repr__ = __str__
 
