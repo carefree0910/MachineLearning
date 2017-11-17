@@ -42,7 +42,7 @@ class Basic(Base):
     def _build_model(self):
         self._model_built = True
         net = self._tfx
-        current_dimension = self.n_dim
+        current_dimension = net.shape[1].value
         if self.activations is None:
             self.activations = [None] * len(self.hidden_units)
         elif isinstance(self.activations, str):
