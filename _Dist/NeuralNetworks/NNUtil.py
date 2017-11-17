@@ -1,6 +1,7 @@
 import os
 import math
 import datetime
+import unicodedata
 import numpy as np
 import tensorflow as tf
 import scipy.stats as ss
@@ -219,26 +220,141 @@ class Activations:
 
 class Toolbox:
     @staticmethod
+    def is_number(s):
+        try:
+            s = float(s)
+            if math.isnan(s):
+                return False
+            return True
+        except ValueError:
+            try:
+                unicodedata.numeric(s)
+                return True
+            except (TypeError, ValueError):
+                return False
+
+    @staticmethod
+    def all_same(target):
+        x = target[0]
+        for new in target[1:]:
+            if new != x:
+                return False
+        return True
+
+    @staticmethod
+    def all_unique(target):
+        seen = set()
+        return not any(x in seen or seen.add(x) for x in target)
+
+    @staticmethod
+    def warn_all_same(i):
+        warn_msg = "All values in column {} are the same, it'll be treated as redundant".format(i)
+        print(warn_msg)
+
+    @staticmethod
+    def warn_all_unique(i):
+        warn_msg = "All values in column {} are unique, it'll be treated as redundant".format(i)
+        print(warn_msg)
+
+    @staticmethod
+    def get_data(file, sep=" ", include_header=False):
+        print("Fetching data")
+        data = [[elem if elem else "nan" for elem in line.strip().split(sep)] for line in file]
+        if include_header:
+            return data[1:]
+        return data
+
+    @staticmethod
     def get_one_hot(y, n_classes):
-        """ Get one hot representation of y
-
-        Parameters
-        ----------
-        y : array-like
-            Target 1-d labels
-
-        n_classes : int
-            Return shape will be [len(y), n_classes]
-
-        Returns np.ndarray
-        -------
-            One hot representation of y.
-        """
         if y is None:
             return
         one_hot = np.zeros([len(y), n_classes])
         one_hot[range(len(one_hot)), np.asarray(y, np.int)] = 1
         return one_hot
+
+    @staticmethod
+    def get_feature_info(data, numerical_idx):
+        dtype = type(data[0][0])
+        generate_numerical_idx = False
+        if numerical_idx is None:
+            generate_numerical_idx = True
+            numerical_idx = [False] * len(data[0])
+        shrink_features = [NanHandler.shrink_nan(feat, dtype) for feat in zip(*data)]
+        feature_sets = [
+            set() if idx is None or idx else set(shrink_feat)
+            for idx, shrink_feat in zip(numerical_idx, shrink_features)
+        ]
+        n_features = [len(feature_set) for feature_set in feature_sets]
+        all_num_idx = [
+            True if not feature_set else all(Toolbox.is_number(str(feat)) for feat in feature_set)
+            for feature_set in feature_sets
+        ]
+        if generate_numerical_idx:
+            all_unique_idx = [
+                len(feature_set) == len(shrink_feature)
+                and np.allclose(shrink_features, np.array(shrink_features, np.int32))
+                for feature_set, shrink_feature in zip(feature_sets, shrink_features)
+            ]
+            numerical_idx = Toolbox.get_numerical_idx(feature_sets, all_num_idx, all_unique_idx)
+            for i, numerical in enumerate(numerical_idx):
+                if numerical is None:
+                    all_num_idx[i] = None
+        else:
+            for i, (feature_set, shrink_feature) in enumerate(zip(feature_sets, shrink_features)):
+                if feature_set:
+                    if len(feature_set) == 1:
+                        Toolbox.warn_all_same(i)
+                        all_num_idx[i] = numerical_idx[i] = None
+                    continue
+                if Toolbox.all_same(shrink_feature):
+                    Toolbox.warn_all_same(i)
+                    all_num_idx[i] = numerical_idx[i] = None
+                elif np.allclose(shrink_features, np.array(shrink_features, np.int32)):
+                    if Toolbox.all_unique(shrink_feature):
+                        Toolbox.warn_all_unique(i)
+                        all_num_idx[i] = numerical_idx[i] = None
+        return feature_sets, n_features, all_num_idx, numerical_idx
+
+    @staticmethod
+    def get_numerical_idx(feature_sets, all_num_idx, all_unique_idx):
+        rs = []
+        print("Generating numerical_idx")
+        for i, (feat_set, all_num, all_unique) in enumerate(
+            zip(feature_sets, all_num_idx, all_unique_idx)
+        ):
+            if all_unique:
+                Toolbox.warn_all_unique(i)
+                rs.append(None)
+                continue
+            if len(feat_set) == 1:
+                Toolbox.warn_all_same(i)
+                rs.append(None)
+                continue
+            no_nan_feat = NanHandler.pop_nan(feat_set)
+            if not all_num:
+                if len(feat_set) == len(no_nan_feat):
+                    rs.append(False)
+                    continue
+                if not all(Toolbox.is_number(str(feat)) for feat in no_nan_feat):
+                    rs.append(False)
+                    continue
+            no_nan_feat = np.array(list(no_nan_feat), np.float32)
+            int_no_nan_feat = no_nan_feat.astype(np.int32)
+            n_feat, feat_min, feat_max = len(no_nan_feat), no_nan_feat.min(), no_nan_feat.max()
+            if not np.allclose(no_nan_feat, int_no_nan_feat):
+                rs.append(True)
+                continue
+            feat_min, feat_max = int(feat_min), int(feat_max)
+            if np.allclose(np.sort(no_nan_feat), np.linspace(feat_min, feat_max, n_feat)):
+                rs.append(False)
+                continue
+            if feat_min >= 20 and n_feat >= 20:
+                rs.append(True)
+            elif 1.5 * n_feat >= feat_max - feat_min:
+                rs.append(False)
+            else:
+                rs.append(True)
+        return np.array(rs)
 
 
 class TrainMonitor:
@@ -606,8 +722,144 @@ class Pruner:
         )
 
 
+class NanHandler:
+    def __init__(self, numerical_idx, handler, reuse_values=True):
+        self.numerical_idx, self.handler = numerical_idx, handler
+        self.reuse_values = reuse_values
+        self.values = [None] * len(self.numerical_idx)
+
+    @staticmethod
+    def shrink_nan(feat, dtype):
+        if dtype != str:
+            new = [f for f in feat if not math.isnan(f)]
+            if len(new) < len(feat):
+                new.append("nan")
+            return new
+        return feat
+
+    @staticmethod
+    def pop_nan(feat):
+        no_nan_feat = []
+        for f in feat:
+            try:
+                f = float(f)
+                if math.isnan(f):
+                    continue
+                no_nan_feat.append(f)
+            except ValueError:
+                no_nan_feat.append(f)
+        return no_nan_feat
+
+    def handle(self, x, refresh_values=False):
+        if self.handler is None:
+            pass
+        elif self.handler == "delete":
+            x = x[~np.any(np.isnan(x[..., self.numerical_idx]), axis=1)]
+        else:
+            for i, (v, numerical) in enumerate(zip(self.values, self.numerical_idx[:-1])):
+                if not numerical:
+                    continue
+                feat = x[..., i]
+                mask = np.isnan(feat)
+                if not np.any(mask):
+                    continue
+                if self.reuse_values and not refresh_values and v is not None:
+                    new_value = v
+                else:
+                    new_value = getattr(np, self.handler)(feat[~mask])
+                    if self.reuse_values and (v is None or refresh_values):
+                        self.values[i] = new_value
+                feat[mask] = new_value
+        return x
+
+
+class PreProcessor:
+    def __init__(self, method, scale_method, refresh_mean_and_std, eps_floor=1e-4, eps_ceiling=1e12):
+        self.method, self.scale_method, self.refresh_mean_and_std = method, scale_method, refresh_mean_and_std
+        self.eps_floor, self.eps_ceiling = eps_floor, eps_ceiling
+        self.redundant_idx = None
+        self._mean = self._std = None
+
+    def _scale(self, x, numerical_idx):
+        targets = x[..., numerical_idx]
+        self.redundant_idx = [False] * len(numerical_idx)
+        mean = std = None
+        if self._mean is not None:
+            mean = self._mean
+        if self._std is not None:
+            std = self._std
+        if mean is None or self.refresh_mean_and_std:
+            mean = targets.mean(axis=0)
+        abs_targets = np.abs(targets)
+        max_features = abs_targets.max(axis=0)
+        if self.scale_method is not None:
+            max_features_res = max_features - mean
+            mask = max_features_res > self.eps_ceiling
+            n_large = np.sum(mask)
+            if n_large > 0:
+                idx_lst, val_lst = [], []
+                mask_cursor = -1
+                for i, numerical in enumerate(numerical_idx):
+                    if not numerical:
+                        continue
+                    mask_cursor += 1
+                    if not mask[mask_cursor]:
+                        continue
+                    idx_lst.append(i)
+                    val_lst.append(max_features_res[mask_cursor])
+                    local_target = targets[..., mask_cursor]
+                    local_abs_target = abs_targets[..., mask_cursor]
+                    sign_mask = np.ones(len(targets))
+                    sign_mask[local_target < 0] *= -1
+                    scaled_value = self._scale_abs_features(local_abs_target) * sign_mask
+                    targets[..., mask_cursor] = scaled_value
+                    if self.refresh_mean_and_std or self._mean is None:
+                        mean[mask_cursor] = np.mean(scaled_value)
+                    max_features[mask_cursor] = np.max(scaled_value)
+                warn_msg = "{} value which is too large: [{}]{}".format(
+                    "These {} columns contain".format(n_large) if n_large > 1 else "One column contains",
+                    ", ".join(
+                        "{}: {:8.6f}".format(idx, val)
+                        for idx, val in zip(idx_lst, val_lst)
+                    ),
+                    ", {} will be scaled by '{}' method".format(
+                        "it" if n_large == 1 else "they", self.scale_method
+                    )
+                )
+                print(warn_msg)
+                x[..., numerical_idx] = targets
+        if std is None or self.refresh_mean_and_std:
+            if np.any(max_features > self.eps_ceiling):
+                targets = targets - mean
+            std = np.maximum(self.eps_floor, targets.std(axis=0))
+        if (self._mean is None and self._std is None) or self.refresh_mean_and_std:
+            self._mean, self._std = mean, std
+        return x
+
+    def _scale_abs_features(self, abs_features):
+        if self.scale_method == "truncate":
+            return np.minimum(abs_features, self.eps_ceiling)
+        if self.scale_method == "divide":
+            return abs_features / self.eps_ceiling
+        if self.scale_method == "log":
+            return np.log(abs_features + 1)
+        return getattr(np, self.scale_method)(abs_features)
+
+    def _normalize(self, x, numerical_idx):
+        x[..., numerical_idx] -= self._mean
+        x[..., numerical_idx] /= self._std
+        return x
+
+    def process(self, x, numerical_idx):
+        x = self._scale(np.array(x, dtype=np.float32), numerical_idx)
+        x = getattr(self, "_" + self.method)(x, numerical_idx)
+        return x
+
+
 __all__ = [
     "init_w", "init_b", "fully_connected_linear", "prepare_tensorboard_verbose",
-    "Toolbox", "Metrics", "Losses", "Activations", "TrainMonitor", "DNDF", "Pruner",
+    "Toolbox", "Metrics", "Losses", "Activations", "TrainMonitor",
+    "DNDF", "Pruner", "NanHandler", "PreProcessor",
     "DNDFConfig", "PrunerConfig"
+
 ]
