@@ -26,6 +26,7 @@ class Advanced(Basic):
         self.categorical_columns = self._kwargs.get("categorical_columns", None)
         if self.categorical_columns is None:
             raise ValueError("categorical_columns should be provided")
+        self.n_dim -= len(self.categorical_columns)
 
         self._deep_input = self._kwargs.get("deep_input", "embedding_concat")
         self._wide_input = self._kwargs.get("wide_input", "continuous")
@@ -44,8 +45,11 @@ class Advanced(Basic):
         )
         self._n_batch_placeholder = tf.placeholder(tf.int32, name="n_batch")
 
-        self._use_wide_network = self._kwargs.get("use_wide_network", True)
-        self._dndf = DNDF(self.n_class) if self._kwargs.get("use_dndf", True) else None
+        self._use_wide_network = self._kwargs.get("use_wide_network", self.n_dim > 0)
+        if not self._use_wide_network:
+            self._dndf = None
+        else:
+            self._dndf = DNDF(self.n_class) if self._kwargs.get("use_dndf", True) else None
         self._pruner = Pruner() if self._kwargs.get("use_pruner", True) else None
 
     @property
@@ -54,8 +58,48 @@ class Advanced(Basic):
 
     def _get_embedding(self, i, n):
         embedding_size = math.ceil(math.log2(n)) + 1 if self.embedding_size == "log" else self.embedding_size
-        embedding = tf.get_variable("Embedding{}".format(i), [n, embedding_size])
+        embedding = tf.Variable(tf.truncated_normal(
+            [n, embedding_size], mean=0, stddev=0.02
+        ), name="Embedding{}".format(i))
         return tf.nn.embedding_lookup(embedding, self._categorical_xs[i], name="Embedded_X{}".format(i))
+
+    def _define_hidden_units(self):
+        n_data = len(self._train_generator)
+        current_units = self._deep_input.shape[1].value
+        if current_units > 512:
+            if n_data >= 100000:
+                self.hidden_units = (1024, 1024, 512)
+            elif n_data >= 10000:
+                self.hidden_units = (1024, 1024)
+            elif n_data >= 5000:
+                self.hidden_units = (512, 512)
+            else:
+                self.hidden_units = (256, 256)
+        elif current_units > 256:
+            if n_data >= 100000:
+                self.hidden_units = (2 * current_units, 2 * current_units, 512)
+            elif n_data >= 10000:
+                self.hidden_units = (2 * current_units, 2 * current_units)
+            elif n_data >= 5000:
+                self.hidden_units = (512, 512)
+            else:
+                self.hidden_units = (256, 256)
+        else:
+            if n_data >= 100000:
+                self.hidden_units = (512, 512, 512)
+            elif n_data >= 10000:
+                self.hidden_units = (512, 512)
+            else:
+                if current_units > 128:
+                    if n_data >= 5000:
+                        self.hidden_units = (2 * current_units, 2 * current_units)
+                    else:
+                        self.hidden_units = (current_units, current_units)
+                else:
+                    if n_data >= 5000:
+                        self.hidden_units = (256, 256)
+                    else:
+                        self.hidden_units = (128, 128)
 
     def _define_input(self):
         super(Advanced, self)._define_input()
@@ -65,7 +109,7 @@ class Advanced(Basic):
             self._embedding = self._embedding_concat = self._tfx
             self._embedding_with_one_hot = self._embedding_with_one_hot_concat = self._tfx
         else:
-            all_categorical = not np.any(self.numerical_idx)
+            all_categorical = self.n_dim == 0
             with tf.name_scope("Categorical_Xs"):
                 self._categorical_xs = [
                     tf.placeholder(tf.int32, shape=[None], name="Categorical_X{}".format(i))
@@ -103,17 +147,22 @@ class Advanced(Basic):
             self._deep_input = self._tfx
         else:
             self._deep_input = getattr(self, "_" + self._deep_input)
+        self._define_hidden_units()
+        self._settings = "{}_{}(dndf)_{}(prune)".format(
+            self.hidden_units, self._dndf is not None, self._pruner is not None
+        )
 
     def _fully_connected_linear(self, net, shape, appendix):
-        w = init_w(shape, "W{}".format(appendix))
-        if self._pruner is not None:
-            w_abs = tf.abs(w)
-            w_abs_mean, w_abs_var = tf.nn.moments(w_abs, None)
-            w = self._pruner.prune_w(w, w_abs, w_abs_mean, tf.sqrt(w_abs_var))
-        b = init_b([shape[1]], "b{}".format(appendix))
-        self._ws.append(w)
-        self._bs.append(b)
-        return tf.nn.xw_plus_b(net, w, b, "linear{}".format(appendix))
+        with tf.name_scope("Linear{}".format(appendix)):
+            w = init_w(shape, "W{}".format(appendix))
+            if self._pruner is not None:
+                w_abs = tf.abs(w)
+                w_abs_mean, w_abs_var = tf.nn.moments(w_abs, None)
+                w = self._pruner.prune_w(w, w_abs, w_abs_mean, tf.sqrt(w_abs_var))
+            b = init_b([shape[1]], "b{}".format(appendix))
+            self._ws.append(w)
+            self._bs.append(b)
+            return tf.add(tf.matmul(net, w), b, name="Linear{}_Output".format(appendix))
 
     def _build_layer(self, i, net):
         if self.use_batch_norm:
@@ -125,11 +174,8 @@ class Advanced(Basic):
             net = tf.nn.dropout(net, keep_prob=self._tf_p_keep)
         return net
 
-    def _build_model(self):
-        tfx = self._tfx
-        self._tfx = self._deep_input
-        super(Advanced, self)._build_model()
-        self._tfx = tfx
+    def _build_model(self, net=None):
+        super(Advanced, self)._build_model(self._deep_input)
         if self._use_wide_network:
             if self._dndf is None:
                 wide_output = self._fully_connected_linear(
@@ -140,8 +186,77 @@ class Advanced(Basic):
                 wide_output = self._dndf(self._wide_input, self._n_batch_placeholder)
             self._output += wide_output
 
-    def _get_feed_dict(self, x, y=None, is_training=True):
-        feed_dict = super(Advanced, self)._get_feed_dict(x, y, is_training)
+    def _get_feed_dict(self, x, y=None, weights=None, is_training=True):
+        continuous_x = x[..., self.numerical_idx[:-1]] if self._categorical_xs else x
+        feed_dict = super(Advanced, self)._get_feed_dict(continuous_x, y, weights, is_training)
         if self._dndf is not None:
             feed_dict[self._n_batch_placeholder] = len(x)
+        for (idx, _), categorical_x in zip(self.categorical_columns, self._categorical_xs):
+            feed_dict.update({categorical_x: x[..., idx].astype(np.int32)})
         return feed_dict
+
+    def print_settings(self):
+        msg = "\n".join([
+            "=" * 60, "This is a {}".format(
+                "{}-classes problem".format(self.n_class) if not self.n_class == 1
+                else "regression problem"
+            ), "-" * 60,
+            "Data     : {} training samples, {} test samples".format(
+                len(self._train_generator), len(self._test_generator) if self._test_generator is not None else 0
+            ),
+            "Features : {} categorical, {} numerical".format(
+                len(self.categorical_columns), np.sum(self.numerical_idx)
+            )
+        ]) + "\n"
+
+        msg += "=" * 60 + "\n"
+        msg += "Deep model: DNN\n"
+        msg += "Deep model input: {}\n".format(
+            "Continuous features only" if not self.categorical_columns else
+            "Continuous features with embeddings" if np.any(self.numerical_idx) else
+            "Embeddings only"
+        )
+        msg += "-" * 60 + "\n"
+        if self.categorical_columns:
+            msg += "Embedding size: {}\n".format(self.embedding_size)
+            msg += "Actual feature dimension: {}\n".format(self._embedding_concat.shape[1].value)
+        msg += "-" * 60 + "\n"
+        if self.dropout_keep_prob < 1:
+            msg += "Using dropout with keep_prob = {}\n".format(self.dropout_keep_prob)
+        else:
+            msg += "Training without dropout\n"
+        msg += "Training {} batch norm\n".format("with" if self.use_batch_norm else "without")
+        msg += "Hidden units: {}\n".format(self.hidden_units)
+
+        msg += "=" * 60 + "\n"
+        if not self._use_wide_network:
+            msg += "Wide model: None\n"
+        else:
+            msg += "Wide model: {}\n".format("logistic regression" if self._dndf is None else "DNDF")
+            msg += "Wide model input: Continuous features only\n"
+            msg += "-" * 60 + '\n'
+            if self._dndf is not None:
+                msg += "Using DNDF with n_tree = {}, tree_depth = {}\n".format(
+                    self._dndf.n_tree, self._dndf.tree_depth
+                )
+
+        msg += "\n".join(["=" * 60, "Hyper parameters", "-" * 60, "{}".format(
+            "This is a DNN model" if self._dndf is None and not self._use_wide_network else
+            "This is a Wide & Deep model" if self._dndf is None else
+            "This is a hybrid model"
+        ), "-" * 60]) + "\n"
+        msg += "Activation       : " + str(self.activations) + "\n"
+        msg += "Batch size       : " + str(self.batch_size) + "\n"
+        msg += "Epoch num        : " + str(self.n_epoch) + "\n"
+        msg += "Optimizer        : " + self._optimizer_name + "\n"
+        msg += "Metric           : " + self._metric_name + "\n"
+        msg += "Loss             : " + self._loss_name + "\n"
+        msg += "lr               : " + str(self.lr) + "\n"
+        msg += "-" * 60 + "\n"
+        msg += "Pruner           : {}".format("None" if self._pruner is None else "") + "\n"
+        if self._pruner is not None:
+            msg += "\n".join("-> {:14}: {}".format(key, value) for key, value in sorted(
+                self._pruner.params.items()
+            )) + "\n"
+        msg += "-" * 60 + "\n"
+        print(msg)
