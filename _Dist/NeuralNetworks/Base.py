@@ -461,7 +461,7 @@ class Base:
             with tf.name_scope("Initialize"):
                 self._initialize()
 
-        i_epoch = i_iter = snapshot_cursor = 0
+        i_epoch = i_iter = j = snapshot_cursor = 0
         if snapshot_ratio == 0:
             use_monitor = False
             snapshot_step = self.n_iter
@@ -513,7 +513,7 @@ class Base:
                         if check_rs["save_checkpoint"]:
                             print("  -  {}".format(check_rs["info"]))
                             self.save_checkpoint(tmp_checkpoint_folder)
-            self.log["epoch_loss"].append(epoch_loss / self.n_iter)
+            self.log["epoch_loss"].append(epoch_loss / (j + 1))
             if use_monitor:
                 if i_epoch == n_epoch and i_epoch < self.max_epoch and not monitor.rs["terminate"]:
                     monitor.flat_flag = True
