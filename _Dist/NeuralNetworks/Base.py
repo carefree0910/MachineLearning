@@ -113,14 +113,7 @@ class Generator:
         logger = logging.getLogger("DataReader")
         logger.debug("Generating random subset with size={}".format(n))
         start = random.randint(0, self._n_valid - n)
-        if self._all_valid_data is None:
-            subset, weights = self._get_data(self._random_indices[start:start + n])
-        else:
-            subset = self._all_valid_data[start:start + n]
-            if self._sample_weights is None:
-                weights = None
-            else:
-                weights = self._sample_weights[start:start + n]
+        subset, weights = self._get_data(self._random_indices[start:start + n])
         logger.debug("Done")
         return subset, weights
 
@@ -150,15 +143,14 @@ class Generator:
 
 
 class Base:
-    def __init__(self, x, y, x_test=None, y_test=None, name=None, loss=None, metric=None,
-                 n_epoch=32, max_epoch=256, n_iter=128, batch_size=128, optimizer="Adam", lr=1e-3, **kwargs):
+    def __init__(self, x, y, x_test=None, y_test=None, sample_weights=None, name=None,
+                 model_param_settings=None, model_structure_settings=None):
         tf.reset_default_graph()
         self.log = {}
         self._name = name
-        self._kwargs = kwargs
         self._settings = ""
 
-        self._sample_weights = kwargs.pop("sample_weights", None)
+        self._sample_weights = sample_weights
         if self._sample_weights is None:
             self._tf_sample_weights = None
         else:
@@ -178,21 +170,24 @@ class Base:
         self.n_dim = self._train_generator.shape[-1]
         self.n_class = self._train_generator.n_class
 
-        self.n_epoch, self.max_epoch, self.n_iter = n_epoch, max_epoch, n_iter
-        self.batch_size, self.lr = batch_size, lr
-
-        if loss is None:
-            self._loss_name = "correlation" if self.n_class == 1 else "cross_entropy"
+        if model_param_settings is None:
+            self.model_param_settings = {}
         else:
-            self._loss_name = loss
+            assert_msg = "model_param_settings should be a dictionary"
+            assert isinstance(model_param_settings, dict), assert_msg
+            self.model_param_settings = model_param_settings
+        self.lr = None
+        self._loss = self._metric = None
+        self._loss_name = self._metric_name = None
+        self._optimizer_name = self._optimizer = None
+        self.n_epoch = self.max_epoch = self.n_iter = self.batch_size = None
 
-        if metric is None:
-            if self.n_class == 1:
-                self._metric, self._metric_name = Metrics.correlation, "correlation"
-            else:
-                self._metric, self._metric_name = Metrics.acc, "acc"
+        if model_structure_settings is None:
+            self.model_structure_settings = {}
         else:
-            self._metric, self._metric_name = getattr(Metrics, metric), metric
+            assert_msg = "model_structure_settings should be a dictionary"
+            assert isinstance(model_structure_settings, dict), assert_msg
+            self.model_structure_settings = model_structure_settings
 
         self._model_built = False
         self.py_collections = None
@@ -202,12 +197,10 @@ class Base:
         self._ws, self._bs = [], []
         self._loss = self._train_step = None
         self._tfx = self._tfy = self._output = self._prob_output = None
-
         self._is_training = tf.placeholder(tf.bool, name="is_training")
 
         self._sess = tf.Session()
-        self._optimizer_name = optimizer
-        self._optimizer = getattr(tf.train, "{}Optimizer".format(optimizer))(lr)
+        self.init_all_settings()
 
     def __str__(self):
         return self.model_saving_name
@@ -225,6 +218,40 @@ class Base:
     @property
     def model_saving_path(self):
         return os.path.join("_Models", self.model_saving_name)
+
+    # Settings
+
+    def init_all_settings(self):
+        self.init_model_param_settings()
+        self.init_model_structure_settings()
+
+    def init_model_param_settings(self):
+        loss = self.model_param_settings.get("loss", None)
+        metric = self.model_param_settings.get("metric", None)
+        self.n_epoch = self.model_param_settings.get("n_epoch", 32)
+        self.max_epoch = self.model_param_settings.get("max_epoch", 256)
+        self.batch_size = self.model_param_settings.get("batch_size", 128)
+        self.n_iter = self.model_param_settings.get("n_iter", -1)
+        if self.n_iter < 0:
+            self.n_iter = len(self._train_generator) // self.batch_size
+        self._optimizer_name = self.model_param_settings.get("optimizer", "Adam")
+        self.lr = self.model_param_settings.get("lr", 1e-3)
+        if loss is None:
+            self._loss_name = "correlation" if self.n_class == 1 else "cross_entropy"
+        else:
+            self._loss_name = loss
+
+        if metric is None:
+            if self.n_class == 1:
+                self._metric, self._metric_name = Metrics.correlation, "correlation"
+            else:
+                self._metric, self._metric_name = Metrics.acc, "acc"
+        else:
+            self._metric, self._metric_name = getattr(Metrics, metric), metric
+        self._optimizer = getattr(tf.train, "{}Optimizer".format(self._optimizer_name))(self.lr)
+
+    def init_model_structure_settings(self):
+        pass
 
     # Core
 
