@@ -14,78 +14,52 @@ from _Dist.NeuralNetworks.e_AdvancedNN.NN import Advanced
 
 
 class Auto(Advanced):
-    def __init__(self, x=None, y=None, x_test=None, y_test=None, name=None, loss=None, metric=None,
-                 n_epoch=32, max_epoch=256, n_iter=-1, batch_size=128, optimizer="Adam", lr=1e-3,
+    def __init__(self, x=None, y=None, x_test=None, y_test=None, sample_weights=None, name=None,
+                 model_param_settings=None, model_structure_settings=None, data_info=None,
                  pre_process_settings=None, nan_handler_settings=None, **kwargs):
         if name is None:
             raise ValueError("name should be provided in AutoNN")
         self._name = name
+        self._sample_weights = None
 
-        # Pre-process settings
         if pre_process_settings is None:
             pre_process_settings = {}
         else:
-            assert_msg = "Pre-process settings must be a dictionary"
+            assert_msg = "pre_process_settings must be a dictionary"
             assert isinstance(pre_process_settings, dict), assert_msg
         self._pre_process_settings = pre_process_settings
         self._pre_processor = None
         self.pre_process_method = self.scale_method = self.refresh_mean_and_std = None
 
-        # Nan handler settings
         if nan_handler_settings is None:
             nan_handler_settings = {}
         else:
-            assert_msg = "Nan handler settings must be a dictionary"
+            assert_msg = "nan_handler_settings must be a dictionary"
             assert isinstance(nan_handler_settings, dict), assert_msg
         self._nan_handler_settings = nan_handler_settings
         self._nan_handler = None
         self.nan_handler_method = self.reuse_nan_handler_values = None
 
+        self.init_pre_process_settings()
+        self.init_nan_handler_settings()
+
+        if data_info is None:
+            data_info = {}
+        else:
+            assert_msg = "data_info must be a dictionary"
+            assert isinstance(data_info, dict), assert_msg
+        self._data_info = data_info
         self.data_loaded = False
         self.is_numeric_label = None
         self.whether_redundant = None
-        self.numerical_idx = kwargs.pop("numerical_idx", None)
-        self.feature_sets = kwargs.pop("feature_sets", None)
-        self.sparsity = kwargs.pop("sparsity", None)
-        self.class_prior = kwargs.pop("class_prior", None)
-        self.dropout_keep_prob = kwargs.pop("p_keep", 0.5)
-        self.n_features = self.categorical_columns = self.all_num_idx = self.transform_dicts = None
-        if self.feature_sets is not None and self.numerical_idx is not None:
-            self.n_features = [len(feature_set) for feature_set in self.feature_sets]
-            self._gen_categorical_columns()
-
-        self.init_all_settings()
-
-        file_type = kwargs.pop("file_type", "txt")
-        shuffle = kwargs.pop("shuffle", True)
-        restore = kwargs.pop("restore", True)
-        test_rate = kwargs.pop("test_rate", 0.1)
-        args = (self.numerical_idx, file_type, shuffle, restore, test_rate)
-        if x is None or y is None:
-            x, y, x_test, y_test = self._load_data(None, *args)
-        else:
-            data = np.hstack([x, y.reshape([-1, 1])])
-            if x_test is not None and y_test is not None:
-                data = (data, np.hstack([x_test, y_test.reshape([-1, 1])]))
-            x, y, x_test, y_test = self._load_data(data, *args)
-        if n_iter < 0:
-            n_iter = len(x) // batch_size + 1
-
-        self._sample_weights = kwargs.pop("sample_weights", None)
-        if self._sample_weights is not None and Toolbox.is_number(str(self._sample_weights)):
-            self._sample_weights = np.full(len(x), float(self._sample_weights))
-        self._handle_unbalance(y)
-        self._handle_sparsity()
-
-        self._kwargs = kwargs
-        self._kwargs["p_keep"] = self.dropout_keep_prob
-        self._kwargs["numerical_idx"] = self.numerical_idx
-        self._kwargs["categorical_columns"] = self.categorical_columns
-        self._kwargs["sample_weights"] = self._sample_weights
+        self.feature_sets = self.sparsity = self.class_prior = None
+        self.n_features = self.all_num_idx = self.transform_dicts = None
+        x, y, x_test, y_test = self.init_data_info(x, y, x_test, y_test)
 
         super(Auto, self).__init__(
-            x, y, x_test, y_test, name, loss, metric,
-            n_epoch, max_epoch, n_iter, batch_size, optimizer, lr, **kwargs
+            x, y, x_test, y_test, sample_weights, name,
+            model_param_settings, model_structure_settings,
+            numerical_idx=self.numerical_idx, categorical_columns=self.categorical_columns, **kwargs
         )
 
     @property
@@ -114,10 +88,6 @@ class Auto(Advanced):
             for arr in arrays
         )
 
-    def init_all_settings(self):
-        self.init_pre_process_settings()
-        self.init_nan_handler_settings()
-
     def init_pre_process_settings(self):
         self.pre_process_method = self._pre_process_settings.get("pre_process_method", "normalize")
         self.scale_method = self._pre_process_settings.get("scale_method", "truncate")
@@ -131,15 +101,39 @@ class Auto(Advanced):
         self.nan_handler_method = self._nan_handler_settings.get("nan_handler_method", "median")
         self.reuse_nan_handler_values = self._nan_handler_settings.get("reuse_nan_handler_values", True)
 
+    def init_data_info(self, x, y, x_test, y_test):
+        self.numerical_idx = self._data_info.get("numerical_idx", None)
+        self.feature_sets = self._data_info.get("feature_sets", None)
+        self.sparsity = self._data_info.get("sparsity", None)
+        self.class_prior = self._data_info.get("class_prior", None)
+        if self.feature_sets is not None and self.numerical_idx is not None:
+            self.n_features = [len(feature_set) for feature_set in self.feature_sets]
+            self._gen_categorical_columns()
+
+        file_type = self._data_info.get("file_type", "txt")
+        shuffle = self._data_info.get("shuffle", True)
+        restore = self._data_info.get("restore", True)
+        test_rate = self._data_info.get("test_rate", 0.1)
+        args = (self.numerical_idx, file_type, shuffle, restore, test_rate)
+        if x is None or y is None:
+            x, y, x_test, y_test = self._load_data(None, *args)
+        else:
+            data = np.hstack([x, y.reshape([-1, 1])])
+            if x_test is not None and y_test is not None:
+                data = (data, np.hstack([x_test, y_test.reshape([-1, 1])]))
+            x, y, x_test, y_test = self._load_data(data, *args)
+
+        self._handle_unbalance(y)
+        self._handle_sparsity()
+        return x, y, x_test, y_test
+
     def _handle_unbalance(self, y):
         class_ratio = self.class_prior.min() / self.class_prior.max()
         if class_ratio < 0.1:
             warn_msg = "Sample weights will be used since class_ratio < 0.1 ({:8.6f})".format(class_ratio)
             print(warn_msg)
             if self._sample_weights is None:
-                print(
-                    "Sample weights are not provided, they'll be generated automatically"
-                )
+                print("Sample weights are not provided, they'll be generated automatically")
                 self._sample_weights = np.ones(len(y)) / self.class_prior[y.astype(np.int)]
                 self._sample_weights /= self._sample_weights.sum()
                 self._sample_weights *= len(y)
