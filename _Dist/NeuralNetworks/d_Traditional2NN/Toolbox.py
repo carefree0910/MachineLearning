@@ -23,50 +23,50 @@ class TransformationBase(Basic):
         return "NN" if self._name is None else self._name
 
     def _get_all_data(self, shuffle=True):
-        train = self._train_generator.get_all_data()
+        train, train_weights = self._train_generator.get_all_data()
         if shuffle:
             np.random.shuffle(train)
         x, y = train[..., :-1], train[..., -1]
-        if self._cv_generator is not None:
-            cv = self._cv_generator.get_all_data()
+        if self._test_generator is not None:
+            test, test_weights = self._test_generator.get_all_data()
             if shuffle:
-                np.random.shuffle(cv)
-            x_cv, y_cv = cv[..., :-1], cv[..., -1]
+                np.random.shuffle(test)
+            x_test, y_test = test[..., :-1], test[..., -1]
         else:
-            x_cv = y_cv = None
-        return x, y, x_cv, y_cv
+            x_test = y_test = None
+        return x, y, x_test, y_test
 
     def _transform(self):
         pass
 
-    def _print_model_performance(self, clf, name, x, y, x_cv, y_cv):
+    def _print_model_performance(self, clf, name, x, y, x_test, y_test):
         print("\n".join(["=" * 60, "{} performance".format(name), "-" * 60]))
         y_train_pred = clf.predict(x)
-        y_cv_pred = clf.predict(x_cv)
+        y_test_pred = clf.predict(x_test)
         train_metric = self._metric(y, y_train_pred)
-        test_metric = self._metric(y_cv, y_cv_pred)
-        print("{}  -  Train : {:8.6}   CV : {:8.6}".format(
+        test_metric = self._metric(y_test, y_test_pred)
+        print("{}  -  Train : {:8.6}   Test : {:8.6}".format(
             self._metric_name, train_metric, test_metric
         ))
         print("-" * 60)
 
-    def _build_model(self):
+    def _build_model(self, net=None):
         self._transform()
-        super(TransformationBase, self)._build_model()
+        super(TransformationBase, self)._build_model(net)
 
     def _initialize(self):
         super(TransformationBase, self)._initialize()
         self.feed_weights(self._transform_ws)
         self.feed_biases(self._transform_bs)
-        x, y, x_cv, y_cv = self._get_all_data()
+        x, y, x_test, y_test = self._get_all_data()
         print("\n".join(["=" * 60, "Initial performance", "-" * 60]))
         y_train_pred = self.predict(x)
-        y_cv_pred = self.predict(x_cv)
+        y_test_pred = self.predict(x_test)
         if self.n_class > 1:
-            y_train_pred, y_cv_pred = y_train_pred.argmax(1), y_cv_pred.argmax(1)
+            y_train_pred, y_test_pred = y_train_pred.argmax(1), y_test_pred.argmax(1)
         train_metric = self._metric(y, y_train_pred)
-        test_metric = self._metric(y_cv, y_cv_pred)
-        print("{}  -  Train : {:8.6}   CV : {:8.6}".format(
+        test_metric = self._metric(y_test, y_test_pred)
+        print("{}  -  Train : {:8.6}   Test : {:8.6}".format(
             self._metric_name, train_metric, test_metric
         ))
         print("-" * 60)
@@ -81,10 +81,10 @@ class NB2NN(TransformationBase):
         self._settings = "NaiveBayes"
 
     def _transform(self):
-        x, y, x_cv, y_cv = self._get_all_data()
+        x, y, x_test, y_test = self._get_all_data()
         nb = MultinomialNB()
         nb.fit(x, y)
-        self._print_model_performance(nb, "Naive Bayes", x, y, x_cv, y_cv)
+        self._print_model_performance(nb, "Naive Bayes", x, y, x_test, y_test)
         self._transform_ws = [nb.feature_log_prob_.T]
         self._transform_bs = [nb.class_log_prior_]
 
@@ -115,10 +115,10 @@ class DT2NN(TransformationBase):
         self._settings = "DTree_" + "_".join(self.activations)
 
     def _transform(self):
-        x, y, x_cv, y_cv = self._get_all_data()
+        x, y, x_test, y_test = self._get_all_data()
         tree = DecisionTreeClassifier()
         tree.fit(x, y)
-        self._print_model_performance(tree, "Decision Tree", x, y, x_cv, y_cv)
+        self._print_model_performance(tree, "Decision Tree", x, y, x_test, y_test)
 
         tree_structure = export_structure(tree)
         leafs = sum([1 if pair[1] == -1 else 0 for pair in tree_structure])
