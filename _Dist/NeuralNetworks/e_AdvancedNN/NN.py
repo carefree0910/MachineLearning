@@ -14,30 +14,18 @@ from _Dist.NeuralNetworks.c_BasicNN.NN import Basic
 
 class Advanced(Basic):
     def __init__(self, *args, **kwargs):
+        numerical_idx = kwargs.pop("numerical_idx", None)
+        categorical_columns = kwargs.pop("categorical_columns", None)
+
+        self._deep_input = self._wide_input = None
+        self.embedding_size = None
+        self._embedding = self._one_hot = self._embedding_concat = self._one_hot_concat = None
+        self._embedding_with_one_hot = self._embedding_with_one_hot_concat = None
+
+        self.dropout_keep_prob = self.use_batch_norm = None
+        self._use_wide_network = self._dndf = self._pruner = None
+
         super(Advanced, self).__init__(*args, **kwargs)
-
-        self.numerical_idx = self._kwargs.get("numerical_idx", None)
-        if self.numerical_idx is None:
-            raise ValueError("numerical_idx should be provided")
-        if len(self.numerical_idx) != self.n_dim + 1:
-            raise ValueError("Length of numerical_idx should be {}, {} found".format(
-                self.n_dim + 1, len(self.numerical_idx)
-            ))
-        self.categorical_columns = self._kwargs.get("categorical_columns", None)
-        if self.categorical_columns is None:
-            raise ValueError("categorical_columns should be provided")
-        self.n_dim -= len(self.categorical_columns)
-
-        self._deep_input = self._kwargs.get("deep_input", "embedding_concat")
-        self._wide_input = self._kwargs.get("wide_input", "continuous")
-
-        self.embedding_size = self._kwargs.get("embedding_size", 8)
-        self._embedding = self._embedding_concat = None
-        self._one_hot = self._one_hot_concat = None
-        self._embedding_with_one_hot_concat = None
-
-        self.dropout_keep_prob = self._kwargs.get("p_keep", 0.5)
-        self.use_batch_norm = self._kwargs.get("use_batch_norm", False)
 
         self._tf_p_keep = tf.cond(
             self._is_training, lambda: self.dropout_keep_prob, lambda: 1.,
@@ -45,16 +33,38 @@ class Advanced(Basic):
         )
         self._n_batch_placeholder = tf.placeholder(tf.int32, name="n_batch")
 
-        self._use_wide_network = self._kwargs.get("use_wide_network", self.n_dim > 0)
-        if not self._use_wide_network:
-            self._dndf = None
-        else:
-            self._dndf = DNDF(self.n_class) if self._kwargs.get("use_dndf", True) else None
-        self._pruner = Pruner() if self._kwargs.get("use_pruner", True) else None
+        self.numerical_idx = numerical_idx
+        if self.numerical_idx is None:
+            raise ValueError("numerical_idx should be provided")
+        if len(self.numerical_idx) != self.n_dim + 1:
+            raise ValueError("Length of numerical_idx should be {}, {} found".format(
+                self.n_dim + 1, len(self.numerical_idx)
+            ))
+        self.categorical_columns = categorical_columns
+        if self.categorical_columns is None:
+            raise ValueError("categorical_columns should be provided")
+        self.n_dim -= len(self.categorical_columns)
 
     @property
     def name(self):
         return "AdvancedNN" if self._name is None else self._name
+
+    def init_model_param_settings(self):
+        super(Advanced, self).init_model_param_settings()
+        self.dropout_keep_prob = self.model_param_settings.get("p_keep", 0.5)
+        self.use_batch_norm = self.model_param_settings.get("use_batch_norm", False)
+
+    def init_model_structure_settings(self):
+        self._deep_input = self.model_structure_settings.get("deep_input", "embedding_concat")
+        self._wide_input = self.model_structure_settings.get("wide_input", "continuous")
+        self.embedding_size = self.model_structure_settings.get("embedding_size", 8)
+
+        self._use_wide_network = self.model_structure_settings.get("use_wide_network", self.n_dim > 0)
+        if not self._use_wide_network:
+            self._dndf = None
+        else:
+            self._dndf = DNDF(self.n_class) if self.model_structure_settings.get("use_dndf", True) else None
+        self._pruner = Pruner() if self.model_structure_settings.get("use_pruner", True) else None
 
     def _get_embedding(self, i, n):
         embedding_size = math.ceil(math.log2(n)) + 1 if self.embedding_size == "log" else self.embedding_size
@@ -68,38 +78,38 @@ class Advanced(Basic):
         current_units = self._deep_input.shape[1].value
         if current_units > 512:
             if n_data >= 100000:
-                self.hidden_units = (1024, 1024, 512)
+                self.hidden_units = [1024, 1024, 512]
             elif n_data >= 10000:
-                self.hidden_units = (1024, 1024)
+                self.hidden_units = [1024, 1024]
             elif n_data >= 5000:
-                self.hidden_units = (512, 512)
+                self.hidden_units = [512, 512]
             else:
-                self.hidden_units = (256, 256)
+                self.hidden_units = [256, 256]
         elif current_units > 256:
             if n_data >= 100000:
-                self.hidden_units = (2 * current_units, 2 * current_units, 512)
+                self.hidden_units = [2 * current_units, 2 * current_units, 512]
             elif n_data >= 10000:
-                self.hidden_units = (2 * current_units, 2 * current_units)
+                self.hidden_units = [2 * current_units, 2 * current_units]
             elif n_data >= 5000:
-                self.hidden_units = (512, 512)
+                self.hidden_units = [512, 512]
             else:
-                self.hidden_units = (256, 256)
+                self.hidden_units = [256, 256]
         else:
             if n_data >= 100000:
-                self.hidden_units = (512, 512, 512)
+                self.hidden_units = [512, 512, 512]
             elif n_data >= 10000:
-                self.hidden_units = (512, 512)
+                self.hidden_units = [512, 512]
             else:
                 if current_units > 128:
                     if n_data >= 5000:
-                        self.hidden_units = (2 * current_units, 2 * current_units)
+                        self.hidden_units = [2 * current_units, 2 * current_units]
                     else:
-                        self.hidden_units = (current_units, current_units)
+                        self.hidden_units = [current_units, current_units]
                 else:
                     if n_data >= 5000:
-                        self.hidden_units = (256, 256)
+                        self.hidden_units = [256, 256]
                     else:
-                        self.hidden_units = (128, 128)
+                        self.hidden_units = [128, 128]
 
     def _define_input(self):
         super(Advanced, self)._define_input()
