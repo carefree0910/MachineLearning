@@ -11,11 +11,14 @@ from sklearn import metrics
 
 
 def init_w(shape, name):
-    return tf.get_variable(name, shape, tf.float32, tf.contrib.layers.xavier_initializer())
+    init_method = tf.truncated_normal
+    init_params = {"stddev": math.sqrt(2 / sum(shape))}
+    w = tf.Variable(init_method(shape, **init_params), name=name)
+    return w
 
 
 def init_b(shape, name):
-    return tf.get_variable(name, shape, tf.float32, tf.zeros_initializer())
+    return tf.Variable(np.zeros(shape, dtype=np.float32), name=name)
 
 
 def fully_connected_linear(i, net, shape, bias=True):
@@ -309,7 +312,7 @@ class Toolbox:
                 if Toolbox.all_same(shrink_feature):
                     Toolbox.warn_all_same(i)
                     all_num_idx[i] = numerical_idx[i] = None
-                elif np.allclose(shrink_features, np.array(shrink_features, np.int32)):
+                elif np.allclose(shrink_feature, np.array(shrink_feature, np.int32)):
                     if Toolbox.all_unique(shrink_feature):
                         Toolbox.warn_all_unique(i)
                         all_num_idx[i] = numerical_idx[i] = None
@@ -542,26 +545,16 @@ class TrainMonitor:
         return self._rs
 
 
-class DNDFConfig:
-    n_tree = 8
-    tree_depth = 4
-    fc_shape = n_tree * 2 ** (tree_depth + 1)
-
-
-class PrunerConfig:
-    pass
-
-
 class DNDF:
-    def __init__(self, n_class, n_tree=DNDFConfig.n_tree, tree_depth=DNDFConfig.tree_depth):
+    def __init__(self, n_class, n_tree=16, tree_depth=4):
         self.n_class = n_class
         self.n_tree, self.tree_depth = n_tree, tree_depth
         self.n_leaf = 2 ** (tree_depth + 1)
 
     def __call__(self, net, n_batch_placeholder, dtype="output"):
-        name = "DNDF_{}_concat".format(dtype)
+        name = "DNDF_{}".format(dtype)
         n_leaf = 2 ** (self.tree_depth + 1)
-        with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
+        with tf.name_scope(name):
             flat_decisions = self.build_tree_projection(dtype, net)
             routes = self.build_routes(flat_decisions, n_batch_placeholder)
             features = tf.concat(routes, 1, name="concat")
@@ -573,7 +566,7 @@ class DNDF:
             else:
                 final_prob_vectors = tf.reduce_mean(
                     [tf.matmul(route, leaf) for route, leaf in zip(routes, local_leafs)],
-                    0, name="DNDF_output"
+                    0, name=name
                 )
             return final_prob_vectors
 
@@ -651,7 +644,6 @@ class Pruner:
                 self.gamma = 1
             if prune_method == "hard_prune":
                 self.alpha *= 0.01
-                self.beta *= 1.5
             self.cond_placeholder = None
         elif prune_method == "surgery":
             if alpha is None:
@@ -731,9 +723,10 @@ class NanHandler:
     @staticmethod
     def shrink_nan(feat, dtype):
         if dtype != str:
-            new = [f for f in feat if not math.isnan(f)]
+            new = np.asarray(feat, np.float32)
+            new = new[~np.isnan(new)].tolist()
             if len(new) < len(feat):
-                new.append("nan")
+                new.append(float("nan"))
             return new
         return feat
 
@@ -859,7 +852,5 @@ class PreProcessor:
 __all__ = [
     "init_w", "init_b", "fully_connected_linear", "prepare_tensorboard_verbose",
     "Toolbox", "Metrics", "Losses", "Activations", "TrainMonitor",
-    "DNDF", "Pruner", "NanHandler", "PreProcessor",
-    "DNDFConfig", "PrunerConfig"
-
+    "DNDF", "Pruner", "NanHandler", "PreProcessor"
 ]
