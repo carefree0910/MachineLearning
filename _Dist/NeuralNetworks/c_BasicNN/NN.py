@@ -10,16 +10,21 @@ from _Dist.NeuralNetworks.Base import Base
 
 class Basic(Base):
     def __init__(self, *args, **kwargs):
+        self.activations = self.hidden_units = None
         super(Basic, self).__init__(*args, **kwargs)
-
-        self.activations = self._kwargs.get("activations", "relu")
-        self.hidden_units = self._kwargs.get("hidden_units", (256, 256))
-
         self._settings = str(self.hidden_units)
 
     @property
     def name(self):
         return "BasicNN" if self._name is None else self._name
+
+    def init_model_param_settings(self):
+        super(Basic, self).init_model_param_settings()
+        self.activations = self.model_param_settings.get("activations", "relu")
+
+    def init_model_structure_settings(self):
+        super(Basic, self).init_model_structure_settings()
+        self.hidden_units = self.model_structure_settings.get("hidden_units", [256, 256])
 
     def _define_py_collections(self):
         self.py_collections = ["hidden_units"]
@@ -48,3 +53,12 @@ class Basic(Base):
         appendix = "_final_projection"
         fc_shape = self.hidden_units[-1] if self.hidden_units else current_dimension
         self._output = self._fully_connected_linear(net, [fc_shape, self.n_class], appendix)
+
+
+if __name__ == '__main__':
+    from Util.Util import DataUtil
+
+    x_train, y_train = DataUtil.gen_spiral(size=100, one_hot=False)
+    x_test, y_test = DataUtil.gen_spiral(size=10, one_hot=False)
+
+    nn = Basic(x_train, y_train, x_test, y_test).fit(snapshot_ratio=0)
