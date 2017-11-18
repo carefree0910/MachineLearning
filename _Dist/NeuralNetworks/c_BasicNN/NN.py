@@ -4,8 +4,6 @@ root_path = os.path.abspath("../../../")
 if root_path not in sys.path:
     sys.path.append(root_path)
 
-import tensorflow as tf
-
 from _Dist.NeuralNetworks.NNUtil import *
 from _Dist.NeuralNetworks.Base import Base
 
@@ -26,22 +24,16 @@ class Basic(Base):
     def _define_py_collections(self):
         self.py_collections = ["hidden_units"]
 
-    def _fully_connected_linear(self, net, shape, appendix):
-        w = init_w(shape, "W{}".format(appendix))
-        b = init_b([shape[1]], "b{}".format(appendix))
-        self._ws.append(w)
-        self._bs.append(b)
-        return tf.nn.xw_plus_b(net, w, b, "linear{}".format(appendix))
-
     def _build_layer(self, i, net):
         activation = self.activations[i]
         if activation is not None:
             net = getattr(Activations, activation)(net, "{}{}".format(activation, i))
         return net
 
-    def _build_model(self):
+    def _build_model(self, net=None):
         self._model_built = True
-        net = self._tfx
+        if net is None:
+            net = self._tfx
         current_dimension = net.shape[1].value
         if self.activations is None:
             self.activations = [None] * len(self.hidden_units)
