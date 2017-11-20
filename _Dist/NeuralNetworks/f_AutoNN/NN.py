@@ -21,6 +21,7 @@ class Auto(Advanced):
             raise ValueError("name should be provided in AutoNN")
         self._name = name
         self._sample_weights = None
+        self._data_folder = kwargs.pop("data_folder", "_Data")
 
         if pre_process_settings is None:
             pre_process_settings = {}
@@ -237,8 +238,9 @@ class Auto(Advanced):
 
     def _load_data(self, data=None, numerical_idx=None, file_type="txt",
                    shuffle=True, restore=True, test_rate=0.1):
-        data_folder = os.path.join("_Data", "_Cache", self._name)
-        data_info_file = os.path.join("_DataInfo", "{}.info".format(self._name))
+        data_folder = os.path.join(self._data_folder, "_Cache", self._name)
+        data_info_folder = os.path.join(self._data_folder, "_DataInfo")
+        data_info_file = os.path.join(data_info_folder, "{}.info".format(self._name))
         train_data_file = os.path.join(data_folder, "train.npy")
         test_data_file = os.path.join(data_folder, "test.npy")
 
@@ -259,8 +261,8 @@ class Auto(Advanced):
             else:
                 raise NotImplementedError("File type '{}' not recognized".format(file_type))
             if data is None:
-                target = os.path.join("_Data", self._name)
-                if not os.path.isdir(target):
+                target = os.path.join(self._data_folder, self._name)
+                if not os.path.exists(target):
                     with open(target + ".{}".format(file_type), "r") as file:
                         data = Toolbox.get_data(file, sep, include_header)
                 else:
@@ -286,8 +288,8 @@ class Auto(Advanced):
         else:
             n_train = None
 
-        if not os.path.exists("_DataInfo"):
-            os.makedirs("_DataInfo")
+        if not os.path.exists(data_info_folder):
+            os.makedirs(data_info_folder)
         if not os.path.isfile(data_info_file) or not restore:
             print("Generating data info")
             if numerical_idx is not None:
@@ -324,7 +326,7 @@ class Auto(Advanced):
 
         if not use_cached_data:
             print("Caching data...")
-            if not os.path.isdir(data_folder):
+            if not os.path.exists(data_folder):
                 os.makedirs(data_folder)
             np.save(train_data_file, train_data)
             if test_data is not None:
@@ -361,3 +363,11 @@ class Auto(Advanced):
         if label2num_dict is not None:
             target = label2num_dict[target]
         return prob[..., target]
+
+    def evaluate(self, x, y, x_cv=None, y_cv=None, x_test=None, y_test=None):
+        x = self._transform_data(x)
+        if x_cv is not None:
+            x_cv = self._transform_data(x_cv)
+        if x_test is not None:
+            x_test = self._transform_data(x_test)
+        return self._evaluate(x, y, x_cv, y_cv, x_test, y_test)
