@@ -19,6 +19,7 @@ from _Dist.NeuralNetworks.NNUtil import *
 
 class Generator:
     def __init__(self, x, y, weights=None, name="Generator", shuffle=True):
+        self._cache = {}
         self._x, self._y = np.asarray(x, np.float32), np.asarray(y, np.float32)
         if weights is None:
             self._sample_weights = None
@@ -34,17 +35,22 @@ class Generator:
         self._name = name
         self._do_shuffle = shuffle
         self._all_valid_data = np.hstack([self._x, self._y.reshape([-1, 1])])
-        self._n_valid, self._n_dim = len(self._all_valid_data), self._x.shape[1]
         self._valid_indices = np.arange(len(self._all_valid_data))
         self._random_indices = self._valid_indices.copy()
         np.random.shuffle(self._random_indices)
         self._batch_cursor = -1
 
+    def __enter__(self):
+        self._cache_current_status()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._restore_cache()
+
     def __getitem__(self, item):
         return getattr(self, "_" + item)
 
     def __len__(self):
-        return self._n_valid
+        return self.n_valid
 
     def __str__(self):
         return "{}_{}".format(self._name, self.shape)
@@ -52,28 +58,58 @@ class Generator:
     __repr__ = __str__
 
     @property
+    def n_valid(self):
+        return len(self._valid_indices)
+
+    @property
+    def n_dim(self):
+        return self._x.shape[-1]
+
+    @property
     def shape(self):
-        return self._n_valid, self._n_dim
+        return self.n_valid, self.n_dim
+
+    def _cache_current_status(self):
+        self._cache["_valid_indices"] = self._valid_indices
+        self._cache["_random_indices"] = self._random_indices
+
+    def _restore_cache(self):
+        self._valid_indices = self._cache["_valid_indices"]
+        self._random_indices = self._cache["_random_indices"]
+        self._cache = {}
+
+    def set_indices(self, indices):
+        indices = np.asarray(indices, np.int)
+        self._valid_indices = self._valid_indices[indices]
+        self._random_indices = self._random_indices[indices]
+
+    def set_range(self, start, end=None):
+        if end is None:
+            self._valid_indices = self._valid_indices[start:]
+            self._random_indices = self._random_indices[start:]
+        else:
+            self._valid_indices = self._valid_indices[start:end]
+            self._random_indices = self._random_indices[start:end]
+
+    def get_indices(self, indices):
+        return self._get_data(np.asarray(indices, np.int))
+
+    def get_range(self, start, end=None):
+        if end is None:
+            return self._get_data(self._valid_indices[start:])
+        return self._get_data(self._valid_indices[start:end])
 
     def _get_data(self, indices):
         weights = None if self._sample_weights is None else self._sample_weights[indices]
         return self._all_valid_data[indices], weights
 
-    def _gen_batch_with_cache(self, logger, n_batch):
-        logger.debug("Generating batch with cached data & size={}".format(n_batch))
-        end = False
-        next_cursor = self._batch_cursor + n_batch
-        if next_cursor >= self._n_valid:
-            next_cursor = self._n_valid
-            end = True
-        rs = self._all_valid_data[self._batch_cursor:next_cursor]
-        if self._sample_weights is None:
-            w = None
-        else:
-            w = self._sample_weights[self._batch_cursor:next_cursor]
-        return rs, w, end, next_cursor
-
-    def _gen_batch_without_cache(self, logger, n_batch, re_shuffle):
+    def gen_batch(self, n_batch, re_shuffle=True):
+        n_batch = min(n_batch, self.n_valid)
+        logger = logging.getLogger("DataReader")
+        if n_batch == -1:
+            n_batch = self.n_valid
+        if self._batch_cursor < 0:
+            self._batch_cursor = 0
         if self._do_shuffle:
             if self._batch_cursor == 0 and re_shuffle:
                 logger.debug("Re-shuffling random indices")
@@ -84,23 +120,10 @@ class Generator:
         logger.debug("Generating batch with size={}".format(n_batch))
         end = False
         next_cursor = self._batch_cursor + n_batch
-        if next_cursor >= self._n_valid:
-            next_cursor = self._n_valid
+        if next_cursor >= self.n_valid:
+            next_cursor = self.n_valid
             end = True
         rs, w = self._get_data(indices[self._batch_cursor:next_cursor])
-        return rs, w, end, next_cursor
-
-    def gen_batch(self, n_batch, re_shuffle=True):
-        n_batch = min(n_batch, self._n_valid)
-        logger = logging.getLogger("DataReader")
-        if n_batch == -1:
-            n_batch = self._n_valid
-        if self._batch_cursor < 0:
-            self._batch_cursor = 0
-        if self._all_valid_data is None:
-            rs, w, end, next_cursor = self._gen_batch_without_cache(logger, n_batch, re_shuffle)
-        else:
-            rs, w, end, next_cursor = self._gen_batch_with_cache(logger, n_batch)
         if end:
             self._batch_cursor = -1
         else:
@@ -109,10 +132,10 @@ class Generator:
         return rs, w
 
     def gen_random_subset(self, n):
-        n = min(n, self._n_valid)
+        n = min(n, self.n_valid)
         logger = logging.getLogger("DataReader")
         logger.debug("Generating random subset with size={}".format(n))
-        start = random.randint(0, self._n_valid - n)
+        start = random.randint(0, self.n_valid - n)
         subset, weights = self._get_data(self._random_indices[start:start + n])
         logger.debug("Done")
         return subset, weights
@@ -121,25 +144,6 @@ class Generator:
         if self._all_valid_data is not None:
             return self._all_valid_data, self._sample_weights
         return self._get_data(self._valid_indices)
-
-    def yield_all_data(self, n_batch):
-        n_batch = min(n_batch, self._n_valid)
-        logger = logging.getLogger("DataReader")
-        logger.debug("Yielding all data with n_batch={}".format(n_batch))
-        n_repeat = self._n_valid // n_batch
-        if n_repeat * n_batch < self._n_valid:
-            n_repeat += 1
-        if self._all_valid_data is None:
-            for i in range(n_repeat):
-                yield self._get_data(self._valid_indices[i * n_batch:(i + 1) * n_batch])
-        else:
-            for i in range(n_repeat):
-                if self._sample_weights is None:
-                    weights = None
-                else:
-                    weights = self._sample_weights[i * n_batch:(i + 1) * n_batch]
-                yield self._all_valid_data[i * n_batch:(i + 1) * n_batch], weights
-        logger.debug("Done")
 
 
 class Base:
@@ -156,9 +160,9 @@ class Base:
         else:
             self._tf_sample_weights = tf.placeholder(tf.float32, name="sample_weights")
 
-        self._train_generator = Generator(x, y, self._sample_weights)
+        self._train_generator = Generator(x, y, self._sample_weights, name="TrainGenerator")
         if x_test is not None and y_test is not None:
-            self._test_generator = Generator(x_test, y_test)
+            self._test_generator = Generator(x_test, y_test, name="TestGenerator")
         else:
             self._test_generator = None
         self.n_random_train_subset = int(len(self._train_generator) * 0.1)
@@ -385,6 +389,18 @@ class Base:
             return output.ravel()
         return output
 
+    def _evaluate(self, x=None, y=None, x_cv=None, y_cv=None, x_test=None, y_test=None):
+        pred = self._predict(x) if x is not None else None
+        cv_pred = self._predict(x_cv) if x_cv is not None else None
+        test_pred = self._predict(x_test) if x_test is not None else None
+        print("{}  -  Train : {}   CV : {}   Test : {}".format(
+            self._metric_name,
+            "None" if y is None else self._metric(y, pred),
+            "None" if y_cv is None else "{:8.6}".format(self._metric(y_cv, cv_pred)),
+            "None" if y_test is None else "{:8.6}".format(self._metric(y_test, test_pred))
+        ))
+        return self
+
     # Save & Load
 
     def add_tf_collections(self):
@@ -574,15 +590,7 @@ class Base:
         return self._predict(x).argmax(1)
 
     def evaluate(self, x, y, x_cv=None, y_cv=None, x_test=None, y_test=None):
-        pred = self.predict(x)
-        cv_pred = self.predict(x_cv) if x_cv is not None else None
-        test_pred = self.predict(x_test) if x_test is not None else None
-        print("{}  -  Train : {:8.6}   CV : {}   Test : {}".format(
-            self._metric_name, self._metric(y, pred),
-            "None" if y_cv is None else "{:8.6}".format(self._metric(y_cv, cv_pred)),
-            "None" if y_test is None else "{:8.6}".format(self._metric(y_test, test_pred))
-        ))
-        return self
+        return self._evaluate(x, y, x_cv, y_cv, x_test, y_test)
 
     def draw_losses(self):
         el, il = self.log["epoch_loss"], self.log["iter_loss"]
