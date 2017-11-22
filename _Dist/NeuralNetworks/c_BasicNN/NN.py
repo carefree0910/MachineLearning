@@ -10,13 +10,13 @@ from _Dist.NeuralNetworks.Base import Base
 
 class Basic(Base):
     def __init__(self, *args, **kwargs):
-        self.activations = self.hidden_units = None
         super(Basic, self).__init__(*args, **kwargs)
-        self._settings = str(self.hidden_units)
+        self._name_appendix = "Basic"
+        self.activations = self.hidden_units = None
 
     @property
     def name(self):
-        return "BasicNN" if self._name is None else self._name
+        return "NN" if self._name is None else self._name
 
     def init_model_param_settings(self):
         super(Basic, self).init_model_param_settings()
@@ -25,9 +25,6 @@ class Basic(Base):
     def init_model_structure_settings(self):
         super(Basic, self).init_model_structure_settings()
         self.hidden_units = self.model_structure_settings.get("hidden_units", [256, 256])
-
-    def _define_py_collections(self):
-        self.py_collections = ["hidden_units"]
 
     def _build_layer(self, i, net):
         activation = self.activations[i]
@@ -58,7 +55,9 @@ class Basic(Base):
 if __name__ == '__main__':
     from Util.Util import DataUtil
 
-    x_train, y_train = DataUtil.gen_spiral(size=100, one_hot=False)
-    x_test, y_test = DataUtil.gen_spiral(size=10, one_hot=False)
-
-    nn = Basic(x_train, y_train, x_test, y_test).fit(snapshot_ratio=0)
+    for generator in (DataUtil.gen_xor, DataUtil.gen_spiral, DataUtil.gen_nine_grid):
+        x_train, y_train = generator(size=1000, one_hot=False)
+        x_test, y_test = generator(size=100, one_hot=False)
+        nn = Basic(model_param_settings={"n_epoch": 200}).scatter2d(x_train, y_train).fit(
+            x_train, y_train, x_test, y_test, snapshot_ratio=0
+        ).draw_losses().visualize2d(x_train, y_train, title="Train").visualize2d(x_test, y_test, title="Test")

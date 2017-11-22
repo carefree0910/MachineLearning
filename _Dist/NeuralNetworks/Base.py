@@ -6,6 +6,7 @@ if root_path not in sys.path:
 
 import os
 import time
+import math
 import random
 import pickle
 import shutil
@@ -13,6 +14,8 @@ import logging
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
+
+from mpl_toolkits.mplot3d import Axes3D
 
 from _Dist.NeuralNetworks.NNUtil import *
 
@@ -147,32 +150,19 @@ class Generator:
 
 
 class Base:
-    def __init__(self, x, y, x_test=None, y_test=None, sample_weights=None, name=None,
-                 model_param_settings=None, model_structure_settings=None):
+    def __init__(self, name=None, model_param_settings=None, model_structure_settings=None):
         tf.reset_default_graph()
+
         self.log = {}
         self._name = name
-        self._settings = ""
+        self._name_appendix = ""
 
-        self._sample_weights = sample_weights
-        if self._sample_weights is None:
-            self._tf_sample_weights = None
-        else:
-            self._tf_sample_weights = tf.placeholder(tf.float32, name="sample_weights")
+        self._settings_initialized = False
 
-        self._train_generator = Generator(x, y, self._sample_weights, name="TrainGenerator")
-        if x_test is not None and y_test is not None:
-            self._test_generator = Generator(x_test, y_test, name="TestGenerator")
-        else:
-            self._test_generator = None
-        self.n_random_train_subset = int(len(self._train_generator) * 0.1)
-        if self._test_generator is None:
-            self.n_random_test_subset = -1
-        else:
-            self.n_random_test_subset = int(len(self._test_generator))
-
-        self.n_dim = self._train_generator.shape[-1]
-        self.n_class = self._train_generator.n_class
+        self._train_generator = self._test_generator = None
+        self._sample_weights = self._tf_sample_weights = None
+        self.n_dim = self.n_class = None
+        self.n_random_train_subset = self.n_random_test_subset = None
 
         if model_param_settings is None:
             self.model_param_settings = {}
@@ -194,17 +184,16 @@ class Base:
             self.model_structure_settings = model_structure_settings
 
         self._model_built = False
-        self.py_collections = None
-        self.tf_collections = ["_tfx", "_tfy", "_output", "_n_batch_placeholder", "_is_training"]
+        self.py_collections = self.tf_collections = None
         self._define_py_collections()
+        self._define_tf_collections()
 
         self._ws, self._bs = [], []
+        self._is_training = None
         self._loss = self._train_step = None
         self._tfx = self._tfy = self._output = self._prob_output = None
-        self._is_training = tf.placeholder(tf.bool, name="is_training")
 
         self._sess = tf.Session()
-        self.init_all_settings()
 
     def __str__(self):
         return self.model_saving_name
@@ -217,7 +206,7 @@ class Base:
 
     @property
     def model_saving_name(self):
-        return "{}_{}".format(self.name, self._settings)
+        return "{}_{}".format(self.name, self._name_appendix)
 
     @property
     def model_saving_path(self):
@@ -225,26 +214,38 @@ class Base:
 
     # Settings
 
+    def init_data_info(self, x, y, x_test, y_test, sample_weights):
+        self._sample_weights = sample_weights
+        if self._sample_weights is None:
+            self._tf_sample_weights = None
+        else:
+            self._tf_sample_weights = tf.placeholder(tf.float32, name="sample_weights")
+
+        self._train_generator = Generator(x, y, self._sample_weights, name="TrainGenerator")
+        if x_test is not None and y_test is not None:
+            self._test_generator = Generator(x_test, y_test, name="TestGenerator")
+        else:
+            self._test_generator = None
+        self.n_random_train_subset = int(len(self._train_generator) * 0.1)
+        if self._test_generator is None:
+            self.n_random_test_subset = -1
+        else:
+            self.n_random_test_subset = int(len(self._test_generator))
+
+        self.n_dim = self._train_generator.shape[-1]
+        self.n_class = self._train_generator.n_class
+
     def init_all_settings(self):
         self.init_model_param_settings()
         self.init_model_structure_settings()
 
     def init_model_param_settings(self):
         loss = self.model_param_settings.get("loss", None)
-        metric = self.model_param_settings.get("metric", None)
-        self.n_epoch = self.model_param_settings.get("n_epoch", 32)
-        self.max_epoch = self.model_param_settings.get("max_epoch", 256)
-        self.batch_size = self.model_param_settings.get("batch_size", 128)
-        self.n_iter = self.model_param_settings.get("n_iter", -1)
-        if self.n_iter < 0:
-            self.n_iter = len(self._train_generator) // self.batch_size
-        self._optimizer_name = self.model_param_settings.get("optimizer", "Adam")
-        self.lr = self.model_param_settings.get("lr", 1e-3)
         if loss is None:
             self._loss_name = "correlation" if self.n_class == 1 else "cross_entropy"
         else:
             self._loss_name = loss
-
+        metric = self.model_param_settings.get("metric", None)
         if metric is None:
             if self.n_class == 1:
                 self._metric, self._metric_name = Metrics.correlation, "correlation"
@@ -252,12 +253,32 @@ class Base:
                 self._metric, self._metric_name = Metrics.acc, "acc"
         else:
             self._metric, self._metric_name = getattr(Metrics, metric), metric
+        self.n_epoch = self.model_param_settings.get("n_epoch", 32)
+        self.max_epoch = self.model_param_settings.get("max_epoch", 256)
+        self.n_epoch = min(self.n_epoch, self.max_epoch)
+        self.batch_size = self.model_param_settings.get("batch_size", 128)
+        self.n_iter = self.model_param_settings.get("n_iter", -1)
+        if self.n_iter < 0:
+            self.n_iter = len(self._train_generator) // self.batch_size
+        self._optimizer_name = self.model_param_settings.get("optimizer", "Adam")
+        self.lr = self.model_param_settings.get("lr", 1e-3)
         self._optimizer = getattr(tf.train, "{}Optimizer".format(self._optimizer_name))(self.lr)
 
     def init_model_structure_settings(self):
         pass
 
     # Core
+
+    def _fully_connected_linear(self, net, shape, appendix):
+        with tf.name_scope("Linear{}".format(appendix)):
+            w = init_w(shape, "W{}".format(appendix))
+            b = init_b([shape[1]], "b{}".format(appendix))
+            self._ws.append(w)
+            self._bs.append(b)
+            return tf.add(tf.matmul(net, w), b, name="Linear{}_Output".format(appendix))
+
+    def _build_model(self, net=None):
+        pass
 
     def _gen_batch(self, generator, n_batch, gen_random_subset=False, one_hot=False):
         if gen_random_subset:
@@ -272,24 +293,6 @@ class Base:
         else:
             y = Toolbox.get_one_hot(y, self.n_class)
         return x, y, weights
-
-    def _define_py_collections(self):
-        pass
-
-    def _define_input(self):
-        self._tfx = tf.placeholder(tf.float32, [None, self.n_dim], name="X")
-        self._tfy = tf.placeholder(tf.float32, [None, self.n_class], name="Y")
-
-    def _fully_connected_linear(self, net, shape, appendix):
-        with tf.name_scope("Linear{}".format(appendix)):
-            w = init_w(shape, "W{}".format(appendix))
-            b = init_b([shape[1]], "b{}".format(appendix))
-            self._ws.append(w)
-            self._bs.append(b)
-            return tf.add(tf.matmul(net, w), b, name="Linear{}_Output".format(appendix))
-
-    def _build_model(self, net=None):
-        pass
 
     def _get_feed_dict(self, x, y=None, weights=None, is_training=False):
         feed_dict = {self._tfx: x, self._is_training: is_training}
@@ -384,7 +387,7 @@ class Base:
         return [results[cursor:cursors[i + 1]] for i, cursor in enumerate(cursors[:-1])]
 
     def _predict(self, x):
-        output = self._calculate(x, is_training=False)
+        output = self._calculate(x, tensor=self._prob_output, is_training=False)
         if self.n_class == 1:
             return output.ravel()
         return output
@@ -401,13 +404,26 @@ class Base:
         ))
         return self
 
+    def _define_input_and_placeholder(self):
+        self._is_training = tf.placeholder(tf.bool, name="is_training")
+        self._tfx = tf.placeholder(tf.float32, [None, self.n_dim], name="X")
+        self._tfy = tf.placeholder(tf.float32, [None, self.n_class], name="Y")
+
+    def _define_py_collections(self):
+        self.py_collections = ["_name", "model_param_settings", "model_structure_settings"]
+
+    def _define_tf_collections(self):
+        self.tf_collections = [
+            "_tfx", "_tfy", "_output", "_prob_output",
+            "_loss", "_train_step", "_is_training"
+        ]
+
     # Save & Load
 
     def add_tf_collections(self):
         for tensor in self.tf_collections:
             target = getattr(self, tensor)
-            if target is not None:
-                tf.add_to_collection(tensor, target)
+            tf.add_to_collection(tensor, target)
 
     def clear_tf_collections(self):
         for key in self.tf_collections:
@@ -426,8 +442,6 @@ class Base:
                 setattr(self, name, value)
         for tensor in self.tf_collections:
             target = tf.get_collection(tensor)
-            if not target:
-                continue
             assert len(target) == 1, "{} available '{}' found".format(len(target), tensor)
             setattr(self, tensor, target[0])
         self.clear_tf_collections()
@@ -475,27 +489,23 @@ class Base:
 
     # API
 
-    def feed_weights(self, ws):
-        for i, w in enumerate(ws):
-            if w is not None:
-                self._sess.run(self._ws[i].assign(w))
-
-    def feed_biases(self, bs):
-        for i, b in enumerate(bs):
-            if b is not None:
-                self._sess.run(self._bs[i].assign(b))
-
     def print_settings(self):
         pass
 
-    def fit(self, timeit=True, snapshot_ratio=3, print_settings=True, verbose=1):
+    def fit(self, x, y, x_test=None, y_test=None, sample_weights=None,
+            timeit=True, snapshot_ratio=3, print_settings=True, verbose=1):
         t = None
         if timeit:
             t = time.time()
 
+        self.init_data_info(x, y, x_test, y_test, sample_weights)
+        if not self._settings_initialized:
+            self.init_all_settings()
+        self._settings_initialized = True
+
         if not self._model_built:
             with tf.name_scope("Input"):
-                self._define_input()
+                self._define_input_and_placeholder()
             with tf.name_scope("Model"):
                 self._build_model()
                 self._prob_output = tf.nn.softmax(self._output, name="Prob_Output")
@@ -565,10 +575,13 @@ class Base:
                 if i_epoch == self.max_epoch:
                     terminate = True
                     if not monitor.rs["terminate"]:
-                        print(
-                            "  -  Model seems to be under-fitting but max_epoch reached. "
-                            "Increasing max_epoch may improve performance."
-                        )
+                        if not over_fitting_flag:
+                            print(
+                                "  -  Model seems to be under-fitting but max_epoch reached. "
+                                "Increasing max_epoch may improve performance"
+                            )
+                        else:
+                            print("  -  max_epoch reached")
             if terminate:
                 if over_fitting_flag and os.path.exists(tmp_checkpoint_folder):
                     print("  -  Rolling back to the best checkpoint")
@@ -592,6 +605,8 @@ class Base:
     def evaluate(self, x, y, x_cv=None, y_cv=None, x_test=None, y_test=None):
         return self._evaluate(x, y, x_cv, y_cv, x_test, y_test)
 
+    # Visualization
+
     def draw_losses(self):
         el, il = self.log["epoch_loss"], self.log["iter_loss"]
         ee_base = np.arange(len(el))
@@ -601,4 +616,291 @@ class Base:
         plt.plot(ee_base, el, linewidth=3, label="Epoch loss")
         plt.legend()
         plt.show()
+        return self
+
+    def scatter2d(self, x, y, padding=0.5, title=None):
+        axis, labels = np.asarray(x).T, np.asarray(y)
+
+        print("=" * 30 + "\n" + str(self))
+        x_min, x_max = np.min(axis[0]), np.max(axis[0])
+        y_min, y_max = np.min(axis[1]), np.max(axis[1])
+        x_padding = max(abs(x_min), abs(x_max)) * padding
+        y_padding = max(abs(y_min), abs(y_max)) * padding
+        x_min -= x_padding
+        x_max += x_padding
+        y_min -= y_padding
+        y_max += y_padding
+
+        if labels.ndim == 1:
+            plot_label_dict = {c: i for i, c in enumerate(set(labels))}
+            n_label = len(plot_label_dict)
+            labels = np.array([plot_label_dict[label] for label in labels])
+        else:
+            n_label = labels.shape[1]
+            labels = np.argmax(labels, axis=1)
+        colors = plt.cm.rainbow([i / n_label for i in range(n_label)])[labels]
+
+        if title is None:
+            title = self.model_saving_name
+
+        indices = [labels == i for i in range(np.max(labels) + 1)]
+        scatters = []
+        plt.figure()
+        plt.title(title)
+        for idx in indices:
+            scatters.append(plt.scatter(axis[0][idx], axis[1][idx], c=colors[idx]))
+        plt.legend(scatters, ["$c_{}$".format("{" + str(i) + "}") for i in range(len(scatters))],
+                   ncol=math.ceil(math.sqrt(len(scatters))), fontsize=8)
+        plt.xlim(x_min, x_max)
+        plt.ylim(y_min, y_max)
+        plt.show()
+        return self
+
+    def scatter3d(self, x, y, padding=0.1, title=None):
+        axis, labels = np.asarray(x).T, np.asarray(y)
+
+        print("=" * 30 + "\n" + str(self))
+        x_min, x_max = np.min(axis[0]), np.max(axis[0])
+        y_min, y_max = np.min(axis[1]), np.max(axis[1])
+        z_min, z_max = np.min(axis[2]), np.max(axis[2])
+        x_padding = max(abs(x_min), abs(x_max)) * padding
+        y_padding = max(abs(y_min), abs(y_max)) * padding
+        z_padding = max(abs(z_min), abs(z_max)) * padding
+        x_min -= x_padding
+        x_max += x_padding
+        y_min -= y_padding
+        y_max += y_padding
+        z_min -= z_padding
+        z_max += z_padding
+
+        def transform_arr(arr):
+            if arr.ndim == 1:
+                dic = {c: i for i, c in enumerate(set(arr))}
+                n_dim = len(dic)
+                arr = np.array([dic[label] for label in arr])
+            else:
+                n_dim = arr.shape[1]
+                arr = np.argmax(arr, axis=1)
+            return arr, n_dim
+
+        if title is None:
+            title = self.model_saving_name
+
+        labels, n_label = transform_arr(labels)
+        colors = plt.cm.rainbow([i / n_label for i in range(n_label)])[labels]
+        indices = [labels == i for i in range(n_label)]
+        scatters = []
+        fig = plt.figure()
+        plt.title(title)
+        ax = fig.add_subplot(111, projection='3d')
+        for _index in indices:
+            scatters.append(ax.scatter(axis[0][_index], axis[1][_index], axis[2][_index], c=colors[_index]))
+        ax.legend(scatters, ["$c_{}$".format("{" + str(i) + "}") for i in range(len(scatters))],
+                  ncol=math.ceil(math.sqrt(len(scatters))), fontsize=8)
+        plt.show()
+        return self
+
+    def visualize2d(self, x, y, padding=0.1, dense=200, title=None,
+                    show_org=False, draw_background=True, emphasize=None, extra=None):
+        axis, labels = np.asarray(x).T, np.asarray(y)
+
+        print("=" * 30 + "\n" + str(self))
+        nx, ny, padding = dense, dense, padding
+        x_min, x_max = np.min(axis[0]), np.max(axis[0])
+        y_min, y_max = np.min(axis[1]), np.max(axis[1])
+        x_padding = max(abs(x_min), abs(x_max)) * padding
+        y_padding = max(abs(y_min), abs(y_max)) * padding
+        x_min -= x_padding
+        x_max += x_padding
+        y_min -= y_padding
+        y_max += y_padding
+
+        def get_base(_nx, _ny):
+            _xf = np.linspace(x_min, x_max, _nx)
+            _yf = np.linspace(y_min, y_max, _ny)
+            n_xf, n_yf = np.meshgrid(_xf, _yf)
+            return _xf, _yf, np.c_[n_xf.ravel(), n_yf.ravel()]
+
+        xf, yf, base_matrix = get_base(nx, ny)
+
+        t = time.time()
+        z = self.predict_classes(base_matrix).reshape((nx, ny))
+        print("Decision Time: {:8.6} s".format(time.time() - t))
+
+        print("Drawing figures...")
+        xy_xf, xy_yf = np.meshgrid(xf, yf, sparse=True)
+        if labels.ndim == 1:
+            plot_label_dict = {c: i for i, c in enumerate(set(labels))}
+            n_label = len(plot_label_dict)
+            labels = np.array([plot_label_dict[label] for label in labels])
+        else:
+            n_label = labels.shape[1]
+            labels = np.argmax(labels, axis=1)
+        colors = plt.cm.rainbow([i / n_label for i in range(n_label)])[labels]
+
+        if title is None:
+            title = self.model_saving_name
+
+        if show_org:
+            plt.figure()
+            plt.scatter(axis[0], axis[1], c=colors)
+            plt.xlim(x_min, x_max)
+            plt.ylim(y_min, y_max)
+            plt.show()
+
+        plt.figure()
+        plt.title(title)
+        if draw_background:
+            plt.pcolormesh(xy_xf, xy_yf, z, cmap=plt.cm.Pastel1)
+        else:
+            plt.contour(xf, yf, z, c='k-', levels=[0])
+        plt.scatter(axis[0], axis[1], c=colors)
+        if emphasize is not None:
+            indices = np.array([False] * len(axis[0]))
+            indices[np.asarray(emphasize)] = True
+            plt.scatter(axis[0][indices], axis[1][indices], s=80,
+                        facecolors="None", zorder=10)
+        if extra is not None:
+            plt.scatter(*np.asarray(extra).T, s=80, zorder=25, facecolors="red")
+        plt.xlim(x_min, x_max)
+        plt.ylim(y_min, y_max)
+        plt.show()
+        print("Done.")
+        return self
+
+    def visualize3d(self, x, y, padding=0.1, dense=100, title=None,
+                    show_org=False, draw_background=True, emphasize=None, extra=None):
+        if False:
+            print(Axes3D.add_artist)
+        axis, labels = np.asarray(x).T, np.asarray(y)
+
+        print("=" * 30 + "\n" + str(self))
+
+        nx, ny, nz, padding = dense, dense, dense, padding
+        x_min, x_max = np.min(axis[0]), np.max(axis[0])
+        y_min, y_max = np.min(axis[1]), np.max(axis[1])
+        z_min, z_max = np.min(axis[2]), np.max(axis[2])
+        x_padding = max(abs(x_min), abs(x_max)) * padding
+        y_padding = max(abs(y_min), abs(y_max)) * padding
+        z_padding = max(abs(z_min), abs(z_max)) * padding
+        x_min -= x_padding
+        x_max += x_padding
+        y_min -= y_padding
+        y_max += y_padding
+        z_min -= z_padding
+        z_max += z_padding
+
+        def get_base(_nx, _ny, _nz):
+            _xf = np.linspace(x_min, x_max, _nx)
+            _yf = np.linspace(y_min, y_max, _ny)
+            _zf = np.linspace(z_min, z_max, _nz)
+            n_xf, n_yf, n_zf = np.meshgrid(_xf, _yf, _zf)
+            return _xf, _yf, _zf, np.c_[n_xf.ravel(), n_yf.ravel(), n_zf.ravel()]
+
+        xf, yf, zf, base_matrix = get_base(nx, ny, nz)
+
+        t = time.time()
+        z_xyz = self.predict_classes(base_matrix).reshape((nx, ny, nz))
+        p_classes = self.predict_classes(x).astype(np.int8)
+        _, _, _, base_matrix = get_base(10, 10, 10)
+        z_classes = self.predict_classes(base_matrix).astype(np.int8)
+        print("Decision Time: {:8.6} s".format(time.time() - t))
+
+        print("Drawing figures...")
+        z_xy = np.average(z_xyz, axis=2)
+        z_yz = np.average(z_xyz, axis=1)
+        z_xz = np.average(z_xyz, axis=0)
+
+        xy_xf, xy_yf = np.meshgrid(xf, yf, sparse=True)
+        yz_xf, yz_yf = np.meshgrid(yf, zf, sparse=True)
+        xz_xf, xz_yf = np.meshgrid(xf, zf, sparse=True)
+
+        def transform_arr(arr):
+            if arr.ndim == 1:
+                dic = {c: i for i, c in enumerate(set(arr))}
+                n_dim = len(dic)
+                arr = np.array([dic[label] for label in arr])
+            else:
+                n_dim = arr.shape[1]
+                arr = np.argmax(arr, axis=1)
+            return arr, n_dim
+
+        labels, n_label = transform_arr(labels)
+        p_classes, _ = transform_arr(p_classes)
+        z_classes, _ = transform_arr(z_classes)
+        colors = plt.cm.rainbow([i / n_label for i in range(n_label)])
+        if extra is not None:
+            ex0, ex1, ex2 = np.asarray(extra).T
+        else:
+            ex0 = ex1 = ex2 = None
+
+        if title is None:
+            title = self.model_saving_name
+
+        if show_org:
+            fig = plt.figure()
+            ax = fig.add_subplot(111, projection='3d')
+            ax.scatter(axis[0], axis[1], axis[2], c=colors[labels])
+            plt.show()
+
+        fig = plt.figure(figsize=(16, 4), dpi=100)
+        plt.title(title)
+        ax1 = fig.add_subplot(131, projection='3d')
+        ax2 = fig.add_subplot(132, projection='3d')
+        ax3 = fig.add_subplot(133, projection='3d')
+
+        ax1.set_title("Org")
+        ax2.set_title("Pred")
+        ax3.set_title("Boundary")
+
+        ax1.scatter(axis[0], axis[1], axis[2], c=colors[labels])
+        ax2.scatter(axis[0], axis[1], axis[2], c=colors[p_classes], s=15)
+        if extra is not None:
+            ax2.scatter(ex0, ex1, ex2, s=80, zorder=25, facecolors="red")
+        xyz_xf, xyz_yf, xyz_zf = base_matrix[..., 0], base_matrix[..., 1], base_matrix[..., 2]
+        ax3.scatter(xyz_xf, xyz_yf, xyz_zf, c=colors[z_classes], s=15)
+
+        plt.show()
+        plt.close()
+
+        fig = plt.figure(figsize=(16, 4), dpi=100)
+        ax1 = fig.add_subplot(131)
+        ax2 = fig.add_subplot(132)
+        ax3 = fig.add_subplot(133)
+
+        def _draw(_ax, _x, _xf, _y, _yf, _z):
+            if draw_background:
+                _ax.pcolormesh(_x, _y, _z > 0, cmap=plt.cm.Pastel1)
+            else:
+                _ax.contour(_xf, _yf, _z, c='k-', levels=[0])
+
+        def _emphasize(_ax, axis0, axis1, _c):
+            _ax.scatter(axis0, axis1, c=_c)
+            if emphasize is not None:
+                indices = np.array([False] * len(axis[0]))
+                indices[np.asarray(emphasize)] = True
+                _ax.scatter(axis0[indices], axis1[indices], s=80,
+                            facecolors="None", zorder=10)
+
+        def _extra(_ax, axis0, axis1, _c, _ex0, _ex1):
+            _emphasize(_ax, axis0, axis1, _c)
+            if extra is not None:
+                _ax.scatter(_ex0, _ex1, s=80, zorder=25, facecolors="red")
+
+        colors = colors[labels]
+
+        ax1.set_title("xy figure")
+        _draw(ax1, xy_xf, xf, xy_yf, yf, z_xy)
+        _extra(ax1, axis[0], axis[1], colors, ex0, ex1)
+
+        ax2.set_title("yz figure")
+        _draw(ax2, yz_xf, yf, yz_yf, zf, z_yz)
+        _extra(ax2, axis[1], axis[2], colors, ex1, ex2)
+
+        ax3.set_title("xz figure")
+        _draw(ax3, xz_xf, xf, xz_yf, zf, z_xz)
+        _extra(ax3, axis[0], axis[2], colors, ex0, ex2)
+
+        plt.show()
+        print("Done.")
         return self

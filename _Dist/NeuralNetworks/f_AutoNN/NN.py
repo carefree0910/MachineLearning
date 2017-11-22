@@ -14,14 +14,12 @@ from _Dist.NeuralNetworks.e_AdvancedNN.NN import Advanced
 
 
 class Auto(Advanced):
-    def __init__(self, x=None, y=None, x_test=None, y_test=None, sample_weights=None, name=None,
-                 model_param_settings=None, model_structure_settings=None, data_info=None,
-                 pre_process_settings=None, nan_handler_settings=None, **kwargs):
+    def __init__(self, name=None, data_info=None, model_param_settings=None, model_structure_settings=None,
+                 pre_process_settings=None, nan_handler_settings=None):
         if name is None:
             raise ValueError("name should be provided in AutoNN")
-        self._name = name
-        self._sample_weights = None
-        self._data_folder = kwargs.pop("data_folder", "_Data")
+        super(Auto, self).__init__(name, data_info, model_param_settings, model_structure_settings)
+        self._name_appendix = "Auto"
 
         if pre_process_settings is None:
             pre_process_settings = {}
@@ -41,27 +39,15 @@ class Auto(Advanced):
         self._nan_handler = None
         self.nan_handler_method = self.reuse_nan_handler_values = None
 
-        self.init_pre_process_settings()
-        self.init_nan_handler_settings()
-
-        if data_info is None:
-            data_info = {}
-        else:
-            assert_msg = "data_info must be a dictionary"
-            assert isinstance(data_info, dict), assert_msg
-        self._data_info = data_info
-        self.data_loaded = False
+        self._data_folder = None
         self.is_numeric_label = None
         self.whether_redundant = None
         self.feature_sets = self.sparsity = self.class_prior = None
         self.n_features = self.all_num_idx = self.transform_dicts = None
-        x, y, x_test, y_test = self.init_data_info(x, y, x_test, y_test)
 
-        super(Auto, self).__init__(
-            x, y, x_test, y_test, sample_weights, name,
-            model_param_settings, model_structure_settings,
-            numerical_idx=self.numerical_idx, categorical_columns=self.categorical_columns, **kwargs
-        )
+    @property
+    def name(self):
+        return "AutoNN" if self._name is None else self._name
 
     @property
     def label2num_dict(self):
@@ -89,10 +75,15 @@ class Auto(Advanced):
             for arr in arrays
         )
 
+    def init_all_settings(self):
+        super(Auto, self).init_all_settings()
+        self.init_pre_process_settings()
+        self.init_nan_handler_settings()
+
     def init_pre_process_settings(self):
         self.pre_process_method = self._pre_process_settings.get("pre_process_method", "normalize")
         self.scale_method = self._pre_process_settings.get("scale_method", "truncate")
-        self.refresh_mean_and_std = self._pre_process_settings.get("refresh_mean_and_std", False)
+        self.refresh_mean_and_std = self._pre_process_settings.get("refresh_mean_and_std", True)
         if self.pre_process_method is not None and self._pre_processor is None:
             self._pre_processor = PreProcessor(
                 self.pre_process_method, self.scale_method, self.refresh_mean_and_std
@@ -102,8 +93,7 @@ class Auto(Advanced):
         self.nan_handler_method = self._nan_handler_settings.get("nan_handler_method", "median")
         self.reuse_nan_handler_values = self._nan_handler_settings.get("reuse_nan_handler_values", True)
 
-    def init_data_info(self, x, y, x_test, y_test):
-        self.numerical_idx = self._data_info.get("numerical_idx", None)
+    def init_data_info(self, x, y, x_test, y_test, sample_weights):
         self.feature_sets = self._data_info.get("feature_sets", None)
         self.sparsity = self._data_info.get("sparsity", None)
         self.class_prior = self._data_info.get("class_prior", None)
@@ -111,6 +101,7 @@ class Auto(Advanced):
             self.n_features = [len(feature_set) for feature_set in self.feature_sets]
             self._gen_categorical_columns()
 
+        self._data_folder = self._data_info.get("data_folder", "_Data")
         file_type = self._data_info.get("file_type", "txt")
         shuffle = self._data_info.get("shuffle", True)
         restore = self._data_info.get("restore", True)
@@ -126,7 +117,11 @@ class Auto(Advanced):
 
         self._handle_unbalance(y)
         self._handle_sparsity()
-        return x, y, x_test, y_test
+
+        self._data_info["numerical_idx"] = self.numerical_idx
+        self._data_info["categorical_columns"] = self.categorical_columns
+
+        super(Auto, self).init_data_info(x, y, x_test, y_test, sample_weights)
 
     def _handle_unbalance(self, y):
         class_ratio = self.class_prior.min() / self.class_prior.max()
@@ -232,6 +227,7 @@ class Auto(Advanced):
             )
         ]
         if self.n_class == 1:
+            self.is_numeric_label = True
             self.transform_dicts.append({})
         else:
             self.transform_dicts.append(self._get_label_dict())
@@ -331,7 +327,6 @@ class Auto(Advanced):
             np.save(train_data_file, train_data)
             if test_data is not None:
                 np.save(test_data_file, test_data)
-        self.data_loaded = True
 
         x, y = train_data[..., :-1], train_data[..., -1]
         if test_data is not None:
@@ -344,15 +339,19 @@ class Auto(Advanced):
 
         return x, y, x_test, y_test
 
-    @property
-    def name(self):
-        return "AutoNN" if self._name is None else self._name
-
     def _define_py_collections(self):
-        self.py_collections = [
-            "_pre_process_settings", "_nan_handler_settings", "_pre_processor", "_nan_handler",
-            "_data_loaded", "_name", "_kwargs", "_transform_dicts", "hidden_units"
+        super(Auto, self)._define_py_collections()
+        self.py_collections += [
+            "_pre_process_settings", "_nan_handler_settings",
+            "_pre_processor", "_nan_handler", "transform_dicts"
         ]
+
+    def fit(self, x=None, y=None, x_test=None, y_test=None, sample_weights=None,
+            timeit=True, snapshot_ratio=3, print_settings=True, verbose=1):
+        return super(Auto, self).fit(
+            x, y, x_test, y_test, sample_weights,
+            timeit, snapshot_ratio, print_settings, verbose
+        )
 
     def predict(self, x):
         return self._predict(self._transform_data(x))
@@ -371,3 +370,13 @@ class Auto(Advanced):
         if x_test is not None:
             x_test = self._transform_data(x_test)
         return self._evaluate(x, y, x_cv, y_cv, x_test, y_test)
+
+
+if __name__ == '__main__':
+    nn = Auto(
+        "Adult",
+        data_info={"file_type": "csv"},
+        model_param_settings={"max_epoch": 3},
+        model_structure_settings={"use_wide_network": False, "use_pruner": True}
+    ).fit().save()
+    nn = Auto("Adult").load().fit()

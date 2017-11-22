@@ -18,10 +18,6 @@ class TransformationBase(Basic):
         super(TransformationBase, self).__init__(*args, **kwargs)
         self._transform_ws = self._transform_bs = None
 
-    @property
-    def name(self):
-        return "NN" if self._name is None else self._name
-
     def _get_all_data(self, shuffle=True):
         train, train_weights = self._train_generator.get_all_data()
         if shuffle:
@@ -71,16 +67,26 @@ class TransformationBase(Basic):
         ))
         print("-" * 60)
 
+    def feed_weights(self, ws):
+        for i, w in enumerate(ws):
+            if w is not None:
+                self._sess.run(self._ws[i].assign(w))
+
+    def feed_biases(self, bs):
+        for i, b in enumerate(bs):
+            if b is not None:
+                self._sess.run(self._bs[i].assign(b))
+
 
 # NaiveBayes -> NN
 class NB2NN(TransformationBase):
     def __init__(self, *args, **kwargs):
         super(NB2NN, self).__init__(*args, **kwargs)
-        self.activation = None
-        self.hidden_units = []
-        self._settings = "NaiveBayes"
+        self._name_appendix = "NaiveBayes"
 
     def _transform(self):
+        self.activations = None
+        self.hidden_units = []
         x, y, x_test, y_test = self._get_all_data()
         nb = MultinomialNB()
         nb.fit(x, y)
@@ -110,9 +116,7 @@ def export_structure(tree):
 class DT2NN(TransformationBase):
     def __init__(self, *args, **kwargs):
         super(DT2NN, self).__init__(*args, **kwargs)
-        if isinstance(self.activations, str):
-            self.activations = [self.activations] * 2
-        self._settings = "DTree_" + "_".join(self.activations)
+        self._name_appendix = "DTree"
 
     def _transform(self):
         x, y, x_test, y_test = self._get_all_data()

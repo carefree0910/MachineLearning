@@ -13,11 +13,21 @@ from _Dist.NeuralNetworks.c_BasicNN.NN import Basic
 
 
 class Advanced(Basic):
-    def __init__(self, *args, **kwargs):
-        numerical_idx = kwargs.pop("numerical_idx", None)
-        categorical_columns = kwargs.pop("categorical_columns", None)
+    def __init__(self, name=None, data_info=None, model_param_settings=None, model_structure_settings=None):
+        self.tf_list_collections = None
+        super(Advanced, self).__init__(name, model_param_settings, model_structure_settings)
+        self._name_appendix = "Advanced"
+
+        if data_info is None:
+            self._data_info = {}
+        else:
+            assert_msg = "data_info should be a dictionary"
+            assert isinstance(data_info, dict), assert_msg
+            self._data_info = data_info
+        self.numerical_idx = self.categorical_columns = None
 
         self._deep_input = self._wide_input = None
+        self._categorical_xs = None
         self.embedding_size = None
         self._embedding = self._one_hot = self._embedding_concat = self._one_hot_concat = None
         self._embedding_with_one_hot = self._embedding_with_one_hot_concat = None
@@ -25,29 +35,12 @@ class Advanced(Basic):
         self.dropout_keep_prob = self.use_batch_norm = None
         self._use_wide_network = self._dndf = self._pruner = None
 
-        super(Advanced, self).__init__(*args, **kwargs)
-
-        self._tf_p_keep = tf.cond(
-            self._is_training, lambda: self.dropout_keep_prob, lambda: 1.,
-            name="p_keep"
-        )
+        self._tf_p_keep = None
         self._n_batch_placeholder = tf.placeholder(tf.int32, name="n_batch")
 
-        self.numerical_idx = numerical_idx
-        if self.numerical_idx is None:
-            raise ValueError("numerical_idx should be provided")
-        if len(self.numerical_idx) != self.n_dim + 1:
-            raise ValueError("Length of numerical_idx should be {}, {} found".format(
-                self.n_dim + 1, len(self.numerical_idx)
-            ))
-        self.categorical_columns = categorical_columns
-        if self.categorical_columns is None:
-            raise ValueError("categorical_columns should be provided")
-        self.n_dim -= len(self.categorical_columns)
-
-    @property
-    def name(self):
-        return "AdvancedNN" if self._name is None else self._name
+    def init_all_settings(self):
+        super(Advanced, self).init_all_settings()
+        self.tf_collections.append("_n_batch_placeholder")
 
     def init_model_param_settings(self):
         super(Advanced, self).init_model_param_settings()
@@ -65,6 +58,20 @@ class Advanced(Basic):
         else:
             self._dndf = DNDF(self.n_class) if self.model_structure_settings.get("use_dndf", True) else None
         self._pruner = Pruner() if self.model_structure_settings.get("use_pruner", True) else None
+
+    def init_data_info(self, x, y, x_test, y_test, sample_weights):
+        super(Advanced, self).init_data_info(x, y, x_test, y_test, sample_weights)
+        self.numerical_idx = self._data_info.get("numerical_idx", None)
+        self.categorical_columns = self._data_info.get("categorical_columns", None)
+        if self.numerical_idx is None:
+            raise ValueError("numerical_idx should be provided")
+        if self.categorical_columns is None:
+            raise ValueError("categorical_columns should be provided")
+        if len(self.numerical_idx) != self.n_dim + 1:
+            raise ValueError("Length of numerical_idx should be {}, {} found".format(
+                self.n_dim + 1, len(self.numerical_idx)
+            ))
+        self.n_dim -= len(self.categorical_columns)
 
     def _get_embedding(self, i, n):
         embedding_size = math.ceil(math.log2(n)) + 1 if self.embedding_size == "log" else self.embedding_size
@@ -111,8 +118,51 @@ class Advanced(Basic):
                     else:
                         self.hidden_units = [128, 128]
 
-    def _define_input(self):
-        super(Advanced, self)._define_input()
+    def _fully_connected_linear(self, net, shape, appendix):
+        with tf.name_scope("Linear{}".format(appendix)):
+            w = init_w(shape, "W{}".format(appendix))
+            if self._pruner is not None:
+                w_abs = tf.abs(w)
+                w_abs_mean, w_abs_var = tf.nn.moments(w_abs, None)
+                w = self._pruner.prune_w(w, w_abs, w_abs_mean, tf.sqrt(w_abs_var))
+            b = init_b([shape[1]], "b{}".format(appendix))
+            self._ws.append(w)
+            self._bs.append(b)
+            return tf.add(tf.matmul(net, w), b, name="Linear{}_Output".format(appendix))
+
+    def _build_layer(self, i, net):
+        if self.use_batch_norm:
+            net = tf.layers.batch_normalization(net, training=self._is_training, name="BN{}".format(i))
+        activation = self.activations[i]
+        if activation is not None:
+            net = getattr(Activations, activation)(net, "{}{}".format(activation, i))
+        if self.dropout_keep_prob < 1:
+            net = tf.nn.dropout(net, keep_prob=self._tf_p_keep)
+        return net
+
+    def _build_model(self, net=None):
+        super(Advanced, self)._build_model(self._deep_input)
+        if self._use_wide_network:
+            if self._dndf is None:
+                wide_output = self._fully_connected_linear(
+                    self._wide_input,
+                    [self._wide_input.shape[1].value, self.n_class], "_wide_output"
+                )
+            else:
+                wide_output = self._dndf(self._wide_input, self._n_batch_placeholder)
+            self._output += wide_output
+
+    def _get_feed_dict(self, x, y=None, weights=None, is_training=True):
+        continuous_x = x[..., self.numerical_idx[:-1]] if self._categorical_xs else x
+        feed_dict = super(Advanced, self)._get_feed_dict(continuous_x, y, weights, is_training)
+        if self._dndf is not None:
+            feed_dict[self._n_batch_placeholder] = len(x)
+        for (idx, _), categorical_x in zip(self.categorical_columns, self._categorical_xs):
+            feed_dict.update({categorical_x: x[..., idx].astype(np.int32)})
+        return feed_dict
+
+    def _define_input_and_placeholder(self):
+        super(Advanced, self)._define_input_and_placeholder()
         if not self.categorical_columns:
             self._categorical_xs = []
             self._one_hot = self._one_hot_concat = self._tfx
@@ -161,49 +211,35 @@ class Advanced(Basic):
         self._settings = "{}_{}(dndf)_{}(prune)".format(
             self.hidden_units, self._dndf is not None, self._pruner is not None
         )
+        self._tf_p_keep = tf.cond(
+            self._is_training, lambda: self.dropout_keep_prob, lambda: 1.,
+            name="p_keep"
+        )
 
-    def _fully_connected_linear(self, net, shape, appendix):
-        with tf.name_scope("Linear{}".format(appendix)):
-            w = init_w(shape, "W{}".format(appendix))
-            if self._pruner is not None:
-                w_abs = tf.abs(w)
-                w_abs_mean, w_abs_var = tf.nn.moments(w_abs, None)
-                w = self._pruner.prune_w(w, w_abs, w_abs_mean, tf.sqrt(w_abs_var))
-            b = init_b([shape[1]], "b{}".format(appendix))
-            self._ws.append(w)
-            self._bs.append(b)
-            return tf.add(tf.matmul(net, w), b, name="Linear{}_Output".format(appendix))
+    def _define_py_collections(self):
+        super(Advanced, self)._define_py_collections()
+        self.py_collections.append("data_info")
 
-    def _build_layer(self, i, net):
-        if self.use_batch_norm:
-            net = tf.layers.batch_normalization(net, training=self._is_training, name="BN{}".format(i))
-        activation = self.activations[i]
-        if activation is not None:
-            net = getattr(Activations, activation)(net, "{}{}".format(activation, i))
-        if self.dropout_keep_prob < 1:
-            net = tf.nn.dropout(net, keep_prob=self._tf_p_keep)
-        return net
+    def _define_tf_collections(self):
+        super(Advanced, self)._define_tf_collections()
+        self.tf_collections += [
+            "_deep_input", "_wide_input",
+            "_embedding", "_one_hot", "_embedding_with_one_hot",
+            "_embedding_concat", "_one_hot_concat", "_embedding_with_one_hot_concat",
+        ]
+        self.tf_list_collections = ["_categorical_xs"]
 
-    def _build_model(self, net=None):
-        super(Advanced, self)._build_model(self._deep_input)
-        if self._use_wide_network:
-            if self._dndf is None:
-                wide_output = self._fully_connected_linear(
-                    self._wide_input,
-                    [self._wide_input.shape[1].value, self.n_class], "_wide_output"
-                )
-            else:
-                wide_output = self._dndf(self._wide_input, self._n_batch_placeholder)
-            self._output += wide_output
+    def add_tf_collections(self):
+        super(Advanced, self).add_tf_collections()
+        for tf_list in self.tf_list_collections:
+            target_list = getattr(self, tf_list)
+            for tensor in target_list:
+                tf.add_to_collection(tf_list, tensor)
 
-    def _get_feed_dict(self, x, y=None, weights=None, is_training=True):
-        continuous_x = x[..., self.numerical_idx[:-1]] if self._categorical_xs else x
-        feed_dict = super(Advanced, self)._get_feed_dict(continuous_x, y, weights, is_training)
-        if self._dndf is not None:
-            feed_dict[self._n_batch_placeholder] = len(x)
-        for (idx, _), categorical_x in zip(self.categorical_columns, self._categorical_xs):
-            feed_dict.update({categorical_x: x[..., idx].astype(np.int32)})
-        return feed_dict
+    def restore_collections(self, folder):
+        for tf_list in self.tf_list_collections:
+            setattr(self, tf_list, tf.get_collection(tf_list))
+        super(Advanced, self).restore_collections(folder)
 
     def print_settings(self):
         msg = "\n".join([
