@@ -257,6 +257,7 @@ class Base:
         self.max_epoch = self.model_param_settings.get("max_epoch", 256)
         self.n_epoch = min(self.n_epoch, self.max_epoch)
         self.batch_size = self.model_param_settings.get("batch_size", 128)
+        self.batch_size = min(self.batch_size, len(self._train_generator))
         self.n_iter = self.model_param_settings.get("n_iter", -1)
         if self.n_iter < 0:
             self.n_iter = len(self._train_generator) // self.batch_size

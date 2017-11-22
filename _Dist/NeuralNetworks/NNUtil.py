@@ -522,7 +522,6 @@ class TrainMonitor:
         if self._is_best:
             self._rs["terminate"] = False
             if self._rs["save_best"]:
-                self._best_checkpoint_performance = scores[-1]
                 self._rs["save_checkpoint"] = True
                 self._rs["save_best"] = False
                 self._rs["info"] = (
@@ -533,15 +532,14 @@ class TrainMonitor:
                     self._rs["info"] += "we've suffered from over-fitting"
                 else:
                     self._rs["info"] += "performance has improved significantly"
-        if not self._rs["save_checkpoint"] and len(scores) % self.snapshot_ratio == 0:
-            if scores[-1] > self._best_checkpoint_performance:
-                self._best_checkpoint_performance = scores[-1]
-                self._rs["terminate"] = False
-                self._rs["save_checkpoint"] = True
-                self._rs["info"] = (
-                    "Current run ({}) leads to best checkpoint we've ever had, "
-                    "saving checkpoint in case we need to restore".format(len(scores) + self._run_id)
-                )
+        if len(scores) % self.snapshot_ratio == 0 and scores[-1] > self._best_checkpoint_performance:
+            self._best_checkpoint_performance = scores[-1]
+            self._rs["terminate"] = False
+            self._rs["save_checkpoint"] = True
+            self._rs["info"] = (
+                "Current run ({}) leads to best checkpoint we've ever had, "
+                "saving checkpoint in case we need to restore".format(len(scores) + self._run_id)
+            )
         return self._rs
 
 
