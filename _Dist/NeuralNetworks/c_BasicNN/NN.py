@@ -60,4 +60,16 @@ if __name__ == '__main__':
         x_test, y_test = generator(size=100, one_hot=False)
         nn = Basic(model_param_settings={"n_epoch": 200}).scatter2d(x_train, y_train).fit(
             x_train, y_train, x_test, y_test, snapshot_ratio=0
+        ).draw_losses().visualize2d(
+            x_train, y_train, title="Train"
+        ).visualize2d(
+            x_test, y_test, padding=2, title="Test"
+        )
+
+    for size in (256, 1000, 10000):
+        (x_train, y_train), (x_test, y_test) = DataUtil.gen_noisy_linear(
+            size=size, n_dim=2, n_valid=2, test_ratio=100 / size, one_hot=False
+        )
+        nn = Basic(model_param_settings={"n_epoch": 200}).scatter2d(x_train, y_train).fit(
+            x_train, y_train, x_test, y_test, snapshot_ratio=0
         ).draw_losses().visualize2d(x_train, y_train, title="Train").visualize2d(x_test, y_test, title="Test")
