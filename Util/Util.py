@@ -178,10 +178,10 @@ class DataUtil:
         return data, DataUtil.get_one_hot(labels, 2)
 
     @staticmethod
-    def gen_noisy_linear(size=10000, n_dim=100, n_valid=5, noise_scale=0.5, one_hot=True):
+    def gen_noisy_linear(size=10000, n_dim=100, n_valid=5, noise_scale=0.5, test_ratio=0.15, one_hot=True):
         x_train = np.random.randn(size, n_dim)
         x_train_noise = x_train + np.random.randn(size, n_dim) * noise_scale
-        x_test = np.random.randn(int(size*0.15), n_dim)
+        x_test = np.random.randn(int(size*test_ratio), n_dim)
         idx = np.random.permutation(n_dim)[:n_valid]
         w = np.random.randn(n_valid, 1)
         y_train = (x_train[..., idx].dot(w) > 0).astype(np.int8).ravel()
