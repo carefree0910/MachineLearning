@@ -202,6 +202,22 @@ class DataUtil:
         return xs, DataUtil.get_one_hot(ys, 2)
 
     @staticmethod
+    def gen_nine_grid(size=120, one_hot=True):
+        x, y = np.random.randn(2, size).astype(np.float32)
+        labels = np.zeros(size, np.int8)
+        xl, xr = x <= -1, x >= 1
+        yf, yc = y <= -1, y >= 1
+        x_mid_mask = ~xl & ~xr
+        y_mid_mask = ~yf & ~yc
+        mask2 = x_mid_mask & y_mid_mask
+        labels[mask2] = 2
+        labels[(x_mid_mask | y_mid_mask) & ~mask2] = 1
+        xs = np.vstack([x, y]).T
+        if one_hot:
+            return xs, DataUtil.get_one_hot(labels, 3)
+        return xs, labels
+
+    @staticmethod
     def quantize_data(x, y, wc=None, continuous_rate=0.1, separate=False):
         if isinstance(x, list):
             xt = map(list, zip(*x))
