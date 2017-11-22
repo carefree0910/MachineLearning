@@ -21,14 +21,14 @@ def init_b(shape, name):
     return tf.Variable(np.zeros(shape, dtype=np.float32), name=name)
 
 
-def fully_connected_linear(i, net, shape, bias=True):
-    with tf.name_scope("Linear{}".format(i)):
-        w_name = "W{}".format(i)
+def fully_connected_linear(net, shape, appendix, bias=True):
+    with tf.name_scope("Linear{}".format(appendix)):
+        w_name = "W{}".format(appendix)
         w = init_w(shape, w_name)
         if bias:
-            b = init_b(shape[1], "b{}".format(i))
-            return tf.add(tf.matmul(net, w), b, name="Linear{}".format(i))
-        return tf.matmul(net, w, name="Linear{}_without_bias".format(i))
+            b = init_b(shape[1], "b{}".format(appendix))
+            return tf.add(tf.matmul(net, w), b, name="Linear{}".format(appendix))
+        return tf.matmul(net, w, name="Linear{}_without_bias".format(appendix))
 
 
 def prepare_tensorboard_verbose(sess):
@@ -579,8 +579,8 @@ class DNDF:
                 local_net = net
                 with tf.name_scope("Decisions"):
                     decisions = tf.nn.sigmoid(fully_connected_linear(
-                        "_tree_mapping{}_{}".format(i, dtype), local_net,
-                        [local_net.get_shape().as_list()[1], self.n_leaf], True
+                        local_net, [local_net.get_shape().as_list()[1], self.n_leaf],
+                        "_tree_mapping{}_{}".format(i, dtype), True
                     ))
                     decisions_comp = 1 - decisions
                     decisions_pack = tf.stack([decisions, decisions_comp])
