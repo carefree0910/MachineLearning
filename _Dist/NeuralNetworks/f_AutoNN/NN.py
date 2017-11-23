@@ -125,7 +125,6 @@ class Auto(Advanced):
         self._handle_unbalance(y)
         self._handle_sparsity()
         super(Auto, self).init_from_data(x, y, x_test, y_test, sample_weights, names)
-        self.n_dim -= len(self.categorical_columns)
 
     def _handle_unbalance(self, y):
         class_ratio = self.class_prior.min() / self.class_prior.max()

@@ -53,15 +53,15 @@ class Advanced(Basic):
             raise ValueError("numerical_idx should be provided")
         if self.categorical_columns is None:
             raise ValueError("categorical_columns should be provided")
+
+    def init_from_data(self, x, y, x_test, y_test, sample_weights, names):
+        self.init_data_info()
+        super(Advanced, self).init_from_data(x, y, x_test, y_test, sample_weights, names)
         if len(self.numerical_idx) != self.n_dim + 1:
             raise ValueError("Length of numerical_idx should be {}, {} found".format(
                 self.n_dim + 1, len(self.numerical_idx)
             ))
         self.n_dim -= len(self.categorical_columns)
-
-    def init_from_data(self, x, y, x_test, y_test, sample_weights, names):
-        self.init_data_info()
-        super(Advanced, self).init_from_data(x, y, x_test, y_test, sample_weights, names)
 
     def init_model_param_settings(self):
         super(Advanced, self).init_model_param_settings()
