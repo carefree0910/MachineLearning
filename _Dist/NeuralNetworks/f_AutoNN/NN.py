@@ -30,7 +30,7 @@ class Auto(Advanced):
         else:
             assert_msg = "pre_process_settings must be a dictionary"
             assert isinstance(pre_process_settings, dict), assert_msg
-        self._pre_process_settings = pre_process_settings
+        self.pre_process_settings = pre_process_settings
         self._pre_processors = None
         self.pre_process_method = self.scale_method = self.reuse_mean_and_std_from_train = None
 
@@ -39,7 +39,7 @@ class Auto(Advanced):
         else:
             assert_msg = "nan_handler_settings must be a dictionary"
             assert isinstance(nan_handler_settings, dict), assert_msg
-        self._nan_handler_settings = nan_handler_settings
+        self.nan_handler_settings = nan_handler_settings
         self._nan_handler = None
         self.nan_handler_method = self.reuse_nan_handler_values = None
 
@@ -83,37 +83,36 @@ class Auto(Advanced):
         if self._data_info_initialized:
             return
         self._data_info_initialized = True
-        self.numerical_idx = self._data_info.get("numerical_idx", None)
-        self.categorical_columns = self._data_info.get("categorical_columns", None)
-        self.feature_sets = self._data_info.get("feature_sets", None)
-        self.sparsity = self._data_info.get("sparsity", None)
-        self.class_prior = self._data_info.get("class_prior", None)
+        self.numerical_idx = self.data_info.get("numerical_idx", None)
+        self.categorical_columns = self.data_info.get("categorical_columns", None)
+        self.feature_sets = self.data_info.get("feature_sets", None)
+        self.sparsity = self.data_info.get("sparsity", None)
+        self.class_prior = self.data_info.get("class_prior", None)
         if self.feature_sets is not None and self.numerical_idx is not None:
             self.n_features = [len(feature_set) for feature_set in self.feature_sets]
             self._gen_categorical_columns()
-        self._data_folder = self._data_info.get("data_folder", "_Data")
-        self._data_info.setdefault("file_type", "txt")
-        self._data_info.setdefault("shuffle", True)
-        self._data_info.setdefault("stage", 3)
-        self._data_info.setdefault("test_rate", 0.1)
+        self._data_folder = self.data_info.get("data_folder", "_Data")
+        self.data_info.setdefault("file_type", "txt")
+        self.data_info.setdefault("shuffle", True)
+        self.data_info.setdefault("test_rate", 0.1)
 
     def init_pre_process_settings(self):
-        self.pre_process_method = self._pre_process_settings.get("pre_process_method", "normalize")
-        self.scale_method = self._pre_process_settings.get("scale_method", "truncate")
-        self.reuse_mean_and_std_from_train = self._pre_process_settings.get("reuse_mean_and_std", False)
+        self.pre_process_method = self.pre_process_settings.get("pre_process_method", "normalize")
+        self.scale_method = self.pre_process_settings.get("scale_method", "truncate")
+        self.reuse_mean_and_std_from_train = self.pre_process_settings.get("reuse_mean_and_std", False)
         if self.pre_process_method is not None and self._pre_processors is None:
             self._pre_processors = {}
 
     def init_nan_handler_settings(self):
-        self.nan_handler_method = self._nan_handler_settings.get("nan_handler_method", "median")
-        self.reuse_nan_handler_values = self._nan_handler_settings.get("reuse_nan_handler_values", True)
+        self.nan_handler_method = self.nan_handler_settings.get("nan_handler_method", "median")
+        self.reuse_nan_handler_values = self.nan_handler_settings.get("reuse_nan_handler_values", True)
 
     def init_from_data(self, x, y, x_test, y_test, sample_weights, names):
         self.init_data_info()
-        file_type = self._data_info["file_type"]
-        shuffle = self._data_info["shuffle"]
-        stage = self._data_info["stage"]
-        test_rate = self._data_info["test_rate"]
+        file_type = self.data_info["file_type"]
+        shuffle = self.data_info["shuffle"]
+        stage = self.data_info["stage"]
+        test_rate = self.data_info["test_rate"]
         args = (self.numerical_idx, file_type, names, shuffle, test_rate, stage)
         if x is None or y is None:
             x, y, x_test, y_test = self._load_data(None, *args)
@@ -353,16 +352,16 @@ class Auto(Advanced):
         _, class_counts = np.unique(y, return_counts=True)
         self.class_prior = class_counts / class_counts.sum()
 
-        self._data_info["numerical_idx"] = self.numerical_idx
-        self._data_info["categorical_columns"] = self.categorical_columns
+        self.data_info["numerical_idx"] = self.numerical_idx
+        self.data_info["categorical_columns"] = self.categorical_columns
 
         return x, y, x_test, y_test
 
     def _define_py_collections(self):
         super(Auto, self)._define_py_collections()
         self.py_collections += [
-            "_pre_process_settings", "_nan_handler_settings",
-            "_pre_processor", "_nan_handler", "transform_dicts"
+            "pre_process_settings", "nan_handler_settings",
+            "_pre_processors", "_nan_handler", "transform_dicts"
         ]
 
     def fit(self, x=None, y=None, x_test=None, y_test=None, sample_weights=None, names=("train", "test"),

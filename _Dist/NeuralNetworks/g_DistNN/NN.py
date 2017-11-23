@@ -12,6 +12,7 @@ from _Dist.NeuralNetworks.f_AutoNN.NN import Auto
 
 
 # TODO: Merge pre_processors
+# TODO: CV Context
 
 
 class Dist(Auto):
@@ -107,14 +108,15 @@ class Dist(Auto):
         self._evaluate(x, y, x_test, y_test)
         return self
 
-    def _k_series_initialization(self, data):
+    def _k_series_initialization(self, k, data):
         self.init_data_info()
         x, y, x_test, y_test = self._load_data(data, stage=1)
         x_test, y_test, *_ = self._load_data(
             np.hstack([x_test, y_test.reshape([-1, 1])]),
             names=("test", None), test_rate=0, stage=2
         )
-        return x, y, x_test, y_test
+        names = [("train{}".format(i), "cv{}".format(i)) for i in range(k)]
+        return x, y, x_test, y_test, names
 
     def _k_series_evaluation(self, i, x_test, y_test):
         train, sw_train = self._train_generator.get_all_data()
@@ -124,8 +126,11 @@ class Dist(Auto):
         print("  -  Performance of run {}".format(i + 1), end=" | ")
         self._evaluate(x, y, x_cv, y_cv, x_test, y_test)
 
+    def _merge_preprocessors(self, names):
+        pass
+
     def k_fold(self, k=10, data=None, test_rate=0., sample_weights=None, **kwargs):
-        x, y, x_test, y_test = self._k_series_initialization(data)
+        x, y, x_test, y_test, names = self._k_series_initialization(k, data)
         n_batch = int(len(x) / k)
         all_idx = list(range(len(x)))
         print_settings = True
@@ -144,17 +149,20 @@ class Dist(Auto):
             else:
                 self._sample_weights = None
             kwargs["print_settings"] = print_settings
-            self._data_info["stage"] = 2
+            kwargs["names"] = names[i]
+            self.data_info["stage"] = 2
             self.fit(x_train, y_train, x_cv, y_cv, **kwargs)
             self._k_series_evaluation(i, x_test, y_test)
             print_settings = False
+        self.data_info["stage"] = 3
+        self._merge_preprocessors(names)
         self._sample_weights = sample_weights_store
         if x_test is not None and y_test is not None:
             self._test_generator = Generator(x_test, y_test, name="TestGenerator")
         return self
 
     def k_random(self, k=3, data=None, cv_rate=0.1, test_rate=0., sample_weights=None, **kwargs):
-        x, y, x_test, y_test = self._k_series_initialization(data)
+        x, y, x_test, y_test, names = self._k_series_initialization(k, data)
         n_cv = int(cv_rate * len(x))
         print_settings = True
         if sample_weights is not None:
@@ -172,11 +180,13 @@ class Dist(Auto):
             else:
                 self._sample_weights = None
             kwargs["print_settings"] = print_settings
-            kwargs["names"] = ("train{}".format(i), "cv{}".format(i))
-            self._data_info["stage"] = 2
+            kwargs["names"] = names[i]
+            self.data_info["stage"] = 2
             self.fit(x_train, y_train, x_cv, y_cv, **kwargs)
             self._k_series_evaluation(i, x_test, y_test)
             print_settings = False
+        self.data_info["stage"] = 3
+        self._merge_preprocessors(names)
         self._sample_weights = sample_weights_store
         if x_test is not None and y_test is not None:
             self._test_generator = Generator(x_test, y_test, name="TestGenerator")
@@ -187,9 +197,9 @@ if __name__ == '__main__':
     Dist(
         name="Zhongan",
         data_info={"data_folder": "../f_AutoNN/_Data"},
-        model_param_settings={"max_epoch": 3},
+        model_param_settings={"max_epoch": 1},
         model_structure_settings={"use_wide_network": False, "use_pruner": False}
-    ).k_random().save()
+    ).k_random(snapshot_ratio=0).save()
     Dist(
         name="Zhongan",
         data_info={"data_folder": "../f_AutoNN/_Data"},

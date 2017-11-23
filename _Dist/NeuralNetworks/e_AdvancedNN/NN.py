@@ -19,11 +19,11 @@ class Advanced(Basic):
         self._name_appendix = "Advanced"
 
         if data_info is None:
-            self._data_info = {}
+            self.data_info = {}
         else:
             assert_msg = "data_info should be a dictionary"
             assert isinstance(data_info, dict), assert_msg
-            self._data_info = data_info
+            self.data_info = data_info
         self._data_info_initialized = False
         self.numerical_idx = self.categorical_columns = None
 
@@ -47,8 +47,8 @@ class Advanced(Basic):
         if self._data_info_initialized:
             return
         self._data_info_initialized = True
-        self.numerical_idx = self._data_info.get("numerical_idx", None)
-        self.categorical_columns = self._data_info.get("categorical_columns", None)
+        self.numerical_idx = self.data_info.get("numerical_idx", None)
+        self.categorical_columns = self.data_info.get("categorical_columns", None)
         if self.numerical_idx is None:
             raise ValueError("numerical_idx should be provided")
         if self.categorical_columns is None:
