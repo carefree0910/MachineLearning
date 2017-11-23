@@ -34,7 +34,7 @@ class ModelBase:
         Base for all models
         Magic methods:
             1) __str__     : return self.name; __repr__ = __str__
-            2) __getitem__ : access to protected members 
+            2) __getitem__ : access to protected members
         Properties:
             1) name  : name of this model, self.__class__.__name__ or self._name
             2) title : used in matplotlib (plt.title())
@@ -361,7 +361,7 @@ class ClassifierBase(ModelBase):
         plt.title(title)
         if draw_background:
             xy_xf, xy_yf = np.meshgrid(xf, yf, sparse=True)
-            plt.pcolormesh(xy_xf, xy_yf, z, cmap=plt.cm.Paired)
+            plt.pcolormesh(xy_xf, xy_yf, z, cmap=plt.cm.Pastel1)
         else:
             plt.contour(xf, yf, z, c='k-', levels=[0])
         plt.scatter(axis[0], axis[1], c=colors)
@@ -434,7 +434,7 @@ class ClassifierBase(ModelBase):
         plt.figure()
         plt.title(title)
         if draw_background:
-            plt.pcolormesh(xy_xf, xy_yf, z, cmap=plt.cm.Paired)
+            plt.pcolormesh(xy_xf, xy_yf, z, cmap=plt.cm.Pastel1)
         else:
             plt.contour(xf, yf, z, c='k-', levels=[0])
         plt.scatter(axis[0], axis[1], c=colors)
@@ -559,7 +559,7 @@ class ClassifierBase(ModelBase):
 
         def _draw(_ax, _x, _xf, _y, _yf, _z):
             if draw_background:
-                _ax.pcolormesh(_x, _y, _z > 0, cmap=plt.cm.Paired)
+                _ax.pcolormesh(_x, _y, _z > 0, cmap=plt.cm.Pastel1)
             else:
                 _ax.contour(_xf, _yf, _z, c='k-', levels=[0])
 
@@ -631,7 +631,7 @@ class GDBase(ClassifierBase):
         Gradient descent classifier framework
         Requirements:
             1) Store all parameters in self._model_parameters
-            2) Calculate all gradients of the parameters and store them in self._grads 
+            2) Calculate all gradients of the parameters and store them in self._grads
               in self._get_grads() method
         See self._update_model_params() method for more insights
     """
