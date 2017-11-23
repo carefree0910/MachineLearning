@@ -32,7 +32,7 @@ class Auto(Advanced):
             assert isinstance(pre_process_settings, dict), assert_msg
         self.pre_process_settings = pre_process_settings
         self._pre_processors = None
-        self.pre_process_method = self.scale_method = self.reuse_mean_and_std_from_train = None
+        self.pre_process_method = self.scale_method = self.reuse_mean_and_std = None
 
         if nan_handler_settings is None:
             nan_handler_settings = {}
@@ -95,11 +95,12 @@ class Auto(Advanced):
         self.data_info.setdefault("file_type", "txt")
         self.data_info.setdefault("shuffle", True)
         self.data_info.setdefault("test_rate", 0.1)
+        self.data_info.setdefault("stage", 3)
 
     def init_pre_process_settings(self):
         self.pre_process_method = self.pre_process_settings.get("pre_process_method", "normalize")
         self.scale_method = self.pre_process_settings.get("scale_method", "truncate")
-        self.reuse_mean_and_std_from_train = self.pre_process_settings.get("reuse_mean_and_std", False)
+        self.reuse_mean_and_std = self.pre_process_settings.get("reuse_mean_and_std", False)
         if self.pre_process_method is not None and self._pre_processors is None:
             self._pre_processors = {}
 
@@ -155,10 +156,10 @@ class Auto(Advanced):
                         include_label=False, refresh_redundant_info=False, stage=3):
         print("Transforming {0}data{2} at stage {1}".format(
             "{} ".format(name) if stage >= 2 else "", stage,
-            "" if name == train_name or not self.reuse_mean_and_std_from_train else
+            "" if name == train_name or not self.reuse_mean_and_std else
             " with {} data".format(train_name),
         ))
-        if self.reuse_mean_and_std_from_train:
+        if self.reuse_mean_and_std:
             name = train_name
         label_dict = self.transform_dicts[-1]
         if refresh_redundant_info or self.whether_redundant is None:
@@ -372,7 +373,17 @@ class Auto(Advanced):
         )
 
     def predict(self, x):
-        return self._predict(self._transform_data(x, "test"))
+        if "test" in self._pre_processors:
+            name = "test"
+        else:
+            if self.reuse_mean_and_std:
+                name = "cv" if "cv" in self._pre_processors else "train"
+            else:
+                name = "tmp_test"
+        rs = self._predict(self._transform_data(x, name))
+        if name == "tmp_test":
+            self._pre_processors.pop("tmp_test")
+        return rs
 
     def predict_target_prob(self, x, target):
         prob = self.predict(x)
@@ -383,10 +394,16 @@ class Auto(Advanced):
 
     def evaluate(self, x, y, x_cv=None, y_cv=None, x_test=None, y_test=None):
         x = self._transform_data(x, "train")
+        cv_name = "cv" if "cv" in self._pre_processors else "tmp_cv"
+        test_name = "test" if "test" in self._pre_processors else "tmp_test"
         if x_cv is not None:
-            x_cv = self._transform_data(x_cv, "cv")
+            x_cv = self._transform_data(x_cv, cv_name)
         if x_test is not None:
-            x_test = self._transform_data(x_test, "test")
+            x_test = self._transform_data(x_test, test_name)
+        if cv_name == "tmp_cv":
+            self._pre_processors.pop(cv_name)
+        if test_name == "tmp_test":
+            self._pre_processors.pop(test_name)
         return self._evaluate(x, y, x_cv, y_cv, x_test, y_test)
 
 

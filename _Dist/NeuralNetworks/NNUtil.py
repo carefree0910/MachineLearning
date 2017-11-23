@@ -774,19 +774,16 @@ class PreProcessor:
         self.method, self.scale_method = method, scale_method
         self.eps_floor, self.eps_ceiling = eps_floor, eps_ceiling
         self.redundant_idx = None
-        self._mean = self._std = None
-
-    def __getitem__(self, item):
-        return getattr(self, "_" + item)
+        self.mean = self.std = None
 
     def _scale(self, x, numerical_idx):
         targets = x[..., numerical_idx]
         self.redundant_idx = [False] * len(numerical_idx)
         mean = std = None
-        if self._mean is not None:
-            mean = self._mean
-        if self._std is not None:
-            std = self._std
+        if self.mean is not None:
+            mean = self.mean
+        if self.std is not None:
+            std = self.std
         if mean is None:
             mean = targets.mean(axis=0)
         abs_targets = np.abs(targets)
@@ -812,7 +809,7 @@ class PreProcessor:
                     sign_mask[local_target < 0] *= -1
                     scaled_value = self._scale_abs_features(local_abs_target) * sign_mask
                     targets[..., mask_cursor] = scaled_value
-                    if self._mean is None:
+                    if self.mean is None:
                         mean[mask_cursor] = np.mean(scaled_value)
                     max_features[mask_cursor] = np.max(scaled_value)
                 warn_msg = "{} value which is too large: [{}]{}".format(
@@ -831,8 +828,8 @@ class PreProcessor:
             if np.any(max_features > self.eps_ceiling):
                 targets = targets - mean
             std = np.maximum(self.eps_floor, targets.std(axis=0))
-        if self._mean is None and self._std is None:
-            self._mean, self._std = mean, std
+        if self.mean is None and self.std is None:
+            self.mean, self.std = mean, std
         return x
 
     def _scale_abs_features(self, abs_features):
@@ -845,8 +842,8 @@ class PreProcessor:
         return getattr(np, self.scale_method)(abs_features)
 
     def _normalize(self, x, numerical_idx):
-        x[..., numerical_idx] -= self._mean
-        x[..., numerical_idx] /= self._std
+        x[..., numerical_idx] -= self.mean
+        x[..., numerical_idx] /= self.std
         return x
 
     def transform(self, x, numerical_idx):

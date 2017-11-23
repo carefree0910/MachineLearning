@@ -9,10 +9,7 @@ import tensorflow as tf
 
 from _Dist.NeuralNetworks.Base import Generator
 from _Dist.NeuralNetworks.f_AutoNN.NN import Auto
-
-
-# TODO: Merge pre_processors
-# TODO: CV Context
+from _Dist.NeuralNetworks.NNUtil import Toolbox, PreProcessor
 
 
 class Dist(Auto):
@@ -126,8 +123,23 @@ class Dist(Auto):
         print("  -  Performance of run {}".format(i + 1), end=" | ")
         self._evaluate(x, y, x_cv, y_cv, x_test, y_test)
 
-    def _merge_preprocessors(self, names):
-        pass
+    def _merge_preprocessors_from_k_series(self, names):
+        train_names, cv_names = [name[0] for name in names], [name[1] for name in names]
+        self._merge_preprocessors_by_names("train", train_names)
+        self._merge_preprocessors_by_names("cv", cv_names)
+
+    def _merge_preprocessors_by_names(self, target, names):
+        if len(names) == 1:
+            self._pre_processors[target] = self._pre_processors.pop(names[0])
+        pre_processors = [self._pre_processors.pop(name) for name in names]
+        methods = [pre_processor.method for pre_processor in pre_processors]
+        scale_methods = [pre_processor.scale_method for pre_processor in pre_processors]
+        assert Toolbox.all_same(methods), "Pre_process method should be all_same"
+        assert Toolbox.all_same(scale_methods), "Scale method should be all_same"
+        new_processor = PreProcessor(methods[0], scale_methods[0])
+        new_processor.mean = np.mean([pre_processor.mean for pre_processor in pre_processors], axis=0)
+        new_processor.std = np.mean([pre_processor.std for pre_processor in pre_processors], axis=0)
+        self._pre_processors[target] = new_processor
 
     def k_fold(self, k=10, data=None, test_rate=0., sample_weights=None, **kwargs):
         x, y, x_test, y_test, names = self._k_series_initialization(k, data)
@@ -155,7 +167,7 @@ class Dist(Auto):
             self._k_series_evaluation(i, x_test, y_test)
             print_settings = False
         self.data_info["stage"] = 3
-        self._merge_preprocessors(names)
+        self._merge_preprocessors_from_k_series(names)
         self._sample_weights = sample_weights_store
         if x_test is not None and y_test is not None:
             self._test_generator = Generator(x_test, y_test, name="TestGenerator")
@@ -186,7 +198,7 @@ class Dist(Auto):
             self._k_series_evaluation(i, x_test, y_test)
             print_settings = False
         self.data_info["stage"] = 3
-        self._merge_preprocessors(names)
+        self._merge_preprocessors_from_k_series(names)
         self._sample_weights = sample_weights_store
         if x_test is not None and y_test is not None:
             self._test_generator = Generator(x_test, y_test, name="TestGenerator")
