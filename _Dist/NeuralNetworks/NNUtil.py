@@ -268,10 +268,10 @@ class Toolbox:
         return data
 
     @staticmethod
-    def get_one_hot(y, n_classes):
+    def get_one_hot(y, n_class):
         if y is None:
             return
-        one_hot = np.zeros([len(y), n_classes])
+        one_hot = np.zeros([len(y), n_class])
         one_hot[range(len(one_hot)), np.asarray(y, np.int)] = 1
         return one_hot
 
@@ -304,6 +304,8 @@ class Toolbox:
                     all_num_idx[i] = None
         else:
             for i, (feature_set, shrink_feature) in enumerate(zip(feature_sets, shrink_features)):
+                if numerical_idx[i] is None:
+                    continue
                 if feature_set:
                     if len(feature_set) == 1:
                         Toolbox.warn_all_same(i)
@@ -312,10 +314,11 @@ class Toolbox:
                 if Toolbox.all_same(shrink_feature):
                     Toolbox.warn_all_same(i)
                     all_num_idx[i] = numerical_idx[i] = None
-                elif np.allclose(shrink_feature, np.array(shrink_feature, np.int32)):
-                    if Toolbox.all_unique(shrink_feature):
-                        Toolbox.warn_all_unique(i)
-                        all_num_idx[i] = numerical_idx[i] = None
+                elif max(shrink_feature) < 2 ** 30:
+                    if np.allclose(shrink_feature, np.array(shrink_feature, np.int32)):
+                        if Toolbox.all_unique(shrink_feature):
+                            Toolbox.warn_all_unique(i)
+                            all_num_idx[i] = numerical_idx[i] = None
         return feature_sets, n_features, all_num_idx, numerical_idx
 
     @staticmethod
@@ -490,7 +493,7 @@ class TrainMonitor:
                         self._best_checkpoint_performance = self._over_fit_performance
                         self._rs["save_checkpoint"] = True
                         self._rs["info"] = (
-                            "Current run ({}) seems to be over-fitting, "
+                            "Current snapshot ({}) seems to be over-fitting, "
                             "saving checkpoint in case we need to restore".format(len(scores) + self._run_id)
                         )
                 self._descend_counter += min(self.n_tolerance / 3, -res / std)
@@ -506,7 +509,7 @@ class TrainMonitor:
                         if scores[-1] > self._running_best - std:
                             self._rs["save_checkpoint"] = True
                             self._rs["info"] = (
-                                "Current run ({}) seems to be working well, "
+                                "Current snapshot ({}) seems to be working well, "
                                 "saving checkpoint in case we need to restore".format(len(scores)+self._run_id)
                             )
                     self._over_fitting_flag = 0
@@ -525,7 +528,7 @@ class TrainMonitor:
                 self._rs["save_checkpoint"] = True
                 self._rs["save_best"] = False
                 self._rs["info"] = (
-                    "Current run ({}) leads to best result we've ever had, "
+                    "Current snapshot ({}) leads to best result we've ever had, "
                     "saving checkpoint since ".format(len(scores) + self._run_id)
                 )
                 if self._over_fitting_flag:
@@ -537,7 +540,7 @@ class TrainMonitor:
             self._rs["terminate"] = False
             self._rs["save_checkpoint"] = True
             self._rs["info"] = (
-                "Current run ({}) leads to best checkpoint we've ever had, "
+                "Current snapshot ({}) leads to best checkpoint we've ever had, "
                 "saving checkpoint in case we need to restore".format(len(scores) + self._run_id)
             )
         return self._rs
@@ -713,10 +716,10 @@ class Pruner:
 
 
 class NanHandler:
-    def __init__(self, numerical_idx, handler, reuse_values=True):
-        self.numerical_idx, self.handler = numerical_idx, handler
+    def __init__(self, handler, reuse_values=True):
+        self._values = None
+        self.handler = handler
         self.reuse_values = reuse_values
-        self.values = [None] * len(self.numerical_idx)
 
     @staticmethod
     def shrink_nan(feat, dtype):
@@ -741,13 +744,15 @@ class NanHandler:
                 no_nan_feat.append(f)
         return no_nan_feat
 
-    def transform(self, x, refresh_values=False):
+    def transform(self, x, numerical_idx, refresh_values=False):
         if self.handler is None:
             pass
         elif self.handler == "delete":
-            x = x[~np.any(np.isnan(x[..., self.numerical_idx]), axis=1)]
+            x = x[~np.any(np.isnan(x[..., numerical_idx]), axis=1)]
         else:
-            for i, (v, numerical) in enumerate(zip(self.values, self.numerical_idx[:-1])):
+            if self._values is None:
+                self._values = [None] * len(numerical_idx)
+            for i, (v, numerical) in enumerate(zip(self._values, numerical_idx)):
                 if not numerical:
                     continue
                 feat = x[..., i]
@@ -759,17 +764,20 @@ class NanHandler:
                 else:
                     new_value = getattr(np, self.handler)(feat[~mask])
                     if self.reuse_values and (v is None or refresh_values):
-                        self.values[i] = new_value
+                        self._values[i] = new_value
                 feat[mask] = new_value
         return x
 
 
 class PreProcessor:
-    def __init__(self, method, scale_method, refresh_mean_and_std, eps_floor=1e-4, eps_ceiling=1e12):
-        self.method, self.scale_method, self.refresh_mean_and_std = method, scale_method, refresh_mean_and_std
+    def __init__(self, method, scale_method, eps_floor=1e-4, eps_ceiling=1e12):
+        self.method, self.scale_method = method, scale_method
         self.eps_floor, self.eps_ceiling = eps_floor, eps_ceiling
         self.redundant_idx = None
         self._mean = self._std = None
+
+    def __getitem__(self, item):
+        return getattr(self, "_" + item)
 
     def _scale(self, x, numerical_idx):
         targets = x[..., numerical_idx]
@@ -779,7 +787,7 @@ class PreProcessor:
             mean = self._mean
         if self._std is not None:
             std = self._std
-        if mean is None or self.refresh_mean_and_std:
+        if mean is None:
             mean = targets.mean(axis=0)
         abs_targets = np.abs(targets)
         max_features = abs_targets.max(axis=0)
@@ -804,7 +812,7 @@ class PreProcessor:
                     sign_mask[local_target < 0] *= -1
                     scaled_value = self._scale_abs_features(local_abs_target) * sign_mask
                     targets[..., mask_cursor] = scaled_value
-                    if self.refresh_mean_and_std or self._mean is None:
+                    if self._mean is None:
                         mean[mask_cursor] = np.mean(scaled_value)
                     max_features[mask_cursor] = np.max(scaled_value)
                 warn_msg = "{} value which is too large: [{}]{}".format(
@@ -819,11 +827,11 @@ class PreProcessor:
                 )
                 print(warn_msg)
                 x[..., numerical_idx] = targets
-        if std is None or self.refresh_mean_and_std:
+        if std is None:
             if np.any(max_features > self.eps_ceiling):
                 targets = targets - mean
             std = np.maximum(self.eps_floor, targets.std(axis=0))
-        if (self._mean is None and self._std is None) or self.refresh_mean_and_std:
+        if self._mean is None and self._std is None:
             self._mean, self._std = mean, std
         return x
 

@@ -214,7 +214,7 @@ class Base:
 
     # Settings
 
-    def init_data_info(self, x, y, x_test, y_test, sample_weights):
+    def init_from_data(self, x, y, x_test, y_test, sample_weights, names):
         self._sample_weights = sample_weights
         if self._sample_weights is None:
             self._tf_sample_weights = None
@@ -314,19 +314,23 @@ class Base:
         self._sess.run(tf.global_variables_initializer())
 
     def _snapshot(self, i_epoch, i_iter, snapshot_cursor):
-        x_train, y_train, _ = self._gen_batch(
+        x_train, y_train, sw_train = self._gen_batch(
             self._train_generator, self.n_random_train_subset, gen_random_subset=True
         )
         if self._test_generator is not None:
             x_test, y_test, sw_test = self._gen_batch(
                 self._test_generator, self.n_random_test_subset, gen_random_subset=True
             )
+            if self.n_class == 1:
+                y_test = y_test.reshape([-1, 1])
+            else:
+                y_test = Toolbox.get_one_hot(y_test, self.n_class)
         else:
             x_test = y_test = sw_test = None
         y_train_pred = self._predict(x_train)
         if x_test is not None:
             y_test_pred, test_snapshot_loss = self._calculate(
-                x_test, Toolbox.get_one_hot(y_test, self.n_class), sw_test,
+                x_test, y_test, sw_test,
                 [self._output, self._loss], is_training=False
             )
             y_test_pred, test_snapshot_loss = y_test_pred[0], test_snapshot_loss[0]
@@ -341,6 +345,8 @@ class Base:
         print("\rEpoch {:4}   Iter {:8}   Snapshot {:6} ({})  -  Train : {:8.6}   Test : {:8.6}".format(
             i_epoch, i_iter, snapshot_cursor, self._metric_name, train_metric, test_metric
         ), end="")
+        if i_epoch == i_iter == snapshot_cursor == 0:
+            print()
         return train_metric, test_metric
 
     def _calculate(self, x, y=None, weights=None, tensor=None, n_elem=1e7, is_training=False):
@@ -388,7 +394,8 @@ class Base:
         return [results[cursor:cursors[i + 1]] for i, cursor in enumerate(cursors[:-1])]
 
     def _predict(self, x):
-        output = self._calculate(x, tensor=self._prob_output, is_training=False)
+        tensor = self._output if self.n_class == 1 else self._prob_output
+        output = self._calculate(x, tensor=tensor, is_training=False)
         if self.n_class == 1:
             return output.ravel()
         return output
@@ -493,13 +500,13 @@ class Base:
     def print_settings(self):
         pass
 
-    def fit(self, x, y, x_test=None, y_test=None, sample_weights=None,
+    def fit(self, x, y, x_test=None, y_test=None, sample_weights=None, names=("train", "test"),
             timeit=True, snapshot_ratio=3, print_settings=True, verbose=1):
         t = None
         if timeit:
             t = time.time()
 
-        self.init_data_info(x, y, x_test, y_test, sample_weights)
+        self.init_from_data(x, y, x_test, y_test, sample_weights, names)
         if not self._settings_initialized:
             self.init_all_settings()
         self._settings_initialized = True
@@ -538,6 +545,7 @@ class Base:
         self.log["iter_loss"] = []
         self.log["epoch_loss"] = []
         self.log["test_snapshot_loss"] = []
+        self._snapshot(0, 0, 0)
 
         while i_epoch < n_epoch:
             i_epoch += 1

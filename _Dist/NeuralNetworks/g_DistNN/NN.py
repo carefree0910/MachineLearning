@@ -11,6 +11,9 @@ from _Dist.NeuralNetworks.Base import Generator
 from _Dist.NeuralNetworks.f_AutoNN.NN import Auto
 
 
+# TODO: Merge pre_processors
+
+
 class Dist(Auto):
     def __init__(self, *args, **kwargs):
         super(Dist, self).__init__(*args, **kwargs)
@@ -104,88 +107,92 @@ class Dist(Auto):
         self._evaluate(x, y, x_test, y_test)
         return self
 
+    def _k_series_initialization(self, data):
+        self.init_data_info()
+        x, y, x_test, y_test = self._load_data(data, stage=1)
+        x_test, y_test, *_ = self._load_data(
+            np.hstack([x_test, y_test.reshape([-1, 1])]),
+            names=("test", None), test_rate=0, stage=2
+        )
+        return x, y, x_test, y_test
+
+    def _k_series_evaluation(self, i, x_test, y_test):
+        train, sw_train = self._train_generator.get_all_data()
+        cv, sw_cv = self._test_generator.get_all_data()
+        x, y = train[..., :-1], train[..., -1]
+        x_cv, y_cv = cv[..., :-1], cv[..., -1]
+        print("  -  Performance of run {}".format(i + 1), end=" | ")
+        self._evaluate(x, y, x_cv, y_cv, x_test, y_test)
+
     def k_fold(self, k=10, data=None, test_rate=0., sample_weights=None, **kwargs):
-        if data is not None:
-            self._load_data(data)
-        n_batch = int(len(self._train_generator) / k)
-        all_idx = list(range(len(self._train_generator)))
+        x, y, x_test, y_test = self._k_series_initialization(data)
+        n_batch = int(len(x) / k)
+        all_idx = list(range(len(x)))
         print_settings = True
         if sample_weights is not None:
             self._sample_weights = np.asarray(sample_weights, np.float32)
-        test_generator_store, sample_weights_store = self._test_generator, self._sample_weights
-        if test_generator_store is not None:
-            test_data, _ = test_generator_store.get_all_data()
-            x_test, y_test = test_data[..., :-1], test_data[..., -1]
-        else:
-            x_test = y_test = None
+        sample_weights_store = self._sample_weights
         print("Training k-fold with k={} and test_rate={}".format(k, test_rate))
         for i in range(k):
             self.reset_all_variables()
             cv_idx = list(range(i * n_batch, (i + 1) * n_batch))
             train_idx = [j for j in all_idx if j < i * n_batch or j >= (i + 1) * n_batch]
-            with self._train_generator:
-                test_data, _ = self._train_generator.get_indices(cv_idx)
-                x_cv, y_cv = test_data[..., :-1], test_data[..., -1]
-                self._train_generator.set_indices(train_idx)
-                self._test_generator = Generator(x_cv, y_cv, name="TestGenerator")
-                if sample_weights is not None:
-                    self._sample_weights = sample_weights_store[train_idx]
-                else:
-                    self._sample_weights = None
-                kwargs["print_settings"] = print_settings
-                self.fit(**kwargs)
-                x, y, _ = self._gen_batch(self._train_generator, self.n_random_train_subset, True)
-                print("  -  Performance of fold {}".format(i+1), end=" | ")
-                self._evaluate(x, y, x_cv, y_cv, x_test, y_test)
-                print_settings = False
-        self._test_generator, self._sample_weights = test_generator_store, sample_weights_store
+            x_cv, y_cv = x[cv_idx], y[cv_idx]
+            x_train, y_train = x[train_idx], y[train_idx]
+            if sample_weights is not None:
+                self._sample_weights = sample_weights_store[train_idx]
+            else:
+                self._sample_weights = None
+            kwargs["print_settings"] = print_settings
+            self._data_info["stage"] = 2
+            self.fit(x_train, y_train, x_cv, y_cv, **kwargs)
+            self._k_series_evaluation(i, x_test, y_test)
+            print_settings = False
+        self._sample_weights = sample_weights_store
+        if x_test is not None and y_test is not None:
+            self._test_generator = Generator(x_test, y_test, name="TestGenerator")
         return self
 
     def k_random(self, k=3, data=None, cv_rate=0.1, test_rate=0., sample_weights=None, **kwargs):
-        if data is not None:
-            self._load_data(data)
-        n_cv = int(cv_rate * len(self._train_generator))
+        x, y, x_test, y_test = self._k_series_initialization(data)
+        n_cv = int(cv_rate * len(x))
         print_settings = True
         if sample_weights is not None:
             self._sample_weights = np.asarray(sample_weights, np.float32)
-        test_generator_store, sample_weights_store = self._test_generator, self._sample_weights
-        if test_generator_store is not None:
-            cv_data, _ = test_generator_store.get_all_data()
-            x_test, y_test = cv_data[..., :-1], cv_data[..., -1]
-        else:
-            x_test = y_test = None
+        sample_weights_store = self._sample_weights
         print("Training k-random with k={}, cv_rate={} and test_rate={}".format(k, cv_rate, test_rate))
         for i in range(k):
             self.reset_all_variables()
-            all_idx = np.random.permutation(len(self._train_generator))
+            all_idx = np.random.permutation(len(x))
             cv_idx, train_idx = all_idx[:n_cv], all_idx[n_cv:]
-            with self._train_generator:
-                cv_data, _ = self._train_generator.get_indices(cv_idx)
-                x_cv, y_cv = cv_data[..., :-1], cv_data[..., -1]
-                self._train_generator.set_indices(train_idx)
-                # self._test_generator = Generator(x_cv, y_cv, name="TestGenerator")
-                if sample_weights is not None:
-                    self._sample_weights = sample_weights_store[train_idx]
-                else:
-                    self._sample_weights = None
-                kwargs["print_settings"] = print_settings
-                self.fit(**kwargs)
-                x, y, _ = self._gen_batch(self._train_generator, self.n_random_train_subset, True)
-                print("  -  Performance of run {}".format(i+1), end=" | ")
-                self._evaluate(x, y, x_cv, y_cv, x_test, y_test)
-                print_settings = False
-        self._test_generator, self._sample_weights = test_generator_store, sample_weights_store
+            x_cv, y_cv = x[cv_idx], y[cv_idx]
+            x_train, y_train = x[train_idx], y[train_idx]
+            if sample_weights is not None:
+                self._sample_weights = sample_weights_store[train_idx]
+            else:
+                self._sample_weights = None
+            kwargs["print_settings"] = print_settings
+            kwargs["names"] = ("train{}".format(i), "cv{}".format(i))
+            self._data_info["stage"] = 2
+            self.fit(x_train, y_train, x_cv, y_cv, **kwargs)
+            self._k_series_evaluation(i, x_test, y_test)
+            print_settings = False
+        self._sample_weights = sample_weights_store
+        if x_test is not None and y_test is not None:
+            self._test_generator = Generator(x_test, y_test, name="TestGenerator")
         return self
 
 
 if __name__ == '__main__':
     Dist(
-        name="Zhongan", data_folder="../f_AutoNN/_Data",
+        name="Zhongan",
+        data_info={"data_folder": "../f_AutoNN/_Data"},
         model_param_settings={"max_epoch": 3},
         model_structure_settings={"use_wide_network": False, "use_pruner": False}
-    ).fit(snapshot_ratio=0).save()
+    ).k_random().save()
     Dist(
-        name="Zhongan", data_folder="../f_AutoNN/_Data",
+        name="Zhongan",
+        data_info={"data_folder": "../f_AutoNN/_Data"},
         model_param_settings={"max_epoch": 3},
         model_structure_settings={"use_wide_network": False, "use_pruner": False}
     ).load().fit(snapshot_ratio=0)

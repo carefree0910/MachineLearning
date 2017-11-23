@@ -24,6 +24,7 @@ class Advanced(Basic):
             assert_msg = "data_info should be a dictionary"
             assert isinstance(data_info, dict), assert_msg
             self._data_info = data_info
+        self._data_info_initialized = False
         self.numerical_idx = self.categorical_columns = None
 
         self._deep_input = self._wide_input = None
@@ -42,6 +43,26 @@ class Advanced(Basic):
         super(Advanced, self).init_all_settings()
         self.tf_collections.append("_n_batch_placeholder")
 
+    def init_data_info(self):
+        if self._data_info_initialized:
+            return
+        self._data_info_initialized = True
+        self.numerical_idx = self._data_info.get("numerical_idx", None)
+        self.categorical_columns = self._data_info.get("categorical_columns", None)
+        if self.numerical_idx is None:
+            raise ValueError("numerical_idx should be provided")
+        if self.categorical_columns is None:
+            raise ValueError("categorical_columns should be provided")
+        if len(self.numerical_idx) != self.n_dim + 1:
+            raise ValueError("Length of numerical_idx should be {}, {} found".format(
+                self.n_dim + 1, len(self.numerical_idx)
+            ))
+        self.n_dim -= len(self.categorical_columns)
+
+    def init_from_data(self, x, y, x_test, y_test, sample_weights, names):
+        self.init_data_info()
+        super(Advanced, self).init_from_data(x, y, x_test, y_test, sample_weights, names)
+
     def init_model_param_settings(self):
         super(Advanced, self).init_model_param_settings()
         self.dropout_keep_prob = self.model_param_settings.get("p_keep", 0.5)
@@ -58,20 +79,6 @@ class Advanced(Basic):
         else:
             self._dndf = DNDF(self.n_class) if self.model_structure_settings.get("use_dndf", True) else None
         self._pruner = Pruner() if self.model_structure_settings.get("use_pruner", True) else None
-
-    def init_data_info(self, x, y, x_test, y_test, sample_weights):
-        super(Advanced, self).init_data_info(x, y, x_test, y_test, sample_weights)
-        self.numerical_idx = self._data_info.get("numerical_idx", None)
-        self.categorical_columns = self._data_info.get("categorical_columns", None)
-        if self.numerical_idx is None:
-            raise ValueError("numerical_idx should be provided")
-        if self.categorical_columns is None:
-            raise ValueError("categorical_columns should be provided")
-        if len(self.numerical_idx) != self.n_dim + 1:
-            raise ValueError("Length of numerical_idx should be {}, {} found".format(
-                self.n_dim + 1, len(self.numerical_idx)
-            ))
-        self.n_dim -= len(self.categorical_columns)
 
     def _get_embedding(self, i, n):
         embedding_size = math.ceil(math.log2(n)) + 1 if self.embedding_size == "log" else self.embedding_size

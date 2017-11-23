@@ -18,9 +18,12 @@ class Auto(Advanced):
                  pre_process_settings=None, nan_handler_settings=None):
         if name is None:
             raise ValueError("name should be provided in AutoNN")
-        super(Auto, self).__init__(name, data_info, model_param_settings, model_structure_settings)
-        self._name_appendix = "Auto"
-        self._data_info_initialized = False
+
+        self._data_folder = None
+        self.is_numeric_label = None
+        self.whether_redundant = None
+        self.feature_sets = self.sparsity = self.class_prior = None
+        self.n_features = self.all_num_idx = self.transform_dicts = None
 
         if pre_process_settings is None:
             pre_process_settings = {}
@@ -28,8 +31,8 @@ class Auto(Advanced):
             assert_msg = "pre_process_settings must be a dictionary"
             assert isinstance(pre_process_settings, dict), assert_msg
         self._pre_process_settings = pre_process_settings
-        self._pre_processor = None
-        self.pre_process_method = self.scale_method = self.refresh_mean_and_std = None
+        self._pre_processors = None
+        self.pre_process_method = self.scale_method = self.reuse_mean_and_std_from_train = None
 
         if nan_handler_settings is None:
             nan_handler_settings = {}
@@ -40,11 +43,11 @@ class Auto(Advanced):
         self._nan_handler = None
         self.nan_handler_method = self.reuse_nan_handler_values = None
 
-        self._data_folder = None
-        self.is_numeric_label = None
-        self.whether_redundant = None
-        self.feature_sets = self.sparsity = self.class_prior = None
-        self.n_features = self.all_num_idx = self.transform_dicts = None
+        self.init_pre_process_settings()
+        self.init_nan_handler_settings()
+
+        super(Auto, self).__init__(name, data_info, model_param_settings, model_structure_settings)
+        self._name_appendix = "Auto"
 
     @property
     def name(self):
@@ -76,54 +79,53 @@ class Auto(Advanced):
             for arr in arrays
         )
 
-    def init_all_settings(self):
-        super(Auto, self).init_all_settings()
-        self.init_pre_process_settings()
-        self.init_nan_handler_settings()
+    def init_data_info(self):
+        if self._data_info_initialized:
+            return
+        self._data_info_initialized = True
+        self.numerical_idx = self._data_info.get("numerical_idx", None)
+        self.categorical_columns = self._data_info.get("categorical_columns", None)
+        self.feature_sets = self._data_info.get("feature_sets", None)
+        self.sparsity = self._data_info.get("sparsity", None)
+        self.class_prior = self._data_info.get("class_prior", None)
+        if self.feature_sets is not None and self.numerical_idx is not None:
+            self.n_features = [len(feature_set) for feature_set in self.feature_sets]
+            self._gen_categorical_columns()
+        self._data_folder = self._data_info.get("data_folder", "_Data")
+        self._data_info.setdefault("file_type", "txt")
+        self._data_info.setdefault("shuffle", True)
+        self._data_info.setdefault("stage", 3)
+        self._data_info.setdefault("test_rate", 0.1)
 
     def init_pre_process_settings(self):
         self.pre_process_method = self._pre_process_settings.get("pre_process_method", "normalize")
         self.scale_method = self._pre_process_settings.get("scale_method", "truncate")
-        self.refresh_mean_and_std = self._pre_process_settings.get("refresh_mean_and_std", True)
-        if self.pre_process_method is not None and self._pre_processor is None:
-            self._pre_processor = PreProcessor(
-                self.pre_process_method, self.scale_method, self.refresh_mean_and_std
-            )
+        self.reuse_mean_and_std_from_train = self._pre_process_settings.get("reuse_mean_and_std", False)
+        if self.pre_process_method is not None and self._pre_processors is None:
+            self._pre_processors = {}
 
     def init_nan_handler_settings(self):
         self.nan_handler_method = self._nan_handler_settings.get("nan_handler_method", "median")
         self.reuse_nan_handler_values = self._nan_handler_settings.get("reuse_nan_handler_values", True)
 
-    def init_data_info(self, x, y, x_test, y_test, sample_weights):
-        if not self._data_info_initialized:
-            self._data_info_initialized = True
-            self.feature_sets = self._data_info.get("feature_sets", None)
-            self.sparsity = self._data_info.get("sparsity", None)
-            self.class_prior = self._data_info.get("class_prior", None)
-            if self.feature_sets is not None and self.numerical_idx is not None:
-                self.n_features = [len(feature_set) for feature_set in self.feature_sets]
-                self._gen_categorical_columns()
-
-            self._data_folder = self._data_info.get("data_folder", "_Data")
-            file_type = self._data_info.get("file_type", "txt")
-            shuffle = self._data_info.get("shuffle", True)
-            restore = self._data_info.get("restore", True)
-            test_rate = self._data_info.get("test_rate", 0.1)
-            args = (self.numerical_idx, file_type, shuffle, restore, test_rate)
-            if x is None or y is None:
-                x, y, x_test, y_test = self._load_data(None, *args)
-            else:
-                data = np.hstack([x, y.reshape([-1, 1])])
-                if x_test is not None and y_test is not None:
-                    data = (data, np.hstack([x_test, y_test.reshape([-1, 1])]))
-                x, y, x_test, y_test = self._load_data(data, *args)
-
-            self._handle_unbalance(y)
-            self._handle_sparsity()
-
-            self._data_info["numerical_idx"] = self.numerical_idx
-            self._data_info["categorical_columns"] = self.categorical_columns
-        super(Auto, self).init_data_info(x, y, x_test, y_test, sample_weights)
+    def init_from_data(self, x, y, x_test, y_test, sample_weights, names):
+        self.init_data_info()
+        file_type = self._data_info["file_type"]
+        shuffle = self._data_info["shuffle"]
+        stage = self._data_info["stage"]
+        test_rate = self._data_info["test_rate"]
+        args = (self.numerical_idx, file_type, names, shuffle, test_rate, stage)
+        if x is None or y is None:
+            x, y, x_test, y_test = self._load_data(None, *args)
+        else:
+            data = np.hstack([x, y.reshape([-1, 1])])
+            if x_test is not None and y_test is not None:
+                data = (data, np.hstack([x_test, y_test.reshape([-1, 1])]))
+            x, y, x_test, y_test = self._load_data(data, *args)
+        self._handle_unbalance(y)
+        self._handle_sparsity()
+        super(Auto, self).init_from_data(x, y, x_test, y_test, sample_weights, names)
+        self.n_dim -= len(self.categorical_columns)
 
     def _handle_unbalance(self, y):
         class_ratio = self.class_prior.min() / self.class_prior.max()
@@ -150,8 +152,15 @@ class Auto(Advanced):
         if not self.numerical_idx[-1]:
             self.categorical_columns.pop()
 
-    def _transform_data(self, data, include_label=False, refresh_redundant_info=False):
-        print("Transforming data")
+    def _transform_data(self, data, name, train_name="train",
+                        include_label=False, refresh_redundant_info=False, stage=3):
+        print("Transforming {0}data{2} at stage {1}".format(
+            "{} ".format(name) if stage >= 2 else "", stage,
+            "" if name == train_name or not self.reuse_mean_and_std_from_train else
+            " with {} data".format(train_name),
+        ))
+        if self.reuse_mean_and_std_from_train:
+            name = train_name
         label_dict = self.transform_dicts[-1]
         if refresh_redundant_info or self.whether_redundant is None:
             self.whether_redundant = np.array([
@@ -163,45 +172,51 @@ class Auto(Advanced):
                 zip(self.numerical_idx, self.transform_dicts)
             ) if not idx and local_dict and not self.whether_redundant[i]
         ][:-1]
-        # Transform
-        for line in data:
-            for i, local_dict in targets:
-                elem = line[i]
-                if isinstance(elem, str):
-                    line[i] = local_dict[elem]
-                elif math.isnan(elem):
-                    line[i] = local_dict["nan"]
+        if stage == 1 or stage == 3:
+            # Transform
+            for line in data:
+                for i, local_dict in targets:
+                    elem = line[i]
+                    if isinstance(elem, str):
+                        line[i] = local_dict[elem]
+                    elif math.isnan(elem):
+                        line[i] = local_dict["nan"]
+                    else:
+                        line[i] = local_dict[elem]
+                if include_label and not self.is_numeric_label:
+                    line[-1] = label_dict[line[-1]]
+            data = np.array(data, dtype=np.float32)
+            # Handle redundant
+            n_redundant = np.sum(self.whether_redundant)
+            if n_redundant > 0:
+                whether_redundant = self.whether_redundant
+                if not include_label:
+                    whether_redundant = whether_redundant[:-1]
+                if refresh_redundant_info:
+                    warn_msg = "{} redundant: {}{}".format(
+                        "These {} columns are".format(n_redundant) if n_redundant > 1 else "One column is",
+                        [i for i, redundant in enumerate(whether_redundant) if redundant],
+                        ", {} will be removed".format("it" if n_redundant == 1 else "they")
+                    )
+                    print(warn_msg)
+                    self.numerical_idx = self.remove_redundant(whether_redundant, self.numerical_idx)
+                    self.n_features = self.remove_redundant(whether_redundant, self.n_features)
+                data = data[..., ~whether_redundant]
+        if stage == 2 or stage == 3:
+            data = np.asarray(data, dtype=np.float32)
+            # Handle nan
+            if self._nan_handler is None:
+                self._nan_handler = NanHandler(self.nan_handler_method)
+            data = self._nan_handler.transform(data, self.numerical_idx[:-1])
+            # Pre-process data
+            if self._pre_processors is not None:
+                pre_processor = self._pre_processors.setdefault(name, PreProcessor(
+                    self.pre_process_method, self.scale_method
+                ))
+                if not include_label:
+                    data = pre_processor.transform(data, self.numerical_idx[:-1])
                 else:
-                    line[i] = local_dict[elem]
-            if include_label and not self.is_numeric_label:
-                line[-1] = label_dict[line[-1]]
-        data = np.array(data, dtype=np.float32)
-        # Handle redundant
-        n_redundant = np.sum(self.whether_redundant)
-        if n_redundant > 0:
-            whether_redundant = self.whether_redundant
-            if not include_label:
-                whether_redundant = whether_redundant[:-1]
-            if refresh_redundant_info:
-                warn_msg = "{} redundant: {}{}".format(
-                    "These {} columns are".format(n_redundant) if n_redundant > 1 else "One column is",
-                    [i for i, redundant in enumerate(whether_redundant) if redundant],
-                    ", {} will be removed".format("it" if n_redundant == 1 else "they")
-                )
-                print(warn_msg)
-                self.numerical_idx = self.remove_redundant(whether_redundant, self.numerical_idx)
-                self.n_features = self.remove_redundant(whether_redundant, self.n_features)
-            data = data[..., ~whether_redundant]
-        # Handle nan
-        if self._nan_handler is None:
-            self._nan_handler = NanHandler(self.numerical_idx, self.nan_handler_method)
-        data = self._nan_handler.transform(data)
-        # Pre-process data
-        if self._pre_processor is not None:
-            if not include_label:
-                data = self._pre_processor.transform(data, self.numerical_idx[:-1])
-            else:
-                data[..., :-1] = self._pre_processor.transform(data[..., :-1], self.numerical_idx[:-1])
+                    data[..., :-1] = pre_processor.transform(data[..., :-1], self.numerical_idx[:-1])
         return data
 
     def _get_label_dict(self):
@@ -234,24 +249,27 @@ class Auto(Advanced):
         else:
             self.transform_dicts.append(self._get_label_dict())
 
-    def _load_data(self, data=None, numerical_idx=None, file_type="txt",
-                   shuffle=True, restore=True, test_rate=0.1):
-        data_folder = os.path.join(self._data_folder, "_Cache", self._name)
-        data_info_folder = os.path.join(self._data_folder, "_DataInfo")
-        data_info_file = os.path.join(data_info_folder, "{}.info".format(self._name))
-        train_data_file = os.path.join(data_folder, "train.npy")
-        test_data_file = os.path.join(data_folder, "test.npy")
-
+    def _load_data(self, data=None, numerical_idx=None, file_type="txt", names=("train", "test"),
+                   shuffle=True, test_rate=0.1, stage=3):
+        if stage < 2:
+            names = (None, None)
         use_cached_data = False
         train_data = test_data = None
-        if data is None and restore and os.path.isfile(train_data_file):
+        data_cache_folder = os.path.join(self._data_folder, "_Cache", self._name)
+        data_info_folder = os.path.join(self._data_folder, "_DataInfo")
+        data_info_file = os.path.join(data_info_folder, "{}.info".format(self._name))
+        train_data_file = os.path.join(data_cache_folder, "train.npy")
+        test_data_file = os.path.join(data_cache_folder, "test.npy")
+
+        if data is None and stage >= 2 and os.path.isfile(train_data_file):
             print("Restoring data")
             use_cached_data = True
             train_data = np.load(train_data_file)
             test_data = np.load(test_data_file) if os.path.isfile(test_data_file) else None
             data = train_data if test_data is None else (train_data, test_data)
-
-        if not use_cached_data:
+        if use_cached_data:
+            n_train = None
+        else:
             if file_type == "txt":
                 sep, include_header = " ", False
             elif file_type == "csv":
@@ -283,12 +301,9 @@ class Auto(Advanced):
                 if shuffle:
                     random.shuffle(data)
                 n_train = int(len(data) * (1 - test_rate)) if test_rate > 0 else -1
-        else:
-            n_train = None
-
         if not os.path.exists(data_info_folder):
             os.makedirs(data_info_folder)
-        if not os.path.isfile(data_info_file) or not restore:
+        if not os.path.isfile(data_info_file) or stage < 2:
             print("Generating data info")
             if numerical_idx is not None:
                 self.numerical_idx = numerical_idx
@@ -298,34 +313,33 @@ class Auto(Advanced):
                 self.feature_sets, self.n_features, self.all_num_idx, self.numerical_idx = (
                     Toolbox.get_feature_info(data, numerical_idx)
                 )
-            self.n_class = self.n_features[-1]
+            self.n_class = 1 if self.numerical_idx[-1] else self.n_features[-1]
             self._get_transform_dicts()
             with open(data_info_file, "wb") as file:
                 pickle.dump([
                     self.n_features, self.numerical_idx, self.transform_dicts, self.is_numeric_label
                 ], file)
-        else:
+        elif stage != 2:
             print("Restoring data info")
             with open(data_info_file, "rb") as file:
                 data_info = pickle.load(file)
                 self.n_features, self.numerical_idx, self.transform_dicts, self.is_numeric_label = data_info
-            self.n_class = self.n_features[-1]
+            self.n_class = self.n_features[-1] if not self.numerical_idx[-1] else 1
 
         if not use_cached_data:
             if n_train > 0:
                 train_data, test_data = data[:n_train], data[n_train:]
             else:
                 train_data, test_data = data, None
-            train_data = self._transform_data(train_data, True, True)
+            train_name, test_name = names
+            train_data = self._transform_data(train_data, train_name, train_name, True, True, stage)
             if test_data is not None:
-                test_data = self._transform_data(test_data, True)
-
+                test_data = self._transform_data(test_data, test_name, train_name, True, stage=stage)
         self._gen_categorical_columns()
-
-        if not use_cached_data:
+        if not use_cached_data and stage == 3:
             print("Caching data...")
-            if not os.path.exists(data_folder):
-                os.makedirs(data_folder)
+            if not os.path.exists(data_cache_folder):
+                os.makedirs(data_cache_folder)
             np.save(train_data_file, train_data)
             if test_data is not None:
                 np.save(test_data_file, test_data)
@@ -339,6 +353,9 @@ class Auto(Advanced):
         _, class_counts = np.unique(y, return_counts=True)
         self.class_prior = class_counts / class_counts.sum()
 
+        self._data_info["numerical_idx"] = self.numerical_idx
+        self._data_info["categorical_columns"] = self.categorical_columns
+
         return x, y, x_test, y_test
 
     def _define_py_collections(self):
@@ -348,15 +365,15 @@ class Auto(Advanced):
             "_pre_processor", "_nan_handler", "transform_dicts"
         ]
 
-    def fit(self, x=None, y=None, x_test=None, y_test=None, sample_weights=None,
+    def fit(self, x=None, y=None, x_test=None, y_test=None, sample_weights=None, names=("train", "test"),
             timeit=True, snapshot_ratio=3, print_settings=True, verbose=1):
         return super(Auto, self).fit(
-            x, y, x_test, y_test, sample_weights,
+            x, y, x_test, y_test, sample_weights, names,
             timeit, snapshot_ratio, print_settings, verbose
         )
 
     def predict(self, x):
-        return self._predict(self._transform_data(x))
+        return self._predict(self._transform_data(x, "test"))
 
     def predict_target_prob(self, x, target):
         prob = self.predict(x)
@@ -366,11 +383,11 @@ class Auto(Advanced):
         return prob[..., target]
 
     def evaluate(self, x, y, x_cv=None, y_cv=None, x_test=None, y_test=None):
-        x = self._transform_data(x)
+        x = self._transform_data(x, "train")
         if x_cv is not None:
-            x_cv = self._transform_data(x_cv)
+            x_cv = self._transform_data(x_cv, "cv")
         if x_test is not None:
-            x_test = self._transform_data(x_test)
+            x_test = self._transform_data(x_test, "test")
         return self._evaluate(x, y, x_cv, y_cv, x_test, y_test)
 
 
