@@ -741,7 +741,7 @@ class NanHandler:
                 no_nan_feat.append(f)
         return no_nan_feat
 
-    def handle(self, x, refresh_values=False):
+    def transform(self, x, refresh_values=False):
         if self.handler is None:
             pass
         elif self.handler == "delete":
@@ -841,7 +841,7 @@ class PreProcessor:
         x[..., numerical_idx] /= self._std
         return x
 
-    def process(self, x, numerical_idx):
+    def transform(self, x, numerical_idx):
         x = self._scale(np.array(x, dtype=np.float32), numerical_idx)
         x = getattr(self, "_" + self.method)(x, numerical_idx)
         return x

@@ -20,6 +20,7 @@ class Auto(Advanced):
             raise ValueError("name should be provided in AutoNN")
         super(Auto, self).__init__(name, data_info, model_param_settings, model_structure_settings)
         self._name_appendix = "Auto"
+        self._data_info_initialized = False
 
         if pre_process_settings is None:
             pre_process_settings = {}
@@ -94,33 +95,34 @@ class Auto(Advanced):
         self.reuse_nan_handler_values = self._nan_handler_settings.get("reuse_nan_handler_values", True)
 
     def init_data_info(self, x, y, x_test, y_test, sample_weights):
-        self.feature_sets = self._data_info.get("feature_sets", None)
-        self.sparsity = self._data_info.get("sparsity", None)
-        self.class_prior = self._data_info.get("class_prior", None)
-        if self.feature_sets is not None and self.numerical_idx is not None:
-            self.n_features = [len(feature_set) for feature_set in self.feature_sets]
-            self._gen_categorical_columns()
+        if not self._data_info_initialized:
+            self._data_info_initialized = True
+            self.feature_sets = self._data_info.get("feature_sets", None)
+            self.sparsity = self._data_info.get("sparsity", None)
+            self.class_prior = self._data_info.get("class_prior", None)
+            if self.feature_sets is not None and self.numerical_idx is not None:
+                self.n_features = [len(feature_set) for feature_set in self.feature_sets]
+                self._gen_categorical_columns()
 
-        self._data_folder = self._data_info.get("data_folder", "_Data")
-        file_type = self._data_info.get("file_type", "txt")
-        shuffle = self._data_info.get("shuffle", True)
-        restore = self._data_info.get("restore", True)
-        test_rate = self._data_info.get("test_rate", 0.1)
-        args = (self.numerical_idx, file_type, shuffle, restore, test_rate)
-        if x is None or y is None:
-            x, y, x_test, y_test = self._load_data(None, *args)
-        else:
-            data = np.hstack([x, y.reshape([-1, 1])])
-            if x_test is not None and y_test is not None:
-                data = (data, np.hstack([x_test, y_test.reshape([-1, 1])]))
-            x, y, x_test, y_test = self._load_data(data, *args)
+            self._data_folder = self._data_info.get("data_folder", "_Data")
+            file_type = self._data_info.get("file_type", "txt")
+            shuffle = self._data_info.get("shuffle", True)
+            restore = self._data_info.get("restore", True)
+            test_rate = self._data_info.get("test_rate", 0.1)
+            args = (self.numerical_idx, file_type, shuffle, restore, test_rate)
+            if x is None or y is None:
+                x, y, x_test, y_test = self._load_data(None, *args)
+            else:
+                data = np.hstack([x, y.reshape([-1, 1])])
+                if x_test is not None and y_test is not None:
+                    data = (data, np.hstack([x_test, y_test.reshape([-1, 1])]))
+                x, y, x_test, y_test = self._load_data(data, *args)
 
-        self._handle_unbalance(y)
-        self._handle_sparsity()
+            self._handle_unbalance(y)
+            self._handle_sparsity()
 
-        self._data_info["numerical_idx"] = self.numerical_idx
-        self._data_info["categorical_columns"] = self.categorical_columns
-
+            self._data_info["numerical_idx"] = self.numerical_idx
+            self._data_info["categorical_columns"] = self.categorical_columns
         super(Auto, self).init_data_info(x, y, x_test, y_test, sample_weights)
 
     def _handle_unbalance(self, y):
@@ -174,10 +176,6 @@ class Auto(Advanced):
             if include_label and not self.is_numeric_label:
                 line[-1] = label_dict[line[-1]]
         data = np.array(data, dtype=np.float32)
-        # Handle nan
-        if self._nan_handler is None:
-            self._nan_handler = NanHandler(self.numerical_idx, self.nan_handler_method)
-        data = self._nan_handler.handle(data)
         # Handle redundant
         n_redundant = np.sum(self.whether_redundant)
         if n_redundant > 0:
@@ -194,12 +192,16 @@ class Auto(Advanced):
                 self.numerical_idx = self.remove_redundant(whether_redundant, self.numerical_idx)
                 self.n_features = self.remove_redundant(whether_redundant, self.n_features)
             data = data[..., ~whether_redundant]
+        # Handle nan
+        if self._nan_handler is None:
+            self._nan_handler = NanHandler(self.numerical_idx, self.nan_handler_method)
+        data = self._nan_handler.transform(data)
         # Pre-process data
         if self._pre_processor is not None:
             if not include_label:
-                data = self._pre_processor.process(data, self.numerical_idx[:-1])
+                data = self._pre_processor.transform(data, self.numerical_idx[:-1])
             else:
-                data[..., :-1] = self._pre_processor.process(data[..., :-1], self.numerical_idx[:-1])
+                data[..., :-1] = self._pre_processor.transform(data[..., :-1], self.numerical_idx[:-1])
         return data
 
     def _get_label_dict(self):
@@ -378,5 +380,5 @@ if __name__ == '__main__':
         data_info={"file_type": "csv"},
         model_param_settings={"max_epoch": 3},
         model_structure_settings={"use_wide_network": False, "use_pruner": True}
-    ).fit().save()
+    ).fit().fit().save()
     nn = Auto("Adult").load().fit()
