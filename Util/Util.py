@@ -178,19 +178,6 @@ class DataUtil:
         return data, DataUtil.get_one_hot(labels, 2)
 
     @staticmethod
-    def gen_noisy_linear(size=10000, n_dim=100, n_valid=5, noise_scale=0.5, test_ratio=0.15, one_hot=True):
-        x_train = np.random.randn(size, n_dim)
-        x_train_noise = x_train + np.random.randn(size, n_dim) * noise_scale
-        x_test = np.random.randn(int(size*test_ratio), n_dim)
-        idx = np.random.permutation(n_dim)[:n_valid]
-        w = np.random.randn(n_valid, 1)
-        y_train = (x_train[..., idx].dot(w) > 0).astype(np.int8).ravel()
-        y_test = (x_test[..., idx].dot(w) > 0).astype(np.int8).ravel()
-        if not one_hot:
-            return (x_train_noise, y_train), (x_test, y_test)
-        return (x_train_noise, DataUtil.get_one_hot(y_train, 2)), (x_test, DataUtil.get_one_hot(y_test, 2))
-
-    @staticmethod
     def gen_simple_non_linear(size=120, one_hot=True):
         xs = np.random.randn(size, 2).astype(np.float32) * 1.5
         ys = np.zeros(size, dtype=np.int8)
@@ -213,9 +200,38 @@ class DataUtil:
         labels[mask2] = 2
         labels[(x_mid_mask | y_mid_mask) & ~mask2] = 1
         xs = np.vstack([x, y]).T
-        if one_hot:
-            return xs, DataUtil.get_one_hot(labels, 3)
-        return xs, labels
+        if not one_hot:
+            return xs, labels
+        return xs, DataUtil.get_one_hot(labels, 3)
+
+    @staticmethod
+    def gen_x_set(size=1000, centers=(1, 1), slopes=(1, -1), gaps=(0.1, 0.1), one_hot=True):
+        xc, yc = centers
+        x, y = (2 * np.random.random([size, 2]) + np.asarray(centers) - 1).T.astype(np.float32)
+        l1 = (-slopes[0] * (x - xc) + y - yc) > 0
+        l2 = (-slopes[1] * (x - xc) + y - yc) > 0
+        labels = np.zeros(size, dtype=np.int8)
+        mask = (l1 & ~l2) | (~l1 & l2)
+        labels[mask] = 1
+        x[mask] += gaps[0] * np.sign(x[mask] - centers[0])
+        y[~mask] += gaps[1] * np.sign(y[~mask] - centers[1])
+        xs = np.vstack([x, y]).T
+        if not one_hot:
+            return xs, labels
+        return xs, DataUtil.get_one_hot(labels, 2)
+
+    @staticmethod
+    def gen_noisy_linear(size=10000, n_dim=100, n_valid=5, noise_scale=0.5, test_ratio=0.15, one_hot=True):
+        x_train = np.random.randn(size, n_dim)
+        x_train_noise = x_train + np.random.randn(size, n_dim) * noise_scale
+        x_test = np.random.randn(int(size*test_ratio), n_dim)
+        idx = np.random.permutation(n_dim)[:n_valid]
+        w = np.random.randn(n_valid, 1)
+        y_train = (x_train[..., idx].dot(w) > 0).astype(np.int8).ravel()
+        y_test = (x_test[..., idx].dot(w) > 0).astype(np.int8).ravel()
+        if not one_hot:
+            return (x_train_noise, y_train), (x_test, y_test)
+        return (x_train_noise, DataUtil.get_one_hot(y_train, 2)), (x_test, DataUtil.get_one_hot(y_test, 2))
 
     @staticmethod
     def quantize_data(x, y, wc=None, continuous_rate=0.1, separate=False):
