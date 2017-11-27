@@ -260,7 +260,7 @@ class Base:
         self.batch_size = min(self.batch_size, len(self._train_generator))
         self.n_iter = self.model_param_settings.get("n_iter", -1)
         if self.n_iter < 0:
-            self.n_iter = len(self._train_generator) // self.batch_size
+            self.n_iter = int(len(self._train_generator) / self.batch_size)
         self._optimizer_name = self.model_param_settings.get("optimizer", "Adam")
         self.lr = self.model_param_settings.get("lr", 1e-3)
         self._optimizer = getattr(tf.train, "{}Optimizer".format(self._optimizer_name))(self.lr)
@@ -406,7 +406,7 @@ class Base:
         test_pred = self._predict(x_test) if x_test is not None else None
         print("{}  -  Train : {}   CV : {}   Test : {}".format(
             self._metric_name,
-            "None" if y is None else self._metric(y, pred),
+            "None" if y is None else "{:8.6}".format(self._metric(y, pred)),
             "None" if y_cv is None else "{:8.6}".format(self._metric(y_cv, cv_pred)),
             "None" if y_test is None else "{:8.6}".format(self._metric(y_test, test_pred))
         ))
@@ -528,7 +528,8 @@ class Base:
             snapshot_step = self.n_iter
         else:
             use_monitor = True
-            snapshot_step = self.n_iter // snapshot_ratio
+            snapshot_ratio = min(snapshot_ratio, self.n_iter)
+            snapshot_step = int(self.n_iter / snapshot_ratio)
 
         terminate = False
         over_fitting_flag = 0
