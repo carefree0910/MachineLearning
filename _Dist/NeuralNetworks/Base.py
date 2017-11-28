@@ -255,7 +255,7 @@ class Base:
             self._metric, self._metric_name = getattr(Metrics, metric), metric
         self.n_epoch = self.model_param_settings.get("n_epoch", 32)
         self.max_epoch = self.model_param_settings.get("max_epoch", 256)
-        self.n_epoch = min(self.n_epoch, self.max_epoch)
+        self.max_epoch = max(self.max_epoch, self.n_epoch)
         self.batch_size = self.model_param_settings.get("batch_size", 128)
         self.batch_size = min(self.batch_size, len(self._train_generator))
         self.n_iter = self.model_param_settings.get("n_iter", -1)
