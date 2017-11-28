@@ -711,7 +711,7 @@ class Base:
         return self
 
     def visualize2d(self, x, y, padding=0.1, dense=200, title=None,
-                    show_org=False, draw_background=True, emphasize=None, extra=None):
+                    scatter=True, show_org=False, draw_background=True, emphasize=None, extra=None):
         axis, labels = np.asarray(x).T, np.asarray(y)
 
         print("=" * 30 + "\n" + str(self))
@@ -764,7 +764,8 @@ class Base:
             plt.pcolormesh(xy_xf, xy_yf, z, cmap=plt.cm.Pastel1)
         else:
             plt.contour(xf, yf, z, c='k-', levels=[0])
-        plt.scatter(axis[0], axis[1], c=colors)
+        if scatter:
+            plt.scatter(axis[0], axis[1], c=colors)
         if emphasize is not None:
             indices = np.array([False] * len(axis[0]))
             indices[np.asarray(emphasize)] = True

@@ -172,18 +172,3 @@ class DT2NN(TransformationBase):
         w2 *= max_route_length
         self._transform_ws = [w1, w2, w3]
         self._transform_bs = [b]
-
-
-if __name__ == '__main__':
-    from Util.Util import DataUtil
-
-    centers = (1, 1)
-    slopes = (0.5, -2)
-    x, y = DataUtil.gen_x_set(1000, centers, slopes, one_hot=False)
-    x_test, y_test = DataUtil.gen_x_set(100, centers, slopes, one_hot=False)
-
-    (x, y), (x_test, y_test), *_ = DataUtil.get_dataset("cifar10", "../../../_Data/cifar10.txt", 400, quantized=True)
-
-    DT2NN().fit(x, y, x_test, y_test).scatter2d(
-        x, y, padding=0.1, title="X set"
-    ).visualize2d(x, y).visualize2d(x_test, y_test, padding=1)
