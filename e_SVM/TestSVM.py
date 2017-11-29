@@ -52,7 +52,7 @@ def main():
     svm.visualize2d(x, y, padding=0.1, dense=400, emphasize=svm.support_)
 
     (x_train, y_train), (x_test, y_test), *_ = DataUtil.get_dataset(
-        "mushroom", "../_Data/mushroom.txt", train_num=100, quantize=True, tar_idx=0)
+        "mushroom", "../_Data/mushroom.txt", n_train=100, quantize=True, tar_idx=0)
     y_train[y_train == 0] = -1
     y_test[y_test == 0] = -1
 

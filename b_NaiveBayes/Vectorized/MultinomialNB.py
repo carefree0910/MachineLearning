@@ -100,7 +100,7 @@ if __name__ == '__main__':
 
     train_num = 6000
     (x_train, y_train), (x_test, y_test) = DataUtil.get_dataset(
-        "mushroom", "../../_Data/mushroom.txt", train_num=train_num, tar_idx=0)
+        "mushroom", "../../_Data/mushroom.txt", n_train=train_num, tar_idx=0)
 
     learning_time = time.time()
     nb = MultinomialNB()

@@ -36,7 +36,7 @@ def main(visualize=True):
 
     train_num = 6000
     (x_train, y_train), (x_test, y_test), *_ = DataUtil.get_dataset(
-        "mushroom", "../_Data/mushroom.txt", tar_idx=0, train_num=train_num)
+        "mushroom", "../_Data/mushroom.txt", tar_idx=0, n_train=train_num)
     fit_time = time.time()
     tree = C45Tree()
     tree.fit(x_train, y_train)
@@ -87,7 +87,7 @@ def main(visualize=True):
 
     train_num = 2000
     (x_train, y_train), (x_test, y_test), *_ = DataUtil.get_dataset(
-        "bank1.0", "../_Data/bank1.0.txt", train_num=train_num, quantize=True)
+        "bank1.0", "../_Data/bank1.0.txt", n_train=train_num, quantize=True)
     fit_time = time.time()
     tree = CartTree()
     tree.fit(x_train, y_train)

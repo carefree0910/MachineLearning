@@ -120,7 +120,7 @@ if __name__ == '__main__':
     train_num = 40000
     data_time = time.time()
     (x_train, y_train), (x_test, y_test) = DataUtil.get_dataset(
-        "bank1.0", "../../_Data/bank1.0.txt", train_num=train_num)
+        "bank1.0", "../../_Data/bank1.0.txt", n_train=train_num)
     data_time = time.time() - data_time
     learning_time = time.time()
     nb = MergedNB(whether_continuous=whether_continuous)

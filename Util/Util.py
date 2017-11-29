@@ -86,7 +86,7 @@ class DataUtil:
         return False
 
     @staticmethod
-    def get_dataset(name, path, train_num=None, tar_idx=None, shuffle=True,
+    def get_dataset(name, path, n_train=None, tar_idx=None, shuffle=True,
                     quantize=False, quantized=False, one_hot=False, **kwargs):
         x = []
         with open(path, "r", encoding="utf8") as file:
@@ -111,16 +111,16 @@ class DataUtil:
         else:
             x = np.asarray(x)
         if quantized or not quantize:
-            if train_num is None:
+            if n_train is None:
                 return x, y
-            return (x[:train_num], y[:train_num]), (x[train_num:], y[train_num:])
+            return (x[:n_train], y[:n_train]), (x[n_train:], y[n_train:])
         x, y, wc, features, feat_dicts, label_dict = DataUtil.quantize_data(x, y, **kwargs)
         if one_hot:
             y = (y[..., None] == np.arange(np.max(y)+1)).astype(np.int8)
-        if train_num is None:
+        if n_train is None:
             return x, y, wc, features, feat_dicts, label_dict
         return (
-            (x[:train_num], y[:train_num]), (x[train_num:], y[train_num:]),
+            (x[:n_train], y[:n_train]), (x[n_train:], y[n_train:]),
             wc, features, feat_dicts, label_dict
         )
 
@@ -279,7 +279,7 @@ class DataUtil:
 
 class VisUtil:
     @staticmethod
-    def get_colors(line, all_pos):
+    def get_colors(line, all_positive):
         # c_base = 60
         # colors = []
         # for weight in line:
@@ -287,7 +287,7 @@ class VisUtil:
         # return colors
         # noinspection PyTypeChecker
         colors = np.full([len(line), 3], [0, 195, 255], dtype=np.uint8)
-        if all_pos:
+        if all_positive:
             return colors.tolist()
         colors[line < 0] = [255, 195, 0]
         return colors.tolist()
