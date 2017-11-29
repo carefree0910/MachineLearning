@@ -7,7 +7,6 @@ if root_path not in sys.path:
 import numpy as np
 import tensorflow as tf
 
-from _Dist.NeuralNetworks.Base import Generator
 from _Dist.NeuralNetworks.f_AutoNN.NN import Auto
 from _Dist.NeuralNetworks.NNUtil import Toolbox, PreProcessor
 
@@ -56,7 +55,7 @@ class Dist(Auto):
                 if self._test_generator is None:
                     test_data, _ = self._train_generator.get_range(train_cursor, test_cursor)
                     x_test, y_test = test_data[..., :-1], test_data[..., -1]
-                    self._test_generator = Generator(x_test, y_test, name="TestGenerator")
+                    self._test_generator = self._generator_base(x_test, y_test, name="TestGenerator")
                 self._train_generator.set_range(cursor, train_cursor)
                 kwargs["print_settings"] = print_settings
                 self.fit(**kwargs)
@@ -96,9 +95,9 @@ class Dist(Auto):
         self._handle_unbalance(y)
         self._handle_sparsity()
         if data is not None:
-            self._train_generator = Generator(x, y, self._sample_weights, name="Generator")
+            self._train_generator = self._generator_base(x, y, self._sample_weights, name="Generator")
             if x_test is not None and y_test is not None:
-                self._test_generator = Generator(x_test, y_test, name="TestGenerator")
+                self._test_generator = self._generator_base(x_test, y_test, name="TestGenerator")
         self.fit(**kwargs)
         x, y, _ = self._gen_batch(self._train_generator, self.n_random_train_subset, True)
         print("  -  Performance of increment fit", end=" | ")
@@ -170,7 +169,7 @@ class Dist(Auto):
         self._merge_preprocessors_from_k_series(names)
         self._sample_weights = sample_weights_store
         if x_test is not None and y_test is not None:
-            self._test_generator = Generator(x_test, y_test, name="TestGenerator")
+            self._test_generator = self._generator_base(x_test, y_test, name="TestGenerator")
         return self
 
     def k_random(self, k=3, data=None, cv_rate=0.1, test_rate=0., sample_weights=None, **kwargs):
@@ -201,7 +200,7 @@ class Dist(Auto):
         self._merge_preprocessors_from_k_series(names)
         self._sample_weights = sample_weights_store
         if x_test is not None and y_test is not None:
-            self._test_generator = Generator(x_test, y_test, name="TestGenerator")
+            self._test_generator = self._generator_base(x_test, y_test, name="TestGenerator")
         return self
 
 

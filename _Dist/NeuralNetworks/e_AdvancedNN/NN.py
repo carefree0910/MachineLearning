@@ -37,11 +37,7 @@ class Advanced(Basic):
         self._use_wide_network = self._dndf = self._pruner = None
 
         self._tf_p_keep = None
-        self._n_batch_placeholder = tf.placeholder(tf.int32, name="n_batch")
-
-    def init_all_settings(self):
-        super(Advanced, self).init_all_settings()
-        self.tf_collections.append("_n_batch_placeholder")
+        self._n_batch_placeholder = None
 
     def init_data_info(self):
         if self._data_info_initialized:
@@ -222,6 +218,7 @@ class Advanced(Basic):
             self._is_training, lambda: self.dropout_keep_prob, lambda: 1.,
             name="p_keep"
         )
+        self._n_batch_placeholder = tf.placeholder(tf.int32, name="n_batch")
 
     def _define_py_collections(self):
         super(Advanced, self)._define_py_collections()
@@ -230,7 +227,7 @@ class Advanced(Basic):
     def _define_tf_collections(self):
         super(Advanced, self)._define_tf_collections()
         self.tf_collections += [
-            "_deep_input", "_wide_input",
+            "_deep_input", "_wide_input", "_n_batch_placeholder",
             "_embedding", "_one_hot", "_embedding_with_one_hot",
             "_embedding_concat", "_one_hot_concat", "_embedding_with_one_hot_concat",
         ]
@@ -240,12 +237,15 @@ class Advanced(Basic):
         super(Advanced, self).add_tf_collections()
         for tf_list in self.tf_list_collections:
             target_list = getattr(self, tf_list)
+            if target_list is None:
+                continue
             for tensor in target_list:
                 tf.add_to_collection(tf_list, tensor)
 
     def restore_collections(self, folder):
         for tf_list in self.tf_list_collections:
-            setattr(self, tf_list, tf.get_collection(tf_list))
+            if tf_list is not None:
+                setattr(self, tf_list, tf.get_collection(tf_list))
         super(Advanced, self).restore_collections(folder)
 
     def print_settings(self):

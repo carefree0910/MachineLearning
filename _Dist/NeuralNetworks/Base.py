@@ -37,7 +37,7 @@ class Generator:
                 self.n_class = 1
         self._name = name
         self._do_shuffle = shuffle
-        self._all_valid_data = np.hstack([self._x, self._y.reshape([-1, 1])])
+        self._all_valid_data = self._generate_all_valid_data()
         self._valid_indices = np.arange(len(self._all_valid_data))
         self._random_indices = self._valid_indices.copy()
         np.random.shuffle(self._random_indices)
@@ -71,6 +71,9 @@ class Generator:
     @property
     def shape(self):
         return self.n_valid, self.n_dim
+
+    def _generate_all_valid_data(self):
+        return np.hstack([self._x, self._y.reshape([-1, 1])])
 
     def _cache_current_status(self):
         self._cache["_valid_indices"] = self._valid_indices
@@ -149,6 +152,33 @@ class Generator:
         return self._get_data(self._valid_indices)
 
 
+class Generator3d(Generator):
+    @property
+    def n_time_step(self):
+        return self._x.shape[1]
+
+    @property
+    def shape(self):
+        return self.n_valid, self.n_time_step, self.n_dim
+
+    def _generate_all_valid_data(self):
+        return np.array([(x, y) for x, y in zip(self._x, self._y)])
+
+
+class Generator4d(Generator3d):
+    @property
+    def height(self):
+        return self._x.shape[1]
+
+    @property
+    def width(self):
+        return self._x.shape[2]
+
+    @property
+    def shape(self):
+        return self.n_valid, self.height, self.width, self.n_dim
+
+
 class Base:
     def __init__(self, name=None, model_param_settings=None, model_structure_settings=None):
         tf.reset_default_graph()
@@ -159,6 +189,7 @@ class Base:
 
         self._settings_initialized = False
 
+        self._generator_base = Generator
         self._train_generator = self._test_generator = None
         self._sample_weights = self._tf_sample_weights = None
         self.n_dim = self.n_class = None
@@ -221,9 +252,9 @@ class Base:
         else:
             self._tf_sample_weights = tf.placeholder(tf.float32, name="sample_weights")
 
-        self._train_generator = Generator(x, y, self._sample_weights, name="TrainGenerator")
+        self._train_generator = self._generator_base(x, y, self._sample_weights, name="TrainGenerator")
         if x_test is not None and y_test is not None:
-            self._test_generator = Generator(x_test, y_test, name="TestGenerator")
+            self._test_generator = self._generator_base(x_test, y_test, name="TestGenerator")
         else:
             self._test_generator = None
         self.n_random_train_subset = int(len(self._train_generator) * 0.1)
@@ -431,7 +462,8 @@ class Base:
     def add_tf_collections(self):
         for tensor in self.tf_collections:
             target = getattr(self, tensor)
-            tf.add_to_collection(tensor, target)
+            if target is not None:
+                tf.add_to_collection(tensor, target)
 
     def clear_tf_collections(self):
         for key in self.tf_collections:
@@ -450,6 +482,8 @@ class Base:
                 setattr(self, name, value)
         for tensor in self.tf_collections:
             target = tf.get_collection(tensor)
+            if target is None:
+                continue
             assert len(target) == 1, "{} available '{}' found".format(len(target), tensor)
             setattr(self, tensor, target[0])
         self.clear_tf_collections()
