@@ -10,23 +10,27 @@ from scipy import interp
 from sklearn import metrics
 
 
-def init_w(shape, name):
+def init_w(shape, name, reuse=False):
+    if reuse:
+        return tf.get_variable(name, shape, initializer=tf.contrib.layers.xavier_initializer())
     init_method = tf.truncated_normal
     init_params = {"stddev": math.sqrt(2 / sum(shape))}
     w = tf.Variable(init_method(shape, **init_params), name=name)
     return w
 
 
-def init_b(shape, name):
+def init_b(shape, name, reuse=False):
+    if reuse:
+        return tf.get_variable(name, shape, initializer=tf.zeros_initializer())
     return tf.Variable(np.zeros(shape, dtype=np.float32), name=name)
 
 
-def fully_connected_linear(net, shape, appendix, bias=True):
+def fully_connected_linear(net, shape, appendix, bias=True, reuse=False):
     with tf.name_scope("Linear{}".format(appendix)):
         w_name = "W{}".format(appendix)
-        w = init_w(shape, w_name)
+        w = init_w(shape, w_name, reuse)
         if bias:
-            b = init_b(shape[1], "b{}".format(appendix))
+            b = init_b(shape[1], "b{}".format(appendix), reuse)
             return tf.add(tf.matmul(net, w), b, name="Linear{}".format(appendix))
         return tf.matmul(net, w, name="Linear{}_without_bias".format(appendix))
 
@@ -547,12 +551,15 @@ class TrainMonitor:
 
 
 class DNDF:
-    def __init__(self, n_class, n_tree=16, tree_depth=4):
+    def __init__(self, n_class=None, n_tree=16, tree_depth=4, reuse=False):
         self.n_class = n_class
         self.n_tree, self.tree_depth = n_tree, tree_depth
         self.n_leaf = 2 ** (tree_depth + 1)
+        self.reuse = reuse
 
     def __call__(self, net, n_batch_placeholder, dtype="output"):
+        if dtype != "feature" and self.n_class is None:
+            raise ValueError("dtype={} is not available when n_class is not provided".format(dtype))
         name = "DNDF_{}".format(dtype)
         n_leaf = 2 ** (self.tree_depth + 1)
         with tf.name_scope(name):
@@ -571,8 +578,9 @@ class DNDF:
                 )
             return final_prob_vectors
 
-    @staticmethod
-    def init_prob_w(shape, minval, maxval):
+    def init_prob_w(self, shape, minval, maxval, name="prob_w"):
+        if self.reuse:
+            return tf.get_variable(name, shape, initializer=tf.random_uniform_initializer(minval, maxval))
         return tf.Variable(tf.random_uniform(shape, minval, maxval))
 
     def build_tree_projection(self, dtype, net):
@@ -583,7 +591,7 @@ class DNDF:
                 with tf.name_scope("Decisions"):
                     decisions = tf.nn.sigmoid(fully_connected_linear(
                         local_net, [local_net.get_shape().as_list()[1], self.n_leaf],
-                        "_tree_mapping{}_{}".format(i, dtype), True
+                        "_tree_mapping{}_{}".format(i, dtype), bias=True, reuse=self.reuse
                     ))
                     decisions_comp = 1 - decisions
                     decisions_pack = tf.stack([decisions, decisions_comp])
@@ -625,7 +633,8 @@ class DNDF:
         with tf.name_scope("Leafs"):
             local_leafs = [
                 tf.nn.softmax(
-                    DNDF.init_prob_w([n_leaf, self.n_class], -2, 2), name="Leafs{}".format(i)
+                    self.init_prob_w([n_leaf, self.n_class], -2, 2),
+                    name="Leafs{}".format(i)
                 ) for i in range(n_tree)
             ]
         return local_leafs
