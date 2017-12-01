@@ -186,7 +186,6 @@ class Base:
         self.log = {}
         self._name = name
         self._name_appendix = ""
-
         self._settings_initialized = False
 
         self._generator_base = Generator

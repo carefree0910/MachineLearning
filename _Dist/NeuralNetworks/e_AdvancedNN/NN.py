@@ -61,10 +61,11 @@ class Advanced(Basic):
 
     def init_model_param_settings(self):
         super(Advanced, self).init_model_param_settings()
-        self.dropout_keep_prob = self.model_param_settings.get("p_keep", 0.5)
-        self.use_batch_norm = self.model_param_settings.get("use_batch_norm", False)
+        self.dropout_keep_prob = self.model_param_settings.get("keep_prob", 0.5)
+        self.use_batch_norm = self.model_param_settings.get("use_batch_norm", True)
 
     def init_model_structure_settings(self):
+        self.hidden_units = self.model_structure_settings.get("hidden_units", None)
         self._deep_input = self.model_structure_settings.get("deep_input", "embedding_concat")
         self._wide_input = self.model_structure_settings.get("wide_input", "continuous")
         self.embedding_size = self.model_structure_settings.get("embedding_size", 8)
@@ -210,7 +211,8 @@ class Advanced(Basic):
             self._deep_input = self._tfx
         else:
             self._deep_input = getattr(self, "_" + self._deep_input)
-        self._define_hidden_units()
+        if self.hidden_units is None:
+            self._define_hidden_units()
         self._settings = "{}_{}(dndf)_{}(prune)".format(
             self.hidden_units, self._dndf is not None, self._pruner is not None
         )

@@ -678,7 +678,7 @@ class Pruner:
         self.cursor += 1
         with tf.name_scope("Prune"):
             if self.cond_placeholder is None:
-                log_w = tf.log(tf.maximum(self.eps, tf.abs(w) / (w_abs_mean * self.gamma)))
+                log_w = tf.log(tf.maximum(self.eps, w_abs / (w_abs_mean * self.gamma)))
                 if self.max_ratio > 0:
                     log_w = tf.minimum(self.max_ratio, self.beta * log_w)
                 self.masks.append(tf.maximum(self.alpha / self.beta * log_w, log_w))

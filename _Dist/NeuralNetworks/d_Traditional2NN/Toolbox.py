@@ -172,3 +172,28 @@ class DT2NN(TransformationBase):
         w2 *= max_route_length
         self._transform_ws = [w1, w2, w3]
         self._transform_bs = [b]
+
+
+if __name__ == '__main__':
+    train, test = np.load("train.npy"), np.load("test.npy")
+    x, y = train[..., :-1], train[..., -1]
+    x_test, y_test = test[..., :-1], test[..., -1]
+    # x_mean, x_std = x.mean(), x.std()
+    # x -= x_mean; x /= x_std
+    # x_test -= x_mean; x_test /= x_std
+    from _Dist.NeuralNetworks.e_AdvancedNN.NN import Advanced
+    Advanced(
+        name="madelon",
+        data_info={
+            "numerical_idx": [True] * 500 + [False],
+            "categorical_columns": []
+        },
+        model_param_settings={
+            "lr": 1e-3,
+            "activations": ["relu", "relu"]
+        }, model_structure_settings={
+            "use_pruner": False,
+            "use_wide_network": False,
+            "hidden_units": [152, 153]
+        }
+    ).fit(x, y, x_test, y_test, snapshot_ratio=1)
