@@ -260,7 +260,7 @@ class Base:
         if self._test_generator is None:
             self.n_random_test_subset = -1
         else:
-            self.n_random_test_subset = int(len(self._test_generator))
+            self.n_random_test_subset = len(self._test_generator)
 
         self.n_dim = self._train_generator.shape[-1]
         self.n_class = self._train_generator.n_class
@@ -290,7 +290,7 @@ class Base:
         self.batch_size = min(self.batch_size, len(self._train_generator))
         self.n_iter = self.model_param_settings.get("n_iter", -1)
         if self.n_iter < 0:
-            self.n_iter = int(len(self._train_generator) / self.batch_size)
+            self.n_iter = len(self._train_generator) // self.batch_size
         self._optimizer_name = self.model_param_settings.get("optimizer", "Adam")
         self.lr = self.model_param_settings.get("lr", 1e-3)
         self._optimizer = getattr(tf.train, "{}Optimizer".format(self._optimizer_name))(self.lr)
@@ -380,8 +380,8 @@ class Base:
         return train_metric, test_metric
 
     def _calculate(self, x, y=None, weights=None, tensor=None, n_elem=1e7, is_training=False):
-        n_batch = int(n_elem / x.shape[1])
-        n_repeat = int(len(x) / n_batch)
+        n_batch = n_elem // x.shape[1]
+        n_repeat = len(x) // n_batch
         if n_repeat * n_batch < len(x):
             n_repeat += 1
         cursors = [0]
@@ -562,7 +562,7 @@ class Base:
         else:
             use_monitor = True
             snapshot_ratio = min(snapshot_ratio, self.n_iter)
-            snapshot_step = int(self.n_iter / snapshot_ratio)
+            snapshot_step = self.n_iter // snapshot_ratio
 
         terminate = False
         over_fitting_flag = 0
@@ -613,6 +613,7 @@ class Base:
             if use_monitor:
                 if i_epoch == n_epoch and i_epoch < self.max_epoch and not monitor.rs["terminate"]:
                     monitor.flat_flag = True
+                    monitor.punish_extension()
                     n_epoch = min(n_epoch + monitor.extension, self.max_epoch)
                     print("  -  Extending n_epoch to {}".format(n_epoch))
                 if i_epoch == self.max_epoch:
@@ -626,11 +627,12 @@ class Base:
                         else:
                             print("  -  max_epoch reached")
             if terminate:
-                if over_fitting_flag and os.path.exists(tmp_checkpoint_folder):
+                if os.path.exists(tmp_checkpoint_folder):
                     print("  -  Rolling back to the best checkpoint")
                     self.restore_checkpoint(tmp_checkpoint_folder)
                     shutil.rmtree(tmp_checkpoint_folder)
                 break
+        self._snapshot(-1, -1, -1)
 
         if timeit:
             print("  -  Time Cost: {}".format(time.time() - t))
