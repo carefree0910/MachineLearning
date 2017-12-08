@@ -14,9 +14,9 @@ from _Dist.NeuralNetworks.c_BasicNN.NN import Basic
 
 class Advanced(Basic):
     def __init__(self, name=None, data_info=None, model_param_settings=None, model_structure_settings=None):
-        self.tf_list_collections = None
         super(Advanced, self).__init__(name, model_param_settings, model_structure_settings)
         self._name_appendix = "Advanced"
+        self.tf_list_collections = None
 
         if data_info is None:
             self.data_info = {}
@@ -61,7 +61,7 @@ class Advanced(Basic):
 
     def init_model_param_settings(self):
         super(Advanced, self).init_model_param_settings()
-        self.dropout_keep_prob = self.model_param_settings.get("keep_prob", 0.5)
+        self.dropout_keep_prob = float(self.model_param_settings.get("keep_prob", 0.5))
         self.use_batch_norm = self.model_param_settings.get("use_batch_norm", True)
 
     def init_model_structure_settings(self):
@@ -149,8 +149,8 @@ class Advanced(Basic):
         if self._use_wide_network:
             if self._dndf is None:
                 wide_output = self._fully_connected_linear(
-                    self._wide_input,
-                    [self._wide_input.shape[1].value, self.n_class], "_wide_output"
+                    self._wide_input, appendix="_wide_output",
+                    shape=[self._wide_input.shape[1].value, self.n_class]
                 )
             else:
                 wide_output = self._dndf(self._wide_input, self._n_batch_placeholder)
@@ -213,12 +213,9 @@ class Advanced(Basic):
             self._deep_input = getattr(self, "_" + self._deep_input)
         if self.hidden_units is None:
             self._define_hidden_units()
-        self._settings = "{}_{}(dndf)_{}(prune)".format(
-            self.hidden_units, self._dndf is not None, self._pruner is not None
-        )
         self._tf_p_keep = tf.cond(
             self._is_training, lambda: self.dropout_keep_prob, lambda: 1.,
-            name="p_keep"
+            name="keep_prob"
         )
         self._n_batch_placeholder = tf.placeholder(tf.int32, name="n_batch")
 
@@ -231,7 +228,7 @@ class Advanced(Basic):
         self.tf_collections += [
             "_deep_input", "_wide_input", "_n_batch_placeholder",
             "_embedding", "_one_hot", "_embedding_with_one_hot",
-            "_embedding_concat", "_one_hot_concat", "_embedding_with_one_hot_concat",
+            "_embedding_concat", "_one_hot_concat", "_embedding_with_one_hot_concat"
         ]
         self.tf_list_collections = ["_categorical_xs"]
 
@@ -249,6 +246,11 @@ class Advanced(Basic):
             if tf_list is not None:
                 setattr(self, tf_list, tf.get_collection(tf_list))
         super(Advanced, self).restore_collections(folder)
+
+    def clear_tf_collections(self):
+        super(Advanced, self).clear_tf_collections()
+        for key in self.tf_list_collections:
+            tf.get_collection_ref(key).clear()
 
     def print_settings(self):
         msg = "\n".join([
