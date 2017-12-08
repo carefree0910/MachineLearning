@@ -10,29 +10,22 @@ from scipy import interp
 from sklearn import metrics
 
 
-def init_w(shape, name, reuse=False):
-    if reuse:
-        return tf.get_variable(name, shape, initializer=tf.contrib.layers.xavier_initializer())
-    init_method = tf.truncated_normal
-    init_params = {"stddev": math.sqrt(2 / sum(shape))}
-    w = tf.Variable(init_method(shape, **init_params), name=name)
-    return w
+def init_w(shape, name):
+    return tf.get_variable(name, shape, initializer=tf.contrib.layers.xavier_initializer())
 
 
-def init_b(shape, name, reuse=False):
-    if reuse:
-        return tf.get_variable(name, shape, initializer=tf.zeros_initializer())
-    return tf.Variable(np.zeros(shape, dtype=np.float32), name=name)
+def init_b(shape, name):
+    return tf.get_variable(name, shape, initializer=tf.zeros_initializer())
 
 
-def fully_connected_linear(net, shape, appendix, bias=True, reuse=False):
+def fully_connected_linear(net, shape, appendix, pruner=None, cursor=None):
     with tf.name_scope("Linear{}".format(appendix)):
         w_name = "W{}".format(appendix)
-        w = init_w(shape, w_name, reuse)
-        if bias:
-            b = init_b(shape[1], "b{}".format(appendix), reuse)
-            return tf.add(tf.matmul(net, w), b, name="Linear{}".format(appendix))
-        return tf.matmul(net, w, name="Linear{}_without_bias".format(appendix))
+        w = init_w(shape, w_name)
+        if pruner is not None:
+            w = pruner.prune_w(*pruner.get_w_info(w), cursor)
+        b = init_b(shape[1], "b{}".format(appendix))
+        return tf.add(tf.matmul(net, w), b, name="Linear{}".format(appendix))
 
 
 def prepare_tensorboard_verbose(sess):
@@ -385,6 +378,7 @@ class TrainMonitor:
         self._running_sum = self._running_square_sum = self._running_best = self.running_epoch = None
         self._is_best = self._over_fit_performance = self._best_checkpoint_performance = None
         self._descend_counter = self._flat_counter = self._over_fitting_flag = None
+        self._descend_increment = self.n_history * extension / 30
 
     @property
     def rs(self):
@@ -441,6 +435,9 @@ class TrainMonitor:
         self._run_id += 1
         self.reset_monitors()
         return self
+
+    def punish_extension(self):
+        self._descend_counter += self._descend_increment
 
     def check(self, new_score):
         scores = self._scores
@@ -551,92 +548,85 @@ class TrainMonitor:
 
 
 class DNDF:
-    def __init__(self, n_class=None, n_tree=16, tree_depth=4, reuse=False):
+    def __init__(self, n_class, n_tree=16, tree_depth=4):
         self.n_class = n_class
         self.n_tree, self.tree_depth = n_tree, tree_depth
         self.n_leaf = 2 ** (tree_depth + 1)
-        self.reuse = reuse
+        self.n_internals = self.n_leaf - 1
 
-    def __call__(self, net, n_batch_placeholder, dtype="output"):
-        if dtype != "feature" and self.n_class is None:
-            raise ValueError("dtype={} is not available when n_class is not provided".format(dtype))
+    def __call__(self, net, n_batch_placeholder, dtype="output", pruner=None, reuse_pruner=False):
         name = "DNDF_{}".format(dtype)
-        n_leaf = 2 ** (self.tree_depth + 1)
-        with tf.name_scope(name):
-            flat_decisions = self.build_tree_projection(dtype, net)
-            routes = self.build_routes(flat_decisions, n_batch_placeholder)
-            features = tf.concat(routes, 1, name="concat")
+        with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
+            flat_probabilities = self.build_tree_projection(dtype, net, pruner, reuse_pruner)
+            routes = self.build_routes(flat_probabilities, n_batch_placeholder)
+            features = tf.concat(routes, 1, name="Feature_Concat")
             if dtype == "feature":
                 return features
-            local_leafs = self.build_leafs(self.n_tree, n_leaf)
-            if self.n_tree == 1:
-                final_prob_vectors = tf.matmul(routes[0], local_leafs[0])
-            else:
-                final_prob_vectors = tf.reduce_mean(
-                    [tf.matmul(route, leaf) for route, leaf in zip(routes, local_leafs)],
-                    0, name=name
-                )
-            return final_prob_vectors
-
-    def init_prob_w(self, shape, minval, maxval, name="prob_w"):
-        if self.reuse:
-            return tf.get_variable(name, shape, initializer=tf.random_uniform_initializer(minval, maxval))
-        return tf.Variable(tf.random_uniform(shape, minval, maxval))
-
-    def build_tree_projection(self, dtype, net):
-        with tf.name_scope("Tree_Projection"):
-            flat_decisions = []
-            for i in range(self.n_tree):
-                local_net = net
-                with tf.name_scope("Decisions"):
-                    decisions = tf.nn.sigmoid(fully_connected_linear(
-                        local_net, [local_net.get_shape().as_list()[1], self.n_leaf],
-                        "_tree_mapping{}_{}".format(i, dtype), bias=True, reuse=self.reuse
-                    ))
-                    decisions_comp = 1 - decisions
-                    decisions_pack = tf.stack([decisions, decisions_comp])
-                    flat_decisions.append(tf.reshape(decisions_pack, [-1]))
-        return flat_decisions
-
-    def build_routes(self, flat_decisions, n_batch_placeholder):
-        with tf.name_scope("Routes"):
-            batch_0_indices = tf.reshape(tf.range(0, n_batch_placeholder * self.n_leaf, self.n_leaf), [-1, 1])
-            in_repeat, out_repeat = self.n_leaf // 2, 1
-            batch_complement_indices = tf.reshape(
-                [[0] * in_repeat, [n_batch_placeholder * self.n_leaf] * in_repeat],
-                [-1, self.n_leaf]
+            leafs = self.build_leafs()
+            leafs_matrix = tf.concat(leafs, 0, name="Prob_Concat")
+            return tf.divide(
+                tf.matmul(features, leafs_matrix),
+                float(self.n_tree), name=name
             )
+
+    def build_tree_projection(self, dtype, net, pruner, reuse_pruner):
+        with tf.name_scope("Tree_Projection"):
+            flat_probabilities = []
+            fc_shape = net.shape[1].value
+            for i in range(self.n_tree):
+                with tf.name_scope("Decisions"):
+                    cursor = i if reuse_pruner else None
+                    p_left = tf.nn.sigmoid(fully_connected_linear(
+                        net=net,
+                        shape=[fc_shape, self.n_internals],
+                        appendix="_tree_mapping{}_{}".format(i, dtype),
+                        pruner=pruner, cursor=cursor
+                    ))
+                    p_right = 1 - p_left
+                    p_all = tf.concat([p_left, p_right], 1)
+                    flat_probabilities.append(tf.reshape(p_all, [-1]))
+        return flat_probabilities
+
+    def build_routes(self, flat_probabilities, n_batch_placeholder):
+        with tf.name_scope("Routes"):
+            n_flat_prob = 2 * self.n_internals
+            batch_indices = tf.reshape(
+                tf.range(0, n_flat_prob * n_batch_placeholder, n_flat_prob),
+                [-1, 1]
+            )
+            n_repeat, n_local_internals = self.n_leaf // 2, 1
+            increment_mask = np.repeat([0, self.n_internals], n_repeat)
             routes = [
-                tf.gather(flat_decision, batch_0_indices + batch_complement_indices)
-                for flat_decision in flat_decisions
+                tf.gather(p_flat, batch_indices + increment_mask)
+                for p_flat in flat_probabilities
             ]
-            for d in range(1, self.tree_depth + 1):
-                indices = tf.range(2 ** d, 2 ** (d + 1)) - 1
-                tile_indices = tf.reshape(
-                    tf.tile(tf.expand_dims(indices, 1), [1, 2 ** (self.tree_depth - d + 1)]),
-                    [1, -1]
-                )
-                batch_indices = batch_0_indices + tile_indices
-
-                in_repeat //= 2
-                out_repeat *= 2
-
-                batch_complement_indices = tf.reshape(
-                    [[0] * in_repeat, [n_batch_placeholder * self.n_leaf] * in_repeat] * out_repeat,
-                    [-1, self.n_leaf]
-                )
-                for i, flat_decision in enumerate(flat_decisions):
-                    routes[i] *= tf.gather(flat_decision, batch_indices + batch_complement_indices)
+            for depth in range(1, self.tree_depth + 1):
+                n_repeat //= 2
+                n_local_internals *= 2
+                increment_mask = np.repeat(np.arange(
+                    n_local_internals - 1, 2 * n_local_internals - 1
+                ), 2)
+                increment_mask += np.tile([0, self.n_internals], n_local_internals)
+                increment_mask = np.repeat(increment_mask, n_repeat)
+                for i, p_flat in enumerate(flat_probabilities):
+                    routes[i] *= tf.gather(p_flat, batch_indices + increment_mask)
         return routes
 
-    def build_leafs(self, n_tree, n_leaf):
+    def build_leafs(self):
         with tf.name_scope("Leafs"):
-            local_leafs = [
-                tf.nn.softmax(
-                    self.init_prob_w([n_leaf, self.n_class], -2, 2),
-                    name="Leafs{}".format(i)
-                ) for i in range(n_tree)
-            ]
+            if self.n_class == 1:
+                local_leafs = [
+                    init_w([self.n_leaf, 1], "RegLeaf{}".format(i))
+                    for i in range(self.n_tree)
+                ]
+            else:
+                local_leafs = [
+                    tf.nn.softmax(w, name="ClfLeafs{}".format(i))
+                    for i, w in enumerate([
+                        init_w([self.n_leaf, self.n_class], "RawClfLeafs")
+                        for _ in range(self.n_tree)
+                    ])
+                ]
         return local_leafs
 
 
