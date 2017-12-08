@@ -172,3 +172,37 @@ class DT2NN(TransformationBase):
         w2 *= max_route_length
         self._transform_ws = [w1, w2, w3]
         self._transform_bs = [b]
+
+
+if __name__ == '__main__':
+    from _Dist.NeuralNetworks.c_BasicNN.NN import Basic
+    from _Dist.NeuralNetworks.e_AdvancedNN.NN import Advanced
+
+    with open("../../../_Data/madelon.txt", "r") as file:
+        data = [line.strip().split() for line in file]
+        train, test = np.array(data[:2000], np.float32), np.array(data[2000:], np.float32)
+        np.random.shuffle(train)
+    x, y = train[..., :-1], train[..., -1]
+    x_test, y_test = test[..., :-1], test[..., -1]
+    x -= x.mean()
+    x /= x.std()
+    x_test -= x_test.mean()
+    x_test /= x_test.std()
+
+    Advanced(
+        name="madelon",
+        data_info={
+            "numerical_idx": [True] * 500 + [False],
+            "categorical_columns": []
+        },
+        model_param_settings={
+            "lr": 1e-3,
+            "keep_prob": 0.25,
+            "use_batch_norm": False,
+            "activations": ["relu", "relu"]
+        }, model_structure_settings={
+            "use_pruner": False,
+            "use_wide_network": False,
+            "hidden_units": [152, 153]
+        }
+    ).fit(x, y, x_test, y_test, snapshot_ratio=1)
