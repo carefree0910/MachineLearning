@@ -46,9 +46,8 @@ class Metrics:
     sign_dict = {
         "f1_score": 1,
         "r2_score": 1,
-        "auc": 1, "multi_auc": 1, "acc": 1,
-        "mse": -1, "ber": -1,
-        "log_loss": -1,
+        "auc": 1, "multi_auc": 1, "acc": 1, "binary_acc": 1,
+        "mse": -1, "ber": -1, "log_loss": -1,
         "correlation": 1, "top_10_return": 1
     }
     require_prob = {key: False for key in sign_dict}
@@ -100,6 +99,10 @@ class Metrics:
         return np.mean(Metrics.check_shape(y) == Metrics.check_shape(pred))
 
     @staticmethod
+    def binary_acc(y, pred):
+        return np.mean((y > 0) == (pred > 0))
+
+    @staticmethod
     def mse(y, pred):
         return np.mean(np.square(y.ravel() - pred.ravel()))
 
@@ -118,7 +121,7 @@ class Metrics:
 
     @staticmethod
     def correlation(y, pred):
-        return ss.pearsonr(y, pred)[0]
+        return float(ss.pearsonr(y, pred)[0])
 
     @staticmethod
     def top_10_return(y, pred):
@@ -401,7 +404,7 @@ class TrainMonitor:
 
     @property
     def n_epoch(self):
-        return len(self._scores) // self.snapshot_ratio
+        return int(len(self._scores) / self.snapshot_ratio)
 
     def reset(self):
         self._run_id = 0
@@ -426,7 +429,7 @@ class TrainMonitor:
             self.running_epoch = n_epoch
         else:
             self.running_epoch += n_epoch
-            self.running_epoch //= 2
+            self.running_epoch = int(self.running_epoch * 0.5)
         if not terminate:
             self._descend_counter = max(self._descend_counter - 1, 0)
         return terminate
@@ -594,14 +597,14 @@ class DNDF:
                 tf.range(0, n_flat_prob * n_batch_placeholder, n_flat_prob),
                 [-1, 1]
             )
-            n_repeat, n_local_internals = self.n_leaf // 2, 1
+            n_repeat, n_local_internals = int(self.n_leaf * 0.5), 1
             increment_mask = np.repeat([0, self.n_internals], n_repeat)
             routes = [
                 tf.gather(p_flat, batch_indices + increment_mask)
                 for p_flat in flat_probabilities
             ]
             for depth in range(1, self.tree_depth + 1):
-                n_repeat //= 2
+                n_repeat = int(n_repeat * 0.5)
                 n_local_internals *= 2
                 increment_mask = np.repeat(np.arange(
                     n_local_internals - 1, 2 * n_local_internals - 1
@@ -631,9 +634,9 @@ class DNDF:
 
 
 class Pruner:
-    def __init__(self, eps=1e-12, alpha=None, beta=None, gamma=None, max_ratio=1., prune_method="hard_prune"):
-        self.eps, self.alpha, self.beta, self.gamma = eps, alpha, beta, gamma
-        self.masks, self.cursor, self.max_ratio = [], -1, max_ratio
+    def __init__(self, alpha=None, beta=None, gamma=None, r=1., eps=1e-12, prune_method="hard_prune"):
+        self.alpha, self.beta, self.gamma, self.r, self.eps = alpha, beta, gamma, r, eps
+        self.masks, self.cursor = [], -1
         self.method = prune_method
         if prune_method == "soft_prune" or prune_method == "hard_prune":
             if alpha is None:
@@ -652,7 +655,7 @@ class Pruner:
                 self.beta = 4
             if gamma is None:
                 self.gamma = 0.0001
-            self.max_ratio = None
+            self.r = None
             self.cond_placeholder = tf.placeholder(tf.bool, (), name="Prune_flag")
         else:
             raise NotImplementedError("prune_method '{}' is not defined".format(prune_method))
@@ -661,7 +664,7 @@ class Pruner:
     def params(self):
         return {
             "eps": self.eps, "alpha": self.alpha, "beta": self.beta, "gamma": self.gamma,
-            "max_ratio": self.max_ratio, "method": self.method
+            "max_ratio": self.r, "method": self.method
         }
 
     def prune_w(self, w, w_abs, w_abs_mean, w_abs_std):
@@ -669,8 +672,8 @@ class Pruner:
         with tf.name_scope("Prune"):
             if self.cond_placeholder is None:
                 log_w = tf.log(tf.maximum(self.eps, w_abs / (w_abs_mean * self.gamma)))
-                if self.max_ratio > 0:
-                    log_w = tf.minimum(self.max_ratio, self.beta * log_w)
+                if self.r > 0:
+                    log_w = tf.minimum(self.r, self.beta * log_w)
                 self.masks.append(tf.maximum(self.alpha / self.beta * log_w, log_w))
                 return w * self.masks[self.cursor]
 
@@ -704,8 +707,8 @@ class Pruner:
         with tf.name_scope("Prune_conv"):
             conv_gamma = 0.25 * self.gamma
             log_w = tf.log(tf.maximum(self.eps, tf.abs(w) / (w_abs_mean * conv_gamma)))
-            if self.max_ratio > 0:
-                log_w = tf.minimum(self.max_ratio, self.beta * log_w)
+            if self.r > 0:
+                log_w = tf.minimum(self.r, self.beta * log_w)
             return w * tf.maximum(self.alpha / self.beta * log_w, log_w)
 
     def get_pruned_ratio(self, w, w_abs_mean):

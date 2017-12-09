@@ -290,7 +290,7 @@ class Base:
         self.batch_size = min(self.batch_size, len(self._train_generator))
         self.n_iter = self.model_param_settings.get("n_iter", -1)
         if self.n_iter < 0:
-            self.n_iter = len(self._train_generator) // self.batch_size
+            self.n_iter = int(len(self._train_generator) / self.batch_size)
         self._optimizer_name = self.model_param_settings.get("optimizer", "Adam")
         self.lr = self.model_param_settings.get("lr", 1e-3)
         self._optimizer = getattr(tf.train, "{}Optimizer".format(self._optimizer_name))(self.lr)
@@ -345,11 +345,13 @@ class Base:
 
     def _snapshot(self, i_epoch, i_iter, snapshot_cursor):
         x_train, y_train, sw_train = self._gen_batch(
-            self._train_generator, self.n_random_train_subset, gen_random_subset=True
+            self._train_generator, self.n_random_train_subset,
+            gen_random_subset=True
         )
         if self._test_generator is not None:
             x_test, y_test, sw_test = self._gen_batch(
-                self._test_generator, self.n_random_test_subset, gen_random_subset=True
+                self._test_generator, self.n_random_test_subset,
+                gen_random_subset=True
             )
             if self.n_class == 1:
                 y_test = y_test.reshape([-1, 1])
@@ -372,16 +374,17 @@ class Base:
             test_metric = self._metric(y_test, y_test_pred)
         else:
             test_metric = None
-        print("\rEpoch {:4}   Iter {:8}   Snapshot {:6} ({})  -  Train : {:8.6}   Test : {:8.6}".format(
-            i_epoch, i_iter, snapshot_cursor, self._metric_name, train_metric, test_metric
+        print("\rEpoch {:6}   Iter {:8}   Snapshot {:6} ({})  -  Train : {:8.6}   Test : {}".format(
+            i_epoch, i_iter, snapshot_cursor, self._metric_name, train_metric,
+            "None" if test_metric is None else "{:8.6}".format(test_metric)
         ), end="")
         if i_epoch == i_iter == snapshot_cursor == 0:
             print()
         return train_metric, test_metric
 
     def _calculate(self, x, y=None, weights=None, tensor=None, n_elem=1e7, is_training=False):
-        n_batch = n_elem // x.shape[1]
-        n_repeat = len(x) // n_batch
+        n_batch = int(n_elem / x.shape[1])
+        n_repeat = int(len(x) / n_batch)
         if n_repeat * n_batch < len(x):
             n_repeat += 1
         cursors = [0]
@@ -556,13 +559,13 @@ class Base:
                 self._initialize()
 
         i_epoch = i_iter = j = snapshot_cursor = 0
-        if snapshot_ratio == 0:
+        if snapshot_ratio == 0 or x_test is None or y_test is None:
             use_monitor = False
             snapshot_step = self.n_iter
         else:
             use_monitor = True
             snapshot_ratio = min(snapshot_ratio, self.n_iter)
-            snapshot_step = self.n_iter // snapshot_ratio
+            snapshot_step = int(self.n_iter / snapshot_ratio)
 
         terminate = False
         over_fitting_flag = 0
@@ -596,7 +599,7 @@ class Base:
                 if i_iter % snapshot_step == 0 and verbose >= 1:
                     snapshot_cursor += 1
                     train_metric, test_metric = self._snapshot(i_epoch, i_iter, snapshot_cursor)
-                    if use_monitor and test_metric is not None:
+                    if use_monitor:
                         check_rs = monitor.check(test_metric)
                         over_fitting_flag = monitor.over_fitting_flag
                         if check_rs["terminate"]:
@@ -626,6 +629,8 @@ class Base:
                             )
                         else:
                             print("  -  max_epoch reached")
+            elif i_epoch == n_epoch:
+                terminate = True
             if terminate:
                 if os.path.exists(tmp_checkpoint_folder):
                     print("  -  Rolling back to the best checkpoint")
