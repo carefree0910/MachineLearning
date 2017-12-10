@@ -18,12 +18,12 @@ def init_b(shape, name):
     return tf.get_variable(name, shape, initializer=tf.zeros_initializer())
 
 
-def fully_connected_linear(net, shape, appendix, pruner=None, cursor=None):
+def fully_connected_linear(net, shape, appendix, pruner=None):
     with tf.name_scope("Linear{}".format(appendix)):
         w_name = "W{}".format(appendix)
         w = init_w(shape, w_name)
         if pruner is not None:
-            w = pruner.prune_w(*pruner.get_w_info(w), cursor)
+            w = pruner.prune_w(*pruner.get_w_info(w))
         b = init_b(shape[1], "b{}".format(appendix))
         return tf.add(tf.matmul(net, w), b, name="Linear{}".format(appendix))
 
@@ -557,10 +557,10 @@ class DNDF:
         self.n_leaf = 2 ** (tree_depth + 1)
         self.n_internals = self.n_leaf - 1
 
-    def __call__(self, net, n_batch_placeholder, dtype="output", pruner=None, reuse_pruner=False):
+    def __call__(self, net, n_batch_placeholder, dtype="output", pruner=None):
         name = "DNDF_{}".format(dtype)
         with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
-            flat_probabilities = self.build_tree_projection(dtype, net, pruner, reuse_pruner)
+            flat_probabilities = self.build_tree_projection(dtype, net, pruner)
             routes = self.build_routes(flat_probabilities, n_batch_placeholder)
             features = tf.concat(routes, 1, name="Feature_Concat")
             if dtype == "feature":
@@ -572,18 +572,16 @@ class DNDF:
                 float(self.n_tree), name=name
             )
 
-    def build_tree_projection(self, dtype, net, pruner, reuse_pruner):
+    def build_tree_projection(self, dtype, net, pruner):
         with tf.name_scope("Tree_Projection"):
             flat_probabilities = []
             fc_shape = net.shape[1].value
             for i in range(self.n_tree):
                 with tf.name_scope("Decisions"):
-                    cursor = i if reuse_pruner else None
                     p_left = tf.nn.sigmoid(fully_connected_linear(
                         net=net,
                         shape=[fc_shape, self.n_internals],
-                        appendix="_tree_mapping{}_{}".format(i, dtype),
-                        pruner=pruner, cursor=cursor
+                        appendix="_tree_mapping{}_{}".format(i, dtype), pruner=pruner
                     ))
                     p_right = 1 - p_left
                     p_all = tf.concat([p_left, p_right], 1)
