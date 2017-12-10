@@ -634,13 +634,13 @@ class DNDF:
 
 
 class Pruner:
-    def __init__(self, alpha=None, beta=None, gamma=None, r=1., eps=1e-12, prune_method="hard_prune"):
+    def __init__(self, alpha=None, beta=None, gamma=None, r=1., eps=1e-12, prune_method="soft_prune"):
         self.alpha, self.beta, self.gamma, self.r, self.eps = alpha, beta, gamma, r, eps
-        self.masks, self.cursor = [], -1
+        self.org_ws, self.masks, self.cursor = [], [], -1
         self.method = prune_method
         if prune_method == "soft_prune" or prune_method == "hard_prune":
             if alpha is None:
-                self.alpha = 0.01
+                self.alpha = 1e-4
             if beta is None:
                 self.beta = 1
             if gamma is None:
@@ -652,7 +652,7 @@ class Pruner:
             if alpha is None:
                 self.alpha = 1
             if beta is None:
-                self.beta = 4
+                self.beta = 1
             if gamma is None:
                 self.gamma = 0.0001
             self.r = None
@@ -669,6 +669,7 @@ class Pruner:
 
     def prune_w(self, w, w_abs, w_abs_mean, w_abs_std):
         self.cursor += 1
+        self.org_ws.append(w)
         with tf.name_scope("Prune"):
             if self.cond_placeholder is None:
                 log_w = tf.log(tf.maximum(self.eps, w_abs / (w_abs_mean * self.gamma)))
@@ -677,11 +678,11 @@ class Pruner:
                 self.masks.append(tf.maximum(self.alpha / self.beta * log_w, log_w))
                 return w * self.masks[self.cursor]
 
-            self.masks.append(tf.Variable(np.ones(w.get_shape(), np.float32), trainable=False))
+            self.masks.append(tf.Variable(tf.ones_like(w), trainable=False))
 
             def prune(i, do_prune):
                 def sub():
-                    if not do_prune:
+                    if do_prune:
                         mask = self.masks[i]
                         self.masks[i] = tf.assign(mask, tf.where(
                             tf.logical_and(
@@ -702,19 +703,6 @@ class Pruner:
                 return sub
 
             return tf.cond(self.cond_placeholder, prune(self.cursor, True), prune(self.cursor, False))
-
-    def prune_conv_w(self, w, w_abs_mean):
-        with tf.name_scope("Prune_conv"):
-            conv_gamma = 0.25 * self.gamma
-            log_w = tf.log(tf.maximum(self.eps, tf.abs(w) / (w_abs_mean * conv_gamma)))
-            if self.r > 0:
-                log_w = tf.minimum(self.r, self.beta * log_w)
-            return w * tf.maximum(self.alpha / self.beta * log_w, log_w)
-
-    def get_pruned_ratio(self, w, w_abs_mean):
-        return tf.reduce_mean(
-            tf.cast(tf.abs(w / (w_abs_mean * self.gamma)) < 1, tf.float32)
-        )
 
 
 class NanHandler:
