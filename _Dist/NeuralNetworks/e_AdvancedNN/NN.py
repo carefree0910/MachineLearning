@@ -34,7 +34,7 @@ class Advanced(Basic):
         self._embedding_with_one_hot = self._embedding_with_one_hot_concat = None
 
         self.dropout_keep_prob = self.use_batch_norm = None
-        self._use_wide_network = self._dndf = self._pruner = None
+        self._use_wide_network = self._dndf = self._pruner = self._dndf_pruner = None
 
         self._tf_p_keep = None
         self._n_batch_placeholder = None
@@ -74,8 +74,15 @@ class Advanced(Basic):
         if not self._use_wide_network:
             self._dndf = None
         else:
-            self._dndf = DNDF(self.n_class) if self.model_structure_settings.get("use_dndf", True) else None
-        self._pruner = Pruner() if self.model_structure_settings.get("use_pruner", True) else None
+            dndf_params = self.model_structure_settings.get("dndf_params", {})
+            if self.model_structure_settings.get("use_dndf", True):
+                self._dndf = DNDF(self.n_class, **dndf_params)
+        if self.model_structure_settings.get("use_pruner", True):
+            pruner_params = self.model_structure_settings.get("pruner_params", {})
+            self._pruner = Pruner(**pruner_params)
+        if self.model_structure_settings.get("use_dndf_pruner", True):
+            dndf_pruner_params = self.model_structure_settings.get("dndf_pruner_params", {})
+            self._dndf_pruner = Pruner(**dndf_pruner_params)
 
     def _get_embedding(self, i, n):
         embedding_size = math.ceil(math.log2(n)) + 1 if self.embedding_size == "log" else self.embedding_size
@@ -153,7 +160,10 @@ class Advanced(Basic):
                     shape=[self._wide_input.shape[1].value, self.n_class]
                 )
             else:
-                wide_output = self._dndf(self._wide_input, self._n_batch_placeholder)
+                wide_output = self._dndf(
+                    self._wide_input, self._n_batch_placeholder,
+                    pruner=self._dndf_pruner
+                )
             self._output += wide_output
 
     def _get_feed_dict(self, x, y=None, weights=None, is_training=True):
@@ -161,6 +171,14 @@ class Advanced(Basic):
         feed_dict = super(Advanced, self)._get_feed_dict(continuous_x, y, weights, is_training)
         if self._dndf is not None:
             feed_dict[self._n_batch_placeholder] = len(x)
+        if self._pruner is not None:
+            cond_placeholder = self._pruner.cond_placeholder
+            if cond_placeholder is not None:
+                feed_dict[cond_placeholder] = True
+        if self._dndf is not None and self._dndf_pruner is not None:
+            cond_placeholder = self._dndf_pruner.cond_placeholder
+            if cond_placeholder is not None:
+                feed_dict[cond_placeholder] = True
         for (idx, _), categorical_x in zip(self.categorical_columns, self._categorical_xs):
             feed_dict.update({categorical_x: x[..., idx].astype(np.int32)})
         return feed_dict
