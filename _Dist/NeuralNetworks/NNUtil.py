@@ -665,6 +665,13 @@ class Pruner:
             "max_ratio": self.r, "method": self.method
         }
 
+    @staticmethod
+    def get_w_info(w):
+        with tf.name_scope("get_w_info"):
+            w_abs = tf.abs(w)
+            w_abs_mean, w_abs_var = tf.nn.moments(w_abs, None)
+            return w, w_abs, w_abs_mean, tf.sqrt(w_abs_var)
+
     def prune_w(self, w, w_abs, w_abs_mean, w_abs_std):
         self.cursor += 1
         self.org_ws.append(w)
