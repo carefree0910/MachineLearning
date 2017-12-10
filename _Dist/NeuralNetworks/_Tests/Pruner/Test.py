@@ -11,28 +11,31 @@ from Util.Util import DataUtil
 from _Dist.NeuralNetworks._Tests.Pruner.Advanced import Advanced
 
 # (x, y), (x_test, y_test), *_ = DataUtil.get_dataset("mnist", "_Data/mnist.txt", n_train=1600, quantized=True)
-(x, y), (x_test, y_test) = DataUtil.gen_noisy_linear(n_dim=10, n_valid=5, one_hot=False)
+(x, y), (x_test, y_test) = DataUtil.gen_noisy_linear(n_dim=100, n_valid=5, one_hot=False)
 
-nn = Advanced(
-    "NoisyLinear",
-    data_info={
-        "numerical_idx": [True] * 10 + [False],
-        "categorical_columns": []
-    },
-    model_param_settings={
-        "n_epoch": 40
-    },
-    model_structure_settings={
-        "use_wide_network": False,
-        "use_pruner": True,
-        "pruner_params": {
-            "prune_method": "surgery",
-            # "alpha": 1e-8,
-            # "beta": 1e8
-        },
-        "hidden_units": [512]
-    }
-).fit(x, y, x_test, y_test, snapshot_ratio=0)
+data_info = {
+    "numerical_idx": [True] * 100 + [False],
+    "categorical_columns": []
+}
+
+# nn = Advanced(
+#     "NoisyLinear",
+#     data_info=data_info,
+#     model_param_settings={
+#         "n_epoch": 40
+#     },
+#     model_structure_settings={
+#         "use_wide_network": False,
+#         "use_pruner": True,
+#         "pruner_params": {
+#             "prune_method": "surgery",
+#             # "alpha": 1e-8,
+#             # "beta": 1e8
+#         },
+#         "hidden_units": [512]
+#     }
+# ).fit(x, y, x_test, y_test, snapshot_ratio=0)
+nn = Advanced("NoisyLinear", data_info=data_info).fit(x, y, x_test, y_test, snapshot_ratio=0)
 
 
 def normalize(arr):
