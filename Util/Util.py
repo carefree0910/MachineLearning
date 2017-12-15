@@ -234,6 +234,25 @@ class DataUtil:
         return (x_train_noise, DataUtil.get_one_hot(y_train, 2)), (x_test, DataUtil.get_one_hot(y_test, 2))
 
     @staticmethod
+    def gen_noisy_poly(size=10000, p=3, n_dim=100, n_valid=5, noise_scale=0.5, test_ratio=0.15, one_hot=True):
+        p = int(p)
+        assert p > 1, "p should be greater than 1"
+        x_train = np.random.randn(size, n_dim)
+        x_train_list = [x_train] + [x_train ** i for i in range(2, p+1)]
+        x_train_noise = x_train + np.random.randn(size, n_dim) * noise_scale
+        x_test = np.random.randn(int(size * test_ratio), n_dim)
+        x_test_list = [x_test] + [x_test ** i for i in range(2, p+1)]
+        idx_list = [np.random.permutation(n_dim)[:n_valid] for _ in range(p)]
+        w_list = [np.random.randn(n_valid, 1) for _ in range(p)]
+        o_train = [x[..., idx].dot(w) for x, idx, w in zip(x_train_list, idx_list, w_list)]
+        o_test = [x[..., idx].dot(w) for x, idx, w in zip(x_test_list, idx_list, w_list)]
+        y_train = (np.sum(o_train, axis=0) > 0).astype(np.int8).ravel()
+        y_test = (np.sum(o_test, axis=0) > 0).astype(np.int8).ravel()
+        if not one_hot:
+            return (x_train_noise, y_train), (x_test, y_test)
+        return (x_train_noise, DataUtil.get_one_hot(y_train, 2)), (x_test, DataUtil.get_one_hot(y_test, 2))
+
+    @staticmethod
     def quantize_data(x, y, wc=None, continuous_rate=0.1, separate=False):
         if isinstance(x, list):
             xt = map(list, zip(*x))
