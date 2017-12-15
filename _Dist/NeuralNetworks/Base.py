@@ -240,7 +240,7 @@ class Base:
 
     @property
     def model_saving_path(self):
-        return os.path.join("_Models", self.model_saving_name)
+        return os.path.join(os.getcwd(), "_Models", self.model_saving_name)
 
     # Settings
 
@@ -366,12 +366,15 @@ class Base:
                 [self._output, self._loss], is_training=False
             )
             y_test_pred, test_snapshot_loss = y_test_pred[0], test_snapshot_loss[0]
-            self.log["test_snapshot_loss"].append(test_snapshot_loss)
         else:
-            y_test_pred = None
+            y_test_pred = test_snapshot_loss = None
         train_metric = self._metric(y_train, y_train_pred)
         if y_test is not None and y_test_pred is not None:
             test_metric = self._metric(y_test, y_test_pred)
+            if i_epoch >= 0 and i_iter >= 0 and snapshot_cursor >= 0:
+                self.log["test_snapshot_loss"].append(test_snapshot_loss)
+                self.log["test_{}".format(self._metric_name)].append(test_metric)
+                self.log["train_{}".format(self._metric_name)].append(train_metric)
         else:
             test_metric = None
         print("\rEpoch {:6}   Iter {:8}   Snapshot {:6} ({})  -  Train : {:8.6}   Test : {}".format(
@@ -582,6 +585,8 @@ class Base:
         self.log["iter_loss"] = []
         self.log["epoch_loss"] = []
         self.log["test_snapshot_loss"] = []
+        self.log["train_{}".format(self._metric_name)] = []
+        self.log["test_{}".format(self._metric_name)] = []
         self._snapshot(0, 0, 0)
 
         while i_epoch < n_epoch:
