@@ -45,62 +45,62 @@ def normalize(arr):
     return arr
 
 
-# plt.figure()
-# pruned_ratio = normalize(nn.log["pruned_ratio"])
-# recovered_ratio = normalize(nn.log["recovered_ratio"])
-# running_recovered = nn.log["running_recovered"]
-# w_abs_mean = nn.log["w_abs_mean"]
-# plt.plot(np.arange(len(pruned_ratio)), pruned_ratio, label="pruned_ratio")
-# plt.plot(np.arange(len(recovered_ratio)), recovered_ratio, label="recovered_ratio")
-# plt.plot(np.arange(len(w_abs_mean)), normalize(w_abs_mean), label="w_abs_mean")
-# plt.legend(loc=4, prop={'size': 14})
-# plt.show()
-# plt.figure()
-# plt.plot(np.arange(len(running_recovered)), running_recovered, label="running_recovered")
-# plt.legend(prop={'size': 14})
-# plt.show()
-# plt.figure()
-# w_abs_mean = nn.log["w_abs_mean"]
-# pruned_w_abs_mean = nn.log["pruned_w_abs_mean"]
-# org_survived_w_abs_mean = nn.log["org_w_abs_mean"]
-# org_pruned_w_abs_mean = nn.log["org_pruned_w_abs_mean"]
-# plt.plot(np.arange(len(w_abs_mean)), w_abs_mean, label="w_abs_mean")
-# plt.plot(np.arange(len(pruned_w_abs_mean)), pruned_w_abs_mean, label="pruned_w_abs_mean")
-# plt.plot(np.arange(len(org_pruned_w_abs_mean)), org_pruned_w_abs_mean, label="org_pruned_w_abs_mean")
-# plt.plot(np.arange(len(org_survived_w_abs_mean)), org_survived_w_abs_mean, label="org_survived_w_abs_mean")
-# plt.legend(prop={'size': 14})
-# plt.show()
-# plt.figure()
-# pruned_w_abs_residual = nn.log["pruned_w_abs_residual"]
-# plt.plot(np.arange(len(pruned_w_abs_residual)), pruned_w_abs_residual, label="pruned_w_abs_residual")
-# plt.legend(prop={'size': 14})
-# plt.show()
-# plt.figure()
-# target_ratio = nn.log["target_ratio"]
-# plt.plot(np.arange(len(target_ratio)), target_ratio, label="target_ratio")
-# plt.legend(prop={'size': 14})
-# plt.show()
-# plt.figure()
-# ptr = nn.log["pruned_target_ratio"]
-# plt.plot(np.arange(len(ptr)), ptr, label="pruned_target_ratio")
-# plt.legend(prop={'size': 14})
-# plt.show()
-# plt.figure()
-# rwwamr = np.array(nn.log["rwwamr"])
-# rwowamr = np.array(nn.log["rwowamr"])
-# rwnwamr = np.array(nn.log["rwnwamr"])
-# plt.plot(np.arange(len(rwwamr)), rwwamr, label="rwwamr")
-# plt.plot(np.arange(len(rwowamr)), rwowamr, label="rwowamr")
-# plt.plot(np.arange(len(rwnwamr)), rwnwamr, label="rwnwamr")
-# plt.legend(prop={'size': 14})
-# plt.show()
-# plt.figure()
-# accs = nn.log["acc"]
-# pwamr = np.array(nn.log["pruned_w_abs_mean"]) / np.array(nn.log["w_abs_mean"])
-# plt.plot(np.arange(len(pwamr)), pwamr, label="pruned_w_abs_mean_ratio")
-# plt.plot(np.arange(len(accs)), accs, label="acc")
-# plt.legend()
-# plt.show()
+plt.figure()
+pruned_ratio = normalize(nn.log["pruned_ratio"])
+recovered_ratio = normalize(nn.log["recovered_ratio"])
+running_recovered = nn.log["running_recovered"]
+w_abs_mean = nn.log["w_abs_mean"]
+plt.plot(np.arange(len(pruned_ratio)), pruned_ratio, label="pruned_ratio")
+plt.plot(np.arange(len(recovered_ratio)), recovered_ratio, label="recovered_ratio")
+plt.plot(np.arange(len(w_abs_mean)), normalize(w_abs_mean), label="w_abs_mean")
+plt.legend(loc=4, prop={'size': 14})
+plt.show()
+plt.figure()
+plt.plot(np.arange(len(running_recovered)), running_recovered, label="running_recovered")
+plt.legend(prop={'size': 14})
+plt.show()
+plt.figure()
+w_abs_mean = nn.log["w_abs_mean"]
+pruned_w_abs_mean = nn.log["pruned_w_abs_mean"]
+org_survived_w_abs_mean = nn.log["org_w_abs_mean"]
+org_pruned_w_abs_mean = nn.log["org_pruned_w_abs_mean"]
+plt.plot(np.arange(len(w_abs_mean)), w_abs_mean, label="w_abs_mean")
+plt.plot(np.arange(len(pruned_w_abs_mean)), pruned_w_abs_mean, label="pruned_w_abs_mean")
+plt.plot(np.arange(len(org_pruned_w_abs_mean)), org_pruned_w_abs_mean, label="org_pruned_w_abs_mean")
+plt.plot(np.arange(len(org_survived_w_abs_mean)), org_survived_w_abs_mean, label="org_survived_w_abs_mean")
+plt.legend(prop={'size': 14})
+plt.show()
+plt.figure()
+pruned_w_abs_residual = nn.log["pruned_w_abs_residual"]
+plt.plot(np.arange(len(pruned_w_abs_residual)), pruned_w_abs_residual, label="pruned_w_abs_residual")
+plt.legend(prop={'size': 14})
+plt.show()
+plt.figure()
+target_ratio = nn.log["target_ratio"]
+plt.plot(np.arange(len(target_ratio)), target_ratio, label="target_ratio")
+plt.legend(prop={'size': 14})
+plt.show()
+plt.figure()
+ptr = nn.log["pruned_target_ratio"]
+plt.plot(np.arange(len(ptr)), ptr, label="pruned_target_ratio")
+plt.legend(prop={'size': 14})
+plt.show()
+plt.figure()
+rwwamr = np.array(nn.log["rwwamr"])
+rwowamr = np.array(nn.log["rwowamr"])
+rwnwamr = np.array(nn.log["rwnwamr"])
+plt.plot(np.arange(len(rwwamr)), rwwamr, label="rwwamr")
+plt.plot(np.arange(len(rwowamr)), rwowamr, label="rwowamr")
+plt.plot(np.arange(len(rwnwamr)), rwnwamr, label="rwnwamr")
+plt.legend(prop={'size': 14})
+plt.show()
+plt.figure()
+accs = nn.log["acc"]
+pwamr = np.array(nn.log["pruned_w_abs_mean"]) / np.array(nn.log["w_abs_mean"])
+plt.plot(np.arange(len(pwamr)), pwamr, label="pruned_w_abs_mean_ratio")
+plt.plot(np.arange(len(accs)), accs, label="acc")
+plt.legend()
+plt.show()
 plt.figure()
 pwamr = np.array(nn.log["pruned_w_abs_mean"]) / np.array(nn.log["w_abs_mean"])
 plt.plot(np.arange(len(pwamr)), pwamr, label="pruned_w_abs_mean_ratio")

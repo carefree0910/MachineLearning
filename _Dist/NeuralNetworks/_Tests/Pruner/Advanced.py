@@ -133,9 +133,7 @@ class Advanced(Basic):
         with tf.name_scope("Linear{}".format(appendix)):
             w = init_w(shape, "W{}".format(appendix))
             if self._pruner is not None:
-                w_abs = tf.abs(w)
-                w_abs_mean, w_abs_var = tf.nn.moments(w_abs, None)
-                w = self._pruner.prune_w(w, w_abs, w_abs_mean, tf.sqrt(w_abs_var))
+                w = self._pruner.prune_w(*self._pruner.get_w_info(w))
             b = init_b([shape[1]], "b{}".format(appendix))
             self._ws.append(w)
             self._bs.append(b)
