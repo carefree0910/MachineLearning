@@ -16,7 +16,5 @@ train_set, test_set = data[:2000], data[2000:]
 x, y = train_set[..., :-1], train_set[..., -1]
 x_test, y_test = test_set[..., :-1], test_set[..., -1]
 
-dt2dnn = DT2NN(
-    model_param_settings={"activations": ["sign", "softmax"]}
-).fit(x, y, x_test, y_test)
-basic = Basic().fit(x, y, x_test, y_test)
+basic = Basic(model_structure_settings={"hidden_units": [152, 153]}).fit(x, y, x_test, y_test)
+dt2dnn = DT2NN(model_param_settings={"activations": ["sign", "softmax"]}).fit(x, y, x_test, y_test)
