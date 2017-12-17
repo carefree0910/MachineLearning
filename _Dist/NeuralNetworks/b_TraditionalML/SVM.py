@@ -7,7 +7,7 @@ if root_path not in sys.path:
 import numpy as np
 import tensorflow as tf
 
-from _Dist.NeuralNetworks.Base import Base
+from _Dist.NeuralNetworks.Base import Base, AutoMixin, AutoMeta
 
 
 class LinearSVM(Base):
@@ -109,3 +109,11 @@ class SVM(LinearSVM):
 
     def predict_classes(self, x):
         return (self.predict(x) >= 0).astype(np.int32)
+
+
+class AutoLinearSVM(AutoMixin, LinearSVM, metaclass=AutoMeta):
+    pass
+
+
+class AutoSVM(AutoMixin, SVM, metaclass=AutoMeta):
+    pass
