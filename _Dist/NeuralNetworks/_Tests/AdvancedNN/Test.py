@@ -4,30 +4,13 @@ root_path = os.path.abspath("../../../../")
 if root_path not in sys.path:
     sys.path.append(root_path)
 
-import numpy as np
-import matplotlib.pyplot as plt
-
 from Util.Util import DataUtil
 from _Dist.NeuralNetworks.c_BasicNN.NN import Basic
 from _Dist.NeuralNetworks.e_AdvancedNN.NN import Advanced
+from _Dist.NeuralNetworks._Tests.TestUtil import draw_acc
 
 x_cv = y_cv = None
 (x, y), (x_test, y_test) = DataUtil.gen_noisy_linear(one_hot=False)
-
-
-def draw_acc(*models, ylim=(0.6, 1.05), draw_train=True):
-    plt.figure()
-    for nn in models:
-        name = str(nn)
-        el, tl = nn.log["train_acc"], nn.log["test_acc"]
-        ee_base = np.arange(len(el))
-        cse_base = np.linspace(0, len(el) - 1, len(tl))
-        if draw_train:
-            plt.plot(ee_base, el, label="Train acc ({})".format(name))
-        plt.plot(cse_base, tl, label="Test acc ({})".format(name))
-    plt.ylim(*ylim)
-    plt.legend(prop={'size': 14})
-    plt.show()
 
 
 def block_test(generator, **kwargs):
