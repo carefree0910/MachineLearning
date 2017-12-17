@@ -6,12 +6,12 @@ if root_path not in sys.path:
 
 from _Dist.NeuralNetworks.c_BasicNN.NN import Basic
 from _Dist.NeuralNetworks.e_AdvancedNN.NN import Advanced
-from _Dist.NeuralNetworks.Base import AutoMixin, AutoMeta
+from _Dist.NeuralNetworks.Base import AutoBase, AutoMeta
 
 
-class AutoBasic(AutoMixin, Basic, metaclass=AutoMeta):
+class AutoBasic(AutoBase, Basic, metaclass=AutoMeta):
     pass
 
 
-class AutoAdvanced(AutoMixin, Advanced, metaclass=AutoMeta):
+class AutoAdvanced(AutoBase, Advanced, metaclass=AutoMeta):
     pass

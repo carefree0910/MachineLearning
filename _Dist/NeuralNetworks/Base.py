@@ -964,7 +964,7 @@ class Base:
         return self
 
 
-class AutoMixin:
+class AutoBase:
     def __init__(self, name=None, data_info=None, pre_process_settings=None, nan_handler_settings=None,
                  *args, **kwargs):
         if name is None:
@@ -1337,11 +1337,11 @@ class AutoMixin:
 class AutoMeta(type):
     def __new__(mcs, *args, **kwargs):
         name_, bases, attr = args[:3]
-        auto_mixin, model_base = bases
+        auto_base, model_base = bases
 
         def __init__(self, name=None, data_info=None, model_param_settings=None, model_structure_settings=None,
                      pre_process_settings=None, nan_handler_settings=None):
-            auto_mixin.__init__(self, name, data_info, pre_process_settings, nan_handler_settings)
+            auto_base.__init__(self, name, data_info, pre_process_settings, nan_handler_settings)
             if model_base.signature != "Advanced":
                 model_base.__init__(self, name, model_param_settings, model_structure_settings)
             else:
@@ -1359,7 +1359,7 @@ class AutoMeta(type):
             ]
 
         def init_data_info(self):
-            auto_mixin.init_data_info(self)
+            auto_base.init_data_info(self)
 
         def init_from_data(self, x, y, x_test, y_test, sample_weights, names):
             self.init_data_info()
