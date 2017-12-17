@@ -7,11 +7,11 @@ if root_path not in sys.path:
 import numpy as np
 import tensorflow as tf
 
-from _Dist.NeuralNetworks.f_AutoNN.NN import Auto
+from _Dist.NeuralNetworks.f_AutoNN.NN import AutoAdvanced
 from _Dist.NeuralNetworks.NNUtil import Toolbox, PreProcessor
 
 
-class Dist(Auto):
+class Dist(AutoAdvanced):
     def __init__(self, *args, **kwargs):
         super(Dist, self).__init__(*args, **kwargs)
         self._name_appendix = "Dist"

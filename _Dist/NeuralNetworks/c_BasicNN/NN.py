@@ -9,9 +9,11 @@ from _Dist.NeuralNetworks.Base import Base
 
 
 class Basic(Base):
+    signature = "Basic"
+
     def __init__(self, *args, **kwargs):
         super(Basic, self).__init__(*args, **kwargs)
-        self._name_appendix = "Basic"
+        self._name_appendix = "BasicNN"
         self.activations = self.hidden_units = None
 
     @property

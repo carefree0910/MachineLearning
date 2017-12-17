@@ -13,10 +13,12 @@ from _Dist.NeuralNetworks.c_BasicNN.NN import Basic
 
 
 class Advanced(Basic):
+    signature = "Advanced"
+
     def __init__(self, name=None, data_info=None, model_param_settings=None, model_structure_settings=None):
+        self.tf_list_collections = None
         super(Advanced, self).__init__(name, model_param_settings, model_structure_settings)
         self._name_appendix = "Advanced"
-        self.tf_list_collections = None
 
         if data_info is None:
             self.data_info = {}
@@ -39,6 +41,13 @@ class Advanced(Basic):
         self._tf_p_keep = None
         self._n_batch_placeholder = None
 
+    @property
+    def valid_numerical_idx(self):
+        return np.array([
+            is_numerical for is_numerical in self.numerical_idx
+            if is_numerical is not None
+        ])
+
     def init_data_info(self):
         if self._data_info_initialized:
             return
@@ -53,9 +62,9 @@ class Advanced(Basic):
     def init_from_data(self, x, y, x_test, y_test, sample_weights, names):
         self.init_data_info()
         super(Advanced, self).init_from_data(x, y, x_test, y_test, sample_weights, names)
-        if len(self.numerical_idx) != self.n_dim + 1:
-            raise ValueError("Length of numerical_idx should be {}, {} found".format(
-                self.n_dim + 1, len(self.numerical_idx)
+        if len(self.valid_numerical_idx) != self.n_dim + 1:
+            raise ValueError("Length of valid_numerical_idx should be {}, {} found".format(
+                self.n_dim + 1, len(self.valid_numerical_idx)
             ))
         self.n_dim -= len(self.categorical_columns)
 
@@ -165,7 +174,7 @@ class Advanced(Basic):
             self._output += wide_output
 
     def _get_feed_dict(self, x, y=None, weights=None, is_training=True):
-        continuous_x = x[..., self.numerical_idx[:-1]] if self._categorical_xs else x
+        continuous_x = x[..., self.valid_numerical_idx[:-1]] if self._categorical_xs else x
         feed_dict = super(Advanced, self)._get_feed_dict(continuous_x, y, weights, is_training)
         if self._dndf is not None:
             feed_dict[self._n_batch_placeholder] = len(x)
@@ -278,7 +287,7 @@ class Advanced(Basic):
                 len(self._train_generator), len(self._test_generator) if self._test_generator is not None else 0
             ),
             "Features : {} categorical, {} numerical".format(
-                len(self.categorical_columns), np.sum(self.numerical_idx)
+                len(self.categorical_columns), np.sum(self.valid_numerical_idx)
             )
         ]) + "\n"
 
