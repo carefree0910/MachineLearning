@@ -1038,13 +1038,6 @@ class AutoBase:
     def get_np_arrays(*arrays):
         return [None if arr is None else np.asarray(arr, np.float32) for arr in arrays]
 
-    @staticmethod
-    def get_lists(*arrays):
-        return tuple(
-            arr if isinstance(arr, list) else np.asarray(arr, np.float32).tolist()
-            for arr in arrays
-        )
-
     def init_data_info(self):
         if self._data_info_initialized:
             return
@@ -1214,9 +1207,28 @@ class AutoBase:
         else:
             self.transform_dicts.append(self._get_label_dict())
 
+    def _get_data_from_file(self, file_type):
+        if file_type == "txt":
+            sep, include_header = " ", False
+        elif file_type == "csv":
+            sep, include_header = ",", True
+        else:
+            raise NotImplementedError("File type '{}' not recognized".format(file_type))
+        target = os.path.join(self._data_folder, self._name)
+        if not os.path.isdir(target):
+            with open(target + ".{}".format(file_type), "r") as file:
+                data = Toolbox.get_data(file, sep, include_header)
+        else:
+            with open(os.path.join(target, "train.{}".format(file_type)), "r") as file:
+                train_data = Toolbox.get_data(file, sep, include_header)
+            with open(os.path.join(target, "test.{}".format(file_type)), "r") as file:
+                test_data = Toolbox.get_data(file, sep, include_header)
+            data = (train_data, test_data)
+        return data
+
     def _load_data(self, data=None, numerical_idx=None, file_type="txt", names=("train", "test"),
                    shuffle=True, test_rate=0.1, stage=3):
-        if stage < 2:
+        if stage == 1:
             names = (None, None)
         use_cached_data = False
         train_data = test_data = None
@@ -1230,33 +1242,26 @@ class AutoBase:
             print("Restoring data")
             use_cached_data = True
             train_data = np.load(train_data_file)
-            test_data = np.load(test_data_file) if os.path.isfile(test_data_file) else None
-            data = train_data if test_data is None else (train_data, test_data)
+            if not os.path.isfile(test_data_file):
+                test_data = None
+                data = train_data
+            else:
+                test_data = np.load(test_data_file)
+                data = (train_data, test_data)
         if use_cached_data:
             n_train = None
         else:
-            if file_type == "txt":
-                sep, include_header = " ", False
-            elif file_type == "csv":
-                sep, include_header = ",", True
-            else:
-                raise NotImplementedError("File type '{}' not recognized".format(file_type))
             if data is None:
-                target = os.path.join(self._data_folder, self._name)
-                if not os.path.exists(target):
-                    with open(target + ".{}".format(file_type), "r") as file:
-                        data = Toolbox.get_data(file, sep, include_header)
-                else:
-                    with open(os.path.join(target, "train.{}".format(file_type)), "r") as file:
-                        train_data = Toolbox.get_data(file, sep, include_header)
-                    with open(os.path.join(target, "test.{}".format(file_type)), "r") as file:
-                        test_data = Toolbox.get_data(file, sep, include_header)
-                    data = (train_data, test_data)
+                data = self._get_data_from_file(file_type)
             else:
                 if not isinstance(data, tuple):
+                    test_rate = 0
                     data = np.asarray(data, dtype=np.float32).tolist()  # type: list
                 else:
-                    data = self.get_lists(*data)
+                    data = tuple(
+                        arr if isinstance(arr, list) else
+                        np.asarray(arr, np.float32).tolist() for arr in data
+                    )
             if isinstance(data, tuple):
                 if shuffle:
                     random.shuffle(data[0])
@@ -1266,9 +1271,10 @@ class AutoBase:
                 if shuffle:
                     random.shuffle(data)
                 n_train = int(len(data) * (1 - test_rate)) if test_rate > 0 else -1
-        if not os.path.exists(data_info_folder):
+
+        if not os.path.isdir(data_info_folder):
             os.makedirs(data_info_folder)
-        if not os.path.isfile(data_info_file) or stage < 2:
+        if not os.path.isfile(data_info_file) or stage == 1:
             print("Generating data info")
             if numerical_idx is not None:
                 self.numerical_idx = numerical_idx
@@ -1284,7 +1290,7 @@ class AutoBase:
                 pickle.dump([
                     self.n_features, self.numerical_idx, self.transform_dicts, self.is_numeric_label
                 ], file)
-        elif stage != 2:
+        elif stage == 3:
             print("Restoring data info")
             with open(data_info_file, "rb") as file:
                 data_info = pickle.load(file)
@@ -1337,22 +1343,22 @@ class AutoBase:
 class AutoMeta(type):
     def __new__(mcs, *args, **kwargs):
         name_, bases, attr = args[:3]
-        auto_base, model_base = bases
+        auto_base, model = bases
 
         def __init__(self, name=None, data_info=None, model_param_settings=None, model_structure_settings=None,
                      pre_process_settings=None, nan_handler_settings=None):
             auto_base.__init__(self, name, data_info, pre_process_settings, nan_handler_settings)
-            if model_base.signature != "Advanced":
-                model_base.__init__(self, name, model_param_settings, model_structure_settings)
+            if model.signature != "Advanced":
+                model.__init__(self, name, model_param_settings, model_structure_settings)
             else:
-                model_base.__init__(self, name, data_info, model_param_settings, model_structure_settings)
+                model.__init__(self, name, data_info, model_param_settings, model_structure_settings)
 
         @property
         def model_saving_name(self):
             return "{}_{}(Auto)".format(self.name, self._name_appendix)
 
         def _define_py_collections(self):
-            model_base._define_py_collections(self)
+            model._define_py_collections(self)
             self.py_collections += [
                 "pre_process_settings", "nan_handler_settings",
                 "_pre_processors", "_nan_handler", "transform_dicts"
@@ -1364,11 +1370,11 @@ class AutoMeta(type):
         def init_from_data(self, x, y, x_test, y_test, sample_weights, names):
             self.init_data_info()
             x, y, x_test, y_test = self._auto_init_from_data(x, y, x_test, y_test, names)
-            model_base.init_from_data(self, x, y, x_test, y_test, sample_weights, names)
+            model.init_from_data(self, x, y, x_test, y_test, sample_weights, names)
 
         def fit(self, x=None, y=None, x_test=None, y_test=None, sample_weights=None, names=("train", "test"),
                 timeit=True, snapshot_ratio=3, print_settings=True, verbose=1):
-            return model_base.fit(
+            return model.fit(
                 self, x, y, x_test, y_test, sample_weights, names,
                 timeit, snapshot_ratio, print_settings, verbose
             )
