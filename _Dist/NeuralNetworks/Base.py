@@ -1106,7 +1106,7 @@ class AutoBase:
             (i, value) for i, value in enumerate(self.valid_n_features)
             if not self.valid_numerical_idx[i] and self.valid_numerical_idx[i] is not None
         ]
-        if not self.numerical_idx[-1]:
+        if not self.valid_numerical_idx[-1]:
             self.categorical_columns.pop()
 
     def _transform_data(self, data, name, train_name="train",
@@ -1116,12 +1116,10 @@ class AutoBase:
             "" if name == train_name or not self.reuse_mean_and_std else
             " with {} data".format(train_name),
         ))
-        if self.reuse_mean_and_std:
-            name = train_name
         if refresh_redundant_info or self.whether_redundant is None:
             self.whether_redundant = np.array([
                 True if local_dict is None else False
-                for i, local_dict in enumerate(self.transform_dicts)
+                for local_dict in self.transform_dicts
             ])
         targets = [
             (i, local_dict) for i, (idx, local_dict) in enumerate(
@@ -1129,7 +1127,7 @@ class AutoBase:
             ) if not idx and local_dict and not self.whether_redundant[i]
         ]
         if stage == 1 or stage == 3:
-            # Transform & Handle redundant
+            # Transform data & Handle redundant
             n_redundant = np.sum(self.whether_redundant)
             if n_redundant == 0:
                 whether_redundant = None
@@ -1162,6 +1160,8 @@ class AutoBase:
             data = np.array(data, dtype=np.float32)
         if stage == 2 or stage == 3:
             data = np.asarray(data, dtype=np.float32)
+            if self.reuse_mean_and_std:
+                name = train_name
             # Handle nan
             if self._nan_handler is None:
                 self._nan_handler = NanHandler(self.nan_handler_method)
@@ -1183,12 +1183,7 @@ class AutoBase:
             self.is_numeric_label = False
             return {key: i for i, key in enumerate(sorted(labels))}
         self.is_numeric_label = True
-        label_set = set([int(float(label)) for label in labels])
-        if -1 not in label_set:
-            return {}
-        assert len(label_set) == 2, "Including '-1' as label when n_classes > 2 is ambiguous"
-        label_set.discard(-1)
-        return {-1: 0, int(float(label_set.pop())): 1}
+        return {}
 
     def _get_transform_dicts(self):
         self.transform_dicts = [
@@ -1207,7 +1202,7 @@ class AutoBase:
         else:
             self.transform_dicts.append(self._get_label_dict())
 
-    def _get_data_from_file(self, file_type):
+    def _get_data_from_file(self, file_type, test_rate):
         if file_type == "txt":
             sep, include_header = " ", False
         elif file_type == "csv":
@@ -1221,10 +1216,14 @@ class AutoBase:
         else:
             with open(os.path.join(target, "train.{}".format(file_type)), "r") as file:
                 train_data = Toolbox.get_data(file, sep, include_header)
-            with open(os.path.join(target, "test.{}".format(file_type)), "r") as file:
-                test_data = Toolbox.get_data(file, sep, include_header)
-            data = (train_data, test_data)
-        return data
+            test_file = os.path.join(target, "test.{}".format(file_type))
+            if not os.path.isfile(test_file):
+                data, test_rate = train_data, 0
+            else:
+                with open(test_file, "r") as file:
+                    test_data = Toolbox.get_data(file, sep, include_header)
+                data = (train_data, test_data)
+        return data, test_rate
 
     def _load_data(self, data=None, numerical_idx=None, file_type="txt", names=("train", "test"),
                    shuffle=True, test_rate=0.1, stage=3):
@@ -1252,7 +1251,7 @@ class AutoBase:
             n_train = None
         else:
             if data is None:
-                data = self._get_data_from_file(file_type)
+                data, test_rate = self._get_data_from_file(file_type, test_rate)
             else:
                 if not isinstance(data, tuple):
                     test_rate = 0
@@ -1293,9 +1292,9 @@ class AutoBase:
         elif stage == 3:
             print("Restoring data info")
             with open(data_info_file, "rb") as file:
-                data_info = pickle.load(file)
-                self.n_features, self.numerical_idx, self.transform_dicts, self.is_numeric_label = data_info
-            self.n_class = self.n_features[-1] if not self.numerical_idx[-1] else 1
+                info = pickle.load(file)
+                self.n_features, self.numerical_idx, self.transform_dicts, self.is_numeric_label = info
+            self.n_class = 1 if self.numerical_idx[-1] else self.n_features[-1]
 
         if not use_cached_data:
             if n_train > 0:

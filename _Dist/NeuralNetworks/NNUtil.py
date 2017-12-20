@@ -328,10 +328,6 @@ class Toolbox:
         for i, (feat_set, all_num, all_unique) in enumerate(
             zip(feature_sets, all_num_idx, all_unique_idx)
         ):
-            if all_unique:
-                Toolbox.warn_all_unique(i)
-                rs.append(None)
-                continue
             if len(feat_set) == 1:
                 Toolbox.warn_all_same(i)
                 rs.append(None)
@@ -349,6 +345,10 @@ class Toolbox:
             n_feat, feat_min, feat_max = len(no_nan_feat), no_nan_feat.min(), no_nan_feat.max()
             if not np.allclose(no_nan_feat, int_no_nan_feat):
                 rs.append(True)
+                continue
+            if all_unique:
+                Toolbox.warn_all_unique(i)
+                rs.append(None)
                 continue
             feat_min, feat_max = int(feat_min), int(feat_max)
             if np.allclose(np.sort(no_nan_feat), np.linspace(feat_min, feat_max, n_feat)):
