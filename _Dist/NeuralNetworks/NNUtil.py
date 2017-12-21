@@ -59,8 +59,10 @@ class Metrics:
         y = np.asarray(y, np.float32)
         if len(y.shape) == 2:
             if binary:
-                assert y.shape[1] == 2
-                return y[..., 1]
+                if y.shape[1] == 2:
+                    return y[..., 1]
+                assert y.shape[1] == 1
+                return y.ravel()
             return np.argmax(y, axis=1)
         return y
 
@@ -304,7 +306,7 @@ class Toolbox:
                     all_num_idx[i] = None
         else:
             for i, (feature_set, shrink_feature) in enumerate(zip(feature_sets, shrink_features)):
-                if numerical_idx[i] is None:
+                if i == len(numerical_idx) - 1 or numerical_idx[i] is None:
                     continue
                 if feature_set:
                     if len(feature_set) == 1:
@@ -314,11 +316,13 @@ class Toolbox:
                 if Toolbox.all_same(shrink_feature):
                     Toolbox.warn_all_same(i)
                     all_num_idx[i] = numerical_idx[i] = None
-                elif max(shrink_feature) < 2 ** 30:
-                    if np.allclose(shrink_feature, np.array(shrink_feature, np.int32)):
-                        if Toolbox.all_unique(shrink_feature):
-                            Toolbox.warn_all_unique(i)
-                            all_num_idx[i] = numerical_idx[i] = None
+                elif numerical_idx[i]:
+                    shrink_feature = np.asarray(shrink_feature, np.float32)
+                    if np.max(shrink_feature) < 2 ** 30:
+                        if np.allclose(shrink_feature, np.array(shrink_feature, np.int32)):
+                            if Toolbox.all_unique(shrink_feature):
+                                Toolbox.warn_all_unique(i)
+                                all_num_idx[i] = numerical_idx[i] = None
         return feature_sets, n_features, all_num_idx, numerical_idx
 
     @staticmethod
