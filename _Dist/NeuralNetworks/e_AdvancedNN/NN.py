@@ -67,6 +67,7 @@ class Advanced(Basic):
                 self.n_dim + 1, len(self.valid_numerical_idx)
             ))
         self.n_dim -= len(self.categorical_columns)
+        self.model_structure_settings.setdefault("use_wide_network", self.n_dim > 0)
 
     def init_model_param_settings(self):
         super(Advanced, self).init_model_param_settings()
@@ -79,7 +80,7 @@ class Advanced(Basic):
         self._wide_input = self.model_structure_settings.get("wide_input", "continuous")
         self.embedding_size = self.model_structure_settings.get("embedding_size", 8)
 
-        self._use_wide_network = self.model_structure_settings.get("use_wide_network", self.n_dim > 0)
+        self._use_wide_network = self.model_structure_settings["use_wide_network"]
         if not self._use_wide_network:
             self._dndf = None
         else:
@@ -246,7 +247,7 @@ class Advanced(Basic):
 
     def _define_py_collections(self):
         super(Advanced, self)._define_py_collections()
-        self.py_collections.append("data_info")
+        self.py_collections += ["data_info", "numerical_idx", "categorical_columns"]
 
     def _define_tf_collections(self):
         super(Advanced, self)._define_tf_collections()

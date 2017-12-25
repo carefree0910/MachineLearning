@@ -7,7 +7,7 @@ if root_path not in sys.path:
 import numpy as np
 import tensorflow as tf
 
-from _Dist.NeuralNetworks.Base import Base, AutoBase, AutoMeta
+from _Dist.NeuralNetworks.Base import Base,  AutoBase, AutoMeta, DistMixin
 
 
 class LinearSVM(Base):
@@ -82,19 +82,23 @@ class SVM(LinearSVM):
     def rbf(x, y, gamma):
         return np.exp(-gamma * np.sum((x[..., None, :] - y) ** 2, axis=2))
 
-    def init_model_param_settings(self):
-        super(SVM, self).init_model_param_settings()
-        self._p = self.model_param_settings.get("p", None)
-        self._gamma = self.model_param_settings.get("gamma", None)
-        self._kernel_name = self.model_param_settings.get("kernel", None)
-
     def init_from_data(self, x, y, x_test, y_test, sample_weights, names):
         self._x, y = np.atleast_2d(x).astype(np.float32), np.asarray(y, np.float32)
         self._p = self.model_param_settings.setdefault("p", 3)
         self._gamma = self.model_param_settings.setdefault("gamma", 1 / self._x.shape[1])
-        self._kernel_name = self.model_param_settings.setdefault("kernel", "rbf")
+        self._kernel_name = self.model_param_settings.setdefault("kernel_name", "rbf")
         self._gram, x_test = self.kernel(self._x, self._x), self.kernel(x_test, self._x)
         super(SVM, self).init_from_data(self._gram, y, x_test, y_test, sample_weights, names)
+
+    def init_model_param_settings(self):
+        super(SVM, self).init_model_param_settings()
+        self._p = self.model_param_settings["p"]
+        self._gamma = self.model_param_settings["gamma"]
+        self._kernel_name = self.model_param_settings["kernel_name"]
+
+    def _define_py_collections(self):
+        super(SVM, self)._define_py_collections()
+        self.py_collections += ["_x", "_gram"]
 
     def _define_loss_and_train_step(self):
         self._loss = tf.reduce_sum(tf.maximum(0., 1 - self._tfy * self._output)) + 0.5 * tf.matmul(
@@ -103,6 +107,14 @@ class SVM(LinearSVM):
         with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
             self._train_step = self._optimizer.minimize(self._loss)
 
+    def _evaluate(self, x=None, y=None, x_cv=None, y_cv=None, x_test=None, y_test=None, metric=None):
+        n_sample = self._x.shape[0]
+        cv_feat_dim = None if x_cv is None else x_cv.shape[1]
+        test_feat_dim = None if x_test is None else x_test.shape[1]
+        x_cv = None if x_cv is None else self.kernel(x_cv, self._x) if cv_feat_dim != n_sample else x_cv
+        x_test = None if x_test is None else self.kernel(x_test, self._x) if test_feat_dim != n_sample else x_test
+        return super(SVM, self)._evaluate(x, y, x_cv, y_cv, x_test, y_test)
+
     def predict(self, x):
         # noinspection PyTypeChecker
         return self._predict(self.kernel(x, self._x))
@@ -110,10 +122,13 @@ class SVM(LinearSVM):
     def predict_classes(self, x):
         return (self.predict(x) >= 0).astype(np.int32)
 
+    def evaluate(self, x, y, x_cv=None, y_cv=None, x_test=None, y_test=None, metric=None):
+        return self._evaluate(self.kernel(x, self._x), y, x_cv, y_cv, x_test, y_test, metric)
+
 
 class AutoLinearSVM(AutoBase, LinearSVM, metaclass=AutoMeta):
     pass
 
 
-class AutoSVM(AutoBase, SVM, metaclass=AutoMeta):
+class DistLinearSVM(AutoLinearSVM, DistMixin):
     pass

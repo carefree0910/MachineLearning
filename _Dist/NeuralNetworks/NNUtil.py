@@ -262,6 +262,29 @@ class Toolbox:
         print(warn_msg)
 
     @staticmethod
+    def pop_nan(feat):
+        no_nan_feat = []
+        for f in feat:
+            try:
+                f = float(f)
+                if math.isnan(f):
+                    continue
+                no_nan_feat.append(f)
+            except ValueError:
+                no_nan_feat.append(f)
+        return no_nan_feat
+
+    @staticmethod
+    def shrink_nan(feat, dtype):
+        if dtype != str:
+            new = np.asarray(feat, np.float32)
+            new = new[~np.isnan(new)].tolist()
+            if len(new) < len(feat):
+                new.append(float("nan"))
+            return new
+        return feat
+
+    @staticmethod
     def get_data(file, sep=" ", include_header=False):
         print("Fetching data")
         data = [[elem if elem else "nan" for elem in line.strip().split(sep)] for line in file]
@@ -278,13 +301,13 @@ class Toolbox:
         return one_hot
 
     @staticmethod
-    def get_feature_info(data, numerical_idx):
+    def get_feature_info(data, numerical_idx, is_regression):
         dtype = type(data[0][0])
         generate_numerical_idx = False
         if numerical_idx is None:
             generate_numerical_idx = True
             numerical_idx = [False] * len(data[0])
-        shrink_features = [NanHandler.shrink_nan(feat, dtype) for feat in zip(*data)]
+        shrink_features = [Toolbox.shrink_nan(feat, dtype) for feat in zip(*data)]
         feature_sets = [
             set() if idx is None or idx else set(shrink_feat)
             for idx, shrink_feat in zip(numerical_idx, shrink_features)
@@ -294,11 +317,15 @@ class Toolbox:
             True if not feature_set else all(Toolbox.is_number(str(feat)) for feat in feature_set)
             for feature_set in feature_sets
         ]
+        np_shrink_features = [
+            shrink_feature if not all_num else np.asarray(shrink_feature, np.float32)
+            for all_num, shrink_feature in zip(all_num_idx, shrink_features)
+        ]
         if generate_numerical_idx:
             all_unique_idx = [
-                len(feature_set) == len(shrink_feature)
-                and np.allclose(shrink_features, np.array(shrink_features, np.int32))
-                for feature_set, shrink_feature in zip(feature_sets, shrink_features)
+                len(feature_set) == len(np_shrink_feature)
+                and (not all_num or np.allclose(np_shrink_feature, np_shrink_feature.astype(np.int32)))
+                for all_num, feature_set, np_shrink_feature in zip(all_num_idx, feature_sets, np_shrink_features)
             ]
             numerical_idx = Toolbox.get_numerical_idx(feature_sets, all_num_idx, all_unique_idx)
             for i, numerical in enumerate(numerical_idx):
@@ -323,6 +350,10 @@ class Toolbox:
                             if Toolbox.all_unique(shrink_feature):
                                 Toolbox.warn_all_unique(i)
                                 all_num_idx[i] = numerical_idx[i] = None
+        if is_regression:
+            all_num_idx[-1] = numerical_idx[-1] = True
+            feature_sets[-1] = set()
+            n_features.pop()
         return feature_sets, n_features, all_num_idx, numerical_idx
 
     @staticmethod
@@ -336,7 +367,7 @@ class Toolbox:
                 Toolbox.warn_all_same(i)
                 rs.append(None)
                 continue
-            no_nan_feat = NanHandler.pop_nan(feat_set)
+            no_nan_feat = Toolbox.pop_nan(feat_set)
             if not all_num:
                 if len(feat_set) == len(no_nan_feat):
                     rs.append(False)
@@ -715,38 +746,15 @@ class Pruner:
 
 
 class NanHandler:
-    def __init__(self, handler, reuse_values=True):
+    def __init__(self, method, reuse_values=True):
         self._values = None
-        self.handler = handler
+        self.method = method
         self.reuse_values = reuse_values
 
-    @staticmethod
-    def shrink_nan(feat, dtype):
-        if dtype != str:
-            new = np.asarray(feat, np.float32)
-            new = new[~np.isnan(new)].tolist()
-            if len(new) < len(feat):
-                new.append(float("nan"))
-            return new
-        return feat
-
-    @staticmethod
-    def pop_nan(feat):
-        no_nan_feat = []
-        for f in feat:
-            try:
-                f = float(f)
-                if math.isnan(f):
-                    continue
-                no_nan_feat.append(f)
-            except ValueError:
-                no_nan_feat.append(f)
-        return no_nan_feat
-
     def transform(self, x, numerical_idx, refresh_values=False):
-        if self.handler is None:
+        if self.method is None:
             pass
-        elif self.handler == "delete":
+        elif self.method == "delete":
             x = x[~np.any(np.isnan(x[..., numerical_idx]), axis=1)]
         else:
             if self._values is None:
@@ -761,7 +769,7 @@ class NanHandler:
                 if self.reuse_values and not refresh_values and v is not None:
                     new_value = v
                 else:
-                    new_value = getattr(np, self.handler)(feat[~mask])
+                    new_value = getattr(np, self.method)(feat[~mask])
                     if self.reuse_values and (v is None or refresh_values):
                         self._values[i] = new_value
                 feat[mask] = new_value
@@ -773,7 +781,8 @@ class PreProcessor:
         self.method, self.scale_method = method, scale_method
         self.eps_floor, self.eps_ceiling = eps_floor, eps_ceiling
         self.redundant_idx = None
-        self.mean = self.std = None
+        self.min = self.max = self.mean = self.std = None
+        self.min_max_mask = None
 
     def _scale(self, x, numerical_idx):
         targets = x[..., numerical_idx]
@@ -783,6 +792,10 @@ class PreProcessor:
             mean = self.mean
         if self.std is not None:
             std = self.std
+        if self.min is None:
+            self.min = targets.min(axis=0)
+        if self.max is None:
+            self.max = targets.max(axis=0)
         if mean is None:
             mean = targets.mean(axis=0)
         abs_targets = np.abs(targets)
@@ -829,20 +842,35 @@ class PreProcessor:
             std = np.maximum(self.eps_floor, targets.std(axis=0))
         if self.mean is None and self.std is None:
             self.mean, self.std = mean, std
+        self._get_min_max_mask()
         return x
 
     def _scale_abs_features(self, abs_features):
         if self.scale_method == "truncate":
             return np.minimum(abs_features, self.eps_ceiling)
         if self.scale_method == "divide":
-            return abs_features / self.eps_ceiling
+            return abs_features / self.max
         if self.scale_method == "log":
             return np.log(abs_features + 1)
         return getattr(np, self.scale_method)(abs_features)
 
+    def _get_min_max_mask(self):
+        if self.min_max_mask is None:
+            self.min_max_mask = self.std * 2 > self.max - self.min
+
     def _normalize(self, x, numerical_idx):
-        x[..., numerical_idx] -= self.mean
-        x[..., numerical_idx] /= self.std
+        if np.any(self.min_max_mask):
+            min_max_idx = np.arange(len(numerical_idx))[numerical_idx][self.min_max_mask]
+            print("Following features will be processed by "
+                  "min_max_normalization:\n  ->  {}".format(min_max_idx))
+            gaussian_mask = ~self.min_max_mask
+            x[..., numerical_idx][..., self.min_max_mask] -= self.min[self.min_max_mask]
+            x[..., numerical_idx][..., self.min_max_mask] /= (self.max - self.min)[self.min_max_mask]
+            x[..., numerical_idx][..., gaussian_mask] -= self.mean[gaussian_mask]
+            x[..., numerical_idx][..., gaussian_mask] /= self.std[gaussian_mask]
+        else:
+            x[..., numerical_idx] -= self.mean
+            x[..., numerical_idx] /= self.std
         return x
 
     def transform(self, x, numerical_idx):

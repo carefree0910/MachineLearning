@@ -11,10 +11,13 @@ import random
 import pickle
 import shutil
 import logging
+import itertools
+import collections
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
+from copy import deepcopy
 from mpl_toolkits.mplot3d import Axes3D
 
 from _Dist.NeuralNetworks.NNUtil import *
@@ -185,8 +188,6 @@ class Base:
     signature = "Base"
 
     def __init__(self, name=None, model_param_settings=None, model_structure_settings=None):
-        tf.reset_default_graph()
-
         self.log = {}
         self._name = name
         self._name_appendix = ""
@@ -205,8 +206,7 @@ class Base:
             assert isinstance(model_param_settings, dict), assert_msg
             self.model_param_settings = model_param_settings
         self.lr = None
-        self._loss = self._metric = None
-        self._loss_name = self._metric_name = None
+        self._loss = self._loss_name = self._metric_name = None
         self._optimizer_name = self._optimizer = None
         self.n_epoch = self.max_epoch = self.n_iter = self.batch_size = None
 
@@ -227,7 +227,9 @@ class Base:
         self._loss = self._train_step = None
         self._tfx = self._tfy = self._output = self._prob_output = None
 
-        self._sess = tf.Session()
+        self._sess = None
+        self._graph = tf.Graph()
+        self._sess_config = self.model_param_settings.pop("sess_config", None)
 
     def __str__(self):
         return self.model_saving_name
@@ -237,6 +239,10 @@ class Base:
     @property
     def name(self):
         return "Base" if self._name is None else self._name
+
+    @property
+    def metric(self):
+        return getattr(Metrics, self._metric_name)
 
     @property
     def model_saving_name(self):
@@ -257,7 +263,7 @@ class Base:
 
         self._train_generator = self._generator_base(x, y, "TrainGenerator", self._sample_weights, self.n_class)
         if x_test is not None and y_test is not None:
-            self._test_generator = self._generator_base(x_test, y_test, "TestGenerator")
+            self._test_generator = self._generator_base(x_test, y_test, "TestGenerator", n_class=self.n_class)
         else:
             self._test_generator = None
         self.n_random_train_subset = int(len(self._train_generator) * 0.1)
@@ -268,6 +274,12 @@ class Base:
 
         self.n_dim = self._train_generator.shape[-1]
         self.n_class = self._train_generator.n_class
+
+        batch_size = self.model_param_settings.setdefault("batch_size", 128)
+        self.model_param_settings["batch_size"] = min(batch_size, len(self._train_generator))
+        n_iter = self.model_param_settings.setdefault("n_iter", -1)
+        if n_iter < 0:
+            self.model_param_settings["n_iter"] = int(len(self._train_generator) / batch_size)
 
     def init_all_settings(self):
         self.init_model_param_settings()
@@ -282,19 +294,18 @@ class Base:
         metric = self.model_param_settings.get("metric", None)
         if metric is None:
             if self.n_class == 1:
-                self._metric, self._metric_name = Metrics.correlation, "correlation"
+                self._metric_name = "correlation"
             else:
-                self._metric, self._metric_name = Metrics.acc, "acc"
+                self._metric_name = "acc"
         else:
-            self._metric, self._metric_name = getattr(Metrics, metric), metric
+            self._metric_name = metric
         self.n_epoch = self.model_param_settings.get("n_epoch", 32)
         self.max_epoch = self.model_param_settings.get("max_epoch", 256)
         self.max_epoch = max(self.max_epoch, self.n_epoch)
-        self.batch_size = self.model_param_settings.get("batch_size", 128)
-        self.batch_size = min(self.batch_size, len(self._train_generator))
-        self.n_iter = self.model_param_settings.get("n_iter", -1)
-        if self.n_iter < 0:
-            self.n_iter = int(len(self._train_generator) / self.batch_size)
+
+        self.batch_size = self.model_param_settings["batch_size"]
+        self.n_iter = self.model_param_settings["n_iter"]
+
         self._optimizer_name = self.model_param_settings.get("optimizer", "Adam")
         self.lr = self.model_param_settings.get("lr", 1e-3)
         self._optimizer = getattr(tf.train, "{}Optimizer".format(self._optimizer_name))(self.lr)
@@ -344,7 +355,10 @@ class Base:
         with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
             self._train_step = self._optimizer.minimize(self._loss)
 
-    def _initialize(self):
+    def _initialize_session(self):
+        self._sess = tf.Session(graph=self._graph, config=self._sess_config)
+
+    def _initialize_variables(self):
         self._sess.run(tf.global_variables_initializer())
 
     def _snapshot(self, i_epoch, i_iter, snapshot_cursor):
@@ -372,9 +386,9 @@ class Base:
             y_test_pred, test_snapshot_loss = y_test_pred[0], test_snapshot_loss[0]
         else:
             y_test_pred = test_snapshot_loss = None
-        train_metric = self._metric(y_train, y_train_pred)
+        train_metric = self.metric(y_train, y_train_pred)
         if y_test is not None and y_test_pred is not None:
-            test_metric = self._metric(y_test, y_test_pred)
+            test_metric = self.metric(y_test, y_test_pred)
             if i_epoch >= 0 and i_iter >= 0 and snapshot_cursor >= 0:
                 self.log["test_snapshot_loss"].append(test_snapshot_loss)
                 self.log["test_{}".format(self._metric_name)].append(test_metric)
@@ -440,17 +454,28 @@ class Base:
             return output.ravel()
         return output
 
-    def _evaluate(self, x=None, y=None, x_cv=None, y_cv=None, x_test=None, y_test=None):
+    @staticmethod
+    def _print_metrics(metric_name, train_metric=None, cv_metric=None, test_metric=None):
+        print("{}  -  Train : {}   CV : {}   Test : {}".format(
+            metric_name,
+            "None" if train_metric is None else "{:8.6}".format(train_metric),
+            "None" if cv_metric is None else "{:8.6}".format(cv_metric),
+            "None" if test_metric is None else "{:8.6}".format(test_metric)
+        ))
+
+    def _evaluate(self, x=None, y=None, x_cv=None, y_cv=None, x_test=None, y_test=None, metric=None):
+        if isinstance(metric, str):
+            metric_name, metric = metric, getattr(Metrics, metric)
+        else:
+            metric_name, metric = self._metric_name, self.metric
         pred = self._predict(x) if x is not None else None
         cv_pred = self._predict(x_cv) if x_cv is not None else None
         test_pred = self._predict(x_test) if x_test is not None else None
-        print("{}  -  Train : {}   CV : {}   Test : {}".format(
-            self._metric_name,
-            "None" if y is None else "{:8.6}".format(self._metric(y, pred)),
-            "None" if y_cv is None else "{:8.6}".format(self._metric(y_cv, cv_pred)),
-            "None" if y_test is None else "{:8.6}".format(self._metric(y_test, test_pred))
-        ))
-        return self
+        train_metric = None if y is None else metric(y, pred)
+        cv_metric = None if y_cv is None else metric(y_cv, cv_pred)
+        test_metric = None if y_test is None else metric(y_test, test_pred)
+        self._print_metrics(metric_name, train_metric, cv_metric, test_metric)
+        return train_metric, cv_metric, test_metric
 
     def _define_input_and_placeholder(self):
         self._is_training = tf.placeholder(tf.bool, name="is_training")
@@ -458,7 +483,10 @@ class Base:
         self._tfy = tf.placeholder(tf.float32, [None, self.n_class], name="Y")
 
     def _define_py_collections(self):
-        self.py_collections = ["_name", "model_param_settings", "model_structure_settings"]
+        self.py_collections = [
+            "_name", "n_class",
+            "model_param_settings", "model_structure_settings"
+        ]
 
     def _define_tf_collections(self):
         self.tf_collections = [
@@ -511,11 +539,12 @@ class Base:
         if not os.path.exists(folder):
             os.makedirs(folder)
         print("Saving model")
-        saver = tf.train.Saver()
-        self.save_collections(folder)
-        saver.save(self._sess, os.path.join(folder, "Model"))
-        print("Model saved to " + folder)
-        return self
+        with self._graph.as_default():
+            saver = tf.train.Saver()
+            self.save_collections(folder)
+            saver.save(self._sess, os.path.join(folder, "Model"))
+            print("Model saved to " + folder)
+            return self
 
     def load(self, run_id=None, clear_devices=False, path=None):
         self._model_built = True
@@ -524,19 +553,25 @@ class Base:
         folder = self.get_model_name(path, run_id)
         path = os.path.join(folder, "Model")
         print("Restoring model")
-        saver = tf.train.import_meta_graph("{}.meta".format(path), clear_devices)
-        saver.restore(self._sess, tf.train.latest_checkpoint(folder))
-        self.restore_collections(folder)
-        print("Model restored from " + folder)
-        return self
+        with self._graph.as_default():
+            if self._sess is None:
+                self._initialize_session()
+            saver = tf.train.import_meta_graph("{}.meta".format(path), clear_devices)
+            saver.restore(self._sess, tf.train.latest_checkpoint(folder))
+            self.restore_collections(folder)
+            self.init_all_settings()
+            print("Model restored from " + folder)
+            return self
 
     def save_checkpoint(self, folder):
         if not os.path.exists(folder):
             os.makedirs(folder)
-        tf.train.Saver().save(self._sess, os.path.join(folder, "Model"))
+        with self._graph.as_default():
+            tf.train.Saver().save(self._sess, os.path.join(folder, "Model"))
 
     def restore_checkpoint(self, folder):
-        tf.train.Saver().restore(self._sess, tf.train.latest_checkpoint(folder))
+        with self._graph.as_default():
+            tf.train.Saver().restore(self._sess, tf.train.latest_checkpoint(folder))
 
     # API
 
@@ -552,18 +587,20 @@ class Base:
         self.init_from_data(x, y, x_test, y_test, sample_weights, names)
         if not self._settings_initialized:
             self.init_all_settings()
-        self._settings_initialized = True
+            self._settings_initialized = True
 
         if not self._model_built:
-            with tf.name_scope("Input"):
-                self._define_input_and_placeholder()
-            with tf.name_scope("Model"):
-                self._build_model()
-                self._prob_output = tf.nn.softmax(self._output, name="Prob_Output")
-            with tf.name_scope("LossAndTrainStep"):
-                self._define_loss_and_train_step()
-            with tf.name_scope("Initialize"):
-                self._initialize()
+            with self._graph.as_default():
+                self._initialize_session()
+                with tf.name_scope("Input"):
+                    self._define_input_and_placeholder()
+                with tf.name_scope("Model"):
+                    self._build_model()
+                    self._prob_output = tf.nn.softmax(self._output, name="Prob_Output")
+                with tf.name_scope("LossAndTrainStep"):
+                    self._define_loss_and_train_step()
+                with tf.name_scope("InitializeVariables"):
+                    self._initialize_variables()
 
         i_epoch = i_iter = j = snapshot_cursor = 0
         if snapshot_ratio == 0 or x_test is None or y_test is None:
@@ -659,10 +696,10 @@ class Base:
     def predict_classes(self, x):
         if self.n_class == 1:
             raise ValueError("Predicting classes is not permitted in regression problem")
-        return self._predict(x).argmax(1)
+        return self._predict(x).argmax(1).astype(np.int32)
 
-    def evaluate(self, x, y, x_cv=None, y_cv=None, x_test=None, y_test=None):
-        return self._evaluate(x, y, x_cv, y_cv, x_test, y_test)
+    def evaluate(self, x, y, x_cv=None, y_cv=None, x_test=None, y_test=None, metric=None):
+        return self._evaluate(x, y, x_cv, y_cv, x_test, y_test, metric)
 
     # Visualization
 
@@ -974,7 +1011,6 @@ class AutoBase:
         self._name = name
 
         self._data_folder = None
-        self.is_numeric_label = None
         self.whether_redundant = None
         self.feature_sets = self.sparsity = self.class_prior = None
         self.n_features = self.all_num_idx = self.transform_dicts = None
@@ -1020,7 +1056,8 @@ class AutoBase:
         label2num_dict = self.label2num_dict
         if label2num_dict is None:
             return
-        return {i: c for c, i in label2num_dict.items()}
+        num_label_list = sorted([(i, c) for c, i in label2num_dict.items()])
+        return np.array([label for _, label in num_label_list])
 
     @property
     def valid_numerical_idx(self):
@@ -1035,10 +1072,6 @@ class AutoBase:
             n_feature for i, n_feature in enumerate(self.n_features)
             if self.numerical_idx[i] is not None
         ])
-
-    @staticmethod
-    def get_np_arrays(*arrays):
-        return [None if arr is None else np.asarray(arr, np.float32) for arr in arrays]
 
     def init_data_info(self):
         if self._data_info_initialized:
@@ -1087,6 +1120,8 @@ class AutoBase:
         return x, y, x_test, y_test
 
     def _handle_unbalance(self, y):
+        if self.n_class == 1:
+            return
         class_ratio = self.class_prior.min() / self.class_prior.max()
         if class_ratio < 0.1:
             warn_msg = "Sample weights will be used since class_ratio < 0.1 ({:8.6f})".format(class_ratio)
@@ -1128,6 +1163,8 @@ class AutoBase:
                 zip(self.numerical_idx, self.transform_dicts)
             ) if not idx and local_dict and not self.whether_redundant[i]
         ]
+        if targets and targets[-1][0] == len(self.numerical_idx) - 1 and not include_label:
+            targets = targets[:-1]
         if stage == 1 or stage == 3:
             # Transform data & Handle redundant
             n_redundant = np.sum(self.whether_redundant)
@@ -1148,6 +1185,8 @@ class AutoBase:
                 i for i, redundant in enumerate(self.whether_redundant)
                 if not redundant
             ]
+            if not include_label:
+                valid_indices = valid_indices[:-1]
             for i, line in enumerate(data):
                 for j, local_dict in targets:
                     elem = line[j]
@@ -1162,17 +1201,21 @@ class AutoBase:
             data = np.array(data, dtype=np.float32)
         if stage == 2 or stage == 3:
             data = np.asarray(data, dtype=np.float32)
-            if self.reuse_mean_and_std:
-                name = train_name
             # Handle nan
             if self._nan_handler is None:
-                self._nan_handler = NanHandler(self.nan_handler_method)
+                self._nan_handler = NanHandler(
+                    method=self.nan_handler_method,
+                    reuse_values=self.reuse_nan_handler_values
+                )
             data = self._nan_handler.transform(data, self.valid_numerical_idx[:-1])
             # Pre-process data
             if self._pre_processors is not None:
-                pre_processor = self._pre_processors.setdefault(name, PreProcessor(
-                    self.pre_process_method, self.scale_method
-                ))
+                pre_processor_name = train_name if self.reuse_mean_and_std else name
+                pre_processor = self._pre_processors.setdefault(
+                    pre_processor_name, PreProcessor(
+                        self.pre_process_method, self.scale_method
+                    )
+                )
                 if not include_label:
                     data = pre_processor.transform(data, self.valid_numerical_idx[:-1])
                 else:
@@ -1181,10 +1224,12 @@ class AutoBase:
 
     def _get_label_dict(self):
         labels = self.feature_sets[-1]
+        sorted_labels = sorted(labels)
         if not all(Toolbox.is_number(str(label)) for label in labels):
-            self.is_numeric_label = False
-            return {key: i for i, key in enumerate(sorted(labels))}
-        self.is_numeric_label = True
+            return {key: i for i, key in enumerate(sorted_labels)}
+        numerical_labels = np.array(sorted_labels, np.float32)
+        if numerical_labels.max() - numerical_labels.min() != self.n_class - 1:
+            return {key: i for i, key in enumerate(sorted_labels)}
         return {}
 
     def _get_transform_dicts(self):
@@ -1199,19 +1244,19 @@ class AutoBase:
             )
         ]
         if self.n_class == 1:
-            self.is_numeric_label = True
             self.transform_dicts.append({})
         else:
             self.transform_dicts.append(self._get_label_dict())
 
-    def _get_data_from_file(self, file_type, test_rate):
+    def _get_data_from_file(self, file_type, test_rate, target=None):
         if file_type == "txt":
             sep, include_header = " ", False
         elif file_type == "csv":
             sep, include_header = ",", True
         else:
             raise NotImplementedError("File type '{}' not recognized".format(file_type))
-        target = os.path.join(self._data_folder, self._name)
+        if target is None:
+            target = os.path.join(self._data_folder, self._name)
         if not os.path.isdir(target):
             with open(target + ".{}".format(file_type), "r") as file:
                 data = Toolbox.get_data(file, sep, include_header)
@@ -1280,20 +1325,24 @@ class AutoBase:
             elif self.numerical_idx is not None:
                 numerical_idx = self.numerical_idx
             if not self.feature_sets or not self.n_features or not self.all_num_idx:
+                is_regression = self.data_info.pop(
+                    "is_regression",
+                    numerical_idx is not None and numerical_idx[-1]
+                )
                 self.feature_sets, self.n_features, self.all_num_idx, self.numerical_idx = (
-                    Toolbox.get_feature_info(data, numerical_idx)
+                    Toolbox.get_feature_info(data, numerical_idx, is_regression)
                 )
             self.n_class = 1 if self.numerical_idx[-1] else self.n_features[-1]
             self._get_transform_dicts()
             with open(data_info_file, "wb") as file:
                 pickle.dump([
-                    self.n_features, self.numerical_idx, self.transform_dicts, self.is_numeric_label
+                    self.n_features, self.numerical_idx, self.transform_dicts
                 ], file)
         elif stage == 3:
             print("Restoring data info")
             with open(data_info_file, "rb") as file:
                 info = pickle.load(file)
-                self.n_features, self.numerical_idx, self.transform_dicts, self.is_numeric_label = info
+                self.n_features, self.numerical_idx, self.transform_dicts = info
             self.n_class = 1 if self.numerical_idx[-1] else self.n_features[-1]
 
         if not use_cached_data:
@@ -1334,9 +1383,39 @@ class AutoBase:
             "_pre_processors", "_nan_handler", "transform_dicts"
         ]
 
+    def get_transformed_data_from_file(self, file, file_type="txt", include_label=False):
+        x, _ = self._get_data_from_file(file_type, 0, file)
+        return self._transform_data(x, "new", include_label=include_label)
+
+    def get_labels_from_classes(self, classes):
+        num2label_dict = self.num2label_dict
+        if num2label_dict is None:
+            return classes
+        return num2label_dict[classes]
+
+    def predict_labels(self, x):
+        return self.get_labels_from_classes(self.predict_classes(x))
+
+    # Signatures
+
     def fit(self, x=None, y=None, x_test=None, y_test=None, sample_weights=None, names=("train", "test"),
             timeit=True, snapshot_ratio=3, print_settings=True, verbose=1):
-        pass
+        raise ValueError
+
+    def predict_classes(self, x):
+        raise ValueError
+
+    def predict_from_file(self, file, file_type="txt", include_label=False):
+        raise ValueError
+
+    def predict_classes_from_file(self, file, file_type="txt", include_label=False):
+        raise ValueError
+
+    def predict_labels_from_file(self, file, file_type="txt", include_label=False):
+        raise ValueError
+
+    def evaluate_from_file(self, file, file_type="txt"):
+        raise ValueError
 
 
 class AutoMeta(type):
@@ -1352,15 +1431,12 @@ class AutoMeta(type):
             else:
                 model.__init__(self, name, data_info, model_param_settings, model_structure_settings)
 
-        @property
-        def model_saving_name(self):
-            return "{}_{}(Auto)".format(self.name, self._name_appendix)
-
         def _define_py_collections(self):
             model._define_py_collections(self)
             self.py_collections += [
                 "pre_process_settings", "nan_handler_settings",
-                "_pre_processors", "_nan_handler", "transform_dicts"
+                "_pre_processors", "_nan_handler", "transform_dicts",
+                "numerical_idx", "categorical_columns", "transform_dicts"
             ]
 
         def init_data_info(self):
@@ -1391,6 +1467,9 @@ class AutoMeta(type):
                 self._pre_processors.pop("tmp_test")
             return rs
 
+        def predict_classes(self, x):
+            return model.predict_classes(self, x)
+
         def predict_target_prob(self, x, target):
             prob = self.predict(x)
             label2num_dict = self.label2num_dict
@@ -1398,7 +1477,25 @@ class AutoMeta(type):
                 target = label2num_dict[target]
             return prob[..., target]
 
-        def evaluate(self, x, y, x_cv=None, y_cv=None, x_test=None, y_test=None):
+        def predict_from_file(self, file, file_type="txt", include_label=False):
+            x = self.get_transformed_data_from_file(file, file_type, include_label)
+            if include_label:
+                x = x[..., :-1]
+            return self._predict(x)
+
+        def predict_classes_from_file(self, file, file_type="txt", include_label=False):
+            if self.numerical_idx[-1]:
+                raise ValueError("Predicting classes is not permitted in regression problem")
+            x = self.get_transformed_data_from_file(file, file_type, include_label)
+            if include_label:
+                x = x[..., :-1]
+            return self._predict(x).argmax(1).astype(np.int32)
+
+        def predict_labels_from_file(self, file, file_type="txt", include_label=False):
+            classes = self.predict_classes_from_file(file, file_type, include_label)
+            return self.get_labels_from_classes(classes)
+
+        def evaluate(self, x, y, x_cv=None, y_cv=None, x_test=None, y_test=None, metric=None):
             x = self._transform_data(x, "train")
             cv_name = "cv" if "cv" in self._pre_processors else "tmp_cv"
             test_name = "test" if "test" in self._pre_processors else "tmp_test"
@@ -1410,116 +1507,93 @@ class AutoMeta(type):
                 self._pre_processors.pop(cv_name)
             if test_name == "tmp_test":
                 self._pre_processors.pop(test_name)
-            return self._evaluate(x, y, x_cv, y_cv, x_test, y_test)
+            return self._evaluate(x, y, x_cv, y_cv, x_test, y_test, metric)
 
         for key, value in locals().items():
-            if str(value).find("function") >= 0 or str(value).find("property") >= 0:
+            if str(value).find("function") >= 0:
                 attr[key] = value
 
         return type(name_, bases, attr)
 
 
 class DistMixin:
+    def __init__(self):
+        # Signatures
+        self._k_performances = None
+        self._k_performances_mean = self._k_performances_std = None
+        self._appendix_base = self._settings_base = None
+        self._sess = self._graph = None
+        self._model_built = self._settings_initialized = None
+        self.mean_record = self.std_record = None
+        self.model_param_settings = self.model_structure_settings = None
+        self._sess = None
+        self.data_info = None
+        self.numerical_idx = None
+        self._sample_weights = None
+        self._pre_processors = None
+        self.n_random_train_subset = None
+        self._train_generator = self._test_generator = self._generator_base = None
+        self.name = self._name_appendix = self._loss_name = self._metric_name = None
+        raise ValueError
+
     def reset_all_variables(self):
-        self._sess.run(tf.global_variables_initializer())
+        with self._graph.as_default():
+            self._sess.run(tf.global_variables_initializer())
 
-    def rolling_fit(self, train_rate=0.8, cv_rate=0.1, sample_weights=None, **kwargs):
-        n_data = len(self._train_generator)
-        if sample_weights is not None:
-            n_weights = len(sample_weights)
-            assert_msg = (
-                "Sample weights should match training data, "
-                "but n_weights={} & n_data={} found".format(n_weights, n_data)
-            )
-            assert n_weights == n_data, assert_msg
-        n_train = int(train_rate * n_data)
-        n_test = int(cv_rate * n_data) if self._test_generator is None else len(self._test_generator)
-        j, cursor, print_settings = 0, 0, kwargs.pop("print_settings", True)
-        flag = test_flag = False
-        if self._test_generator is not None:
-            test_flag = True
-            test_data, _ = self._test_generator.get_all_data()
-            x_test, y_test = test_data[..., :-1], test_data[..., -1]
-        else:
-            x_test = y_test = None
-        print("Rolling fit with train_rate={} and test_rate={}".format(train_rate, cv_rate))
-        while True:
-            j += 1
-            train_cursor = cursor + n_train
-            test_cursor = train_cursor + n_test
-            if n_data - test_cursor < n_test:
-                flag = True
-                test_cursor = n_data
-            with self._train_generator:
-                if self._test_generator is None:
-                    test_data, _ = self._train_generator.get_range(train_cursor, test_cursor)
-                    x_test, y_test = test_data[..., :-1], test_data[..., -1]
-                    self._test_generator = self._generator_base(x_test, y_test, name="TestGenerator")
-                self._train_generator.set_range(cursor, train_cursor)
-                kwargs["print_settings"] = print_settings
-                self.fit(**kwargs)
-                x, y, _ = self._gen_batch(self._train_generator, self.n_random_train_subset, True)
-                print("  -  Performance of roll {}".format(j), end=" | ")
-                self._evaluate(x, y, x_test, y_test)
-                cursor += n_test
-                print_settings = False
-                if not test_flag:
-                    self._test_generator = None
-                if flag:
-                    break
-        with self._train_generator:
-            self._train_generator.set_range(cursor)
-            kwargs["print_settings"] = print_settings
-            self.fit(**kwargs)
-            if self._test_generator is not None:
-                print("  -  Performance of roll {}".format(j + 1), end=" | ")
-                self._evaluate(x_test=x_test, y_test=y_test)
-        return self
+    def reset_graph(self):
+        del self._graph
+        self._sess = None
+        self._graph = tf.Graph()
 
-    def increment_fit(self, x=None, y=None, x_test=None, y_test=None, sample_weights=None, **kwargs):
-        if x is not None and y is not None:
-            data = np.hstack([np.asarray(x, np.float32), np.asarray(y, np.float32).reshape([-1, 1])])
-            if x_test is not None and y_test is not None:
-                data = (data, np.hstack([
-                    np.asarray(x_test, np.float32), np.asarray(y_test, np.float32).reshape([-1, 1])
-                ]))
-            x, y, x_test, y_test = self._load_data(data)
-        else:
-            data = None
-            if self._test_generator is not None:
-                test_data, _ = self._test_generator.get_all_data()
-                x_test, y_test = test_data[..., :-1], test_data[..., -1]
-        if sample_weights is not None:
-            self._sample_weights = np.asarray(sample_weights, np.float32)
-        self._handle_unbalance(y)
-        self._handle_sparsity()
-        if data is not None:
-            self._train_generator = self._generator_base(x, y, self._sample_weights, name="Generator")
-            if x_test is not None and y_test is not None:
-                self._test_generator = self._generator_base(x_test, y_test, name="TestGenerator")
-        self.fit(**kwargs)
-        x, y, _ = self._gen_batch(self._train_generator, self.n_random_train_subset, True)
-        print("  -  Performance of increment fit", end=" | ")
-        self._evaluate(x, y, x_test, y_test)
-        return self
-
-    def _k_series_initialization(self, k, data):
+    def _k_series_initialization(self, k, data, test_rate):
+        self.data_info.setdefault("test_rate", test_rate)
         self.init_data_info()
-        x, y, x_test, y_test = self._load_data(data, stage=1)
-        x_test, y_test, *_ = self._load_data(
-            np.hstack([x_test, y_test.reshape([-1, 1])]),
-            names=("test", None), test_rate=0, stage=2
-        )
+        self._k_performances = []
+        self._k_performances_mean = self._k_performances_std = None
+        kwargs = {
+            "numerical_idx": self.numerical_idx,
+            "shuffle": self.data_info["shuffle"],
+            "file_type": self.data_info["file_type"]
+        }
+        x, y, x_test, y_test = self._load_data(data, test_rate=self.data_info["test_rate"], stage=1, **kwargs)
+        if x_test is not None and y_test is not None:
+            x_test, y_test, *_ = self._load_data(
+                np.hstack([x_test, y_test.reshape([-1, 1])]),
+                names=("test", None), test_rate=0, stage=2, **kwargs
+            )
         names = [("train{}".format(i), "cv{}".format(i)) for i in range(k)]
         return x, y, x_test, y_test, names
 
     def _k_series_evaluation(self, i, x_test, y_test):
+        if i == -1:
+            if x_test is None or y_test is None:
+                valid_performances = [performance[:2] for performance in self._k_performances]
+            else:
+                valid_performances = self._k_performances
+            performances_mean = np.mean(valid_performances, axis=0)
+            performances_std = np.std(valid_performances, axis=0)
+            print("\n".join(["=" * 100, "Performance summarize", "-" * 100]))
+            print("  -  Mean  ", end=" | ")
+            self._print_metrics(self._metric_name, *performances_mean)
+            print("  -   Std  ", end=" | ")
+            self._print_metrics(self._metric_name, *performances_std)
+            print("-" * 100)
+            return performances_mean, performances_std
         train, sw_train = self._train_generator.get_all_data()
         cv, sw_cv = self._test_generator.get_all_data()
         x, y = train[..., :-1], train[..., -1]
         x_cv, y_cv = cv[..., :-1], cv[..., -1]
-        print("  -  Performance of run {}".format(i + 1), end=" | ")
-        self._evaluate(x, y, x_cv, y_cv, x_test, y_test)
+        print("  -  Performance of run {:2}".format(i + 1), end=" | ")
+        self._k_performances.append(self._evaluate(x, y, x_cv, y_cv, x_test, y_test))
+
+    def _k_series_completion(self, x_test, y_test, names, sample_weights_store):
+        performance_info = self._k_series_evaluation(-1, x_test, y_test)
+        self._k_performances_mean, self._k_performances_std = performance_info
+        self.data_info["stage"] = 3
+        self._merge_preprocessors_from_k_series(names)
+        self._sample_weights = sample_weights_store
+        if x_test is not None and y_test is not None:
+            self._test_generator = self._generator_base(x_test, y_test, name="TestGenerator")
 
     def _merge_preprocessors_from_k_series(self, names):
         train_names, cv_names = [name[0] for name in names], [name[1] for name in names]
@@ -1529,6 +1603,7 @@ class DistMixin:
     def _merge_preprocessors_by_names(self, target, names):
         if len(names) == 1:
             self._pre_processors[target] = self._pre_processors.pop(names[0])
+            return
         pre_processors = [self._pre_processors.pop(name) for name in names]
         methods = [pre_processor.method for pre_processor in pre_processors]
         scale_methods = [pre_processor.scale_method for pre_processor in pre_processors]
@@ -1539,8 +1614,75 @@ class DistMixin:
         new_processor.std = np.mean([pre_processor.std for pre_processor in pre_processors], axis=0)
         self._pre_processors[target] = new_processor
 
+    @staticmethod
+    def str_param(param):
+        if isinstance(param, str):
+            return param
+        if isinstance(param, collections.Iterable):
+            return ",".join(map(lambda elem: str(elem), param))
+        return str(param)
+
+    def _update_parameter(self, param):
+        self._model_built = False
+        self._settings_initialized = False
+        self._name_appendix = self._appendix_base
+        self.model_param_settings = deepcopy(self._settings_base["model_param_settings"])
+        self.model_structure_settings = deepcopy(self._settings_base["model_structure_settings"])
+        new_model_param_settings = param.get("model_param_settings", {})
+        new_model_structure_settings = param.get("model_structure_settings", {})
+        self.model_param_settings.update(new_model_param_settings)
+        self.model_structure_settings.update(new_model_structure_settings)
+        model_param_appendix = "_".join(["{}({})".format(
+            name, self.str_param(param)
+        ) for name, param in new_model_param_settings.items()])
+        model_structure_appendix = "_".join(["{}({})".format(
+            name, self.str_param(param)
+        ) for name, param in new_model_structure_settings.items()])
+        if model_param_appendix:
+            self._name_appendix += "_{}".format(model_param_appendix)
+        if model_structure_appendix:
+            self._name_appendix += "_{}".format(model_structure_appendix)
+
+    @staticmethod
+    def _print_parameter(param):
+        for key, setting in param.items():
+            print("\n".join([key, "-" * 100]))
+            print("\n".join([
+                "  ->  {:32} : {}".format(
+                    name, value if not isinstance(value, dict) else "\n{}".format(
+                        "\n".join(["      ->  {:28} : {}".format(
+                            local_name, local_value
+                        ) for local_name, local_value in value.items()])
+                    )
+                ) for name, value in sorted(setting.items())
+            ]))
+            print("-" * 100)
+
+    @staticmethod
+    def _get_score(mean, std, sign):
+        if sign > 0:
+            return mean - std
+        return mean + std
+
+    def _select_parameter(self, params):
+        scores = []
+        sign = Metrics.sign_dict[self._metric_name]
+        for i, param in enumerate(params):
+            mean, std = self.mean_record[i], self.std_record[i]
+            train_mean, cv_mean, test_mean = mean
+            train_std, cv_std, test_std = std
+            if test_mean is None or test_std is None:
+                weighted_mean = 0.2 * train_mean + 0.8 * cv_mean
+                weighted_std = 0.2 * train_std + 0.8 * cv_std
+            else:
+                weighted_mean = 0.1 * train_mean + 0.2 * cv_mean + 0.7 * test_mean
+                weighted_std = 0.1 * train_std + 0.2 * cv_std + 0.7 * test_std
+            scores.append(self._get_score(weighted_mean, weighted_std, sign))
+        best_idx = np.argmax(scores)
+        return best_idx, params[best_idx]
+
     def k_fold(self, k=10, data=None, test_rate=0., sample_weights=None, **kwargs):
-        x, y, x_test, y_test, names = self._k_series_initialization(k, data)
+        x, y, x_test, y_test, names = self._k_series_initialization(k, data, test_rate)
         n_batch = int(len(x) / k)
         all_idx = list(range(len(x)))
         print_settings = True
@@ -1564,15 +1706,11 @@ class DistMixin:
             self.fit(x_train, y_train, x_cv, y_cv, **kwargs)
             self._k_series_evaluation(i, x_test, y_test)
             print_settings = False
-        self.data_info["stage"] = 3
-        self._merge_preprocessors_from_k_series(names)
-        self._sample_weights = sample_weights_store
-        if x_test is not None and y_test is not None:
-            self._test_generator = self._generator_base(x_test, y_test, name="TestGenerator")
+        self._k_series_completion(x_test, y_test, names, sample_weights_store)
         return self
 
     def k_random(self, k=3, data=None, cv_rate=0.1, test_rate=0., sample_weights=None, **kwargs):
-        x, y, x_test, y_test, names = self._k_series_initialization(k, data)
+        x, y, x_test, y_test, names = self._k_series_initialization(k, data, test_rate)
         n_cv = int(cv_rate * len(x))
         print_settings = True
         if sample_weights is not None:
@@ -1580,7 +1718,8 @@ class DistMixin:
         sample_weights_store = self._sample_weights
         print("Training k-random with k={}, cv_rate={} and test_rate={}".format(k, cv_rate, test_rate))
         for i in range(k):
-            self.reset_all_variables()
+            if self._sess is not None:
+                self.reset_all_variables()
             all_idx = np.random.permutation(len(x))
             cv_idx, train_idx = all_idx[:n_cv], all_idx[n_cv:]
             x_cv, y_cv = x[cv_idx], y[cv_idx]
@@ -1595,9 +1734,160 @@ class DistMixin:
             self.fit(x_train, y_train, x_cv, y_cv, **kwargs)
             self._k_series_evaluation(i, x_test, y_test)
             print_settings = False
-        self.data_info["stage"] = 3
-        self._merge_preprocessors_from_k_series(names)
-        self._sample_weights = sample_weights_store
-        if x_test is not None and y_test is not None:
-            self._test_generator = self._generator_base(x_test, y_test, name="TestGenerator")
+        self._k_series_completion(x_test, y_test, names, sample_weights_store)
         return self
+
+    def param_search(self, params, switch_to_best_param=True,
+                     k=3, data=None, cv_rate=0.1, test_rate=0., sample_weights=None, **kwargs):
+        self._appendix_base = self._name_appendix
+        self._settings_base = {
+            "model_param_settings": deepcopy(self.model_param_settings),
+            "model_structure_settings": deepcopy(self.model_structure_settings)
+        }
+        self.mean_record, self.std_record = [], []
+        print("\n".join(["=" * 100, "Searching best parameter setting"]))
+        for i, param in enumerate(params):
+            print("\n".join(["=" * 100, "Parameter setting {:3}".format(i + 1), "-" * 100]))
+            self.reset_graph()
+            self._print_parameter(param)
+            self._update_parameter(param)
+            self.k_random(k, data, cv_rate, test_rate, sample_weights, **kwargs).save()
+            self.mean_record.append(self._k_performances_mean)
+            self.std_record.append(self._k_performances_std)
+        print("\n".join(["=" * 100, "Search complete", "=" * 100, "Best parameter setting", "-" * 100]))
+        best_idx, best_param = self._select_parameter(params)
+        self._print_parameter(best_param)
+        print("\n".join(["=" * 100, "Performances"]))
+        for i, (mean, std) in enumerate(zip(self.mean_record, self.std_record)):
+            print("-" * 100)
+            print("  -{} Mean  ".format(">" if i == best_idx else " "), end=" | ")
+            self._print_metrics(self._metric_name, *mean)
+            print("  -{}  Std  ".format(">" if i == best_idx else " "), end=" | ")
+            self._print_metrics(self._metric_name, *std)
+        print("-" * 100)
+        if switch_to_best_param:
+            self.reset_graph()
+            self._update_parameter(best_param)
+        self._name_appendix = self._appendix_base
+        return self
+
+    def random_search(self, n, grid_params, grid_order="list_first", switch_to_best_params=True,
+                      k=3, data=None, cv_rate=0.1, test_rate=0., sample_weights=None, **kwargs):
+        if grid_order == "dict_first":
+            param_types = sorted(grid_params)
+            params_names = [sorted(grid_params[param_type]) for param_type in param_types]
+            params_names_cumsum = np.cumsum([0] + [len(params_name) for params_name in params_names])
+            n_param_base = sum([
+                [np.arange(len(grid_params[param_type][param_name])) for param_name in params_name]
+                for param_type, params_name in zip(param_types, params_names)
+            ], [])
+            params = [
+                {
+                    param_type: {
+                        local_params: grid_params[param_type][local_params][indices[cumsum+j]]
+                        for j, local_params in enumerate(params_names[i])
+                    } for i, (param_type, cumsum) in enumerate(zip(param_types, params_names_cumsum))
+                } for indices in itertools.product(*n_param_base)
+            ]
+        elif grid_order == "list_first":
+            param_types = sorted(grid_params)
+            n_param_base = [
+                np.arange(len(grid_params[param_type]))
+                for param_type in param_types
+            ]
+            params = [
+                {
+                    param_type: grid_params[param_type][indices[i]]
+                    for i, param_type in enumerate(param_types)
+                } for indices in itertools.product(*n_param_base)
+            ]
+        else:
+            raise NotImplementedError("grid_sort_type '{}' not implemented".format(grid_order))
+        if n > 0:
+            params = [params[i] for i in np.random.permutation(len(params))[:n]]
+        return self.param_search(
+            params, switch_to_best_params,
+            k, data, cv_rate, test_rate, sample_weights, **kwargs
+        )
+
+    def grid_search(self, grid_params, grid_order="list_first", switch_to_best_params=True,
+                    k=3, data=None, cv_rate=0.1, test_rate=0., sample_weights=None, **kwargs):
+        return self.random_search(
+            -1, grid_params, grid_order, switch_to_best_params,
+            k, data, cv_rate, test_rate, sample_weights, **kwargs
+        )
+
+    def get_param_by_range(self, param):
+        if isinstance(param, dict):
+            return {key: self.get_param_by_range(value) for key, value in param.items()}
+        dtype, *info = param
+        if not isinstance(dtype, str) and isinstance(dtype, collections.Iterable):
+            local_param_list = []
+            for local_dtype, local_info in zip(dtype, info):
+                if local_dtype == "choice":
+                    local_param_list.append(np.random.choice(local_info[0], 1)[0])
+                    continue
+                floor, ceiling = local_info
+                if local_dtype == "int":
+                    local_param_list.append(random.randint(floor, ceiling))
+                elif dtype == "float":
+                    local_param_list.append(floor + random.random() * (ceiling - floor))
+                else:
+                    raise NotImplementedError("dtype '{}' not supported in range_search".format(dtype))
+            return local_param_list
+        if dtype == "choice":
+            return np.random.choice(info[0], 1)[0]
+        floor, ceiling = info
+        if dtype == "int":
+            return random.randint(floor, ceiling)
+        if dtype == "float":
+            return floor + random.random() * (ceiling - floor)
+        raise NotImplementedError("dtype '{}' not supported in range_search".format(dtype))
+
+    def range_search(self, n, grid_params, switch_to_best_params=True,
+                     k=3, data=None, cv_rate=0.1, test_rate=0., sample_weights=None, **kwargs):
+        params = []
+        for _ in range(n):
+            local_params = {
+                param_type: {
+                    param_name: self.get_param_by_range(param_value)
+                    for param_name, param_value in param_values.items()
+                } for param_type, param_values in grid_params.items()
+            }
+            params.append(local_params)
+        return self.param_search(
+            params, switch_to_best_params,
+            k, data, cv_rate, test_rate, sample_weights, **kwargs
+        )
+
+    # Signatures
+
+    def _load_data(self, *args, **kwargs):
+        raise ValueError
+
+    def _handle_unbalance(self, y):
+        raise ValueError
+
+    def _handle_sparsity(self):
+        raise ValueError
+
+    def _gen_batch(self, *args, **kwargs):
+        raise ValueError
+
+    def _print_metrics(self, *args, **kwargs):
+        raise ValueError
+
+    def _evaluate(self, *args, **kwargs):
+        raise ValueError
+
+    def init_data_info(self):
+        raise ValueError
+
+    def save(self, *args, **kwargs):
+        raise ValueError
+
+    def fit(self, *args, **kwargs):
+        raise ValueError
+
+    def evaluate(self, *args, **kwargs):
+        raise ValueError
