@@ -97,7 +97,7 @@ class Advanced(Basic):
     def _get_embedding(self, i, n):
         embedding_size = math.ceil(math.log2(n)) + 1 if self.embedding_size == "log" else self.embedding_size
         embedding = tf.Variable(tf.truncated_normal(
-            [n, embedding_size], mean=0, stddev=0.02
+            [1, embedding_size], mean=0, stddev=0.02
         ), name="Embedding{}".format(i))
         return tf.nn.embedding_lookup(embedding, self._categorical_xs[i], name="Embedded_X{}".format(i))
 

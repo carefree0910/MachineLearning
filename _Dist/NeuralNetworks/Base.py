@@ -571,7 +571,7 @@ class Base:
 
     def restore_checkpoint(self, folder):
         with self._graph.as_default():
-            tf.train.Saver().restore(self._sess, tf.train.latest_checkpoint(folder))
+            tf.train.Saver().restore(self._sess, os.path.join(folder, "Model"))
 
     # API
 
@@ -1007,7 +1007,7 @@ class AutoBase:
     def __init__(self, name=None, data_info=None, pre_process_settings=None, nan_handler_settings=None,
                  *args, **kwargs):
         if name is None:
-            raise ValueError("name should be provided when using AutoMixin")
+            raise ValueError("name should be provided when using AutoBase")
         self._name = name
 
         self._data_folder = None
@@ -1377,12 +1377,6 @@ class AutoBase:
 
         return x, y, x_test, y_test
 
-    def _define_py_collections(self):
-        self.py_collections += [
-            "pre_process_settings", "nan_handler_settings",
-            "_pre_processors", "_nan_handler", "transform_dicts"
-        ]
-
     def get_transformed_data_from_file(self, file, file_type="txt", include_label=False):
         x, _ = self._get_data_from_file(file_type, 0, file)
         return self._transform_data(x, "new", include_label=include_label)
@@ -1664,17 +1658,49 @@ class DistMixin:
             return mean - std
         return mean + std
 
+    @staticmethod
+    def _extract_info(dtype, info):
+        if dtype == "choice":
+            return info[0][random.randint(0, len(info[0]) - 1)]
+        if len(info) == 2:
+            floor, ceiling = info
+            distribution = "linear"
+        else:
+            floor, ceiling, distribution = info
+        if ceiling <= floor:
+            raise ValueError("ceiling should be greater than floor")
+        if dtype == "int":
+            return random.randint(floor, ceiling)
+        if dtype == "float":
+            linear_target = floor + random.random() * (ceiling - floor)
+            distribution_error_msg = "distribution '{}' not supported in range_search".format(distribution)
+            if distribution == "linear":
+                return linear_target
+            if distribution[:3] == "log":
+                sign, log = int(linear_target > 0), math.log(math.fabs(linear_target))
+                if distribution == "log":
+                    return sign * math.exp(log)
+                if distribution == "log2":
+                    return sign * 2 ** log
+                if distribution == "log10":
+                    return sign * 10 ** log
+                raise NotImplementedError(distribution_error_msg)
+            raise NotImplementedError(distribution_error_msg)
+        raise NotImplementedError("dtype '{}' not supported in range_search".format(dtype))
+
     def _select_parameter(self, params):
         scores = []
         sign = Metrics.sign_dict[self._metric_name]
         for i, param in enumerate(params):
             mean, std = self.mean_record[i], self.std_record[i]
-            train_mean, cv_mean, test_mean = mean
-            train_std, cv_std, test_std = std
-            if test_mean is None or test_std is None:
+            if len(mean) == 2:
+                train_mean, cv_mean = mean
+                train_std, cv_std = std
                 weighted_mean = 0.2 * train_mean + 0.8 * cv_mean
                 weighted_std = 0.2 * train_std + 0.8 * cv_std
             else:
+                train_mean, cv_mean, test_mean = mean
+                train_std, cv_std, test_std = std
                 weighted_mean = 0.1 * train_mean + 0.2 * cv_mean + 0.7 * test_mean
                 weighted_std = 0.1 * train_std + 0.2 * cv_std + 0.7 * test_std
             scores.append(self._get_score(weighted_mean, weighted_std, sign))
@@ -1824,25 +1850,9 @@ class DistMixin:
         if not isinstance(dtype, str) and isinstance(dtype, collections.Iterable):
             local_param_list = []
             for local_dtype, local_info in zip(dtype, info):
-                if local_dtype == "choice":
-                    local_param_list.append(np.random.choice(local_info[0], 1)[0])
-                    continue
-                floor, ceiling = local_info
-                if local_dtype == "int":
-                    local_param_list.append(random.randint(floor, ceiling))
-                elif dtype == "float":
-                    local_param_list.append(floor + random.random() * (ceiling - floor))
-                else:
-                    raise NotImplementedError("dtype '{}' not supported in range_search".format(dtype))
+                local_param_list.append(self._extract_info(local_dtype, local_info))
             return local_param_list
-        if dtype == "choice":
-            return np.random.choice(info[0], 1)[0]
-        floor, ceiling = info
-        if dtype == "int":
-            return random.randint(floor, ceiling)
-        if dtype == "float":
-            return floor + random.random() * (ceiling - floor)
-        raise NotImplementedError("dtype '{}' not supported in range_search".format(dtype))
+        return self._extract_info(dtype, info)
 
     def range_search(self, n, grid_params, switch_to_best_params=True,
                      k=3, data=None, cv_rate=0.1, test_rate=0., sample_weights=None, **kwargs):
