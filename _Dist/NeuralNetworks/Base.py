@@ -1153,6 +1153,7 @@ class AutoBase:
             "" if name == train_name or not self.reuse_mean_and_std else
             " with {} data".format(train_name),
         ))
+        is_ndarray = isinstance(data, np.ndarray)
         if refresh_redundant_info or self.whether_redundant is None:
             self.whether_redundant = np.array([
                 True if local_dict is None else False
@@ -1196,9 +1197,12 @@ class AutoBase:
                         line[j] = local_dict["nan"]
                     else:
                         line[j] = local_dict[elem]
-                if whether_redundant is not None:
+                if not is_ndarray and whether_redundant is not None:
                     data[i] = [line[j] for j in valid_indices]
-            data = np.array(data, dtype=np.float32)
+            if is_ndarray and whether_redundant is not None:
+                data = data[..., valid_indices].astype(np.float32)
+            else:
+                data = np.array(data, dtype=np.float32)
         if stage == 2 or stage == 3:
             data = np.asarray(data, dtype=np.float32)
             # Handle nan
@@ -1296,24 +1300,26 @@ class AutoBase:
             n_train = None
         else:
             if data is None:
+                is_ndarray = False
                 data, test_rate = self._get_data_from_file(file_type, test_rate)
             else:
+                is_ndarray = True
                 if not isinstance(data, tuple):
                     test_rate = 0
-                    data = np.asarray(data, dtype=np.float32).tolist()  # type: list
+                    data = np.asarray(data, dtype=np.float32)
                 else:
                     data = tuple(
                         arr if isinstance(arr, list) else
-                        np.asarray(arr, np.float32).tolist() for arr in data
+                        np.asarray(arr, np.float32) for arr in data
                     )
             if isinstance(data, tuple):
                 if shuffle:
-                    random.shuffle(data[0])
+                    np.random.shuffle(data[0]) if is_ndarray else random.shuffle(data[0])
                 n_train = len(data[0])
-                data = data[0] + data[1]
+                data = np.vstack(data) if is_ndarray else data[0] + data[1]
             else:
                 if shuffle:
-                    random.shuffle(data)
+                    np.random.shuffle(data) if is_ndarray else random.shuffle(data)
                 n_train = int(len(data) * (1 - test_rate)) if test_rate > 0 else -1
 
         if not os.path.isdir(data_info_folder):
