@@ -253,6 +253,32 @@ class DataUtil:
         return (x_train_noise, DataUtil.get_one_hot(y_train, 2)), (x_test, DataUtil.get_one_hot(y_test, 2))
 
     @staticmethod
+    def gen_special_linear(size=10000, n_dim=10, n_redundant=3, n_categorical=3,
+                           cv_ratio=0.15, test_ratio=0.15, one_hot=True):
+        x_train = np.random.randn(size, n_dim)
+        x_train_redundant = np.ones([size, n_redundant]) * np.random.randint(0, 3, n_redundant)
+        x_train_categorical = np.random.randint(3, 8, [size, n_categorical])
+        x_train_stacked = np.hstack([x_train, x_train_redundant, x_train_categorical])
+        n_test = int(size * test_ratio)
+        x_test = np.random.randn(n_test, n_dim)
+        x_test_redundant = np.ones([n_test, n_redundant]) * np.random.randint(3, 6, n_redundant)
+        x_test_categorical = np.random.randint(0, 5, [n_test, n_categorical])
+        x_test_stacked = np.hstack([x_test, x_test_redundant, x_test_categorical])
+        w = np.random.randn(n_dim, 1)
+        y_train = (x_train.dot(w) > 0).astype(np.int8).ravel()
+        y_test = (x_test.dot(w) > 0).astype(np.int8).ravel()
+        n_cv = int(size * cv_ratio)
+        x_train_stacked, x_cv_stacked = x_train_stacked[:-n_cv], x_train_stacked[-n_cv:]
+        y_train, y_cv = y_train[:-n_cv], y_train[-n_cv:]
+        if not one_hot:
+            return (x_train_stacked, y_train), (x_cv_stacked, y_cv), (x_test_stacked, y_test)
+        return (
+            (x_train_stacked, DataUtil.get_one_hot(y_train, 2)),
+            (x_cv_stacked, DataUtil.get_one_hot(y_cv, 2)),
+            (x_test_stacked, DataUtil.get_one_hot(y_test, 2))
+        )
+
+    @staticmethod
     def quantize_data(x, y, wc=None, continuous_rate=0.1, separate=False):
         if isinstance(x, list):
             xt = map(list, zip(*x))
