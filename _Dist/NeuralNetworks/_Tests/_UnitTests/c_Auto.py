@@ -22,7 +22,7 @@ base_params = {
 nn = AutoAdvanced(**copy.deepcopy(base_params))
 basic_nn = AutoBasic(**copy.deepcopy(base_params))
 linear_svm = AutoLinearSVM(**copy.deepcopy(base_params))
-train_set, test_set = DataUtil.gen_noisy_linear(1000, 2, 2, one_hot=False)
+train_set, cv_set, test_set = DataUtil.gen_special_linear(1000, 2, 2, 2, one_hot=False)
 
 auto_mushroom_params = copy.deepcopy(base_params)
 auto_mushroom_params["name"] = "mushroom"
@@ -60,22 +60,25 @@ auto_lmgpip_basic_regressor = AutoBasic(**auto_lmgpip_regressor_params)
 class TestAutoNN(unittest.TestCase):
     def test_00_train_from_numpy(self):
         self.assertIsInstance(
-            nn.fit(*train_set, *test_set, verbose=0), AutoAdvanced,
+            nn.fit(*train_set, *cv_set, verbose=0), AutoAdvanced,
             msg="Train failed"
         )
         self.assertIsInstance(
-            basic_nn.fit(*train_set, *test_set, verbose=0), AutoBasic,
+            basic_nn.fit(*train_set, *cv_set, verbose=0), AutoBasic,
             msg="Train failed"
         )
 
     def test_01_predict(self):
         self.assertIs(nn.predict(train_set[0]).dtype, np.dtype("float32"), "Predict failed")
         self.assertIs(basic_nn.predict(train_set[0]).dtype, np.dtype("float32"), "Predict failed")
+        self.assertIs(nn.predict_classes(cv_set[0]).dtype, np.dtype("int32"), "Predict classes failed")
+        self.assertIs(basic_nn.predict_classes(cv_set[0]).dtype, np.dtype("int32"), "Predict classes failed")
         self.assertIs(nn.predict_classes(test_set[0]).dtype, np.dtype("int32"), "Predict classes failed")
         self.assertIs(basic_nn.predict_classes(test_set[0]).dtype, np.dtype("int32"), "Predict classes failed")
 
     def test_02_evaluate(self):
-        self.assertEqual(len(nn.evaluate(*train_set, *test_set)), 3, "Evaluation failed")
+        self.assertEqual(len(nn.evaluate(*train_set, *cv_set, *test_set)), 3, "Evaluation failed")
+        self.assertEqual(len(basic_nn.evaluate(*train_set, *cv_set, *test_set)), 3, "Evaluation failed")
 
     def test_03_save(self):
         self.assertIsInstance(nn.save(), AutoAdvanced, msg="Save failed")
@@ -91,20 +94,22 @@ class TestAutoNN(unittest.TestCase):
     def test_05_re_predict(self):
         self.assertIs(nn.predict(train_set[0]).dtype, np.dtype("float32"), "Re-Predict failed")
         self.assertIs(basic_nn.predict(train_set[0]).dtype, np.dtype("float32"), "Re-Predict failed")
+        self.assertIs(nn.predict_classes(cv_set[0]).dtype, np.dtype("int32"), "Re-Predict classes failed")
+        self.assertIs(basic_nn.predict_classes(cv_set[0]).dtype, np.dtype("int32"), "Re-Predict classes failed")
         self.assertIs(nn.predict_classes(test_set[0]).dtype, np.dtype("int32"), "Re-Predict classes failed")
         self.assertIs(basic_nn.predict_classes(test_set[0]).dtype, np.dtype("int32"), "Re-Predict classes failed")
 
     def test_06_re_evaluate(self):
-        self.assertEqual(len(nn.evaluate(*train_set, *test_set)), 3, "Re-Evaluation failed")
-        self.assertEqual(len(basic_nn.evaluate(*train_set, *test_set)), 3, "Re-Evaluation failed")
+        self.assertEqual(len(nn.evaluate(*train_set, *cv_set, *test_set)), 3, "Re-Evaluation failed")
+        self.assertEqual(len(basic_nn.evaluate(*train_set, *cv_set, *test_set)), 3, "Re-Evaluation failed")
 
     def test_07_re_train(self):
         self.assertIsInstance(
-            nn.fit(*train_set, *test_set, verbose=0), AutoAdvanced,
+            nn.fit(*train_set, *cv_set, verbose=0), AutoAdvanced,
             msg="Re-Train failed"
         )
         self.assertIsInstance(
-            basic_nn.fit(*train_set, *test_set, verbose=0), AutoBasic,
+            basic_nn.fit(*train_set, *cv_set, verbose=0), AutoBasic,
             msg="Re-Train failed"
         )
 
@@ -353,15 +358,17 @@ class TestAutoNN(unittest.TestCase):
 class TestAutoLinearSVM(unittest.TestCase):
     def test_00_train_from_numpy(self):
         self.assertIsInstance(
-            linear_svm.fit(*train_set, *test_set, verbose=0), AutoLinearSVM,
+            linear_svm.fit(*train_set, *cv_set, verbose=0), AutoLinearSVM,
             msg="Train failed"
         )
 
     def test_01_predict(self):
         self.assertIs(linear_svm.predict(train_set[0]).dtype, np.dtype("float32"), "Predict failed")
+        self.assertIs(linear_svm.predict(cv_set[0]).dtype, np.dtype("float32"), "Predict failed")
+        self.assertIs(linear_svm.predict(test_set[0]).dtype, np.dtype("float32"), "Predict failed")
 
     def test_02_evaluate(self):
-        self.assertEqual(len(linear_svm.evaluate(*train_set, *test_set)), 3, "Evaluation failed")
+        self.assertEqual(len(linear_svm.evaluate(*train_set, *cv_set, *test_set)), 3, "Evaluation failed")
 
     def test_03_save(self):
         self.assertIsInstance(linear_svm.save(), AutoLinearSVM, msg="Save failed")
@@ -373,13 +380,15 @@ class TestAutoLinearSVM(unittest.TestCase):
 
     def test_05_re_predict(self):
         self.assertIs(linear_svm.predict(train_set[0]).dtype, np.dtype("float32"), "Re-Predict failed")
+        self.assertIs(linear_svm.predict(cv_set[0]).dtype, np.dtype("float32"), "Re-Predict failed")
+        self.assertIs(linear_svm.predict(test_set[0]).dtype, np.dtype("float32"), "Re-Predict failed")
 
     def test_06_re_evaluate(self):
-        self.assertEqual(len(linear_svm.evaluate(*train_set, *test_set)), 3, "Re-Evaluation failed")
+        self.assertEqual(len(linear_svm.evaluate(*train_set, *cv_set, *test_set)), 3, "Re-Evaluation failed")
 
     def test_07_re_train(self):
         self.assertIsInstance(
-            linear_svm.fit(*train_set, *test_set, verbose=0), AutoLinearSVM,
+            linear_svm.fit(*train_set, *cv_set, verbose=0), AutoLinearSVM,
             msg="Re-Train failed"
         )
 

@@ -21,22 +21,22 @@ base_params = {
 svm = SVM(**copy.deepcopy(base_params))
 nn = Basic(**copy.deepcopy(base_params))
 linear_svm = LinearSVM(**copy.deepcopy(base_params))
-train_set, test_set = DataUtil.gen_noisy_linear(1000, 2, 2, one_hot=False)
+train_set, cv_set, test_set = DataUtil.gen_special_linear(1000, 2, 2, 2, one_hot=False)
 
 
 class TestSVM(unittest.TestCase):
     def test_00_train(self):
         self.assertIsInstance(
-            svm.fit(*train_set, *test_set, verbose=0), SVM,
+            svm.fit(*train_set, *cv_set, verbose=0), SVM,
             msg="Train failed"
         )
 
     def test_01_predict(self):
         self.assertIs(svm.predict(train_set[0]).dtype, np.dtype("float32"), "Predict failed")
-        self.assertIs(svm.predict_classes(test_set[0]).dtype, np.dtype("int32"), "Predict classes failed")
+        self.assertIs(svm.predict_classes(cv_set[0]).dtype, np.dtype("int32"), "Predict classes failed")
 
     def test_02_evaluate(self):
-        self.assertEqual(len(svm.evaluate(*train_set, *test_set)), 3, "Evaluation failed")
+        self.assertEqual(len(svm.evaluate(*train_set, *cv_set)), 3, "Evaluation failed")
 
     def test_03_save(self):
         self.assertIsInstance(svm.save(), SVM, msg="Save failed")
@@ -48,14 +48,14 @@ class TestSVM(unittest.TestCase):
 
     def test_05_re_predict(self):
         self.assertIs(svm.predict(train_set[0]).dtype, np.dtype("float32"), "Re-Predict failed")
-        self.assertIs(svm.predict_classes(test_set[0]).dtype, np.dtype("int32"), "Re-Predict classes failed")
+        self.assertIs(svm.predict_classes(cv_set[0]).dtype, np.dtype("int32"), "Re-Predict classes failed")
 
     def test_06_re_evaluate(self):
-        self.assertEqual(len(svm.evaluate(*train_set, *test_set)), 3, "Re-Evaluation failed")
+        self.assertEqual(len(svm.evaluate(*train_set, *cv_set)), 3, "Re-Evaluation failed")
 
     def test_07_re_train(self):
         self.assertIsInstance(
-            svm.fit(*train_set, *test_set, verbose=0), SVM,
+            svm.fit(*train_set, *cv_set, verbose=0), SVM,
             msg="Re-Train failed"
         )
 
@@ -66,16 +66,16 @@ class TestSVM(unittest.TestCase):
 class TestBasicNN(unittest.TestCase):
     def test_00_train(self):
         self.assertIsInstance(
-            nn.fit(*train_set, *test_set, verbose=0), Basic,
+            nn.fit(*train_set, *cv_set, verbose=0), Basic,
             msg="Train failed"
         )
 
     def test_01_predict(self):
         self.assertIs(nn.predict(train_set[0]).dtype, np.dtype("float32"), "Predict failed")
-        self.assertIs(nn.predict_classes(test_set[0]).dtype, np.dtype("int32"), "Predict classes failed")
+        self.assertIs(nn.predict_classes(cv_set[0]).dtype, np.dtype("int32"), "Predict classes failed")
 
     def test_02_evaluate(self):
-        self.assertEqual(len(nn.evaluate(*train_set, *test_set)), 3, "Evaluation failed")
+        self.assertEqual(len(nn.evaluate(*train_set, *cv_set)), 3, "Evaluation failed")
 
     def test_03_save(self):
         self.assertIsInstance(nn.save(), Basic, msg="Save failed")
@@ -87,14 +87,14 @@ class TestBasicNN(unittest.TestCase):
 
     def test_05_re_predict(self):
         self.assertIs(nn.predict(train_set[0]).dtype, np.dtype("float32"), "Re-Predict failed")
-        self.assertIs(nn.predict_classes(test_set[0]).dtype, np.dtype("int32"), "Re-Predict classes failed")
+        self.assertIs(nn.predict_classes(cv_set[0]).dtype, np.dtype("int32"), "Re-Predict classes failed")
 
     def test_06_re_evaluate(self):
-        self.assertEqual(len(nn.evaluate(*train_set, *test_set)), 3, "Re-Evaluation failed")
+        self.assertEqual(len(nn.evaluate(*train_set, *cv_set)), 3, "Re-Evaluation failed")
 
     def test_07_re_train(self):
         self.assertIsInstance(
-            nn.fit(*train_set, *test_set, verbose=0), Basic,
+            nn.fit(*train_set, *cv_set, verbose=0), Basic,
             msg="Re-Train failed"
         )
 
@@ -105,16 +105,17 @@ class TestBasicNN(unittest.TestCase):
 class TestLinearSVM(unittest.TestCase):
     def test_00_train(self):
         self.assertIsInstance(
-            linear_svm.fit(*train_set, *test_set, verbose=0), LinearSVM,
+            linear_svm.fit(*train_set, *cv_set, verbose=0), LinearSVM,
             msg="Train failed"
         )
 
     def test_01_predict(self):
         self.assertIs(linear_svm.predict(train_set[0]).dtype, np.dtype("float32"), "Predict failed")
+        self.assertIs(linear_svm.predict_classes(cv_set[0]).dtype, np.dtype("int32"), "Predict classes failed")
         self.assertIs(linear_svm.predict_classes(test_set[0]).dtype, np.dtype("int32"), "Predict classes failed")
 
     def test_02_evaluate(self):
-        self.assertEqual(len(linear_svm.evaluate(*train_set, *test_set)), 3, "Evaluation failed")
+        self.assertEqual(len(linear_svm.evaluate(*train_set, *cv_set, *test_set)), 3, "Evaluation failed")
 
     def test_03_save(self):
         self.assertIsInstance(linear_svm.save(), LinearSVM, msg="Save failed")
@@ -126,14 +127,15 @@ class TestLinearSVM(unittest.TestCase):
 
     def test_05_re_predict(self):
         self.assertIs(linear_svm.predict(train_set[0]).dtype, np.dtype("float32"), "Re-Predict failed")
+        self.assertIs(linear_svm.predict_classes(cv_set[0]).dtype, np.dtype("int32"), "Re-Predict classes failed")
         self.assertIs(linear_svm.predict_classes(test_set[0]).dtype, np.dtype("int32"), "Re-Predict classes failed")
 
     def test_06_re_evaluate(self):
-        self.assertEqual(len(linear_svm.evaluate(*train_set, *test_set)), 3, "Re-Evaluation failed")
+        self.assertEqual(len(linear_svm.evaluate(*train_set, *cv_set, *test_set)), 3, "Re-Evaluation failed")
 
     def test_07_re_train(self):
         self.assertIsInstance(
-            linear_svm.fit(*train_set, *test_set, verbose=0), LinearSVM,
+            linear_svm.fit(*train_set, *cv_set, verbose=0), LinearSVM,
             msg="Re-Train failed"
         )
 

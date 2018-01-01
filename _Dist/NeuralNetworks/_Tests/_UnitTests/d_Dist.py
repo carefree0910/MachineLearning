@@ -21,40 +21,44 @@ base_params = {
 nn = DistAdvanced(**copy.deepcopy(base_params))
 basic_nn = DistBasic(**copy.deepcopy(base_params))
 linear_svm = DistLinearSVM(**copy.deepcopy(base_params))
-train_set, test_set = DataUtil.gen_noisy_linear(1000, 2, 2, one_hot=False)
-(x, y), (x_test, y_test) = train_set, test_set
+train_set, cv_set, test_set = DataUtil.gen_special_linear(1000, 2, 2, 2, one_hot=False)
+(x, y), (x_cv, y_cv), (x_test, y_test) = train_set, cv_set, test_set
 train_data = np.hstack([x, y.reshape([-1, 1])])
+cv_data = np.hstack([x_cv, y_cv.reshape([-1, 1])])
 test_data = np.hstack([x_test, y_test.reshape([-1, 1])])
+train_and_cv_data = np.vstack([train_data, cv_data])
 
 
 class TestDistNN(unittest.TestCase):
     def test_00_k_series_from_numpy(self):
         self.assertIsInstance(
-            nn.k_random(3, (train_data, test_data), verbose=0), DistAdvanced,
+            nn.k_random(3, (train_and_cv_data, test_data), verbose=0), DistAdvanced,
             msg="k-random failed"
         )
         self.assertIsInstance(
-            nn.k_fold(3, (train_data, test_data), verbose=0), DistAdvanced,
+            nn.k_fold(3, (train_and_cv_data, test_data), verbose=0), DistAdvanced,
             msg="k-fold failed"
         )
         self.assertIsInstance(
-            basic_nn.k_random(3, (train_data, test_data), verbose=0), DistBasic,
+            basic_nn.k_random(3, (train_and_cv_data, test_data), verbose=0), DistBasic,
             msg="k-random failed"
         )
         self.assertIsInstance(
-            basic_nn.k_fold(3, (train_data, test_data), verbose=0), DistBasic,
+            basic_nn.k_fold(3, (train_and_cv_data, test_data), verbose=0), DistBasic,
             msg="k-fold failed"
         )
 
     def test_01_predict(self):
         self.assertIs(nn.predict(train_set[0]).dtype, np.dtype("float32"), "Predict failed")
+        self.assertIs(nn.predict_classes(cv_set[0]).dtype, np.dtype("int32"), "Predict classes failed")
         self.assertIs(nn.predict_classes(test_set[0]).dtype, np.dtype("int32"), "Predict classes failed")
         self.assertIs(basic_nn.predict(train_set[0]).dtype, np.dtype("float32"), "Predict failed")
+        self.assertIs(basic_nn.predict_classes(cv_set[0]).dtype, np.dtype("int32"), "Predict classes failed")
         self.assertIs(basic_nn.predict_classes(test_set[0]).dtype, np.dtype("int32"), "Predict classes failed")
 
     def test_02_evaluate(self):
-        self.assertEqual(len(nn.evaluate(*train_set, *test_set)), 3, "Evaluation failed")
-        self.assertEqual(len(basic_nn.evaluate(*train_set, *test_set)), 3, "Evaluation failed")
+        self.assertEqual(len(nn.evaluate(*train_set, *cv_set, *test_set)), 3, "Evaluation failed")
+        self.assertEqual(len(basic_nn.evaluate(*train_set, *cv_set, *test_set)), 3, "Evaluation failed")
 
     def test_03_save(self):
         self.assertIsInstance(nn.save(), DistAdvanced, msg="Save failed")
@@ -69,13 +73,15 @@ class TestDistNN(unittest.TestCase):
 
     def test_05_re_predict(self):
         self.assertIs(nn.predict(train_set[0]).dtype, np.dtype("float32"), "Re-Predict failed")
+        self.assertIs(nn.predict_classes(cv_set[0]).dtype, np.dtype("int32"), "Re-Predict classes failed")
         self.assertIs(nn.predict_classes(test_set[0]).dtype, np.dtype("int32"), "Re-Predict classes failed")
         self.assertIs(basic_nn.predict(train_set[0]).dtype, np.dtype("float32"), "Re-Predict failed")
+        self.assertIs(basic_nn.predict_classes(cv_set[0]).dtype, np.dtype("int32"), "Re-Predict classes failed")
         self.assertIs(basic_nn.predict_classes(test_set[0]).dtype, np.dtype("int32"), "Re-Predict classes failed")
 
     def test_06_re_evaluate(self):
-        self.assertEqual(len(nn.evaluate(*train_set, *test_set)), 3, "Re-Evaluation failed")
-        self.assertEqual(len(basic_nn.evaluate(*train_set, *test_set)), 3, "Re-Evaluation failed")
+        self.assertEqual(len(nn.evaluate(*train_set, *cv_set, *test_set)), 3, "Re-Evaluation failed")
+        self.assertEqual(len(basic_nn.evaluate(*train_set, *cv_set, *test_set)), 3, "Re-Evaluation failed")
 
     def test_07_param_search(self):
         params = [
@@ -83,11 +89,11 @@ class TestDistNN(unittest.TestCase):
             {"model_param_settings": {"lr": 1e-3}, "model_structure_settings": {"use_pruner": False}}
         ]
         self.assertIsInstance(
-            nn.param_search(params, data=(train_data, test_data), verbose=0), DistAdvanced,
+            nn.param_search(params, data=(train_and_cv_data, test_data), verbose=0), DistAdvanced,
             msg="param_search failed"
         )
         self.assertIsInstance(
-            basic_nn.param_search(params, data=(train_data, test_data), verbose=0), DistBasic,
+            basic_nn.param_search(params, data=(train_and_cv_data, test_data), verbose=0), DistBasic,
             msg="param_search failed"
         )
 
@@ -118,25 +124,25 @@ class TestDistNN(unittest.TestCase):
         self.assertIsInstance(
             nn.random_search(
                 4, list_first_grid_params, grid_order="list_first",
-                data=(train_data, test_data), verbose=0
+                data=(train_and_cv_data, test_data), verbose=0
             ), DistAdvanced, msg="list_first_grid_search failed"
         )
         self.assertIsInstance(
             nn.random_search(
                 8, dict_first_grid_params, grid_order="dict_first",
-                data=(train_data, test_data), verbose=0
+                data=(train_and_cv_data, test_data), verbose=0
             ), DistAdvanced, msg="dict_first_grid_search failed"
         )
         self.assertIsInstance(
             basic_nn.random_search(
                 4, list_first_grid_params, grid_order="list_first",
-                data=(train_data, test_data), verbose=0
+                data=(train_and_cv_data, test_data), verbose=0
             ), DistBasic, msg="list_first_grid_search failed"
         )
         self.assertIsInstance(
             basic_nn.random_search(
                 8, dict_first_grid_params, grid_order="dict_first",
-                data=(train_data, test_data), verbose=0
+                data=(train_and_cv_data, test_data), verbose=0
             ), DistBasic, msg="dict_first_grid_search failed"
         )
 
@@ -163,25 +169,25 @@ class TestDistNN(unittest.TestCase):
         self.assertIsInstance(
             nn.grid_search(
                 list_first_grid_params, grid_order="list_first",
-                data=(train_data, test_data), verbose=0
+                data=(train_and_cv_data, test_data), verbose=0
             ), DistAdvanced, msg="list_first_grid_search failed"
         )
         self.assertIsInstance(
             nn.grid_search(
                 dict_first_grid_params, grid_order="dict_first",
-                data=(train_data, test_data), verbose=0
+                data=(train_and_cv_data, test_data), verbose=0
             ), DistAdvanced, msg="dict_first_grid_search failed"
         )
         self.assertIsInstance(
             basic_nn.grid_search(
                 list_first_grid_params, grid_order="list_first",
-                data=(train_data, test_data), verbose=0
+                data=(train_and_cv_data, test_data), verbose=0
             ), DistBasic, msg="list_first_grid_search failed"
         )
         self.assertIsInstance(
             basic_nn.grid_search(
                 dict_first_grid_params, grid_order="dict_first",
-                data=(train_data, test_data), verbose=0
+                data=(train_and_cv_data, test_data), verbose=0
             ), DistBasic, msg="dict_first_grid_search failed"
         )
 
@@ -214,13 +220,13 @@ class TestDistNN(unittest.TestCase):
         self.assertIsInstance(
             nn.range_search(
                 8, range_grid_params,
-                data=(train_data, test_data), verbose=0
+                data=(train_and_cv_data, test_data), verbose=0
             ), DistAdvanced, msg="range_search failed"
         )
         self.assertIsInstance(
             basic_nn.range_search(
                 8, range_grid_params,
-                data=(train_data, test_data), verbose=0
+                data=(train_and_cv_data, test_data), verbose=0
             ), DistBasic, msg="range_search failed"
         )
 
@@ -231,19 +237,21 @@ class TestDistNN(unittest.TestCase):
 class TestDistLinearSVM(unittest.TestCase):
     def test_00_k_series_from_numpy(self):
         self.assertIsInstance(
-            linear_svm.k_random(3, (train_data, test_data), verbose=0), DistLinearSVM,
+            linear_svm.k_random(3, (train_and_cv_data, test_data), verbose=0), DistLinearSVM,
             msg="k-random failed"
         )
         self.assertIsInstance(
-            linear_svm.k_fold(3, (train_data, test_data), verbose=0), DistLinearSVM,
+            linear_svm.k_fold(3, (train_and_cv_data, test_data), verbose=0), DistLinearSVM,
             msg="k-fold failed"
         )
 
     def test_01_predict(self):
         self.assertIs(linear_svm.predict(train_set[0]).dtype, np.dtype("float32"), "Predict failed")
+        self.assertIs(linear_svm.predict(cv_set[0]).dtype, np.dtype("float32"), "Predict failed")
+        self.assertIs(linear_svm.predict(test_set[0]).dtype, np.dtype("float32"), "Predict failed")
 
     def test_02_evaluate(self):
-        self.assertEqual(len(linear_svm.evaluate(*train_set, *test_set)), 3, "Evaluation failed")
+        self.assertEqual(len(linear_svm.evaluate(*train_set, *cv_set, *test_set)), 3, "Evaluation failed")
 
     def test_03_save(self):
         self.assertIsInstance(linear_svm.save(), DistLinearSVM, msg="Save failed")
@@ -255,9 +263,11 @@ class TestDistLinearSVM(unittest.TestCase):
 
     def test_05_re_predict(self):
         self.assertIs(linear_svm.predict(train_set[0]).dtype, np.dtype("float32"), "Re-Predict failed")
+        self.assertIs(linear_svm.predict(cv_set[0]).dtype, np.dtype("float32"), "Re-Predict failed")
+        self.assertIs(linear_svm.predict(test_set[0]).dtype, np.dtype("float32"), "Re-Predict failed")
 
     def test_06_re_evaluate(self):
-        self.assertEqual(len(linear_svm.evaluate(*train_set, *test_set)), 3, "Re-Evaluation failed")
+        self.assertEqual(len(linear_svm.evaluate(*train_set, *cv_set, *test_set)), 3, "Re-Evaluation failed")
 
     def test_99_clear_cache(self):
         clear_cache()
