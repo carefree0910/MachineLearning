@@ -72,7 +72,7 @@ class Advanced(Basic):
     def init_model_param_settings(self):
         super(Advanced, self).init_model_param_settings()
         self.dropout_keep_prob = float(self.model_param_settings.get("keep_prob", 0.5))
-        self.use_batch_norm = self.model_param_settings.get("use_batch_norm", True)
+        self.use_batch_norm = self.model_param_settings.get("use_batch_norm", False)
 
     def init_model_structure_settings(self):
         self.hidden_units = self.model_structure_settings.get("hidden_units", None)
@@ -90,7 +90,7 @@ class Advanced(Basic):
         if self.model_structure_settings.get("use_pruner", True):
             pruner_params = self.model_structure_settings.get("pruner_params", {})
             self._pruner = Pruner(**pruner_params)
-        if self.model_structure_settings.get("use_dndf_pruner", True):
+        if self.model_structure_settings.get("use_dndf_pruner", False):
             dndf_pruner_params = self.model_structure_settings.get("dndf_pruner_params", {})
             self._dndf_pruner = Pruner(**dndf_pruner_params)
 
@@ -105,39 +105,19 @@ class Advanced(Basic):
         n_data = len(self._train_generator)
         current_units = self._deep_input.shape[1].value
         if current_units > 512:
-            if n_data >= 100000:
-                self.hidden_units = [1024, 1024, 512]
-            elif n_data >= 10000:
-                self.hidden_units = [1024, 1024]
-            elif n_data >= 5000:
-                self.hidden_units = [512, 512]
-            else:
-                self.hidden_units = [256, 256]
+            self.hidden_units = [1024, 1024]
         elif current_units > 256:
-            if n_data >= 100000:
-                self.hidden_units = [2 * current_units, 2 * current_units, 512]
-            elif n_data >= 10000:
-                self.hidden_units = [2 * current_units, 2 * current_units]
-            elif n_data >= 5000:
-                self.hidden_units = [512, 512]
+            if n_data >= 10000:
+                self.hidden_units = [1024, 1024]
             else:
-                self.hidden_units = [256, 256]
+                self.hidden_units = [2 * current_units, 2 * current_units]
         else:
             if n_data >= 100000:
-                self.hidden_units = [512, 512, 512]
+                self.hidden_units = [768, 768]
             elif n_data >= 10000:
                 self.hidden_units = [512, 512]
             else:
-                if current_units > 128:
-                    if n_data >= 5000:
-                        self.hidden_units = [2 * current_units, 2 * current_units]
-                    else:
-                        self.hidden_units = [current_units, current_units]
-                else:
-                    if n_data >= 5000:
-                        self.hidden_units = [256, 256]
-                    else:
-                        self.hidden_units = [128, 128]
+                self.hidden_units = [2 * current_units, 2 * current_units]
 
     def _fully_connected_linear(self, net, shape, appendix):
         with tf.name_scope("Linear{}".format(appendix)):
@@ -280,10 +260,10 @@ class Advanced(Basic):
 
     def print_settings(self):
         msg = "\n".join([
-            "=" * 60, "This is a {}".format(
+            "=" * 100, "This is a {}".format(
                 "{}-classes problem".format(self.n_class) if not self.n_class == 1
                 else "regression problem"
-            ), "-" * 60,
+            ), "-" * 100,
             "Data     : {} training samples, {} test samples".format(
                 len(self._train_generator), len(self._test_generator) if self._test_generator is not None else 0
             ),
@@ -292,18 +272,18 @@ class Advanced(Basic):
             )
         ]) + "\n"
 
-        msg += "=" * 60 + "\n"
+        msg += "=" * 100 + "\n"
         msg += "Deep model: DNN\n"
         msg += "Deep model input: {}\n".format(
             "Continuous features only" if not self.categorical_columns else
             "Continuous features with embeddings" if np.any(self.numerical_idx) else
             "Embeddings only"
         )
-        msg += "-" * 60 + "\n"
+        msg += "-" * 100 + "\n"
         if self.categorical_columns:
             msg += "Embedding size: {}\n".format(self.embedding_size)
             msg += "Actual feature dimension: {}\n".format(self._embedding_concat.shape[1].value)
-        msg += "-" * 60 + "\n"
+        msg += "-" * 100 + "\n"
         if self.dropout_keep_prob < 1:
             msg += "Using dropout with keep_prob = {}\n".format(self.dropout_keep_prob)
         else:
@@ -311,23 +291,23 @@ class Advanced(Basic):
         msg += "Training {} batch norm\n".format("with" if self.use_batch_norm else "without")
         msg += "Hidden units: {}\n".format(self.hidden_units)
 
-        msg += "=" * 60 + "\n"
+        msg += "=" * 100 + "\n"
         if not self._use_wide_network:
             msg += "Wide model: None\n"
         else:
             msg += "Wide model: {}\n".format("logistic regression" if self._dndf is None else "DNDF")
             msg += "Wide model input: Continuous features only\n"
-            msg += "-" * 60 + '\n'
+            msg += "-" * 100 + '\n'
             if self._dndf is not None:
                 msg += "Using DNDF with n_tree = {}, tree_depth = {}\n".format(
                     self._dndf.n_tree, self._dndf.tree_depth
                 )
 
-        msg += "\n".join(["=" * 60, "Hyper parameters", "-" * 60, "{}".format(
+        msg += "\n".join(["=" * 100, "Hyper parameters", "-" * 100, "{}".format(
             "This is a DNN model" if self._dndf is None and not self._use_wide_network else
             "This is a Wide & Deep model" if self._dndf is None else
             "This is a hybrid model"
-        ), "-" * 60]) + "\n"
+        ), "-" * 100]) + "\n"
         msg += "Activation       : " + str(self.activations) + "\n"
         msg += "Batch size       : " + str(self.batch_size) + "\n"
         msg += "Epoch num        : " + str(self.n_epoch) + "\n"
@@ -335,11 +315,11 @@ class Advanced(Basic):
         msg += "Metric           : " + self._metric_name + "\n"
         msg += "Loss             : " + self._loss_name + "\n"
         msg += "lr               : " + str(self.lr) + "\n"
-        msg += "-" * 60 + "\n"
+        msg += "-" * 100 + "\n"
         msg += "Pruner           : {}".format("None" if self._pruner is None else "") + "\n"
         if self._pruner is not None:
             msg += "\n".join("-> {:14}: {}".format(key, value) for key, value in sorted(
                 self._pruner.params.items()
             )) + "\n"
-        msg += "-" * 60 + "\n"
+        msg += "-" * 100 + "\n"
         print(msg)

@@ -83,9 +83,9 @@ class Metrics:
 
     @staticmethod
     def multi_auc(y, pred):
-        if len(y.shape) == 1:
-            y = Toolbox.get_one_hot(y, int(np.max(y) + 1))
         n_classes = pred.shape[1]
+        if len(y.shape) == 1:
+            y = Toolbox.get_one_hot(y, n_classes)
         fpr, tpr = [None] * n_classes, [None] * n_classes
         for i in range(n_classes):
             fpr[i], tpr[i], _ = metrics.roc_curve(y[:, i], pred[:, i])
@@ -275,14 +275,12 @@ class Toolbox:
         return no_nan_feat
 
     @staticmethod
-    def shrink_nan(feat, dtype):
-        if dtype != str:
-            new = np.asarray(feat, np.float32)
-            new = new[~np.isnan(new)].tolist()
-            if len(new) < len(feat):
-                new.append(float("nan"))
-            return new
-        return feat
+    def shrink_nan(feat):
+        new = np.asarray(feat, np.float32)
+        new = new[~np.isnan(new)].tolist()
+        if len(new) < len(feat):
+            new.append(float("nan"))
+        return new
 
     @staticmethod
     def get_data(file, sep=" ", include_header=False):
@@ -302,12 +300,17 @@ class Toolbox:
 
     @staticmethod
     def get_feature_info(data, numerical_idx, is_regression):
-        dtype = type(data[0][0])
         generate_numerical_idx = False
         if numerical_idx is None:
             generate_numerical_idx = True
             numerical_idx = [False] * len(data[0])
-        shrink_features = [Toolbox.shrink_nan(feat, dtype) for feat in zip(*data)]
+        else:
+            numerical_idx = list(numerical_idx)
+        data_t = data.T if isinstance(data, np.ndarray) else list(zip(*data))
+        if type(data[0][0]) is not str:
+            shrink_features = [Toolbox.shrink_nan(feat) for feat in data_t]
+        else:
+            shrink_features = data_t
         feature_sets = [
             set() if idx is None or idx else set(shrink_feat)
             for idx, shrink_feat in zip(numerical_idx, shrink_features)
@@ -317,11 +320,11 @@ class Toolbox:
             True if not feature_set else all(Toolbox.is_number(str(feat)) for feat in feature_set)
             for feature_set in feature_sets
         ]
-        np_shrink_features = [
-            shrink_feature if not all_num else np.asarray(shrink_feature, np.float32)
-            for all_num, shrink_feature in zip(all_num_idx, shrink_features)
-        ]
         if generate_numerical_idx:
+            np_shrink_features = [
+                shrink_feature if not all_num else np.asarray(shrink_feature, np.float32)
+                for all_num, shrink_feature in zip(all_num_idx, shrink_features)
+            ]
             all_unique_idx = [
                 len(feature_set) == len(np_shrink_feature)
                 and (not all_num or np.allclose(np_shrink_feature, np_shrink_feature.astype(np.int32)))
@@ -586,7 +589,7 @@ class TrainMonitor:
 
 
 class DNDF:
-    def __init__(self, n_class, n_tree=16, tree_depth=4):
+    def __init__(self, n_class, n_tree=10, tree_depth=4):
         self.n_class = n_class
         self.n_tree, self.tree_depth = n_tree, tree_depth
         self.n_leaf = 2 ** (tree_depth + 1)
@@ -673,7 +676,7 @@ class Pruner:
         self.method = prune_method
         if prune_method == "soft_prune" or prune_method == "hard_prune":
             if alpha is None:
-                self.alpha = 1e-4
+                self.alpha = 1e-2
             if beta is None:
                 self.beta = 1
             if gamma is None:
@@ -775,6 +778,9 @@ class NanHandler:
                 feat[mask] = new_value
         return x
 
+    def reset(self):
+        self._values = None
+
 
 class PreProcessor:
     def __init__(self, method, scale_method, eps_floor=1e-4, eps_ceiling=1e12):
@@ -782,7 +788,6 @@ class PreProcessor:
         self.eps_floor, self.eps_ceiling = eps_floor, eps_ceiling
         self.redundant_idx = None
         self.min = self.max = self.mean = self.std = None
-        self.min_max_mask = None
 
     def _scale(self, x, numerical_idx):
         targets = x[..., numerical_idx]
@@ -842,7 +847,6 @@ class PreProcessor:
             std = np.maximum(self.eps_floor, targets.std(axis=0))
         if self.mean is None and self.std is None:
             self.mean, self.std = mean, std
-        self._get_min_max_mask()
         return x
 
     def _scale_abs_features(self, abs_features):
@@ -854,23 +858,14 @@ class PreProcessor:
             return np.log(abs_features + 1)
         return getattr(np, self.scale_method)(abs_features)
 
-    def _get_min_max_mask(self):
-        if self.min_max_mask is None:
-            self.min_max_mask = self.std * 2 > self.max - self.min
-
     def _normalize(self, x, numerical_idx):
-        if np.any(self.min_max_mask):
-            min_max_idx = np.arange(len(numerical_idx))[numerical_idx][self.min_max_mask]
-            print("Following features will be processed by "
-                  "min_max_normalization:\n  ->  {}".format(min_max_idx))
-            gaussian_mask = ~self.min_max_mask
-            x[..., numerical_idx][..., self.min_max_mask] -= self.min[self.min_max_mask]
-            x[..., numerical_idx][..., self.min_max_mask] /= (self.max - self.min)[self.min_max_mask]
-            x[..., numerical_idx][..., gaussian_mask] -= self.mean[gaussian_mask]
-            x[..., numerical_idx][..., gaussian_mask] /= self.std[gaussian_mask]
-        else:
-            x[..., numerical_idx] -= self.mean
-            x[..., numerical_idx] /= self.std
+        x[..., numerical_idx] -= self.mean
+        x[..., numerical_idx] /= np.maximum(self.eps_floor, self.std)
+        return x
+
+    def _min_max(self, x, numerical_idx):
+        x[..., numerical_idx] -= self.min
+        x[..., numerical_idx] /= np.maximum(self.eps_floor, self.max - self.min)
         return x
 
     def transform(self, x, numerical_idx):
