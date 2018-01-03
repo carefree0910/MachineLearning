@@ -252,14 +252,14 @@ class Toolbox:
         return not any(x in seen or seen.add(x) for x in target)
 
     @staticmethod
-    def warn_all_same(i):
+    def warn_all_same(i, logger=None):
         warn_msg = "All values in column {} are the same, it'll be treated as redundant".format(i)
-        print(warn_msg)
+        print(warn_msg) if logger is None else logger.debug(warn_msg)
 
     @staticmethod
-    def warn_all_unique(i):
+    def warn_all_unique(i, logger=None):
         warn_msg = "All values in column {} are unique, it'll be treated as redundant".format(i)
-        print(warn_msg)
+        print(warn_msg) if logger is None else logger.debug(warn_msg)
 
     @staticmethod
     def pop_nan(feat):
@@ -283,8 +283,9 @@ class Toolbox:
         return new
 
     @staticmethod
-    def get_data(file, sep=" ", include_header=False):
-        print("Fetching data")
+    def get_data(file, sep=" ", include_header=False, logger=None):
+        msg = "Fetching data"
+        print(msg) if logger is None else logger.debug(msg)
         data = [[elem if elem else "nan" for elem in line.strip().split(sep)] for line in file]
         if include_header:
             return data[1:]
@@ -299,7 +300,7 @@ class Toolbox:
         return one_hot
 
     @staticmethod
-    def get_feature_info(data, numerical_idx, is_regression):
+    def get_feature_info(data, numerical_idx, is_regression, logger=None):
         generate_numerical_idx = False
         if numerical_idx is None:
             generate_numerical_idx = True
@@ -330,7 +331,7 @@ class Toolbox:
                 and (not all_num or np.allclose(np_shrink_feature, np_shrink_feature.astype(np.int32)))
                 for all_num, feature_set, np_shrink_feature in zip(all_num_idx, feature_sets, np_shrink_features)
             ]
-            numerical_idx = Toolbox.get_numerical_idx(feature_sets, all_num_idx, all_unique_idx)
+            numerical_idx = Toolbox.get_numerical_idx(feature_sets, all_num_idx, all_unique_idx, logger)
             for i, numerical in enumerate(numerical_idx):
                 if numerical is None:
                     all_num_idx[i] = None
@@ -340,18 +341,18 @@ class Toolbox:
                     continue
                 if feature_set:
                     if len(feature_set) == 1:
-                        Toolbox.warn_all_same(i)
+                        Toolbox.warn_all_same(i, logger)
                         all_num_idx[i] = numerical_idx[i] = None
                     continue
                 if Toolbox.all_same(shrink_feature):
-                    Toolbox.warn_all_same(i)
+                    Toolbox.warn_all_same(i, logger)
                     all_num_idx[i] = numerical_idx[i] = None
                 elif numerical_idx[i]:
                     shrink_feature = np.asarray(shrink_feature, np.float32)
                     if np.max(shrink_feature) < 2 ** 30:
                         if np.allclose(shrink_feature, np.array(shrink_feature, np.int32)):
                             if Toolbox.all_unique(shrink_feature):
-                                Toolbox.warn_all_unique(i)
+                                Toolbox.warn_all_unique(i, logger)
                                 all_num_idx[i] = numerical_idx[i] = None
         if is_regression:
             all_num_idx[-1] = numerical_idx[-1] = True
@@ -360,14 +361,14 @@ class Toolbox:
         return feature_sets, n_features, all_num_idx, numerical_idx
 
     @staticmethod
-    def get_numerical_idx(feature_sets, all_num_idx, all_unique_idx):
+    def get_numerical_idx(feature_sets, all_num_idx, all_unique_idx, logger=None):
         rs = []
         print("Generating numerical_idx")
         for i, (feat_set, all_num, all_unique) in enumerate(
             zip(feature_sets, all_num_idx, all_unique_idx)
         ):
             if len(feat_set) == 1:
-                Toolbox.warn_all_same(i)
+                Toolbox.warn_all_same(i, logger)
                 rs.append(None)
                 continue
             no_nan_feat = Toolbox.pop_nan(feat_set)
@@ -385,7 +386,7 @@ class Toolbox:
                 rs.append(True)
                 continue
             if all_unique:
-                Toolbox.warn_all_unique(i)
+                Toolbox.warn_all_unique(i, logger)
                 rs.append(None)
                 continue
             feat_min, feat_max = int(feat_min), int(feat_max)
@@ -416,7 +417,7 @@ class TrainMonitor:
         self._run_id = -1
         self._rs = None
         self._scores = []
-        self._running_sum = self._running_square_sum = self._running_best = self.running_epoch = None
+        self._running_sum = self._running_square_sum = self._running_best = None
         self._is_best = self._over_fit_performance = self._best_checkpoint_performance = None
         self._descend_counter = self._flat_counter = self._over_fitting_flag = None
         self._descend_increment = self.n_history * extension / 30
@@ -444,33 +445,14 @@ class TrainMonitor:
     def n_epoch(self):
         return int(len(self._scores) / self.snapshot_ratio)
 
-    def reset(self):
-        self._run_id = 0
-        self._scores = []
-        self._is_best = None
-        self.reset_monitors()
-        self._running_sum = self._running_square_sum = self._running_best = None
+    def _reset_rs(self):
+        self._rs = {"terminate": False, "save_checkpoint": False, "save_best": False, "info": None}
 
     def reset_monitors(self):
         self._reset_rs()
         self._over_fit_performance = math.inf
         self._best_checkpoint_performance = -math.inf
         self._descend_counter = self._flat_counter = self._over_fitting_flag = 0
-
-    def _reset_rs(self):
-        self._rs = {"terminate": False, "save_checkpoint": False, "save_best": False, "info": None}
-
-    def _update_running_epoch(self):
-        n_epoch, running_epoch = self.n_epoch, self.running_epoch
-        terminate = n_epoch >= running_epoch if running_epoch is not None else True
-        if self.running_epoch is None:
-            self.running_epoch = n_epoch
-        else:
-            self.running_epoch += n_epoch
-            self.running_epoch = int(self.running_epoch * 0.5)
-        if not terminate:
-            self._descend_counter = max(self._descend_counter - 1, 0)
-        return terminate
 
     def start_new_run(self):
         self._run_id += 1
@@ -558,11 +540,11 @@ class TrainMonitor:
                 self._descend_counter = max(new_counter, 0)
         if self._flat_counter >= self.n_tolerance * self.n_history:
             self._rs["info"] = "Performance not improving"
-            self._rs["terminate"] = self._update_running_epoch()
+            self._rs["terminate"] = True
             return self._rs
         if self._descend_counter >= self.n_tolerance:
             self._rs["info"] = "Over-fitting"
-            self._rs["terminate"] = self._update_running_epoch()
+            self._rs["terminate"] = True
             return self._rs
         if self._is_best:
             self._rs["terminate"] = False

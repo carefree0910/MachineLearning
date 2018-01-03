@@ -5,11 +5,7 @@ if root_path not in sys.path:
     sys.path.append(root_path)
 
 from _Dist.NeuralNetworks.DistBase import DistMixin, DistMeta
-from _Dist.NeuralNetworks.f_AutoNN.NN import AutoBasic, AutoAdvanced
-
-
-class DistBasic(AutoBasic, DistMixin, metaclass=DistMeta):
-    pass
+from _Dist.NeuralNetworks.f_AutoNN.DistNN import AutoAdvanced
 
 
 class DistAdvanced(AutoAdvanced, DistMixin, metaclass=DistMeta):
