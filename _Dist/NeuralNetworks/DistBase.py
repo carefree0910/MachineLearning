@@ -26,6 +26,38 @@ from _Dist.NeuralNetworks.NNUtil import *
 from _Dist.NeuralNetworks.Base import Generator
 
 
+class DataCacheMixin:
+    @property
+    def data_folder(self):
+        return self.data_info.get("data_folder", "_Data")
+
+    @property
+    def data_cache_folder(self):
+        folder = os.path.join(self.data_folder, "_Cache", self._name)
+        if not os.path.isdir(folder):
+            os.makedirs(folder)
+        return folder
+
+    @property
+    def data_info_folder(self):
+        folder = os.path.join(self.data_folder, "_DataInfo")
+        if not os.path.isdir(folder):
+            os.makedirs(folder)
+        return folder
+
+    @property
+    def data_info_file(self):
+        return os.path.join(self.data_info_folder, "{}.info".format(self._name))
+
+    @property
+    def train_data_file(self):
+        return os.path.join(self.data_cache_folder, "train.npy")
+
+    @property
+    def test_data_file(self):
+        return os.path.join(self.data_cache_folder, "test.npy")
+
+
 class LoggingMixin:
     logger = logging.getLogger("")
     initialized_logger = set()
@@ -443,7 +475,10 @@ class Base(LoggingMixin):
         if path is None:
             path = self.model_saving_path
         folder = os.path.join(path, "{:06}".format(run_id))
-        if not os.path.exists(folder):
+        while os.path.isdir(folder):
+            run_id += 1
+            folder = os.path.join(path, "{:06}".format(run_id))
+        if not os.path.isdir(folder):
             os.makedirs(folder)
         logger = self.get_logger("save", "general.log")
         self.log_msg("Saving model", logger=logger)
@@ -484,7 +519,7 @@ class Base(LoggingMixin):
 
     # API
 
-    def print_settings(self):
+    def print_settings(self, only_return=False):
         pass
 
     def fit(self, x, y, x_test=None, y_test=None, sample_weights=None, names=("train", "test"),
@@ -930,14 +965,13 @@ class Base(LoggingMixin):
         return self
 
 
-class AutoBase(LoggingMixin):
+class AutoBase(LoggingMixin, DataCacheMixin):
     def __init__(self, name=None, data_info=None, pre_process_settings=None, nan_handler_settings=None,
                  *args, **kwargs):
         if name is None:
             raise ValueError("name should be provided when using AutoBase")
         self._name = name
 
-        self._data_folder = None
         self.whether_redundant = None
         self.feature_sets = self.sparsity = self.class_prior = None
         self.n_features = self.all_num_idx = self.transform_dicts = None
@@ -1000,32 +1034,6 @@ class AutoBase(LoggingMixin):
             if self.numerical_idx[i] is not None
         ])
 
-    @property
-    def data_cache_folder(self):
-        folder = os.path.join(self._data_folder, "_Cache", self._name)
-        if not os.path.isdir(folder):
-            os.makedirs(folder)
-        return folder
-
-    @property
-    def data_info_folder(self):
-        folder = os.path.join(self._data_folder, "_DataInfo")
-        if not os.path.isdir(folder):
-            os.makedirs(folder)
-        return folder
-
-    @property
-    def data_info_file(self):
-        return os.path.join(self.data_info_folder, "{}.info".format(self._name))
-
-    @property
-    def train_data_file(self):
-        return os.path.join(self.data_cache_folder, "train.npy")
-
-    @property
-    def test_data_file(self):
-        return os.path.join(self.data_cache_folder, "test.npy")
-
     def init_data_info(self):
         if self._data_info_initialized:
             return
@@ -1038,7 +1046,6 @@ class AutoBase(LoggingMixin):
         if self.feature_sets is not None and self.numerical_idx is not None:
             self.n_features = [len(feature_set) for feature_set in self.feature_sets]
             self._gen_categorical_columns()
-        self._data_folder = self.data_info.get("data_folder", "_Data")
         self.data_info.setdefault("file_type", "txt")
         self.data_info.setdefault("shuffle", True)
         self.data_info.setdefault("test_rate", 0.1)
@@ -1221,7 +1228,7 @@ class AutoBase(LoggingMixin):
             raise NotImplementedError("File type '{}' not recognized".format(file_type))
         logger = self.get_logger("_get_data_from_file", "general.log")
         if target is None:
-            target = os.path.join(self._data_folder, self._name)
+            target = os.path.join(self.data_folder, self._name)
         if not os.path.isdir(target):
             with open(target + ".{}".format(file_type), "r") as file:
                 data = Toolbox.get_data(file, sep, include_header, logger)
@@ -1468,6 +1475,8 @@ class AutoMeta(type):
 
         def print_settings(self):
             msg = model.print_settings(self, only_return=True)
+            if msg is None:
+                msg = ""
             msg += "\nNanHandler       : {}".format("None" if not self._nan_handler else "") + "\n"
             if self._nan_handler:
                 msg += "\n".join("-> {:14}: {}".format(k, v) for k, v in sorted(
@@ -1489,8 +1498,10 @@ class AutoMeta(type):
         return type(name_, bases, attr)
 
 
-class DistMixin(LoggingMixin):
+class DistMixin(LoggingMixin, DataCacheMixin):
     def __init__(self):
+        self._name = None
+        self.n_class = None
         self._search_cursor = None
         self._k_performances = None
         self._k_performances_mean = self._k_performances_std = None
@@ -1500,7 +1511,6 @@ class DistMixin(LoggingMixin):
         self._settings_base = None
         self._searching_params = None
         self._sess = self._graph = None
-        self._name = self._data_folder = None
         self._pre_processors = self._nan_handler = None
         self._pruner = self._dndf = self._dndf_pruner = None
         self.pre_process_settings = self.nan_handler_settings = None
@@ -1640,14 +1650,27 @@ class DistMixin(LoggingMixin):
             self._sample_weights = np.asarray(sample_weights, np.float32)
         sample_weights_store = self._sample_weights
         self.log_msg(msg, logger=logger)
+        all_idx = np.random.permutation(len(x_1))
         for i in range(k):
             if self._sess is not None:
                 self.reset_all_variables()
+            skip = False
             while True:
-                data_bundle = cv_method(x_1, y_1, n_cv, i, k)
-                if data_bundle is not None:
-                    x_train, y_train, x_cv, y_cv, train_idx = data_bundle
+                rs = cv_method(x_1, y_1, n_cv, i, k, all_idx)
+                if rs["success"]:
+                    x_train, y_train, x_cv, y_cv, train_idx = rs["info"]
                     break
+                if rs["info"] == "retry":
+                    continue
+                x_train = y_train = x_cv = y_cv = train_idx = None
+                skip = True
+                break
+            if skip:
+                self.log_msg(
+                    "{}th fold was skipped since labels in train set and cv set are not identical".format(i + 1),
+                    level=logging.INFO, logger=logger
+                )
+                continue
             if sample_weights is not None:
                 self._sample_weights = sample_weights_store[train_idx]
             else:
@@ -1704,29 +1727,40 @@ class DistMixin(LoggingMixin):
         if x_test is not None and y_test is not None:
             self._test_generator = self._generator_base(x_test, y_test, name="TestGenerator")
 
-    @staticmethod
-    def _k_random(x_1, y_1, *args):
+    def _k_random(self, x_1, y_1, *args):
         n_cv, *_ = args
+        rs = {"success": True}
         all_idx = np.random.permutation(len(x_1))
         cv_idx, train_idx = all_idx[:n_cv], all_idx[n_cv:]
         x_cv, y_cv = x_1[cv_idx], y_1[cv_idx]
         x_train, y_train = x_1[train_idx], y_1[train_idx]
         y_train_unique, y_cv_unique = np.unique(y_train), np.unique(y_cv)
-        if len(y_train_unique) == len(y_cv_unique) and np.allclose(y_train_unique, y_cv_unique):
-            return x_train, y_train, x_cv, y_cv, train_idx
+        if self.n_class == 1:
+            rs["info"] = (x_train, y_train, x_cv, y_cv, train_idx)
+        elif len(y_train_unique) == len(y_cv_unique) and np.allclose(y_train_unique, y_cv_unique):
+            rs["info"] = (x_train, y_train, x_cv, y_cv, train_idx)
+        else:
+            rs["success"] = False
+            rs["info"] = "retry"
+        return rs
 
-    @staticmethod
-    def _k_fold(x_1, y_1, *args):
-        _, i, k = args
-        all_idx = np.random.permutation(len(x_1))
+    def _k_fold(self, x_1, y_1, *args):
+        _, i, k, all_idx = args
+        rs = {"success": True}
         n_batch = int(len(x_1) / k)
         cv_idx = list(range(i * n_batch, (i + 1) * n_batch))
         train_idx = [j for j in all_idx if j < i * n_batch or j >= (i + 1) * n_batch]
         x_cv, y_cv = x_1[cv_idx], y_1[cv_idx]
         x_train, y_train = x_1[train_idx], y_1[train_idx]
         y_train_unique, y_cv_unique = np.unique(y_train), np.unique(y_cv)
-        if len(y_train_unique) == len(y_cv_unique) and np.allclose(y_train_unique, y_cv_unique):
-            return x_train, y_train, x_cv, y_cv, train_idx
+        if self.n_class == 1:
+            rs["info"] = (x_train, y_train, x_cv, y_cv, train_idx)
+        elif len(y_train_unique) == len(y_cv_unique) and np.allclose(y_train_unique, y_cv_unique):
+            rs["info"] = (x_train, y_train, x_cv, y_cv, train_idx)
+        else:
+            rs["success"] = False
+            rs["info"] = "skip"
+        return rs
 
     @staticmethod
     def str_param(param):
@@ -1842,10 +1876,14 @@ class DistMixin(LoggingMixin):
         best_idx = np.argmax(scores)
         return best_idx, params[best_idx]
 
-    def _prepare_param_search_data(self, test_rate):
-        cache_folder = self.data_cache_folder_name
+    def _prepare_param_search_data(self, data, test_rate):
         file_type = self.data_info.setdefault("file_type", "txt")
         data_folder = self.data_info.setdefault("data_folder", "_Data")
+        self._file_type_store = file_type
+        self._data_folder_store = data_folder
+        if data is not None:
+            return data
+        cache_folder = self.data_cache_folder_name
         target = os.path.join(data_folder, self._name)
         data, test_rate = self._get_data_from_file(file_type, test_rate, target)
         if isinstance(data, tuple):
@@ -1866,8 +1904,6 @@ class DistMixin(LoggingMixin):
         if test_data is not None:
             with open(os.path.join(cache_target, "test.txt"), "w") as file:
                 file.write("\n".join([" ".join(line) for line in test_data]))
-        self._file_type_store = file_type
-        self._data_folder_store = data_folder
         self.data_info["file_type"] = "txt"
         self.data_info["data_folder"] = cache_folder
 
@@ -1880,7 +1916,7 @@ class DistMixin(LoggingMixin):
 
     def k_fold(self, k=10, data=None, test_rate=0., sample_weights=None, **kwargs):
         return self._k_series_training(
-            k, data, -1, test_rate, sample_weights, cv_method=self._k_random, kwargs=kwargs,
+            k, data, -1, test_rate, sample_weights, cv_method=self._k_fold, kwargs=kwargs,
             msg="Training k-fold with k={} and test_rate={}".format(k, test_rate)
         )
 
@@ -1908,7 +1944,7 @@ class DistMixin(LoggingMixin):
                 single_search_time_limit, param_search_time_limit
             ), logging.DEBUG, logger
         )
-        self._prepare_param_search_data(cv_rate)
+        self._prepare_param_search_data(data, test_rate)
         for i, param in enumerate(params):
             self.reset_graph(i)
             self._log_param_msg(i, param)
@@ -2122,15 +2158,5 @@ class DistMeta(type):
                 pre_process_settings, nan_handler_settings
             )
 
-        @property
-        def model_saving_name(self):
-            return "{0}_{3}{1}{2}".format(
-                self.name, self._name_appendix, self.appendix_extension,
-                "{}_".format(self._search_cursor + 1) if self._searching_params else ""
-            )
-
-        for key, value in locals().items():
-            if str(value).find("function") >= 0 or str(value).find("property") >= 0:
-                attr[key] = value
-
+        attr["__init__"] = __init__
         return type(name_, bases, attr)

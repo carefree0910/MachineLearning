@@ -9,9 +9,8 @@ import unittest
 import numpy as np
 
 from Util.Util import DataUtil
-from _Dist.NeuralNetworks.g_DistNN.NN import DistBasic
-from _Dist.NeuralNetworks.g_DistNN.DistNN import DistAdvanced
 from _Dist.NeuralNetworks.b_TraditionalML.SVM import DistLinearSVM
+from _Dist.NeuralNetworks.g_DistNN.NN import DistBasic, DistAdvanced
 from _Dist.NeuralNetworks._Tests._UnitTests.UnitTestUtil import clear_cache
 
 

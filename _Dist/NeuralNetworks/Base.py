@@ -536,7 +536,7 @@ class Base:
         if path is None:
             path = self.model_saving_path
         folder = os.path.join(path, "{:06}".format(run_id))
-        if not os.path.exists(folder):
+        if not os.path.isdir(folder):
             os.makedirs(folder)
         print("Saving model")
         with self._graph.as_default():
@@ -557,14 +557,14 @@ class Base:
             if self._sess is None:
                 self._initialize_session()
             saver = tf.train.import_meta_graph("{}.meta".format(path), clear_devices)
-            saver.restore(self._sess, tf.train.latest_checkpoint(folder))
+            saver.restore(self._sess, os.path.join(folder, "Model"))
             self.restore_collections(folder)
             self.init_all_settings()
             print("Model restored from " + folder)
             return self
 
     def save_checkpoint(self, folder):
-        if not os.path.exists(folder):
+        if not os.path.isdir(folder):
             os.makedirs(folder)
         with self._graph.as_default():
             tf.train.Saver().save(self._sess, os.path.join(folder, "Model"))
@@ -688,7 +688,7 @@ class Base:
             elif i_epoch == n_epoch:
                 terminate = True
             if terminate:
-                if os.path.exists(tmp_checkpoint_folder):
+                if os.path.isdir(tmp_checkpoint_folder):
                     print("  -  Rolling back to the best checkpoint")
                     self.restore_checkpoint(tmp_checkpoint_folder)
                     shutil.rmtree(tmp_checkpoint_folder)
@@ -1376,7 +1376,7 @@ class AutoBase:
         self._gen_categorical_columns()
         if not use_cached_data and stage == 3:
             print("Caching data...")
-            if not os.path.exists(data_cache_folder):
+            if not os.path.isdir(data_cache_folder):
                 os.makedirs(data_cache_folder)
             np.save(train_data_file, train_data)
             if test_data is not None:
