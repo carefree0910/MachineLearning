@@ -620,7 +620,7 @@ class Base:
             if time_limit <= 0:
                 print("Time limit exceeded before training process started")
                 return self
-        monitor = TrainMonitor(Metrics.sign_dict[self._metric_name], snapshot_ratio).start_new_run()
+        monitor = TrainMonitor(Metrics.sign_dict[self._metric_name], snapshot_ratio)
 
         if verbose >= 2:
             prepare_tensorboard_verbose(self._sess)
@@ -670,14 +670,14 @@ class Base:
                     break
             self.log["epoch_loss"].append(epoch_loss / (j + 1))
             if use_monitor:
-                if i_epoch == n_epoch and i_epoch < self.max_epoch and not monitor.rs["terminate"]:
+                if i_epoch == n_epoch and i_epoch < self.max_epoch and not monitor.info["terminate"]:
                     monitor.flat_flag = True
                     monitor.punish_extension()
                     n_epoch = min(n_epoch + monitor.extension, self.max_epoch)
                     print("  -  Extending n_epoch to {}".format(n_epoch))
                 if i_epoch == self.max_epoch:
                     terminate = True
-                    if not monitor.rs["terminate"]:
+                    if not monitor.info["terminate"]:
                         if not over_fitting_flag:
                             print(
                                 "  -  Model seems to be under-fitting but max_epoch reached. "

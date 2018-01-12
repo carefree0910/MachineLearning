@@ -403,100 +403,113 @@ class Toolbox:
 
 
 class TrainMonitor:
-    def __init__(self, sign, snapshot_ratio, level=3, history_ratio=3, tolerance_ratio=2,
+    def __init__(self, sign, snapshot_ratio, history_ratio=3, tolerance_ratio=2,
                  extension=5, std_floor=0.001, std_ceiling=0.01):
-        self.sign, self.flat_flag = sign, False
-        self.snapshot_ratio, self.level = snapshot_ratio, max(1, int(level))
+        self.sign = sign
+        self.snapshot_ratio = snapshot_ratio
         self.n_history = int(snapshot_ratio * history_ratio)
-        if level < 3:
-            if level == 1:
-                tolerance_ratio /= 2
         self.n_tolerance = int(snapshot_ratio * tolerance_ratio)
         self.extension = extension
         self.std_floor, self.std_ceiling = std_floor, std_ceiling
-        self._run_id = -1
-        self._rs = None
         self._scores = []
-        self._running_sum = self._running_square_sum = self._running_best = None
-        self._is_best = self._over_fit_performance = self._best_checkpoint_performance = None
-        self._descend_counter = self._flat_counter = self._over_fitting_flag = None
+        self.flat_flag = False
+        self._is_best = self._running_best = None
+        self._running_sum = self._running_square_sum = None
         self._descend_increment = self.n_history * extension / 30
 
-    @property
-    def rs(self):
-        return self._rs
-
-    @property
-    def params(self):
-        return {
-            "level": self.level, "n_history": self.n_history, "n_tolerance": self.n_tolerance,
-            "extension": self.extension, "std_floor": self.std_floor, "std_ceiling": self.std_ceiling
-        }
-
-    @property
-    def descend_counter(self):
-        return self._descend_counter
-
-    @property
-    def over_fitting_flag(self):
-        return self._over_fitting_flag
-
-    @property
-    def n_epoch(self):
-        return int(len(self._scores) / self.snapshot_ratio)
-
-    def _reset_rs(self):
-        self._rs = {"terminate": False, "save_checkpoint": False, "save_best": False, "info": None}
-
-    def reset_monitors(self):
-        self._reset_rs()
         self._over_fit_performance = math.inf
         self._best_checkpoint_performance = -math.inf
-        self._descend_counter = self._flat_counter = self._over_fitting_flag = 0
-
-    def start_new_run(self):
-        self._run_id += 1
-        self.reset_monitors()
-        return self
+        self._descend_counter = self._flat_counter = self.over_fitting_flag = 0
+        self.info = {"terminate": False, "save_checkpoint": False, "save_best": False, "info": None}
 
     def punish_extension(self):
         self._descend_counter += self._descend_increment
 
-    def check(self, new_score):
-        scores = self._scores
-        scores.append(new_score * self.sign)
-        n_history = min(self.n_history, len(scores))
-        if n_history == 1:
-            return self._rs
-        # Update running sum & square sum
-        if n_history < self.n_history or len(scores) == self.n_history:
+    def _update_running_info(self, last_score, n_history):
+        if n_history <= self.n_history:
             if self._running_sum is None or self._running_square_sum is None:
-                self._running_sum = scores[0] + scores[1]
-                self._running_square_sum = scores[0] ** 2 + scores[1] ** 2
+                self._running_sum = self._scores[0] + self._scores[1]
+                self._running_square_sum = self._scores[0] ** 2 + self._scores[1] ** 2
             else:
-                self._running_sum += scores[-1]
-                self._running_square_sum += scores[-1] ** 2
+                self._running_sum += last_score
+                self._running_square_sum += last_score ** 2
         else:
-            previous = scores[-n_history - 1]
-            self._running_sum += scores[-1] - previous
-            self._running_square_sum += scores[-1] ** 2 - previous ** 2
-        # Update running best
+            previous = self._scores[-n_history - 1]
+            self._running_sum += last_score - previous
+            self._running_square_sum += last_score ** 2 - previous ** 2
         if self._running_best is None:
-            if scores[0] > scores[1]:
+            if self._scores[0] > self._scores[1]:
                 improvement = 0
-                self._running_best, self._is_best = scores[0], False
+                self._running_best, self._is_best = self._scores[0], False
             else:
-                improvement = scores[1] - scores[0]
-                self._running_best, self._is_best = scores[1], True
-        elif self._running_best > scores[-1]:
+                improvement = self._scores[1] - self._scores[0]
+                self._running_best, self._is_best = self._scores[1], True
+        elif self._running_best > last_score:
             improvement = 0
             self._is_best = False
         else:
-            improvement = scores[-1] - self._running_best
-            self._running_best = scores[-1]
+            improvement = last_score - self._running_best
+            self._running_best = last_score
             self._is_best = True
-        # Check
-        self._rs["save_checkpoint"] = False
+        return improvement
+
+    def _handle_overfitting(self, last_score, res, std):
+        if self._descend_counter == 0:
+            self.info["save_best"] = True
+            self._over_fit_performance = last_score
+        self._descend_counter += min(self.n_tolerance / 3, -res / std)
+        self.over_fitting_flag = 1
+
+    def _handle_recovering(self, improvement, last_score, res, std):
+        if res > 3 * std and self._is_best and improvement > std:
+            self.info["save_best"] = True
+        new_counter = self._descend_counter - res / std
+        if self._descend_counter > 0 >= new_counter:
+            self._over_fit_performance = math.inf
+            if last_score > self._best_checkpoint_performance:
+                self._best_checkpoint_performance = last_score
+                if last_score > self._running_best - std:
+                    self.info["save_checkpoint"] = True
+                    self.info["info"] = (
+                        "Current snapshot ({}) seems to be working well, "
+                        "saving checkpoint in case we need to restore".format(len(self._scores))
+                    )
+            self.over_fitting_flag = 0
+        self._descend_counter = max(new_counter, 0)
+
+    def _handle_is_best(self):
+        if self._is_best:
+            self.info["terminate"] = False
+            if self.info["save_best"]:
+                self.info["save_checkpoint"] = True
+                self.info["save_best"] = False
+                self.info["info"] = (
+                    "Current snapshot ({}) leads to best result we've ever had, "
+                    "saving checkpoint since ".format(len(self._scores))
+                )
+                if self.over_fitting_flag:
+                    self.info["info"] += "we've suffered from over-fitting"
+                else:
+                    self.info["info"] += "performance has improved significantly"
+
+    def _handle_period(self, last_score):
+        if len(self._scores) % self.snapshot_ratio == 0 and last_score > self._best_checkpoint_performance:
+            self._best_checkpoint_performance = last_score
+            self.info["terminate"] = False
+            self.info["save_checkpoint"] = True
+            self.info["info"] = (
+                "Current snapshot ({}) leads to best checkpoint we've ever had, "
+                "saving checkpoint in case we need to restore".format(len(self._scores))
+            )
+
+    def check(self, new_metric):
+        last_score = new_metric * self.sign
+        self._scores.append(last_score)
+        n_history = min(self.n_history, len(self._scores))
+        if n_history == 1:
+            return self.info
+        improvement = self._update_running_info(last_score, n_history)
+        self.info["save_checkpoint"] = False
         mean = self._running_sum / n_history
         std = math.sqrt(max(self._running_square_sum / n_history - mean ** 2, 1e-12))
         std = min(std, self.std_ceiling)
@@ -504,70 +517,23 @@ class TrainMonitor:
             if self.flat_flag:
                 self._flat_counter += 1
         else:
-            if self.level >= 3 or self._is_best:
-                self._flat_counter = max(self._flat_counter - 1, 0)
-            elif self.flat_flag and self.level < 3 and not self._is_best:
-                self._flat_counter += 1
-            res = scores[-1] - mean
-            if res < -std and scores[-1] < self._over_fit_performance - std:
-                if self._descend_counter == 0:
-                    self._rs["save_best"] = True
-                    self._over_fit_performance = scores[-1]
-                    if self._over_fit_performance > self._running_best:
-                        self._best_checkpoint_performance = self._over_fit_performance
-                        self._rs["save_checkpoint"] = True
-                        self._rs["info"] = (
-                            "Current snapshot ({}) seems to be over-fitting, "
-                            "saving checkpoint in case we need to restore".format(len(scores) + self._run_id)
-                        )
-                self._descend_counter += min(self.n_tolerance / 3, -res / std)
-                self._over_fitting_flag = 1
+            self._flat_counter = max(self._flat_counter - 1, 0)
+            res = last_score - mean
+            if res < -std and last_score < self._over_fit_performance - std:
+                self._handle_overfitting(last_score, res, std)
             elif res > std:
-                if res > 3 * std and self._is_best and improvement > std:
-                    self._rs["save_best"] = True
-                new_counter = self._descend_counter - res / std
-                if self._descend_counter > 0 >= new_counter:
-                    self._over_fit_performance = math.inf
-                    if scores[-1] > self._best_checkpoint_performance:
-                        self._best_checkpoint_performance = scores[-1]
-                        if scores[-1] > self._running_best - std:
-                            self._rs["save_checkpoint"] = True
-                            self._rs["info"] = (
-                                "Current snapshot ({}) seems to be working well, "
-                                "saving checkpoint in case we need to restore".format(len(scores)+self._run_id)
-                            )
-                    self._over_fitting_flag = 0
-                self._descend_counter = max(new_counter, 0)
+                self._handle_recovering(improvement, last_score, res, std)
         if self._flat_counter >= self.n_tolerance * self.n_history:
-            self._rs["info"] = "Performance not improving"
-            self._rs["terminate"] = True
-            return self._rs
+            self.info["info"] = "Performance not improving"
+            self.info["terminate"] = True
+            return self.info
         if self._descend_counter >= self.n_tolerance:
-            self._rs["info"] = "Over-fitting"
-            self._rs["terminate"] = True
-            return self._rs
-        if self._is_best:
-            self._rs["terminate"] = False
-            if self._rs["save_best"]:
-                self._rs["save_checkpoint"] = True
-                self._rs["save_best"] = False
-                self._rs["info"] = (
-                    "Current snapshot ({}) leads to best result we've ever had, "
-                    "saving checkpoint since ".format(len(scores) + self._run_id)
-                )
-                if self._over_fitting_flag:
-                    self._rs["info"] += "we've suffered from over-fitting"
-                else:
-                    self._rs["info"] += "performance has improved significantly"
-        if len(scores) % self.snapshot_ratio == 0 and scores[-1] > self._best_checkpoint_performance:
-            self._best_checkpoint_performance = scores[-1]
-            self._rs["terminate"] = False
-            self._rs["save_checkpoint"] = True
-            self._rs["info"] = (
-                "Current snapshot ({}) leads to best checkpoint we've ever had, "
-                "saving checkpoint in case we need to restore".format(len(scores) + self._run_id)
-            )
-        return self._rs
+            self.info["info"] = "Over-fitting"
+            self.info["terminate"] = True
+            return self.info
+        self._handle_is_best()
+        self._handle_period(last_score)
+        return self.info
 
 
 class DNDF:
