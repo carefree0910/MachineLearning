@@ -349,6 +349,8 @@ class Toolbox:
                     all_num_idx[i] = numerical_idx[i] = None
                 elif numerical_idx[i]:
                     shrink_feature = np.asarray(shrink_feature, np.float32)
+                    if np.isnan(shrink_feature[-1]):
+                        shrink_feature = shrink_feature[:-1]
                     if np.max(shrink_feature) < 2 ** 30:
                         if np.allclose(shrink_feature, np.array(shrink_feature, np.int32)):
                             if Toolbox.all_unique(shrink_feature):
