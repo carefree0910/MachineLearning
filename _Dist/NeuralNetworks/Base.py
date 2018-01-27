@@ -106,9 +106,12 @@ class Generator:
             return self._get_data(self._valid_indices[start:])
         return self._get_data(self._valid_indices[start:end])
 
-    def _get_data(self, indices):
+    def _get_data(self, indices, return_weights=True):
+        data = self._all_valid_data[indices]
+        if not return_weights:
+            return data
         weights = None if self._sample_weights is None else self._sample_weights[indices]
-        return self._all_valid_data[indices], weights
+        return data, weights
 
     def gen_batch(self, n_batch, re_shuffle=True):
         n_batch = min(n_batch, self.n_valid)
@@ -147,10 +150,12 @@ class Generator:
         logger.debug("Done")
         return subset, weights
 
-    def get_all_data(self):
+    def get_all_data(self, return_weights=True):
         if self._all_valid_data is not None:
-            return self._all_valid_data, self._sample_weights
-        return self._get_data(self._valid_indices)
+            if return_weights:
+                return self._all_valid_data, self._sample_weights
+            return self._all_valid_data
+        return self._get_data(self._valid_indices, return_weights)
 
 
 class Generator3d(Generator):
@@ -1014,6 +1019,7 @@ class Base:
 
 
 class AutoBase:
+    # noinspection PyUnusedLocal
     def __init__(self, name=None, data_info=None, pre_process_settings=None, nan_handler_settings=None,
                  *args, **kwargs):
         if name is None:

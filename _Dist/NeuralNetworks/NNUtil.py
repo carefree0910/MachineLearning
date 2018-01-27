@@ -428,7 +428,7 @@ class TrainMonitor:
         self._descend_counter += self._descend_increment
 
     def _update_running_info(self, last_score, n_history):
-        if n_history <= self.n_history:
+        if n_history < self.n_history or n_history == len(self._scores):
             if self._running_sum is None or self._running_square_sum is None:
                 self._running_sum = self._scores[0] + self._scores[1]
                 self._running_square_sum = self._scores[0] ** 2 + self._scores[1] ** 2

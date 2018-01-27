@@ -60,7 +60,7 @@ class DataCacheMixin:
 
 class LoggingMixin:
     logger = logging.getLogger("")
-    initialized_logger = set()
+    initialized_log_file = set()
 
     @property
     def logging_folder_name(self):
@@ -87,10 +87,10 @@ class LoggingMixin:
             return self.loggers[name]
         folder = self.logging_folder_name
         log_file = os.path.join(folder, file)
-        if log_file not in self.initialized_logger:
+        if log_file not in self.initialized_log_file:
             with open(log_file, "w"):
                 pass
-            self.initialized_logger.add(log_file)
+            self.initialized_log_file.add(log_file)
         log_file = logging.FileHandler(log_file, "a")
         log_file.setLevel(logging.DEBUG)
         formatter = logging.Formatter(
@@ -104,19 +104,14 @@ class LoggingMixin:
         return logger
 
     def log_msg(self, msg, level=logging.DEBUG, logger=None):
-        if level <= logging.DEBUG and self.logger is None:
-            return
         logger = self.logger if logger is None else logger
         print(msg) if logger is print else logger.log(level, msg)
 
-    def log_block(self, title="Done", header="Result", body="", level=logging.DEBUG, logger=None):
-        if level <= logging.DEBUG and self.logger is None:
-            return
+    def log_block_msg(self, title="Done", header="Result", body="", level=logging.DEBUG, logger=None):
         msg = title + "\n" + "\n".join(["=" * 100, header, "-" * 100])
         if body:
             msg += "\n{}\n".format(body) + "-" * 100
-        logger = self.logger if logger is None else logger
-        print(msg) if logger is print else logger.log(level, msg)
+        self.log_msg(msg, level, logger)
 
 
 class Base(LoggingMixin):
@@ -165,6 +160,7 @@ class Base(LoggingMixin):
         self._sess = None
         self._graph = tf.Graph()
         self._sess_config = self.model_param_settings.pop("sess_config", None)
+        self.loggers = None
         self._init_logging()
 
     def __str__(self):
@@ -334,11 +330,15 @@ class Base(LoggingMixin):
                 self.log["train_{}".format(self._metric_name)].append(train_metric)
         else:
             test_metric = None
+        msg = (
+            "Epoch {:6}   Iter {:8}   Snapshot {:6} ({})  -  "
+            "Train : {:8.6f}   Test : {}".format(
+                i_epoch, i_iter, snapshot_cursor, self._metric_name, train_metric,
+                "None" if test_metric is None else "{:8.6f}".format(test_metric)
+            )
+        )
         logger = self.get_logger("_snapshot", "general.log")
-        self.log_msg("Epoch {:6}   Iter {:8}   Snapshot {:6} ({})  -  Train : {:8.6f}   Test : {}".format(
-            i_epoch, i_iter, snapshot_cursor, self._metric_name, train_metric,
-            "None" if test_metric is None else "{:8.6f}".format(test_metric)
-        ), logger=logger)
+        self.log_msg(msg, logger=logger)
         return train_metric, test_metric
 
     def _calculate(self, x, y=None, weights=None, tensor=None, n_elem=1e7, is_training=False):
@@ -966,6 +966,7 @@ class Base(LoggingMixin):
 
 
 class AutoBase(LoggingMixin, DataCacheMixin):
+    # noinspection PyUnusedLocal
     def __init__(self, name=None, data_info=None, pre_process_settings=None, nan_handler_settings=None,
                  *args, **kwargs):
         if name is None:
@@ -1499,33 +1500,6 @@ class AutoMeta(type):
 
 
 class DistMixin(LoggingMixin, DataCacheMixin):
-    def __init__(self):
-        self._name = None
-        self.n_class = None
-        self._search_cursor = None
-        self._k_performances = None
-        self._k_performances_mean = self._k_performances_std = None
-        self._k_series_t = self._param_search_t = self.param_search_time_limit = None
-        self._data_info_initialized = None
-        self._data_folder_store = self._file_type_store = None
-        self._settings_base = None
-        self._searching_params = None
-        self._sess = self._graph = None
-        self._pre_processors = self._nan_handler = None
-        self._pruner = self._dndf = self._dndf_pruner = None
-        self.pre_process_settings = self.nan_handler_settings = None
-        self._model_built = self._settings_initialized = None
-        self.mean_record = self.std_record = None
-        self.model_param_settings = self.model_structure_settings = None
-        self._sess = None
-        self.loggers = None
-        self.data_info = None
-        self.numerical_idx = None
-        self._sample_weights = None
-        self.n_random_train_subset = None
-        self._train_generator = self._test_generator = self._generator_base = None
-        self._name_appendix = self._loss_name = self._metric_name = None
-
     @property
     def k_series_time_delta(self):
         return time.time() - self._k_series_t
@@ -1533,38 +1507,6 @@ class DistMixin(LoggingMixin, DataCacheMixin):
     @property
     def param_search_time_delta(self):
         return time.time() - self._param_search_t
-
-    @property
-    def appendix_extension(self):
-        model_param_appendix = "_".join([
-            self.str_param(param)
-            for param in self.model_param_settings.values()
-        ])
-        model_structure_appendix = "_".join([
-            self.str_param(param) if not isinstance(param, dict) else
-            ",".join([
-                self.str_param(local_param)
-                for local_param in param.values()
-            ]) for param in self.model_structure_settings.values()
-        ])
-        pre_process_appendix = "_".join([
-            self.str_param(param)
-            for param in self.pre_process_settings.values()
-        ])
-        nan_handler_appendix = "_".join([
-            self.str_param(param)
-            for param in self.nan_handler_settings.values()
-        ])
-        appendix_extension = ""
-        if model_param_appendix:
-            appendix_extension += "_{}".format(model_param_appendix)
-        if model_structure_appendix:
-            appendix_extension += "_{}".format(model_structure_appendix)
-        if pre_process_appendix:
-            appendix_extension += "_{}".format(pre_process_appendix)
-        if nan_handler_appendix:
-            appendix_extension += "_{}".format(nan_handler_appendix)
-        return appendix_extension
 
     @property
     def data_cache_folder_name(self):
@@ -1587,17 +1529,29 @@ class DistMixin(LoggingMixin, DataCacheMixin):
             self.get_logger(name, "{}.log".format(name))
         return self.loggers[name]
 
-    def reset_all_variables(self):
-        with self._graph.as_default():
-            self._sess.run(tf.global_variables_initializer())
-
+    # noinspection PyAttributeOutsideInit
     def reset_graph(self, i):
         del self._graph
         self._sess = None
         self._graph = tf.Graph()
         self._search_cursor = i
 
-    def _k_series_initialization(self, k, data, test_rate, time_limit):
+    def reset_all_variables(self):
+        with self._graph.as_default():
+            self._sess.run(tf.global_variables_initializer())
+
+    def _handle_param_search_time_limit(self, time_limit):
+        if self.param_search_time_limit is None:
+            time_limit -= self.k_series_time_delta
+        else:
+            time_limit = min(
+                time_limit,
+                self.param_search_time_limit - self.k_series_time_delta
+            )
+        self._k_series_t = time.time()
+        return time_limit
+
+    def _k_series_initialization(self, k, data, test_rate):
         self._k_series_t = time.time()
         self.data_info.setdefault("test_rate", test_rate)
         self.init_data_info()
@@ -1615,7 +1569,7 @@ class DistMixin(LoggingMixin, DataCacheMixin):
             test_1 = np.hstack([x_test_1, y_test_1.reshape([-1, 1])])
             np.save(self.train_data_file, train_1)
             np.save(self.test_data_file, test_1)
-        x_2, y_2, *_ = self._load_data(
+        self._load_data(
             np.hstack([x_1, y_1.reshape([-1, 1])]),
             names=("train", None), test_rate=0, stage=2, **kwargs
         )
@@ -1627,23 +1581,62 @@ class DistMixin(LoggingMixin, DataCacheMixin):
                 names=("test", None), test_rate=0, stage=2, **kwargs
             )
         names = [("train{}".format(i), "cv{}".format(i)) for i in range(k)]
-        return x_1, y_1, x_test_2, y_test_2, names, time_limit
+        return x_1, y_1, x_test_2, y_test_2, names
 
-    def _k_series_training(self, k, data, cv_rate, test_rate, sample_weights,
-                           msg, cv_method, kwargs):
-        x_1, y_1, x_test_2, y_test_2, names, time_limit = self._k_series_initialization(
-            k, data, test_rate, kwargs.pop("time_limit", -1))
-        logger = self.get_logger("_k_series_training", "general.log")
+    def _k_series_evaluation(self, i, x_test, y_test, time_limit):
+        if i == -1:
+            if x_test is None or y_test is None:
+                valid_performances = [performance[:2] for performance in self._k_performances]
+            else:
+                valid_performances = self._k_performances
+            performances_mean = np.mean(valid_performances, axis=0)
+            performances_std = np.std(valid_performances, axis=0)
+            msg = "  -  Mean   | {}\n".format(
+                self._print_metrics(self._metric_name, *performances_mean, only_return=True))
+            msg += "  -   Std   | {}".format(
+                self._print_metrics(self._metric_name, *performances_std, only_return=True))
+            if self._searching_params:
+                level = logging.DEBUG
+                logger = self.param_search_logger
+            else:
+                level = logging.INFO
+                logger = self.k_series_logger
+            self.log_block_msg(
+                "Generating performance summary", body=msg,
+                level=level, logger=logger
+            )
+            return performances_mean, performances_std
+        train_data = self._train_generator.get_all_data(return_weights=False)
+        cv_data = self._test_generator.get_all_data(return_weights=False)
+        x, y = train_data[..., :-1], train_data[..., -1]
+        x_cv, y_cv = cv_data[..., :-1], cv_data[..., -1]
+        msg = "Performance of run {:2} | ".format(i + 1)
+        print("  -  " + msg, end="")
+        self._k_performances.append(self._evaluate(x, y, x_cv, y_cv, x_test, y_test))
+        msg += self._print_metrics(self._metric_name, *self._k_performances[-1], only_return=True)
+        self.log_msg(
+            msg, logging.DEBUG,
+            self.param_search_logger if self._searching_params else self.k_series_logger
+        )
+        return self.k_series_time_delta >= time_limit > 0
+
+    def _k_series_completion(self, x_test, y_test, names, sample_weights_store):
+        performance_info = self._k_series_evaluation(-1, x_test, y_test, None)
+        self._k_performances_mean, self._k_performances_std = performance_info
+        self.data_info["stage"] = 3
+        for name in names:
+            self._pop_preprocessor(name)
+        self._sample_weights = sample_weights_store
+
+    def _k_series_process(self, k, data, cv_rate, test_rate, sample_weights,
+                          msg, cv_method, kwargs):
+        x_1, y_1, x_test_2, y_test_2, names = self._k_series_initialization(k, data, test_rate)
+        time_limit = kwargs.pop("time_limit", -1)
+        logger = self.get_logger("_k_series_process", "general.log")
         if 0 < time_limit <= self.k_series_time_delta:
             self.log_msg("Time limit exceeded before k_series started", logger=logger)
             return
-        if self.param_search_time_limit is None:
-            time_limit -= self.k_series_time_delta
-        else:
-            time_limit = min(
-                time_limit,
-                self.param_search_time_limit - self.k_series_time_delta
-            )
+        time_limit = self._handle_param_search_time_limit(time_limit)
         n_cv = int(cv_rate * len(x_1))
         print_settings = True
         if sample_weights is not None:
@@ -1685,90 +1678,52 @@ class DistMixin(LoggingMixin, DataCacheMixin):
         self._k_series_completion(x_test_2, y_test_2, names, sample_weights_store)
         return self
 
-    def _k_series_evaluation(self, i, x_test, y_test, time_limit):
-        if i == -1:
-            if x_test is None or y_test is None:
-                valid_performances = [performance[:2] for performance in self._k_performances]
+    def _cv_sanity_check(self, rs, handler, train_idx, x_train, y_train, x_cv, y_cv):
+        if self.n_class == 1:
+            rs["info"] = (x_train, y_train, x_cv, y_cv, train_idx)
+        else:
+            y_train_unique, y_cv_unique = np.unique(y_train), np.unique(y_cv)
+            if len(y_train_unique) == len(y_cv_unique) and np.allclose(y_train_unique, y_cv_unique):
+                rs["info"] = (x_train, y_train, x_cv, y_cv, train_idx)
             else:
-                valid_performances = self._k_performances
-            performances_mean = np.mean(valid_performances, axis=0)
-            performances_std = np.std(valid_performances, axis=0)
-            msg = "  -  Mean   | {}\n".format(
-                self._print_metrics(self._metric_name, *performances_mean, only_return=True))
-            msg += "  -   Std   | {}".format(
-                self._print_metrics(self._metric_name, *performances_std, only_return=True))
-            self.log_block(
-                "Generating performance summary", body=msg,
-                level=logging.DEBUG if self._searching_params else logging.INFO,
-                logger=self.param_search_logger if self._searching_params else self.k_series_logger
-            )
-            return performances_mean, performances_std
-        train, sw_train = self._train_generator.get_all_data()
-        cv, sw_cv = self._test_generator.get_all_data()
-        x, y = train[..., :-1], train[..., -1]
-        x_cv, y_cv = cv[..., :-1], cv[..., -1]
-        msg = "Performance of run {:2} | ".format(i + 1)
-        print("  -  " + msg, end="")
-        self._k_performances.append(self._evaluate(x, y, x_cv, y_cv, x_test, y_test))
-        msg += self._print_metrics(self._metric_name, *self._k_performances[-1], only_return=True)
-        self.log_msg(
-            msg, logging.DEBUG,
-            self.param_search_logger if self._searching_params else self.k_series_logger
-        )
-        return self.k_series_time_delta >= time_limit > 0
+                rs["success"] = False
+                rs["info"] = handler
 
-    def _k_series_completion(self, x_test, y_test, names, sample_weights_store):
-        performance_info = self._k_series_evaluation(-1, x_test, y_test, None)
-        self._k_performances_mean, self._k_performances_std = performance_info
-        self.data_info["stage"] = 3
-        for name in names:
-            self._pop_preprocessor(name)
-        self._sample_weights = sample_weights_store
-        if x_test is not None and y_test is not None:
-            self._test_generator = self._generator_base(x_test, y_test, name="TestGenerator")
+    def _k_fold_method(self, x_1, y_1, *args):
+        _, i, k, all_idx = args
+        rs = {"success": True}
+        n_batch = int(len(x_1) / k)
+        cv_idx = all_idx[np.arange(i * n_batch, (i + 1) * n_batch)]
+        train_idx = all_idx[[
+            j for j in range(len(all_idx))
+            if j < i * n_batch or j >= (i + 1) * n_batch
+        ]]
+        x_cv, y_cv = x_1[cv_idx], y_1[cv_idx]
+        x_train, y_train = x_1[train_idx], y_1[train_idx]
+        self._cv_sanity_check(rs, "skip", train_idx, x_train, y_train, x_cv, y_cv)
+        return rs
 
-    def _k_random(self, x_1, y_1, *args):
+    def _k_random_method(self, x_1, y_1, *args):
         n_cv, *_ = args
         rs = {"success": True}
         all_idx = np.random.permutation(len(x_1))
         cv_idx, train_idx = all_idx[:n_cv], all_idx[n_cv:]
         x_cv, y_cv = x_1[cv_idx], y_1[cv_idx]
         x_train, y_train = x_1[train_idx], y_1[train_idx]
-        y_train_unique, y_cv_unique = np.unique(y_train), np.unique(y_cv)
-        if self.n_class == 1:
-            rs["info"] = (x_train, y_train, x_cv, y_cv, train_idx)
-        elif len(y_train_unique) == len(y_cv_unique) and np.allclose(y_train_unique, y_cv_unique):
-            rs["info"] = (x_train, y_train, x_cv, y_cv, train_idx)
-        else:
-            rs["success"] = False
-            rs["info"] = "retry"
+        self._cv_sanity_check(rs, "retry", train_idx, x_train, y_train, x_cv, y_cv)
         return rs
 
-    def _k_fold(self, x_1, y_1, *args):
-        _, i, k, all_idx = args
-        rs = {"success": True}
-        n_batch = int(len(x_1) / k)
-        cv_idx = list(range(i * n_batch, (i + 1) * n_batch))
-        train_idx = [j for j in all_idx if j < i * n_batch or j >= (i + 1) * n_batch]
-        x_cv, y_cv = x_1[cv_idx], y_1[cv_idx]
-        x_train, y_train = x_1[train_idx], y_1[train_idx]
-        y_train_unique, y_cv_unique = np.unique(y_train), np.unique(y_cv)
-        if self.n_class == 1:
-            rs["info"] = (x_train, y_train, x_cv, y_cv, train_idx)
-        elif len(y_train_unique) == len(y_cv_unique) and np.allclose(y_train_unique, y_cv_unique):
-            rs["info"] = (x_train, y_train, x_cv, y_cv, train_idx)
-        else:
-            rs["success"] = False
-            rs["info"] = "skip"
-        return rs
+    def k_fold(self, k=10, data=None, test_rate=0., sample_weights=None, **kwargs):
+        return self._k_series_process(
+            k, data, -1, test_rate, sample_weights, cv_method=self._k_fold_method, kwargs=kwargs,
+            msg="Training k-fold with k={} and test_rate={}".format(k, test_rate)
+        )
 
-    @staticmethod
-    def str_param(param):
-        if isinstance(param, str):
-            return param
-        if isinstance(param, collections.Iterable):
-            return ",".join(map(lambda elem: str(elem), param))
-        return str(param)
+    def k_random(self, k=3, data=None, cv_rate=0.1, test_rate=0., sample_weights=None, **kwargs):
+        return self._k_series_process(
+            k, data, cv_rate, test_rate, sample_weights, cv_method=self._k_random_method, kwargs=kwargs,
+            msg="Training k-random with k={}, cv_rate={} and test_rate={}".format(k, cv_rate, test_rate)
+        )
 
     def _log_param_msg(self, i, param):
         msg = ""
@@ -1789,7 +1744,7 @@ class DistMixin(LoggingMixin, DataCacheMixin):
             title = "Generating parameter setting {:3}".format(i + 1)
         else:
             title = "Generating best parameter setting"
-        self.log_block(
+        self.log_block_msg(
             title=title, body=msg,
             level=logging.DEBUG, logger=self.param_search_logger
         )
@@ -1801,7 +1756,7 @@ class DistMixin(LoggingMixin, DataCacheMixin):
         return mean + std
 
     @staticmethod
-    def _extract_info(dtype, info):
+    def _extract_param_from_info(dtype, info):
         if dtype == "choice":
             return info[0][random.randint(0, len(info[0]) - 1)]
         if len(info) == 2:
@@ -1830,7 +1785,7 @@ class DistMixin(LoggingMixin, DataCacheMixin):
             raise NotImplementedError(distribution_error_msg)
         raise NotImplementedError("dtype '{}' not supported in range_search".format(dtype))
 
-    def _update_parameter(self, param):
+    def _update_param(self, param):
         self._model_built = False
         self._settings_initialized = False
         self.model_param_settings = deepcopy(self._settings_base["model_param_settings"])
@@ -1850,26 +1805,21 @@ class DistMixin(LoggingMixin, DataCacheMixin):
         if self._pre_processors:
             self._pre_processors = {}
 
-    def _select_parameter(self, params, search_with_test_set):
+    def _select_param(self, params, search_with_test_set):
         scores = []
         sign = Metrics.sign_dict[self._metric_name]
         assert len(self.mean_record) == len(self.std_record)
-        for i, param in enumerate(self.mean_record):
-            mean, std = self.mean_record[i], self.std_record[i]
-            if len(mean) == 2:
+        for mean, std in zip(self.mean_record, self.std_record):
+            if len(mean) == 2 or not search_with_test_set:
                 train_mean, cv_mean = mean
                 train_std, cv_std = std
-                weighted_mean = 0.1 * train_mean + 0.9 * cv_mean
-                weighted_std = 0.1 * train_std + 0.9 * cv_std
+                weighted_mean = 0.05 * train_mean + 0.95 * cv_mean
+                weighted_std = 0.05 * train_std + 0.95 * cv_std
             else:
                 train_mean, cv_mean, test_mean = mean
                 train_std, cv_std, test_std = std
-                if search_with_test_set:
-                    weighted_mean = 0.05 * train_mean + 0.1 * cv_mean + 0.85 * test_mean
-                    weighted_std = 0.05 * train_std + 0.1 * cv_std + 0.85 * test_std
-                else:
-                    weighted_mean = 0.05 * train_mean + 0.95 * cv_mean
-                    weighted_std = 0.05 * train_std + 0.95 * cv_std
+                weighted_mean = 0.05 * train_mean + 0.1 * cv_mean + 0.85 * test_mean
+                weighted_std = 0.05 * train_std + 0.1 * cv_std + 0.85 * test_std
             scores.append(self._get_score(weighted_mean, weighted_std, sign))
         scores = np.array(scores, np.float32)
         scores[np.isnan(scores)] = -np.inf
@@ -1914,21 +1864,21 @@ class DistMixin(LoggingMixin, DataCacheMixin):
         self.data_info["file_type"] = self._file_type_store
         self.data_info["data_folder"] = self._data_folder_store
 
-    def k_fold(self, k=10, data=None, test_rate=0., sample_weights=None, **kwargs):
-        return self._k_series_training(
-            k, data, -1, test_rate, sample_weights, cv_method=self._k_fold, kwargs=kwargs,
-            msg="Training k-fold with k={} and test_rate={}".format(k, test_rate)
-        )
+    def get_param_by_range(self, param):
+        if isinstance(param, dict):
+            return {key: self.get_param_by_range(value) for key, value in param.items()}
+        dtype, *info = param
+        if not isinstance(dtype, str) and isinstance(dtype, collections.Iterable):
+            local_param_list = []
+            for local_dtype, local_info in zip(dtype, info):
+                local_param_list.append(self._extract_param_from_info(local_dtype, local_info))
+            return local_param_list
+        return self._extract_param_from_info(dtype, info)
 
-    def k_random(self, k=3, data=None, cv_rate=0.1, test_rate=0., sample_weights=None, **kwargs):
-        return self._k_series_training(
-            k, data, cv_rate, test_rate, sample_weights, cv_method=self._k_random, kwargs=kwargs,
-            msg="Training k-random with k={}, cv_rate={} and test_rate={}".format(k, cv_rate, test_rate)
-        )
-
+    # noinspection PyAttributeOutsideInit
     def param_search(self, params,
                      search_with_test_set=True, switch_to_best_param=True,
-                     single_search_time_limit=240, param_search_time_limit=3600,
+                     single_search_time_limit=None, param_search_time_limit=3600,
                      k=3, data=None, cv_rate=0.1, test_rate=0.1, sample_weights=None, **kwargs):
         self._param_search_t = time.time()
         self.param_search_time_limit = param_search_time_limit
@@ -1941,18 +1891,22 @@ class DistMixin(LoggingMixin, DataCacheMixin):
         self.mean_record, self.std_record = [], []
         self.log_msg(
             "Searching best parameter setting (time_limit: {}s per run, {}s in total)".format(
-                single_search_time_limit, param_search_time_limit
+                "default" if single_search_time_limit is None else single_search_time_limit,
+                param_search_time_limit
             ), logging.DEBUG, logger
         )
         self._prepare_param_search_data(data, test_rate)
+        n_param = len(params)
         for i, param in enumerate(params):
             self.reset_graph(i)
             self._log_param_msg(i, param)
-            self._update_parameter(param)
-            kwargs["time_limit"] = min(
-                single_search_time_limit,
-                param_search_time_limit - self.param_search_time_delta
-            )
+            self._update_param(param)
+            time_left = param_search_time_limit - self.param_search_time_delta
+            if single_search_time_limit is None:
+                local_time_limit = time_left / (n_param - i)
+            else:
+                local_time_limit = single_search_time_limit
+            kwargs["time_limit"] = min(local_time_limit, time_left)
             if self.k_random(k, data, cv_rate, test_rate, sample_weights, **kwargs) is not None:
                 self.save()
                 self.mean_record.append(self._k_performances_mean)
@@ -1961,7 +1915,7 @@ class DistMixin(LoggingMixin, DataCacheMixin):
                 self.log_msg("Search interrupted due to 'Time limit exceeded'", level=logging.INFO, logger=logger)
                 break
         self.log_msg("Search complete", level=logging.DEBUG, logger=logger)
-        best_idx, best_param = self._select_parameter(params, search_with_test_set)
+        best_idx, best_param = self._select_param(params, search_with_test_set)
         self._log_param_msg(-1, best_param)
         msg = ""
         for i, (mean, std) in enumerate(zip(self.mean_record, self.std_record)):
@@ -1971,18 +1925,30 @@ class DistMixin(LoggingMixin, DataCacheMixin):
             msg += self._print_metrics(self._metric_name, *std, only_return=True)
             if i != len(self.mean_record) - 1:
                 msg += "\n" + "-" * 100 + "\n"
-        self.log_block("Generating performances", body=msg, level=logging.DEBUG, logger=logger)
+        self.log_block_msg("Generating performances", body=msg, level=logging.DEBUG, logger=logger)
         if switch_to_best_param:
             self.reset_graph(-1)
-            self._update_parameter(best_param)
+            self._update_param(best_param)
         self._param_search_completion()
         return self
 
     def random_search(self, n, grid_params, grid_order="list_first",
                       search_with_test_set=True, switch_to_best_params=True,
-                      single_search_time_limit=240, param_search_time_limit=3600,
+                      single_search_time_limit=None, param_search_time_limit=3600,
                       k=3, data=None, cv_rate=0.1, test_rate=0.1, sample_weights=None, **kwargs):
-        if grid_order == "dict_first":
+        if grid_order == "list_first":
+            param_types = sorted(grid_params)
+            n_param_base = [
+                np.arange(len(grid_params[param_type]))
+                for param_type in param_types
+            ]
+            params = [
+                {
+                    param_type: grid_params[param_type][indices[i]]
+                    for i, param_type in enumerate(param_types)
+                } for indices in itertools.product(*n_param_base)
+            ]
+        elif grid_order == "dict_first":
             param_types = sorted(grid_params)
             params_names = [sorted(grid_params[param_type]) for param_type in param_types]
             params_names_cumsum = np.cumsum([0] + [len(params_name) for params_name in params_names])
@@ -1993,21 +1959,9 @@ class DistMixin(LoggingMixin, DataCacheMixin):
             params = [
                 {
                     param_type: {
-                        local_params: grid_params[param_type][local_params][indices[cumsum+j]]
+                        local_params: grid_params[param_type][local_params][indices[cumsum + j]]
                         for j, local_params in enumerate(params_names[i])
                     } for i, (param_type, cumsum) in enumerate(zip(param_types, params_names_cumsum))
-                } for indices in itertools.product(*n_param_base)
-            ]
-        elif grid_order == "list_first":
-            param_types = sorted(grid_params)
-            n_param_base = [
-                np.arange(len(grid_params[param_type]))
-                for param_type in param_types
-            ]
-            params = [
-                {
-                    param_type: grid_params[param_type][indices[i]]
-                    for i, param_type in enumerate(param_types)
                 } for indices in itertools.product(*n_param_base)
             ]
         else:
@@ -2023,7 +1977,7 @@ class DistMixin(LoggingMixin, DataCacheMixin):
 
     def grid_search(self, grid_params, grid_order="list_first",
                     search_with_test_set=True, switch_to_best_params=True,
-                    single_search_time_limit=240, param_search_time_limit=3600,
+                    single_search_time_limit=None, param_search_time_limit=3600,
                     k=3, data=None, cv_rate=0.1, test_rate=0.1, sample_weights=None, **kwargs):
         return self.random_search(
             -1, grid_params, grid_order,
@@ -2032,20 +1986,9 @@ class DistMixin(LoggingMixin, DataCacheMixin):
             k, data, cv_rate, test_rate, sample_weights, **kwargs
         )
 
-    def get_param_by_range(self, param):
-        if isinstance(param, dict):
-            return {key: self.get_param_by_range(value) for key, value in param.items()}
-        dtype, *info = param
-        if not isinstance(dtype, str) and isinstance(dtype, collections.Iterable):
-            local_param_list = []
-            for local_dtype, local_info in zip(dtype, info):
-                local_param_list.append(self._extract_info(local_dtype, local_info))
-            return local_param_list
-        return self._extract_info(dtype, info)
-
     def range_search(self, n, grid_params,
                      search_with_test_set=True, switch_to_best_params=True,
-                     single_search_time_limit=240, param_search_time_limit=3600,
+                     single_search_time_limit=None, param_search_time_limit=3600,
                      k=3, data=None, cv_rate=0.1, test_rate=0.1, sample_weights=None, **kwargs):
         params = []
         for _ in range(n):
@@ -2064,7 +2007,7 @@ class DistMixin(LoggingMixin, DataCacheMixin):
         )
 
     def empirical_search(self, search_with_test_set=True, switch_to_best_params=True,
-                         level=3, single_search_time_limit=240, param_search_time_limit=3600,
+                         level=3, single_search_time_limit=None, param_search_time_limit=3600,
                          k=3, data=None, cv_rate=0.1, test_rate=0.1, sample_weights=None, **kwargs):
         grid_params = {
             "model_structure_settings": [
@@ -2152,6 +2095,12 @@ class DistMeta(type):
 
         def __init__(self, name=None, data_info=None, model_param_settings=None, model_structure_settings=None,
                      pre_process_settings=None, nan_handler_settings=None):
+            self._search_cursor = None
+            self._param_search_t = None
+            self.param_search_time_limit = None
+            self.mean_record = self.std_record = None
+            self._searching_params = self._settings_base = None
+
             dist_mixin.__init__(self)
             model.__init__(
                 self, name, data_info, model_param_settings, model_structure_settings,
