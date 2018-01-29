@@ -18,7 +18,9 @@ class LinearSVM(Base):
 
     def init_from_data(self, x, y, x_test, y_test, sample_weights, names):
         super(LinearSVM, self).init_from_data(x, y, x_test, y_test, sample_weights, names)
-        self.model_param_settings.setdefault("metric", "binary_acc")
+        metric = self.model_param_settings.setdefault("metric", "binary_acc")
+        if metric == "acc":
+            self.model_param_settings["metric"] = "binary_acc"
         self.n_class = 1
 
     def init_model_param_settings(self):
@@ -37,17 +39,17 @@ class LinearSVM(Base):
             net, [current_dimension, 1], "_final_projection"
         )
 
+    def _define_loss_and_train_step(self):
+        self._loss = self.c * tf.reduce_sum(
+            tf.maximum(0., 1 - self._tfy * self._output)
+        ) + tf.nn.l2_loss(self._ws[0])
+        with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
+            self._train_step = self._optimizer.minimize(self._loss)
+
     def _get_feed_dict(self, x, y=None, weights=None, is_training=False):
         if y is not None:
             y[y == 0] = -1
         return super(LinearSVM, self)._get_feed_dict(x, y, weights, is_training)
-
-    def _define_loss_and_train_step(self):
-        self._loss = tf.reduce_sum(
-            tf.maximum(0., 1 - self._tfy * self._output)
-        ) + self.c * tf.nn.l2_loss(self._ws[0])
-        with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
-            self._train_step = self._optimizer.minimize(self._loss)
 
     def predict_classes(self, x):
         return (self._calculate(x, tensor=self._output, is_training=False) >= 0).astype(np.int32)
@@ -101,9 +103,9 @@ class SVM(LinearSVM):
         self.py_collections += ["_x", "_gram"]
 
     def _define_loss_and_train_step(self):
-        self._loss = tf.reduce_sum(tf.maximum(0., 1 - self._tfy * self._output)) + 0.5 * tf.matmul(
+        self._loss = self.c * tf.reduce_sum(tf.maximum(0., 1 - self._tfy * self._output)) + 0.5 * tf.matmul(
             self._ws[0], tf.matmul(self._gram, self._ws[0]), transpose_a=True
-        )[0] + self.c * tf.nn.l2_loss(self._ws[0])
+        )[0]
         with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
             self._train_step = self._optimizer.minimize(self._loss)
 
