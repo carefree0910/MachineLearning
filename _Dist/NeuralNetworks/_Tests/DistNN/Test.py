@@ -14,8 +14,8 @@ base_params = {
     },
     "model_param_settings": {
         "metric": "acc",
-        "n_epoch": 5,
-        "max_epoch": 10
+        "n_epoch": 1,
+        "max_epoch": 2
     }
 }
 

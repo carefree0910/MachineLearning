@@ -10,7 +10,7 @@ import tensorflow as tf
 
 from openml import datasets
 
-from _Dist.NeuralNetworks.g_DistNN.NN import DistAdvanced
+from _Dist.NeuralNetworks.b_TraditionalML.SVM import DistLinearSVM
 
 GPU_ID = None
 K_RANDOM = 9
@@ -58,7 +58,9 @@ def download_data():
 def main():
     base_params = {
         "data_info": {},
-        "model_param_settings": {}
+        "model_param_settings": {},
+        # "model_param_settings": {"n_epoch": 1, "max_epoch": 1},
+        # "model_structure_settings": {"use_wide_network": False, "use_pruner": False}
     }
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
@@ -70,8 +72,7 @@ def main():
         local_params = copy.deepcopy(base_params)
         local_params["name"] = str(idx)
         local_params["data_info"]["numerical_idx"] = numerical_idx
-        DistAdvanced(**local_params).empirical_search(cv_rate=0.1, test_rate=0.1).k_random(
-            K_RANDOM, cv_rate=0.1, test_rate=0.1)
+        DistLinearSVM(**copy.deepcopy(local_params)).k_random(K_RANDOM, cv_rate=0.1, test_rate=0.1)
 
 
 if __name__ == '__main__':

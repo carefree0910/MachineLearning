@@ -32,7 +32,7 @@ x, x_test = normalize(x), normalize(x_test)
 
 ylim = (0.5, 1.05)
 base_params = {
-    "model_param_settings": {"n_epoch": 200},
+    "model_param_settings": {"n_epoch": 200, "metric": "acc"},
     "model_structure_settings": {"hidden_units": [152, 153]}
 }
 basic = Basic(**base_params).fit(x, y, x_test, y_test, snapshot_ratio=0)

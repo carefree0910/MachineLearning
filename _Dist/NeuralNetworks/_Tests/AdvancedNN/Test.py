@@ -60,7 +60,7 @@ def block_test_pruner(generator, **kwargs):
 
 
 base_params = {
-    "model_param_settings": {"n_epoch": 40},
+    "model_param_settings": {"n_epoch": 40, "metric": "acc"},
     "model_structure_settings": {"hidden_units": [500, 500]}
 }
 basic = Basic(**base_params).fit(x, y, x_test, y_test, snapshot_ratio=0)
@@ -93,7 +93,7 @@ wnd_dndf_pruned.evaluate(x, y, x_cv, y_cv, x_test, y_test)
 draw_acc(basic, wnd_dndf, wnd_dndf_pruned)
 
 advanced_params["data_info"]["numerical_idx"] = [True] * 500 + [False]
-advanced_params["model_structure_settings"]["pruner_params"] = {"prune_method": "surgery"}
+advanced_params["model_structure_settings"]["pruner_params"] = {"prune_method": "hard_prune"}
 basic, wnd_dndf, wnd_dndf_pruned = block_test(DataUtil.gen_noisy_linear, n_dim=500)
 draw_acc(basic, wnd_dndf, wnd_dndf_pruned, ylim=(0.8, 0.95), draw_train=False)
 

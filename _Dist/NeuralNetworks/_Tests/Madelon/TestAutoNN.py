@@ -12,7 +12,7 @@ x, y, x_test, y_test = get_madelon()
 
 base_params = {
     "name": "Madelon",
-    "model_param_settings": {"n_epoch": 200},
+    "model_param_settings": {"n_epoch": 200, "metric": "acc"},
     "model_structure_settings": {"hidden_units": [152, 153]}
 }
 basic = AutoBasic(**base_params).fit(x, y, x_test, y_test, snapshot_ratio=0)
