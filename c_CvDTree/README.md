@@ -8,7 +8,7 @@ Implemented **ID3**, **C4.5** & **CART**. Capable for dealing with relatively 'r
 ![ID3](http://oph1aen4o.bkt.clouddn.com/18-1-30/99814955.jpg)
 
 ### C4.5
-![C4.5](http://oph1aen4o.bkt.clouddn.com/18-1-30/14662794.jpg)
+![C4.5](http://oph1aen4o.bkt.clouddn.com/18-1-30/48437221.jpg)
 
 ### CART
 ![CART](http://oph1aen4o.bkt.clouddn.com/18-1-30/32419745.jpg)
