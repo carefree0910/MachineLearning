@@ -110,5 +110,6 @@ def main(visualize=True):
 
     tree.show_timing_log()
 
+
 if __name__ == '__main__':
     main(False)

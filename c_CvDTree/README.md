@@ -5,13 +5,13 @@ Implemented **ID3**, **C4.5** & **CART**. Capable for dealing with relatively 'r
 + Dataset comes from UCI: [Mushroom dataset](http://archive.ics.uci.edu/ml/datasets/Mushroom)
 
 ### ID3
-![ID3](http://i1.piimg.com/567571/b202b2dfd1394757.png)
+![ID3](http://oph1aen4o.bkt.clouddn.com/18-1-30/99814955.jpg)
 
 ### C4.5
-![C4.5](http://i1.piimg.com/567571/d64bffa200033d00.png)
+![C4.5](http://oph1aen4o.bkt.clouddn.com/18-1-30/48437221.jpg)
 
 ### CART
-![CART](http://i1.piimg.com/567571/330a93ad355c0a05.png)
+![CART](http://oph1aen4o.bkt.clouddn.com/18-1-30/32419745.jpg)
 
 ## Example
 ```python
