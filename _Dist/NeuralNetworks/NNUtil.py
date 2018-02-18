@@ -313,8 +313,8 @@ class Toolbox:
         else:
             shrink_features = data_t
         feature_sets = [
-            set() if idx is None or idx else set(shrink_feat)
-            for idx, shrink_feat in zip(numerical_idx, shrink_features)
+            set() if idx is None or idx else set(shrink_feature)
+            for idx, shrink_feature in zip(numerical_idx, shrink_features)
         ]
         n_features = [len(feature_set) for feature_set in feature_sets]
         all_num_idx = [
@@ -349,9 +349,7 @@ class Toolbox:
                     all_num_idx[i] = numerical_idx[i] = None
                 elif numerical_idx[i]:
                     shrink_feature = np.asarray(shrink_feature, np.float32)
-                    if np.isnan(shrink_feature[-1]):
-                        shrink_feature = shrink_feature[:-1]
-                    if np.max(shrink_feature) < 2 ** 30:
+                    if np.max(shrink_feature[~np.isnan(shrink_feature)]) < 2 ** 30:
                         if np.allclose(shrink_feature, np.array(shrink_feature, np.int32)):
                             if Toolbox.all_unique(shrink_feature):
                                 Toolbox.warn_all_unique(i, logger)

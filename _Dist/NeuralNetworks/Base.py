@@ -133,13 +133,10 @@ class Generator:
         if next_cursor >= self.n_valid:
             next_cursor = self.n_valid
             end = True
-        rs, w = self._get_data(indices[self._batch_cursor:next_cursor])
-        if end:
-            self._batch_cursor = -1
-        else:
-            self._batch_cursor = next_cursor
+        data, w = self._get_data(indices[self._batch_cursor:next_cursor])
+        self._batch_cursor = -1 if end else next_cursor
         logger.debug("Done")
-        return rs, w
+        return data, w
 
     def gen_random_subset(self, n):
         n = min(n, self.n_valid)
