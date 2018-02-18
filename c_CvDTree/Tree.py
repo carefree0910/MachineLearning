@@ -188,20 +188,24 @@ class CvDBase(ClassifierBase):
         self.root.view()
 
     @CvDBaseTiming.timeit(level=2, prefix="[API] ")
-    def visualize(self, radius=24, width=1200, height=800, padding=0.2, plot_num=30, title="CvDTree"):
+    def visualize(self, radius=24, width=1200, height=800,
+                  height_padding_ratio=0.2, width_padding=30, title="CvDTree"):
         self._update_layers()
-        units = [len(layer) for layer in self.layers]
+        n_units = [len(layer) for layer in self.layers]
 
         img = np.ones((height, width, 3), np.uint8) * 255
-        axis0_padding = int(height / (len(self.layers) - 1 + 2 * padding)) * padding + plot_num
-        axis0 = np.linspace(
-            axis0_padding, height - axis0_padding, len(self.layers), dtype=np.int)
-        axis1_padding = plot_num
-        axis1 = [np.linspace(axis1_padding, width - axis1_padding, unit + 2, dtype=np.int)
-                 for unit in units]
-        axis1 = [axis[1:-1] for axis in axis1]
+        height_padding = int(
+            height / (len(self.layers) - 1 + 2 * height_padding_ratio)
+        ) * height_padding_ratio + width_padding
+        height_axis = np.linspace(
+            height_padding, height - height_padding, len(self.layers), dtype=np.int)
+        width_axis = [
+            np.linspace(width_padding, width - width_padding, unit + 2, dtype=np.int)
+            for unit in n_units
+        ]
+        width_axis = [axis[1:-1] for axis in width_axis]
 
-        for i, (y, xs) in enumerate(zip(axis0, axis1)):
+        for i, (y, xs) in enumerate(zip(height_axis, width_axis)):
             for j, x in enumerate(xs):
                 if i == 0:
                     cv2.circle(img, (x, y), radius, (225, 100, 125), 1)
@@ -216,13 +220,13 @@ class CvDBase(ClassifierBase):
                     color = (0, 255, 0)
                 cv2.putText(img, text, (x-7*len(text)+2, y+3), cv2.LINE_AA, 0.6, color, 1)
 
-        for i, y in enumerate(axis0):
-            if i == len(axis0) - 1:
+        for i, y in enumerate(height_axis):
+            if i == len(height_axis) - 1:
                 break
-            for j, x in enumerate(axis1[i]):
-                new_y = axis0[i + 1]
+            for j, x in enumerate(width_axis[i]):
+                new_y = height_axis[i + 1]
                 dy = new_y - y - 2 * radius
-                for k, new_x in enumerate(axis1[i + 1]):
+                for k, new_x in enumerate(width_axis[i + 1]):
                     dx = new_x - x
                     length = np.sqrt(dx**2+dy**2)
                     ratio = 0.5 - min(0.4, 1.2 * 24/length)
