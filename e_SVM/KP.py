@@ -58,6 +58,7 @@ class GDKP(GDKernelBase):
             ]
         return np.sum(err[mask])
 
+
 if __name__ == '__main__':
     # xs, ys = DataUtil.gen_two_clusters(center=5, dis=1, scale=2, one_hot=False)
     xs, ys = DataUtil.gen_spiral(20, 4, 2, 2, one_hot=False)
