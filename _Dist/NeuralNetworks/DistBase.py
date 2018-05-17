@@ -10,179 +10,111 @@ import random
 import pickle
 import shutil
 import logging
+import itertools
+import collections
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
+tf.logging.set_verbosity(tf.logging.FATAL)
+
+from copy import deepcopy
 from mpl_toolkits.mplot3d import Axes3D
 
+from Util.ProgressBar import ProgressBar
 from _Dist.NeuralNetworks.NNUtil import *
+from _Dist.NeuralNetworks.Base import Generator
 
 
-class Generator:
-    def __init__(self, x, y, name="Generator", weights=None, n_class=None, shuffle=True):
-        self._cache = {}
-        self._x, self._y = np.asarray(x, np.float32), np.asarray(y, np.float32)
-        if weights is None:
-            self._sample_weights = None
-        else:
-            self._sample_weights = np.asarray(weights, np.float32)
-        if n_class is not None:
-            self.n_class = n_class
-        else:
-            y_int = self._y.astype(np.int32)
-            if np.allclose(self._y, y_int):
-                assert y_int.min() == 0, "Labels should start from 0"
-                self.n_class = y_int.max() + 1
-            else:
-                self.n_class = 1
-        self._name = name
-        self._do_shuffle = shuffle
-        self._all_valid_data = self._generate_all_valid_data()
-        self._valid_indices = np.arange(len(self._all_valid_data))
-        self._random_indices = self._valid_indices.copy()
-        np.random.shuffle(self._random_indices)
-        self._batch_cursor = -1
-
-    def __enter__(self):
-        self._cache_current_status()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self._restore_cache()
-
-    def __getitem__(self, item):
-        return getattr(self, "_" + item)
-
-    def __len__(self):
-        return self.n_valid
-
-    def __str__(self):
-        return "{}_{}".format(self._name, self.shape)
-
-    __repr__ = __str__
+class DataCacheMixin:
+    @property
+    def data_folder(self):
+        return self.data_info.get("data_folder", "_Data")
 
     @property
-    def n_valid(self):
-        return len(self._valid_indices)
+    def data_cache_folder(self):
+        folder = os.path.join(self.data_folder, "_Cache", self._name)
+        if not os.path.isdir(folder):
+            os.makedirs(folder)
+        return folder
 
     @property
-    def n_dim(self):
-        return self._x.shape[-1]
+    def data_info_folder(self):
+        folder = os.path.join(self.data_folder, "_DataInfo")
+        if not os.path.isdir(folder):
+            os.makedirs(folder)
+        return folder
 
     @property
-    def shape(self):
-        return self.n_valid, self.n_dim
-
-    def _generate_all_valid_data(self):
-        return np.hstack([self._x, self._y.reshape([-1, 1])])
-
-    def _cache_current_status(self):
-        self._cache["_valid_indices"] = self._valid_indices
-        self._cache["_random_indices"] = self._random_indices
-
-    def _restore_cache(self):
-        self._valid_indices = self._cache["_valid_indices"]
-        self._random_indices = self._cache["_random_indices"]
-        self._cache = {}
-
-    def set_indices(self, indices):
-        indices = np.asarray(indices, np.int)
-        self._valid_indices = self._valid_indices[indices]
-        self._random_indices = self._random_indices[indices]
-
-    def set_range(self, start, end=None):
-        if end is None:
-            self._valid_indices = self._valid_indices[start:]
-            self._random_indices = self._random_indices[start:]
-        else:
-            self._valid_indices = self._valid_indices[start:end]
-            self._random_indices = self._random_indices[start:end]
-
-    def get_indices(self, indices):
-        return self._get_data(np.asarray(indices, np.int))
-
-    def get_range(self, start, end=None):
-        if end is None:
-            return self._get_data(self._valid_indices[start:])
-        return self._get_data(self._valid_indices[start:end])
-
-    def _get_data(self, indices, return_weights=True):
-        data = self._all_valid_data[indices]
-        if not return_weights:
-            return data
-        weights = None if self._sample_weights is None else self._sample_weights[indices]
-        return data, weights
-
-    def gen_batch(self, n_batch, re_shuffle=True):
-        n_batch = min(n_batch, self.n_valid)
-        logger = logging.getLogger("DataReader")
-        if n_batch == -1:
-            n_batch = self.n_valid
-        if self._batch_cursor < 0:
-            self._batch_cursor = 0
-        if self._do_shuffle:
-            if self._batch_cursor == 0 and re_shuffle:
-                logger.debug("Re-shuffling random indices")
-                np.random.shuffle(self._random_indices)
-            indices = self._random_indices
-        else:
-            indices = self._valid_indices
-        logger.debug("Generating batch with size={}".format(n_batch))
-        end = False
-        next_cursor = self._batch_cursor + n_batch
-        if next_cursor >= self.n_valid:
-            next_cursor = self.n_valid
-            end = True
-        data, w = self._get_data(indices[self._batch_cursor:next_cursor])
-        self._batch_cursor = -1 if end else next_cursor
-        logger.debug("Done")
-        return data, w
-
-    def gen_random_subset(self, n):
-        n = min(n, self.n_valid)
-        logger = logging.getLogger("DataReader")
-        logger.debug("Generating random subset with size={}".format(n))
-        start = random.randint(0, self.n_valid - n)
-        subset, weights = self._get_data(self._random_indices[start:start + n])
-        logger.debug("Done")
-        return subset, weights
-
-    def get_all_data(self, return_weights=True):
-        if self._all_valid_data is not None:
-            if return_weights:
-                return self._all_valid_data, self._sample_weights
-            return self._all_valid_data
-        return self._get_data(self._valid_indices, return_weights)
-
-
-class Generator3d(Generator):
-    @property
-    def n_time_step(self):
-        return self._x.shape[1]
+    def data_info_file(self):
+        return os.path.join(self.data_info_folder, "{}.info".format(self._name))
 
     @property
-    def shape(self):
-        return self.n_valid, self.n_time_step, self.n_dim
-
-    def _generate_all_valid_data(self):
-        return np.array([(x, y) for x, y in zip(self._x, self._y)])
-
-
-class Generator4d(Generator3d):
-    @property
-    def height(self):
-        return self._x.shape[1]
+    def train_data_file(self):
+        return os.path.join(self.data_cache_folder, "train.npy")
 
     @property
-    def width(self):
-        return self._x.shape[2]
+    def test_data_file(self):
+        return os.path.join(self.data_cache_folder, "test.npy")
+
+
+class LoggingMixin:
+    logger = logging.getLogger("")
+    initialized_log_file = set()
 
     @property
-    def shape(self):
-        return self.n_valid, self.height, self.width, self.n_dim
+    def logging_folder_name(self):
+        folder = os.path.join(os.getcwd(), "_Tmp", "_Logging", self.name)
+        if not os.path.isdir(folder):
+            os.makedirs(folder)
+        return folder
+
+    def _init_logging(self):
+        if self.loggers is not None:
+            return
+        console = logging.StreamHandler()
+        console.setLevel(logging.INFO)
+        formatter = logging.Formatter("%(name)20s - %(levelname)8s  -  %(message)s")
+        console.setFormatter(formatter)
+        root_logger = logging.getLogger("")
+        root_logger.handlers.clear()
+        root_logger.setLevel(logging.DEBUG)
+        root_logger.addHandler(console)
+        self.loggers = {}
+
+    def get_logger(self, name, file):
+        if name in self.loggers:
+            return self.loggers[name]
+        folder = self.logging_folder_name
+        log_file = os.path.join(folder, file)
+        if log_file not in self.initialized_log_file:
+            with open(log_file, "w"):
+                pass
+            self.initialized_log_file.add(log_file)
+        log_file = logging.FileHandler(log_file, "a")
+        log_file.setLevel(logging.DEBUG)
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)20s - %(levelname)8s  -  %(message)s",
+            "%Y-%m-%d %H:%M:%S"
+        )
+        log_file.setFormatter(formatter)
+        logger = logging.getLogger(name)
+        logger.addHandler(log_file)
+        self.loggers[name] = logger
+        return logger
+
+    def log_msg(self, msg, level=logging.DEBUG, logger=None):
+        logger = self.logger if logger is None else logger
+        print(msg) if logger is print else logger.log(level, msg)
+
+    def log_block_msg(self, title="Done", header="Result", body="", level=logging.DEBUG, logger=None):
+        msg = title + "\n" + "\n".join(["=" * 100, header, "-" * 100])
+        if body:
+            msg += "\n{}\n".format(body) + "-" * 100
+        self.log_msg(msg, level, logger)
 
 
-class Base:
+class Base(LoggingMixin):
     signature = "Base"
 
     def __init__(self, name=None, model_param_settings=None, model_structure_settings=None):
@@ -228,6 +160,8 @@ class Base:
         self._sess = None
         self._graph = tf.Graph()
         self._sess_config = self.model_param_settings.pop("sess_config", None)
+        self.loggers = None
+        self._init_logging()
 
     def __str__(self):
         return self.model_saving_name
@@ -396,12 +330,15 @@ class Base:
                 self.log["train_{}".format(self._metric_name)].append(train_metric)
         else:
             test_metric = None
-        print("\rEpoch {:6}   Iter {:8}   Snapshot {:6} ({})  -  Train : {:8.6f}   Test : {}".format(
-            i_epoch, i_iter, snapshot_cursor, self._metric_name, train_metric,
-            "None" if test_metric is None else "{:8.6f}".format(test_metric)
-        ), end="")
-        if i_epoch == i_iter == snapshot_cursor == 0:
-            print()
+        msg = (
+            "Epoch {:6}   Iter {:8}   Snapshot {:6} ({})  -  "
+            "Train : {:8.6f}   Test : {}".format(
+                i_epoch, i_iter, snapshot_cursor, self._metric_name, train_metric,
+                "None" if test_metric is None else "{:8.6f}".format(test_metric)
+            )
+        )
+        logger = self.get_logger("_snapshot", "general.log")
+        self.log_msg(msg, logger=logger)
         return train_metric, test_metric
 
     def _calculate(self, x, y=None, weights=None, tensor=None, n_elem=1e7, is_training=False):
@@ -538,14 +475,18 @@ class Base:
         if path is None:
             path = self.model_saving_path
         folder = os.path.join(path, "{:06}".format(run_id))
+        while os.path.isdir(folder):
+            run_id += 1
+            folder = os.path.join(path, "{:06}".format(run_id))
         if not os.path.isdir(folder):
             os.makedirs(folder)
-        print("Saving model")
+        logger = self.get_logger("save", "general.log")
+        self.log_msg("Saving model", logger=logger)
         with self._graph.as_default():
             saver = tf.train.Saver()
             self.save_collections(folder)
             saver.save(self._sess, os.path.join(folder, "Model"))
-            print("Model saved to " + folder)
+            self.log_msg("Model saved to " + folder, logger=logger)
             return self
 
     def load(self, run_id=None, clear_devices=False, path=None):
@@ -554,19 +495,20 @@ class Base:
             path = self.model_saving_path
         folder = self.get_model_name(path, run_id)
         path = os.path.join(folder, "Model")
-        print("Restoring model")
+        logger = self.get_logger("save", "general.log")
+        self.log_msg("Restoring model", logger=logger)
         with self._graph.as_default():
             if self._sess is None:
                 self._initialize_session()
             saver = tf.train.import_meta_graph("{}.meta".format(path), clear_devices)
-            saver.restore(self._sess, os.path.join(folder, "Model"))
+            saver.restore(self._sess, tf.train.latest_checkpoint(folder))
             self.restore_collections(folder)
             self.init_all_settings()
-            print("Model restored from " + folder)
+            self.log_msg("Model restored from " + folder, logger=logger)
             return self
 
     def save_checkpoint(self, folder):
-        if not os.path.isdir(folder):
+        if not os.path.exists(folder):
             os.makedirs(folder)
         with self._graph.as_default():
             tf.train.Saver().save(self._sess, os.path.join(folder, "Model"))
@@ -577,15 +519,12 @@ class Base:
 
     # API
 
-    def print_settings(self):
+    def print_settings(self, only_return=False):
         pass
 
     def fit(self, x, y, x_test=None, y_test=None, sample_weights=None, names=("train", "test"),
             timeit=True, time_limit=-1, snapshot_ratio=3, print_settings=True, verbose=1):
-        t = None
-        if timeit:
-            t = time.time()
-
+        t = time.time()
         self.init_from_data(x, y, x_test, y_test, sample_weights, names)
         if not self._settings_initialized:
             self.init_all_settings()
@@ -613,6 +552,7 @@ class Base:
             snapshot_ratio = min(snapshot_ratio, self.n_iter)
             snapshot_step = int(self.n_iter / snapshot_ratio)
 
+        logger = self.get_logger("fit", "general.log")
         terminate = False
         over_fitting_flag = 0
         n_epoch = self.n_epoch
@@ -620,7 +560,10 @@ class Base:
         if time_limit > 0:
             time_limit -= time.time() - t
             if time_limit <= 0:
-                print("Time limit exceeded before training process started")
+                self.log_msg(
+                    "Time limit exceeded before training process started",
+                    level=logging.INFO, logger=logger
+                )
                 return self
         monitor = TrainMonitor(Metrics.sign_dict[self._metric_name], snapshot_ratio)
 
@@ -637,6 +580,7 @@ class Base:
         self.log["test_{}".format(self._metric_name)] = []
         self._snapshot(0, 0, 0)
 
+        bar = ProgressBar(max_value=n_epoch, name="Epoch")
         while i_epoch < n_epoch:
             i_epoch += 1
             epoch_loss = 0
@@ -657,17 +601,19 @@ class Base:
                         over_fitting_flag = monitor.over_fitting_flag
                         if check_rs["terminate"]:
                             n_epoch = i_epoch
-                            print("  -  Early stopped at n_epoch={} due to '{}'".format(
+                            self.log_msg("Early stopped at n_epoch={} due to '{}'".format(
                                 n_epoch, check_rs["info"]
-                            ))
+                            ), level=logging.INFO, logger=logger)
                             terminate = True
                             break
                         if check_rs["save_checkpoint"]:
-                            print("  -  {}".format(check_rs["info"]))
+                            self.log_msg(check_rs["info"], logger=logger)
                             self.save_checkpoint(tmp_checkpoint_folder)
                 if 0 < time_limit <= time.time() - t:
-                    print("  -  Early stopped at n_epoch={} "
-                          "due to 'Time limit exceeded'".format(i_epoch))
+                    self.log_msg(
+                        "Early stopped at n_epoch={} due to 'Time limit exceeded'".format(i_epoch),
+                        level=logging.INFO, logger=logger
+                    )
                     terminate = True
                     break
             self.log["epoch_loss"].append(epoch_loss / (j + 1))
@@ -676,29 +622,33 @@ class Base:
                     monitor.flat_flag = True
                     monitor.punish_extension()
                     n_epoch = min(n_epoch + monitor.extension, self.max_epoch)
-                    print("  -  Extending n_epoch to {}".format(n_epoch))
+                    self.log_msg("Extending n_epoch to {}".format(n_epoch), logger=logger)
+                    bar.set_max(n_epoch)
                 if i_epoch == self.max_epoch:
                     terminate = True
                     if not monitor.info["terminate"]:
                         if not over_fitting_flag:
-                            print(
-                                "  -  Model seems to be under-fitting but max_epoch reached. "
-                                "Increasing max_epoch may improve performance"
+                            self.log_msg(
+                                "Model seems to be under-fitting but max_epoch reached. "
+                                "Increasing max_epoch may improve performance",
+                                level=logging.INFO, logger=logger
                             )
                         else:
-                            print("  -  max_epoch reached")
+                            self.log_msg("max_epoch reached", level=logging.INFO, logger=logger)
             elif i_epoch == n_epoch:
                 terminate = True
             if terminate:
-                if os.path.isdir(tmp_checkpoint_folder):
-                    print("  -  Rolling back to the best checkpoint")
+                bar.terminate()
+                if os.path.exists(tmp_checkpoint_folder):
+                    self.log_msg("Rolling back to the best checkpoint", logger=logger)
                     self.restore_checkpoint(tmp_checkpoint_folder)
                     shutil.rmtree(tmp_checkpoint_folder)
                 break
+            bar.update()
         self._snapshot(-1, -1, -1)
 
         if timeit:
-            print("  -  Time Cost: {}".format(time.time() - t))
+            self.log_msg("Time Cost: {}".format(time.time() - t), level=logging.INFO, logger=logger)
 
         return self
 
@@ -1015,7 +965,7 @@ class Base:
         return self
 
 
-class AutoBase:
+class AutoBase(LoggingMixin, DataCacheMixin):
     # noinspection PyUnusedLocal
     def __init__(self, name=None, data_info=None, pre_process_settings=None, nan_handler_settings=None,
                  *args, **kwargs):
@@ -1023,7 +973,6 @@ class AutoBase:
             raise ValueError("name should be provided when using AutoBase")
         self._name = name
 
-        self._data_folder = None
         self.whether_redundant = None
         self.feature_sets = self.sparsity = self.class_prior = None
         self.n_features = self.all_num_idx = self.transform_dicts = None
@@ -1098,7 +1047,6 @@ class AutoBase:
         if self.feature_sets is not None and self.numerical_idx is not None:
             self.n_features = [len(feature_set) for feature_set in self.feature_sets]
             self._gen_categorical_columns()
-        self._data_folder = self.data_info.get("data_folder", "_Data")
         self.data_info.setdefault("file_type", "txt")
         self.data_info.setdefault("shuffle", True)
         self.data_info.setdefault("test_rate", 0.1)
@@ -1136,11 +1084,15 @@ class AutoBase:
         if self.n_class == 1:
             return
         class_ratio = self.class_prior.min() / self.class_prior.max()
+        logger = self.get_logger("_handle_unbalance", "general.log")
         if class_ratio < 0.1:
             warn_msg = "Sample weights will be used since class_ratio < 0.1 ({:8.6f})".format(class_ratio)
-            print(warn_msg)
+            self.log_msg(warn_msg, logger=logger)
             if self._sample_weights is None:
-                print("Sample weights are not provided, they'll be generated automatically")
+                self.log_msg(
+                    "Sample weights are not provided, they'll be generated automatically",
+                    logger=logger
+                )
                 self._sample_weights = np.ones(len(y)) / self.class_prior[y.astype(np.int)]
                 self._sample_weights /= self._sample_weights.sum()
                 self._sample_weights *= len(y)
@@ -1148,7 +1100,7 @@ class AutoBase:
     def _handle_sparsity(self):
         if self.sparsity >= 0.75:
             warn_msg = "Dropout will be disabled since data sparsity >= 0.75 ({:8.6f})".format(self.sparsity)
-            print(warn_msg)
+            self.log_msg(warn_msg, logger=self.get_logger("_handle_sparsity", "general.log"))
             self.dropout_keep_prob = 1.
 
     def _gen_categorical_columns(self):
@@ -1161,11 +1113,12 @@ class AutoBase:
 
     def _transform_data(self, data, name, train_name="train",
                         include_label=False, refresh_redundant_info=False, stage=3):
-        print("Transforming {0}data{2} at stage {1}".format(
+        logger = self.get_logger("_transform_data", "general.log")
+        self.log_msg("Transforming {0}data{2} at stage {1}".format(
             "{} ".format(name), stage,
             "" if name == train_name or not self.reuse_mean_and_std else
             " with {} data".format(train_name),
-        ))
+        ), logger=logger)
         is_ndarray = isinstance(data, np.ndarray)
         if refresh_redundant_info or self.whether_redundant is None:
             self.whether_redundant = np.array([
@@ -1194,7 +1147,7 @@ class AutoBase:
                         [i for i, redundant in enumerate(whether_redundant) if redundant],
                         ", {} will be removed".format("it" if n_redundant == 1 else "they")
                     )
-                    print(warn_msg)
+                    self.log_msg(warn_msg, logger=logger)
             valid_indices = [
                 i for i, redundant in enumerate(self.whether_redundant)
                 if not redundant
@@ -1274,21 +1227,22 @@ class AutoBase:
             sep, include_header = ",", True
         else:
             raise NotImplementedError("File type '{}' not recognized".format(file_type))
+        logger = self.get_logger("_get_data_from_file", "general.log")
         if target is None:
-            target = os.path.join(self._data_folder, self._name)
+            target = os.path.join(self.data_folder, self._name)
         if not os.path.isdir(target):
             with open(target + ".{}".format(file_type), "r") as file:
-                data = Toolbox.get_data(file, sep, include_header)
+                data = Toolbox.get_data(file, sep, include_header, logger)
         else:
             with open(os.path.join(target, "train.{}".format(file_type)), "r") as file:
-                train_data = Toolbox.get_data(file, sep, include_header)
+                train_data = Toolbox.get_data(file, sep, include_header, logger)
             test_rate = 0
             test_file = os.path.join(target, "test.{}".format(file_type))
             if not os.path.isfile(test_file):
                 data = train_data
             else:
                 with open(test_file, "r") as file:
-                    test_data = Toolbox.get_data(file, sep, include_header)
+                    test_data = Toolbox.get_data(file, sep, include_header, logger)
                 data = (train_data, test_data)
         return data, test_rate
 
@@ -1296,21 +1250,16 @@ class AutoBase:
                    shuffle=True, test_rate=0.1, stage=3):
         use_cached_data = False
         train_data = test_data = None
-        data_cache_folder = os.path.join(self._data_folder, "_Cache", self._name)
-        data_info_folder = os.path.join(self._data_folder, "_DataInfo")
-        data_info_file = os.path.join(data_info_folder, "{}.info".format(self._name))
-        train_data_file = os.path.join(data_cache_folder, "train.npy")
-        test_data_file = os.path.join(data_cache_folder, "test.npy")
-
-        if data is None and stage >= 2 and os.path.isfile(train_data_file):
-            print("Restoring data")
+        logger = self.get_logger("_load_data", "general.log")
+        if data is None and stage >= 2 and os.path.isfile(self.train_data_file):
+            self.log_msg("Restoring data", logger=logger)
             use_cached_data = True
-            train_data = np.load(train_data_file)
-            if not os.path.isfile(test_data_file):
+            train_data = np.load(self.train_data_file)
+            if not os.path.isfile(self.test_data_file):
                 test_data = None
                 data = train_data
             else:
-                test_data = np.load(test_data_file)
+                test_data = np.load(self.test_data_file)
                 data = (train_data, test_data)
         if use_cached_data:
             n_train = None
@@ -1338,10 +1287,10 @@ class AutoBase:
                     np.random.shuffle(data) if is_ndarray else random.shuffle(data)
                 n_train = int(len(data) * (1 - test_rate)) if test_rate > 0 else -1
 
-        if not os.path.isdir(data_info_folder):
-            os.makedirs(data_info_folder)
-        if not os.path.isfile(data_info_file) or stage == 1:
-            print("Generating data info")
+        if not os.path.isdir(self.data_info_folder):
+            os.makedirs(self.data_info_folder)
+        if not os.path.isfile(self.data_info_file) or stage == 1:
+            self.log_msg("Generating data info", logger=logger)
             if numerical_idx is not None:
                 self.numerical_idx = numerical_idx
             elif self.numerical_idx is not None:
@@ -1352,17 +1301,17 @@ class AutoBase:
                     numerical_idx is not None and numerical_idx[-1]
                 )
                 self.feature_sets, self.n_features, self.all_num_idx, self.numerical_idx = (
-                    Toolbox.get_feature_info(data, numerical_idx, is_regression)
+                    Toolbox.get_feature_info(data, numerical_idx, is_regression, logger)
                 )
             self.n_class = 1 if self.numerical_idx[-1] else self.n_features[-1]
             self._get_transform_dicts()
-            with open(data_info_file, "wb") as file:
+            with open(self.data_info_file, "wb") as file:
                 pickle.dump([
                     self.n_features, self.numerical_idx, self.transform_dicts
                 ], file)
         elif stage == 3:
-            print("Restoring data info")
-            with open(data_info_file, "rb") as file:
+            self.log_msg("Restoring data info", logger=logger)
+            with open(self.data_info_file, "rb") as file:
                 info = pickle.load(file)
                 self.n_features, self.numerical_idx, self.transform_dicts = info
             self.n_class = 1 if self.numerical_idx[-1] else self.n_features[-1]
@@ -1378,12 +1327,12 @@ class AutoBase:
                 test_data = self._transform_data(test_data, test_name, train_name, True, stage=stage)
         self._gen_categorical_columns()
         if not use_cached_data and stage == 3:
-            print("Caching data...")
-            if not os.path.isdir(data_cache_folder):
-                os.makedirs(data_cache_folder)
-            np.save(train_data_file, train_data)
+            self.log_msg("Caching data...", logger=logger)
+            if not os.path.exists(self.data_cache_folder):
+                os.makedirs(self.data_cache_folder)
+            np.save(self.train_data_file, train_data)
             if test_data is not None:
-                np.save(test_data_file, test_data)
+                np.save(self.test_data_file, test_data)
 
         x, y = train_data[..., :-1], train_data[..., -1]
         if test_data is not None:
@@ -1526,8 +1475,10 @@ class AutoMeta(type):
             return self._evaluate(x, y, x_cv, y_cv, x_test, y_test, metric)
 
         def print_settings(self):
-            model.print_settings(self)
-            msg = "NanHandler       : {}".format("None" if not self._nan_handler else "") + "\n"
+            msg = model.print_settings(self, only_return=True)
+            if msg is None:
+                msg = ""
+            msg += "\nNanHandler       : {}".format("None" if not self._nan_handler else "") + "\n"
             if self._nan_handler:
                 msg += "\n".join("-> {:14}: {}".format(k, v) for k, v in sorted(
                     self.nan_handler_settings.items()
@@ -1538,11 +1489,623 @@ class AutoMeta(type):
                 msg += "\n".join("-> {:14}: {}".format(k, v) for k, v in sorted(
                     self.pre_process_settings.items()
                 )) + "\n"
-            msg += "-" * 100 + "\n"
-            print(msg)
+            msg += "-" * 100
+            self.log_msg("\n" + msg, logger=self.get_logger("print_settings", "general.log"))
 
         for key, value in locals().items():
             if str(value).find("function") >= 0:
                 attr[key] = value
 
+        return type(name_, bases, attr)
+
+
+class DistMixin(LoggingMixin, DataCacheMixin):
+    @property
+    def k_series_time_delta(self):
+        return time.time() - self._k_series_t
+
+    @property
+    def param_search_time_delta(self):
+        return time.time() - self._param_search_t
+
+    @property
+    def data_cache_folder_name(self):
+        folder = os.path.join(os.getcwd(), "_Tmp", "_Cache")
+        if not os.path.isdir(folder):
+            os.makedirs(folder)
+        return folder
+
+    @property
+    def k_series_logger(self):
+        name = "{}_k_series".format(self.name)
+        if name not in self.loggers:
+            self.get_logger(name, "{}.log".format(name))
+        return self.loggers[name]
+
+    @property
+    def param_search_logger(self):
+        name = "{}_param_search".format(self.name)
+        if name not in self.loggers:
+            self.get_logger(name, "{}.log".format(name))
+        return self.loggers[name]
+
+    # noinspection PyAttributeOutsideInit
+    def reset_graph(self, i):
+        del self._graph
+        self._sess = None
+        self._graph = tf.Graph()
+        self._search_cursor = i
+
+    def reset_all_variables(self):
+        with self._graph.as_default():
+            self._sess.run(tf.global_variables_initializer())
+
+    def _handle_param_search_time_limit(self, time_limit):
+        if self.param_search_time_limit is None:
+            time_limit -= self.k_series_time_delta
+        else:
+            time_limit = min(
+                time_limit,
+                self.param_search_time_limit - self.k_series_time_delta
+            )
+        self._k_series_t = time.time()
+        return time_limit
+
+    def _k_series_initialization(self, k, data, test_rate):
+        self._k_series_t = time.time()
+        self.data_info.setdefault("test_rate", test_rate)
+        self.init_data_info()
+        self._k_performances = []
+        self._k_performances_mean = self._k_performances_std = None
+        kwargs = {
+            "numerical_idx": self.numerical_idx,
+            "shuffle": self.data_info["shuffle"],
+            "file_type": self.data_info["file_type"]
+        }
+        x_1, y_1, x_test_1, y_test_1 = self._load_data(
+            data, test_rate=self.data_info["test_rate"], stage=1, **kwargs)
+        if not self._searching_params:
+            train_1 = np.hstack([x_1, y_1.reshape([-1, 1])])
+            test_1 = np.hstack([x_test_1, y_test_1.reshape([-1, 1])])
+            np.save(self.train_data_file, train_1)
+            np.save(self.test_data_file, test_1)
+        self._load_data(
+            np.hstack([x_1, y_1.reshape([-1, 1])]),
+            names=("train", None), test_rate=0, stage=2, **kwargs
+        )
+        if x_test_1 is None or y_test_1 is None:
+            x_test_2 = y_test_2 = None
+        else:
+            x_test_2, y_test_2, *_ = self._load_data(
+                np.hstack([x_test_1, y_test_1.reshape([-1, 1])]),
+                names=("test", None), test_rate=0, stage=2, **kwargs
+            )
+        names = [("train{}".format(i), "cv{}".format(i)) for i in range(k)]
+        return x_1, y_1, x_test_2, y_test_2, names
+
+    def _k_series_evaluation(self, i, x_test, y_test, time_limit):
+        if i == -1:
+            if x_test is None or y_test is None:
+                valid_performances = [performance[:2] for performance in self._k_performances]
+            else:
+                valid_performances = self._k_performances
+            performances_mean = np.mean(valid_performances, axis=0)
+            performances_std = np.std(valid_performances, axis=0)
+            msg = "  -  Mean   | {}\n".format(
+                self._print_metrics(self._metric_name, *performances_mean, only_return=True))
+            msg += "  -   Std   | {}".format(
+                self._print_metrics(self._metric_name, *performances_std, only_return=True))
+            if self._searching_params:
+                level = logging.DEBUG
+                logger = self.param_search_logger
+            else:
+                level = logging.INFO
+                logger = self.k_series_logger
+            self.log_block_msg(
+                "Generating performance summary", body=msg,
+                level=level, logger=logger
+            )
+            return performances_mean, performances_std
+        train_data = self._train_generator.get_all_data(return_weights=False)
+        cv_data = self._test_generator.get_all_data(return_weights=False)
+        x, y = train_data[..., :-1], train_data[..., -1]
+        x_cv, y_cv = cv_data[..., :-1], cv_data[..., -1]
+        msg = "Performance of run {:2} | ".format(i + 1)
+        print("  -  " + msg, end="")
+        self._k_performances.append(self._evaluate(x, y, x_cv, y_cv, x_test, y_test))
+        msg += self._print_metrics(self._metric_name, *self._k_performances[-1], only_return=True)
+        self.log_msg(
+            msg, logging.DEBUG,
+            self.param_search_logger if self._searching_params else self.k_series_logger
+        )
+        return self.k_series_time_delta >= time_limit > 0
+
+    def _k_series_completion(self, x_test, y_test, names, sample_weights_store):
+        performance_info = self._k_series_evaluation(-1, x_test, y_test, None)
+        self._k_performances_mean, self._k_performances_std = performance_info
+        self.data_info["stage"] = 3
+        for name in names:
+            self._pop_preprocessor(name)
+        self._sample_weights = sample_weights_store
+
+    def _k_series_process(self, k, data, cv_rate, test_rate, sample_weights,
+                          msg, cv_method, kwargs):
+        x_1, y_1, x_test_2, y_test_2, names = self._k_series_initialization(k, data, test_rate)
+        time_limit = kwargs.pop("time_limit", -1)
+        logger = self.get_logger("_k_series_process", "general.log")
+        if 0 < time_limit <= self.k_series_time_delta:
+            self.log_msg("Time limit exceeded before k_series started", logger=logger)
+            return
+        time_limit = self._handle_param_search_time_limit(time_limit)
+        n_cv = int(cv_rate * len(x_1))
+        print_settings = True
+        if sample_weights is not None:
+            self._sample_weights = np.asarray(sample_weights, np.float32)
+        sample_weights_store = self._sample_weights
+        self.log_msg(msg, logger=logger)
+        all_idx = np.random.permutation(len(x_1))
+        for i in range(k):
+            if self._sess is not None:
+                self.reset_all_variables()
+            skip = False
+            while True:
+                rs = cv_method(x_1, y_1, n_cv, i, k, all_idx)
+                if rs["success"]:
+                    x_train, y_train, x_cv, y_cv, train_idx = rs["info"]
+                    break
+                if rs["info"] == "retry":
+                    continue
+                x_train = y_train = x_cv = y_cv = train_idx = None
+                skip = True
+                break
+            if skip:
+                self.log_msg(
+                    "{}th fold was skipped since labels in train set and cv set are not identical".format(i + 1),
+                    level=logging.INFO, logger=logger
+                )
+                continue
+            if sample_weights is not None:
+                self._sample_weights = sample_weights_store[train_idx]
+            else:
+                self._sample_weights = None
+            kwargs["print_settings"] = print_settings
+            kwargs["names"] = names[i]
+            self.data_info["stage"] = 2
+            self.fit(x_train, y_train, x_cv, y_cv, timeit=False, time_limit=time_limit, **kwargs)
+            if self._k_series_evaluation(i, x_test_2, y_test_2, time_limit):
+                break
+            print_settings = False
+        self._k_series_completion(x_test_2, y_test_2, names, sample_weights_store)
+        return self
+
+    def _cv_sanity_check(self, rs, handler, train_idx, x_train, y_train, x_cv, y_cv):
+        if self.n_class == 1:
+            rs["info"] = (x_train, y_train, x_cv, y_cv, train_idx)
+        else:
+            y_train_unique, y_cv_unique = np.unique(y_train), np.unique(y_cv)
+            if len(y_train_unique) == len(y_cv_unique) and np.allclose(y_train_unique, y_cv_unique):
+                rs["info"] = (x_train, y_train, x_cv, y_cv, train_idx)
+            else:
+                rs["success"] = False
+                rs["info"] = handler
+
+    def _k_fold_method(self, x_1, y_1, *args):
+        _, i, k, all_idx = args
+        rs = {"success": True}
+        n_batch = int(len(x_1) / k)
+        cv_idx = all_idx[np.arange(i * n_batch, (i + 1) * n_batch)]
+        train_idx = all_idx[[
+            j for j in range(len(all_idx))
+            if j < i * n_batch or j >= (i + 1) * n_batch
+        ]]
+        x_cv, y_cv = x_1[cv_idx], y_1[cv_idx]
+        x_train, y_train = x_1[train_idx], y_1[train_idx]
+        self._cv_sanity_check(rs, "skip", train_idx, x_train, y_train, x_cv, y_cv)
+        return rs
+
+    def _k_random_method(self, x_1, y_1, *args):
+        n_cv, *_ = args
+        rs = {"success": True}
+        all_idx = np.random.permutation(len(x_1))
+        cv_idx, train_idx = all_idx[:n_cv], all_idx[n_cv:]
+        x_cv, y_cv = x_1[cv_idx], y_1[cv_idx]
+        x_train, y_train = x_1[train_idx], y_1[train_idx]
+        self._cv_sanity_check(rs, "retry", train_idx, x_train, y_train, x_cv, y_cv)
+        return rs
+
+    def k_fold(self, k=10, data=None, test_rate=0., sample_weights=None, **kwargs):
+        return self._k_series_process(
+            k, data, -1, test_rate, sample_weights, cv_method=self._k_fold_method, kwargs=kwargs,
+            msg="Training k-fold with k={} and test_rate={}".format(k, test_rate)
+        )
+
+    def k_random(self, k=3, data=None, cv_rate=0.1, test_rate=0., sample_weights=None, **kwargs):
+        return self._k_series_process(
+            k, data, cv_rate, test_rate, sample_weights, cv_method=self._k_random_method, kwargs=kwargs,
+            msg="Training k-random with k={}, cv_rate={} and test_rate={}".format(k, cv_rate, test_rate)
+        )
+
+    def _log_param_msg(self, i, param):
+        msg = ""
+        for j, (key, setting) in enumerate(param.items()):
+            msg += "\n".join([key, "-" * 100]) + "\n"
+            msg += "\n".join([
+                "  ->  {:32} : {}".format(
+                    name, value if not isinstance(value, dict) else "\n{}".format(
+                        "\n".join(["      ->  {:28} : {}".format(
+                            local_name, local_value
+                        ) for local_name, local_value in value.items()])
+                    )
+                ) for name, value in sorted(setting.items())
+            ])
+            if j != len(param) - 1:
+                msg += "\n" + "-" * 100 + "\n"
+        if i >= 0:
+            title = "Generating parameter setting {:3}".format(i + 1)
+        else:
+            title = "Generating best parameter setting"
+        self.log_block_msg(
+            title=title, body=msg,
+            level=logging.DEBUG, logger=self.param_search_logger
+        )
+
+    @staticmethod
+    def _get_score(mean, std, sign):
+        if sign > 0:
+            return mean - std
+        return mean + std
+
+    @staticmethod
+    def _extract_param_from_info(dtype, info):
+        if dtype == "choice":
+            return info[0][random.randint(0, len(info[0]) - 1)]
+        if len(info) == 2:
+            floor, ceiling = info
+            distribution = "linear"
+        else:
+            floor, ceiling, distribution = info
+        if ceiling <= floor:
+            raise ValueError("ceiling should be greater than floor")
+        if dtype == "int":
+            return random.randint(floor, ceiling)
+        if dtype == "float":
+            linear_target = floor + random.random() * (ceiling - floor)
+            distribution_error_msg = "distribution '{}' not supported in range_search".format(distribution)
+            if distribution == "linear":
+                return linear_target
+            if distribution[:3] == "log":
+                sign, log = int(linear_target > 0), math.log(math.fabs(linear_target))
+                if distribution == "log":
+                    return sign * math.exp(log)
+                if distribution == "log2":
+                    return sign * 2 ** log
+                if distribution == "log10":
+                    return sign * 10 ** log
+                raise NotImplementedError(distribution_error_msg)
+            raise NotImplementedError(distribution_error_msg)
+        raise NotImplementedError("dtype '{}' not supported in range_search".format(dtype))
+
+    def _update_param(self, param):
+        self._model_built = False
+        self._settings_initialized = False
+        self.model_param_settings = deepcopy(self._settings_base["model_param_settings"])
+        self.model_structure_settings = deepcopy(self._settings_base["model_structure_settings"])
+        new_model_param_settings = param.get("model_param_settings", {})
+        new_model_structure_settings = param.get("model_structure_settings", {})
+        self.model_param_settings.update(new_model_param_settings)
+        self.model_structure_settings.update(new_model_structure_settings)
+        if not self.model_structure_settings.get("use_pruner", True):
+            self._pruner = None
+        if not self.model_structure_settings.get("use_dndf", True):
+            self._dndf = None
+        if not self.model_structure_settings.get("use_dndf_pruner", False):
+            self._dndf_pruner = None
+        if self._nan_handler is not None:
+            self._nan_handler.reset()
+        if self._pre_processors:
+            self._pre_processors = {}
+
+    def _select_param(self, params, search_with_test_set):
+        scores = []
+        sign = Metrics.sign_dict[self._metric_name]
+        assert len(self.mean_record) == len(self.std_record)
+        for mean, std in zip(self.mean_record, self.std_record):
+            if len(mean) == 2 or not search_with_test_set:
+                train_mean, cv_mean = mean
+                train_std, cv_std = std
+                weighted_mean = 0.05 * train_mean + 0.95 * cv_mean
+                weighted_std = 0.05 * train_std + 0.95 * cv_std
+            else:
+                train_mean, cv_mean, test_mean = mean
+                train_std, cv_std, test_std = std
+                weighted_mean = 0.05 * train_mean + 0.1 * cv_mean + 0.85 * test_mean
+                weighted_std = 0.05 * train_std + 0.1 * cv_std + 0.85 * test_std
+            scores.append(self._get_score(weighted_mean, weighted_std, sign))
+        scores = np.array(scores, np.float32)
+        scores[np.isnan(scores)] = -np.inf
+        best_idx = np.argmax(scores)
+        return best_idx, params[best_idx]
+
+    def _prepare_param_search_data(self, data, test_rate):
+        file_type = self.data_info.setdefault("file_type", "txt")
+        data_folder = self.data_info.setdefault("data_folder", "_Data")
+        self._file_type_store = file_type
+        self._data_folder_store = data_folder
+        if data is not None:
+            return data
+        cache_folder = self.data_cache_folder_name
+        target = os.path.join(data_folder, self._name)
+        data, test_rate = self._get_data_from_file(file_type, test_rate, target)
+        if isinstance(data, tuple):
+            train_data, test_data = data
+        else:
+            if test_rate > 0:
+                random.shuffle(data)
+                n_train = int(len(data) * (1 - test_rate))
+                train_data, test_data = data[:n_train], data[n_train:]
+            else:
+                train_data, test_data = data, None
+        cache_target = os.path.join(cache_folder, self._name)
+        if not os.path.isdir(cache_target):
+            os.makedirs(cache_target)
+        self.log_msg("Writing tmp data for param searching", level=logging.INFO, logger=self.param_search_logger)
+        with open(os.path.join(cache_target, "train.txt"), "w") as file:
+            file.write("\n".join([" ".join(line) for line in train_data]))
+        if test_data is not None:
+            with open(os.path.join(cache_target, "test.txt"), "w") as file:
+                file.write("\n".join([" ".join(line) for line in test_data]))
+        self.data_info["file_type"] = "txt"
+        self.data_info["data_folder"] = cache_folder
+
+    def _param_search_completion(self):
+        self._searching_params = False
+        self.param_search_time_limit = None
+        self._data_info_initialized = False
+        self.data_info["file_type"] = self._file_type_store
+        self.data_info["data_folder"] = self._data_folder_store
+
+    def get_param_by_range(self, param):
+        if isinstance(param, dict):
+            return {key: self.get_param_by_range(value) for key, value in param.items()}
+        dtype, *info = param
+        if not isinstance(dtype, str) and isinstance(dtype, collections.Iterable):
+            local_param_list = []
+            for local_dtype, local_info in zip(dtype, info):
+                local_param_list.append(self._extract_param_from_info(local_dtype, local_info))
+            return local_param_list
+        return self._extract_param_from_info(dtype, info)
+
+    # noinspection PyAttributeOutsideInit
+    def param_search(self, params,
+                     search_with_test_set=True, switch_to_best_param=True,
+                     single_search_time_limit=None, param_search_time_limit=3600,
+                     k=3, data=None, cv_rate=0.1, test_rate=0.1, sample_weights=None, **kwargs):
+        self._param_search_t = time.time()
+        self.param_search_time_limit = param_search_time_limit
+        logger = self.param_search_logger
+        self._searching_params = True
+        self._settings_base = {
+            "model_param_settings": deepcopy(self.model_param_settings),
+            "model_structure_settings": deepcopy(self.model_structure_settings)
+        }
+        self.mean_record, self.std_record = [], []
+        self.log_msg(
+            "Searching best parameter setting (time_limit: {}s per run, {}s in total)".format(
+                "default" if single_search_time_limit is None else single_search_time_limit,
+                param_search_time_limit
+            ), logging.DEBUG, logger
+        )
+        self._prepare_param_search_data(data, test_rate)
+        n_param = len(params)
+        for i, param in enumerate(params):
+            self.reset_graph(i)
+            self._log_param_msg(i, param)
+            self._update_param(param)
+            time_left = param_search_time_limit - self.param_search_time_delta
+            if single_search_time_limit is None:
+                local_time_limit = time_left / (n_param - i)
+            else:
+                local_time_limit = single_search_time_limit
+            kwargs["time_limit"] = min(local_time_limit, time_left)
+            if self.k_random(k, data, cv_rate, test_rate, sample_weights, **kwargs) is not None:
+                self.save()
+                self.mean_record.append(self._k_performances_mean)
+                self.std_record.append(self._k_performances_std)
+            if self.param_search_time_delta >= param_search_time_limit:
+                self.log_msg("Search interrupted due to 'Time limit exceeded'", level=logging.INFO, logger=logger)
+                break
+        self.log_msg("Search complete", level=logging.DEBUG, logger=logger)
+        best_idx, best_param = self._select_param(params, search_with_test_set)
+        self._log_param_msg(-1, best_param)
+        msg = ""
+        for i, (mean, std) in enumerate(zip(self.mean_record, self.std_record)):
+            msg += "  -{} Mean   | ".format(">" if i == best_idx else " ")
+            msg += self._print_metrics(self._metric_name, *mean, only_return=True) + "\n"
+            msg += "  -{}  Std   | ".format(">" if i == best_idx else " ")
+            msg += self._print_metrics(self._metric_name, *std, only_return=True)
+            if i != len(self.mean_record) - 1:
+                msg += "\n" + "-" * 100 + "\n"
+        self.log_block_msg("Generating performances", body=msg, level=logging.DEBUG, logger=logger)
+        if switch_to_best_param:
+            self.reset_graph(-1)
+            self._update_param(best_param)
+        self._param_search_completion()
+        return self
+
+    def random_search(self, n, grid_params, grid_order="list_first",
+                      search_with_test_set=True, switch_to_best_params=True,
+                      single_search_time_limit=None, param_search_time_limit=3600,
+                      k=3, data=None, cv_rate=0.1, test_rate=0.1, sample_weights=None, **kwargs):
+        if grid_order == "list_first":
+            param_types = sorted(grid_params)
+            n_param_base = [
+                np.arange(len(grid_params[param_type]))
+                for param_type in param_types
+            ]
+            params = [
+                {
+                    param_type: grid_params[param_type][indices[i]]
+                    for i, param_type in enumerate(param_types)
+                } for indices in itertools.product(*n_param_base)
+            ]
+        elif grid_order == "dict_first":
+            param_types = sorted(grid_params)
+            params_names = [sorted(grid_params[param_type]) for param_type in param_types]
+            params_names_cumsum = np.cumsum([0] + [len(params_name) for params_name in params_names])
+            n_param_base = sum([
+                [np.arange(len(grid_params[param_type][param_name])) for param_name in params_name]
+                for param_type, params_name in zip(param_types, params_names)
+            ], [])
+            params = [
+                {
+                    param_type: {
+                        local_params: grid_params[param_type][local_params][indices[cumsum + j]]
+                        for j, local_params in enumerate(params_names[i])
+                    } for i, (param_type, cumsum) in enumerate(zip(param_types, params_names_cumsum))
+                } for indices in itertools.product(*n_param_base)
+            ]
+        else:
+            raise NotImplementedError("grid_sort_type '{}' not implemented".format(grid_order))
+        if n > 0:
+            params = [params[i] for i in np.random.permutation(len(params))[:n]]
+        return self.param_search(
+            params,
+            search_with_test_set, switch_to_best_params,
+            single_search_time_limit, param_search_time_limit,
+            k, data, cv_rate, test_rate, sample_weights, **kwargs
+        )
+
+    def grid_search(self, grid_params, grid_order="list_first",
+                    search_with_test_set=True, switch_to_best_params=True,
+                    single_search_time_limit=None, param_search_time_limit=3600,
+                    k=3, data=None, cv_rate=0.1, test_rate=0.1, sample_weights=None, **kwargs):
+        return self.random_search(
+            -1, grid_params, grid_order,
+            search_with_test_set, switch_to_best_params,
+            single_search_time_limit, param_search_time_limit,
+            k, data, cv_rate, test_rate, sample_weights, **kwargs
+        )
+
+    def range_search(self, n, grid_params,
+                     search_with_test_set=True, switch_to_best_params=True,
+                     single_search_time_limit=None, param_search_time_limit=3600,
+                     k=3, data=None, cv_rate=0.1, test_rate=0.1, sample_weights=None, **kwargs):
+        params = []
+        for _ in range(n):
+            local_params = {
+                param_type: {
+                    param_name: self.get_param_by_range(param_value)
+                    for param_name, param_value in param_values.items()
+                } for param_type, param_values in grid_params.items()
+            }
+            params.append(local_params)
+        return self.param_search(
+            params,
+            search_with_test_set, switch_to_best_params,
+            single_search_time_limit, param_search_time_limit,
+            k, data, cv_rate, test_rate, sample_weights, **kwargs
+        )
+
+    def empirical_search(self, search_with_test_set=True, switch_to_best_params=True,
+                         level=3, single_search_time_limit=None, param_search_time_limit=3600,
+                         k=3, data=None, cv_rate=0.1, test_rate=0.1, sample_weights=None, **kwargs):
+        grid_params = {
+            "model_structure_settings": [
+                {"use_wide_network": False, "use_pruner": False, "use_dndf_pruner": False},
+                {"use_wide_network": False, "use_pruner": True, "use_dndf_pruner": False},
+                {"use_wide_network": True, "use_pruner": True, "use_dndf_pruner": False},
+            ]
+        }
+        if level >= 2:
+            grid_params["model_structure_settings"] += [
+                {"use_wide_network": True, "use_pruner": True, "use_dndf_pruner": True},
+                {"use_wide_network": True, "use_pruner": False, "use_dndf_pruner": True},
+                {"use_wide_network": True, "use_pruner": False, "use_dndf_pruner": False}
+            ]
+        if level >= 3:
+            grid_params["pre_process_settings"] = [
+                {"reuse_mean_and_std": False}, {"reuse_mean_and_std": True}
+            ]
+        if level >= 4:
+            grid_params["model_param_settings"] = [
+                {"use_batch_norm": False}, {"use_batch_norm": True}
+            ]
+        if level >= 5:
+            grid_params["model_param_settings"] = [
+                {"use_batch_norm": False, "batch_size": 64},
+                {"use_batch_norm": False, "batch_size": 128},
+                {"use_batch_norm": False, "batch_size": 256},
+                {"use_batch_norm": True, "batch_size": 64},
+                {"use_batch_norm": True, "batch_size": 128},
+                {"use_batch_norm": True, "batch_size": 256}
+            ]
+        return self.grid_search(
+            grid_params, "list_first",
+            search_with_test_set, switch_to_best_params,
+            single_search_time_limit, param_search_time_limit,
+            k, data, cv_rate, test_rate, sample_weights, **kwargs
+        )
+
+    # Signatures
+
+    @staticmethod
+    def _print_metrics(metric_name, train_metric=None, cv_metric=None, test_metric=None, only_return=False):
+        raise ValueError
+
+    def _gen_batch(self, generator, n_batch, gen_random_subset=False, one_hot=False):
+        raise ValueError
+
+    def _load_data(self, data=None, numerical_idx=None, file_type="txt", names=("train", "test"),
+                   shuffle=True, test_rate=0.1, stage=3):
+        raise ValueError
+
+    def _handle_unbalance(self, y):
+        raise ValueError
+
+    def _handle_sparsity(self):
+        raise ValueError
+
+    def _get_data_from_file(self, file_type, test_rate, target=None):
+        raise ValueError
+
+    def _evaluate(self, x=None, y=None, x_cv=None, y_cv=None, x_test=None, y_test=None, metric=None):
+        raise ValueError
+
+    def _pop_preprocessor(self, name):
+        raise ValueError
+
+    def init_data_info(self):
+        raise ValueError
+
+    def save(self, run_id=0, path=None):
+        raise ValueError
+
+    def fit(self, x=None, y=None, x_test=None, y_test=None, sample_weights=None, names=("train", "test"),
+            timeit=True, time_limit=-1, snapshot_ratio=3, print_settings=True, verbose=1):
+        raise ValueError
+
+    def evaluate(self, x=None, y=None, x_cv=None, y_cv=None, x_test=None, y_test=None, metric=None):
+        raise ValueError
+
+
+class DistMeta(type):
+    def __new__(mcs, *args, **kwargs):
+        name_, bases, attr = args[:3]
+        model, dist_mixin = bases
+
+        def __init__(self, name=None, data_info=None, model_param_settings=None, model_structure_settings=None,
+                     pre_process_settings=None, nan_handler_settings=None):
+            self._search_cursor = None
+            self._param_search_t = None
+            self.param_search_time_limit = None
+            self.mean_record = self.std_record = None
+            self._searching_params = self._settings_base = None
+
+            dist_mixin.__init__(self)
+            model.__init__(
+                self, name, data_info, model_param_settings, model_structure_settings,
+                pre_process_settings, nan_handler_settings
+            )
+
+        attr["__init__"] = __init__
         return type(name_, bases, attr)

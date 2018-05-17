@@ -1,19 +1,17 @@
 import os
 import sys
-root_path = os.path.abspath("../../../")
+root_path = os.path.abspath("../../../../")
 if root_path not in sys.path:
     sys.path.append(root_path)
 
 from _Dist.NeuralNetworks.NNUtil import *
-from _Dist.NeuralNetworks.Base import Base
+from _Dist.NeuralNetworks._Tests.Pruner.Base import Base
 
 
 class Basic(Base):
-    signature = "Basic"
-
     def __init__(self, *args, **kwargs):
         super(Basic, self).__init__(*args, **kwargs)
-        self._name_appendix = "BasicNN"
+        self._name_appendix = "Basic"
         self.activations = self.hidden_units = None
 
     @property

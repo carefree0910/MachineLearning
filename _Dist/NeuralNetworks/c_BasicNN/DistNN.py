@@ -5,7 +5,7 @@ if root_path not in sys.path:
     sys.path.append(root_path)
 
 from _Dist.NeuralNetworks.NNUtil import *
-from _Dist.NeuralNetworks.Base import Base
+from _Dist.NeuralNetworks.DistBase import Base
 
 
 class Basic(Base):
@@ -52,26 +52,3 @@ class Basic(Base):
         appendix = "_final_projection"
         fc_shape = self.hidden_units[-1] if self.hidden_units else current_dimension
         self._output = self._fully_connected_linear(net, [fc_shape, self.n_class], appendix)
-
-
-if __name__ == '__main__':
-    from Util.Util import DataUtil
-
-    for generator in (DataUtil.gen_xor, DataUtil.gen_spiral, DataUtil.gen_nine_grid):
-        x_train, y_train = generator(size=1000, one_hot=False)
-        x_test, y_test = generator(size=100, one_hot=False)
-        nn = Basic(model_param_settings={"n_epoch": 200}).scatter2d(x_train, y_train).fit(
-            x_train, y_train, x_test, y_test, snapshot_ratio=0
-        ).draw_losses().visualize2d(
-            x_train, y_train, title="Train"
-        ).visualize2d(
-            x_test, y_test, padding=2, title="Test"
-        )
-
-    for size in (256, 1000, 10000):
-        (x_train, y_train), (x_test, y_test) = DataUtil.gen_noisy_linear(
-            size=size, n_dim=2, n_valid=2, test_ratio=100 / size, one_hot=False
-        )
-        nn = Basic(model_param_settings={"n_epoch": 200}).scatter2d(x_train, y_train).fit(
-            x_train, y_train, x_test, y_test, snapshot_ratio=0
-        ).draw_losses().visualize2d(x_train, y_train, title="Train").visualize2d(x_test, y_test, title="Test")

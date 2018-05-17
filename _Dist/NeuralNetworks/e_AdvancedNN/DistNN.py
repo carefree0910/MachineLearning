@@ -9,7 +9,7 @@ import numpy as np
 import tensorflow as tf
 
 from _Dist.NeuralNetworks.NNUtil import *
-from _Dist.NeuralNetworks.c_BasicNN.NN import Basic
+from _Dist.NeuralNetworks.c_BasicNN.DistNN import Basic
 
 
 class Advanced(Basic):
@@ -258,7 +258,7 @@ class Advanced(Basic):
         for key in self.tf_list_collections:
             tf.get_collection_ref(key).clear()
 
-    def print_settings(self):
+    def print_settings(self, only_return=False):
         msg = "\n".join([
             "=" * 100, "This is a {}".format(
                 "{}-classes problem".format(self.n_class) if not self.n_class == 1
@@ -321,5 +321,5 @@ class Advanced(Basic):
             msg += "\n".join("-> {:14}: {}".format(key, value) for key, value in sorted(
                 self._pruner.params.items()
             )) + "\n"
-        msg += "-" * 100 + "\n"
-        print(msg)
+        msg += "-" * 100
+        return msg if only_return else self.log_msg("\n" + msg, self.get_logger("print_settings", "general.log"))
