@@ -4,9 +4,8 @@ root_path = os.path.abspath("../../../")
 if root_path not in sys.path:
     sys.path.append(root_path)
 
-from _Dist.NeuralNetworks.c_BasicNN.NN import Basic
-from _Dist.NeuralNetworks.e_AdvancedNN.NN import Advanced
-from _Dist.NeuralNetworks.Base import AutoBase, AutoMeta
+from _Dist.NeuralNetworks.DistBase import AutoBase, AutoMeta
+from _Dist.NeuralNetworks.e_AdvancedNN.DistNN import Basic, Advanced
 
 
 class AutoBasic(AutoBase, Basic, metaclass=AutoMeta):

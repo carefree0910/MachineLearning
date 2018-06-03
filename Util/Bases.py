@@ -682,7 +682,6 @@ class TFClassifierBase(ClassifierBase):
         self._y_pred_raw = self._y_pred = None
         self._sess = tf.Session()
 
-
     @clf_timing.timeit(level=2, prefix="[Core] ")
     def _batch_training(self, x, y, batch_size, train_repeat, *args):
         loss, train_step, *args = args
