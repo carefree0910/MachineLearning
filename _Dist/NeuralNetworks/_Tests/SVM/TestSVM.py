@@ -14,7 +14,7 @@ from _Dist.NeuralNetworks.f_AutoNN.DistNN import AutoAdvanced
 base_params = {"model_param_settings": {"n_epoch": 30, "metric": "acc"}}
 (x, y), (x_test, y_test) = DataUtil.gen_noisy_linear(n_dim=2, n_valid=2, test_ratio=0.01, one_hot=False)
 svm = SVM(**deepcopy(base_params)).fit(
-    x, y, x_test, y_test, snapshot_ratio=0).visualize2d(x_test, y_test)
-nn = AutoAdvanced("NoisyLinear", **deepcopy(base_params)).fit(
-    x, y, x_test, y_test, snapshot_ratio=0).visualize2d(x_test, y_test)
+    x, y, x_test, y_test, snapshot_ratio=1).visualize2d(x_test, y_test)
+nn = AutoAdvanced("NoisyLinear", **deepcopy(base_params), pre_process_settings={"reuse_mean_and_std": True}).fit(
+    x, y, x_test, y_test, snapshot_ratio=1).visualize2d(x_test, y_test)
 draw_acc(svm, nn)
