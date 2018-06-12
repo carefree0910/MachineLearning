@@ -51,7 +51,7 @@ class CNN(Basic4d):
         else:
             assert self.height == x.shape[1], "height is set to be {}, but {} found".format(self.height, x.shape[1])
             assert self.width == x.shape[2], "width is set to be {}, but {} found".format(self.height, x.shape[2])
-        if len(x_test.shape) == 2:
+        if x_test is not None and len(x_test.shape) == 2:
             x_test = x_test.reshape(len(x_test), self.height, self.width, -1)
         super(CNN, self).init_from_data(x, y, x_test, y_test, sample_weights, names)
 
