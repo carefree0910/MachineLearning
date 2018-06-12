@@ -322,4 +322,5 @@ class Advanced(Basic):
                 self._pruner.params.items()
             )) + "\n"
         msg += "-" * 100
-        return msg if only_return else self.log_msg("\n" + msg, self.get_logger("print_settings", "general.log"))
+        return msg if only_return else self.log_msg(
+            "\n" + msg, logger=self.get_logger("print_settings", "general.log"))
