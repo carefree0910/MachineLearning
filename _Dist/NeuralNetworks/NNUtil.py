@@ -141,7 +141,7 @@ class Losses:
     def mse(y, pred, _, weights=None):
         if weights is None:
             return tf.losses.mean_squared_error(y, pred)
-        return tf.losses.mean_squared_error(y, pred, weights)
+        return tf.losses.mean_squared_error(y, pred, tf.reshape(weights, [-1, 1]))
 
     @staticmethod
     def cross_entropy(y, pred, already_prob, weights=None):
