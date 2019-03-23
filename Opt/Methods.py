@@ -43,7 +43,7 @@ class LineSearch:
     def __init__(self, func, **kwargs):
         """
         The framework for line search algorithms
-        :param func   : Should be a SubClass of class 'Function' defined in Functions.py 
+        :param func   : Should be a SubClass of class 'Function' defined in Functions.py
         :param kwargs : May contain these parameters:
                 init  : Average of random initial points   ; default: 0.5
                 floor : Lower bound of α in Armijo         ; default: 0.001
@@ -91,7 +91,7 @@ class LineSearch:
         Perform a step of line search
         :param x      : Current x
         :param d      : Current direction
-        :return       : α, feva, success, loss, gradient 
+        :return       : α, feva, success, loss, gradient
                             where 'success' is a list with two elements:
                                 success[0]: whether the initial search succeeded
                                 success[1]: whether the line search criteria are satisfied
@@ -234,7 +234,7 @@ class Optimizer:
     def __init__(self, func, line_search=None, **kwargs):
         """
         The framework for general optimizers
-        :param func        : Should be a SubClass of class 'Function' defined in Functions.py  
+        :param func        : Should be a SubClass of class 'Function' defined in Functions.py
         :param line_search : Should be a SubClass of class 'LineSearch' defined above
         :param kwargs      : May contain two parameters:
                      epoch : Maximum iteration for optimization  ; default: 1000
@@ -555,3 +555,10 @@ class ScipyOpt:
             return self._func.loss(_x), self._func.grad(_x)
         result = optimize.minimize(f, self._func.x0, jac=True, method="L-BFGS-B", bounds=self._func.bounds)
         return result.x, result.fun, result.nit, result.nfev
+
+
+__all__ = [
+    "Armijo", "Goldstein", "Wolfe", "StrongWolfe",
+    "GradientDescent", "Newton", "DampedNewton", "MergedNewton", "LM",
+    "SR1", "DFP", "BFGS", "ScipyOpt"
+]
