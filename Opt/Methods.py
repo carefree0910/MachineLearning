@@ -404,7 +404,7 @@ class Newton(Optimizer):
     def get_d(self):
         if self._d is None:
             self._grad_cache = self.func(1)
-            self._d = np.linalg.solve(self.func(2), self._grad_cache)
+            self._d = Optimizer.solve(self.func(2), self._grad_cache)
         return self._d
 
 
