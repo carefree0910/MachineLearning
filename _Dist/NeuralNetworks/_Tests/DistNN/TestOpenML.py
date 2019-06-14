@@ -23,10 +23,6 @@ IDS = [
 ]
 
 
-def swap(arr, i1, i2):
-    arr[..., i1], arr[..., i2] = arr[..., i2], arr[..., i1].copy()
-
-
 def download_data():
     data_folder = "_Data"
     idx_folder = os.path.join(data_folder, "idx")
@@ -41,15 +37,12 @@ def download_data():
         if os.path.isfile(data_file) and os.path.isfile(idx_file):
             continue
         dataset = datasets.get_dataset(idx)
-        data, categorical_idx, names = dataset.get_data(
-            return_categorical_indicator=True,
-            return_attribute_names=True
-        )
-        data = data.toarray() if not isinstance(data, np.ndarray) else data
-        target_idx = names.index(dataset.default_target_attribute)
+        x, y, categorical_idx, names = dataset.get_data(
+            target=dataset.default_target_attribute, dataset_format="array")
+        categorical_idx.append(False)
+        to_array = lambda arr: arr.toarray() if not isinstance(arr, np.ndarray) else arr
+        data = np.hstack(list(map(to_array, [x, y.reshape([-1, 1])])))
         numerical_idx = ~np.array(categorical_idx)
-        swap(numerical_idx, target_idx, -1)
-        swap(data, target_idx, -1)
         with open(data_file, "w") as file:
             file.write("\n".join([" ".join(map(lambda n: str(n), line)) for line in data]))
         np.save(idx_file, numerical_idx)
