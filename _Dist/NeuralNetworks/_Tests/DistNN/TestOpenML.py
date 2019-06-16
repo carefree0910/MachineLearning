@@ -12,7 +12,7 @@ from openml import datasets
 
 from _Dist.NeuralNetworks.g_DistNN.NN import DistAdvanced
 
-GPU_ID = None
+GPU_ID = "0"
 K_RANDOM = 9
 IDS = [
     38, 46, 179,
@@ -39,7 +39,7 @@ def download_data():
         dataset = datasets.get_dataset(idx)
         x, y, categorical_idx, names = dataset.get_data(
             target=dataset.default_target_attribute, dataset_format="array")
-        categorical_idx.append(False)
+        categorical_idx.append(True)
         to_array = lambda arr: arr.toarray() if not isinstance(arr, np.ndarray) else arr
         data = np.hstack(list(map(to_array, [x, y.reshape([-1, 1])])))
         numerical_idx = ~np.array(categorical_idx)
