@@ -622,7 +622,7 @@ class Pruner:
         self.alpha, self.beta, self.gamma, self.r, self.exp, self.eps = alpha, beta, gamma, r, exp, eps
         self.org_ws, self.masks, self.cursor = [], [], -1
         self.method = prune_method
-        if prune_method == "soft_prune" or prune_method == "hard_prune":
+        if prune_method in ["soft_prune", "hard_prune", "simplified"]:
             if alpha is None:
                 self.alpha = 1e-2
             if beta is None:
@@ -631,6 +631,9 @@ class Pruner:
                 self.gamma = 1
             if prune_method == "hard_prune":
                 self.alpha *= 0.01
+            if prune_method == "simplified":
+                if self.exp is None:
+                    self.exp = 1
             self.cond_placeholder = None
         elif prune_method == "surgery":
             if alpha is None:
@@ -641,12 +644,6 @@ class Pruner:
                 self.gamma = 0.0001
             self.r = None
             self.cond_placeholder = tf.placeholder(tf.bool, (), name="Prune_flag")
-        elif prune_method == "simplified":
-            if self.beta is None:
-                self.beta = 1
-            if self.exp is None:
-                self.exp = 1
-            self.cond_placeholder = None
         else:
             raise NotImplementedError("prune_method '{}' is not defined".format(prune_method))
 
