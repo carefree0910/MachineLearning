@@ -618,8 +618,8 @@ class DNDF:
 
 
 class Pruner:
-    def __init__(self, alpha=None, beta=None, gamma=None, r=1., eps=1e-12, prune_method="soft_prune"):
-        self.alpha, self.beta, self.gamma, self.r, self.eps = alpha, beta, gamma, r, eps
+    def __init__(self, alpha=None, beta=None, gamma=None, r=1., exp=None, eps=1e-12, prune_method="soft_prune"):
+        self.alpha, self.beta, self.gamma, self.r, self.exp, self.eps = alpha, beta, gamma, r, exp, eps
         self.org_ws, self.masks, self.cursor = [], [], -1
         self.method = prune_method
         if prune_method == "soft_prune" or prune_method == "hard_prune":
@@ -641,6 +641,11 @@ class Pruner:
                 self.gamma = 0.0001
             self.r = None
             self.cond_placeholder = tf.placeholder(tf.bool, (), name="Prune_flag")
+        elif prune_method == "simplified":
+            if self.beta is None:
+                self.beta = 1
+            if self.exp is None:
+                self.exp = 1
         else:
             raise NotImplementedError("prune_method '{}' is not defined".format(prune_method))
 
@@ -662,6 +667,10 @@ class Pruner:
         self.cursor += 1
         self.org_ws.append(w)
         with tf.name_scope("Prune"):
+            if self.method == "simplified":
+                self.masks.append(None)
+                return tf.minimum(self.r, self.beta * tf.abs(w) ** self.exp)
+
             if self.cond_placeholder is None:
                 log_w = tf.log(tf.maximum(self.eps, w_abs / (w_abs_mean * self.gamma)))
                 if self.r > 0:
