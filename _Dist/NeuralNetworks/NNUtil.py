@@ -646,6 +646,7 @@ class Pruner:
                 self.beta = 1
             if self.exp is None:
                 self.exp = 1
+            self.cond_placeholder = None
         else:
             raise NotImplementedError("prune_method '{}' is not defined".format(prune_method))
 
@@ -667,14 +668,14 @@ class Pruner:
         self.cursor += 1
         self.org_ws.append(w)
         with tf.name_scope("Prune"):
-            if self.method == "simplified":
-                self.masks.append(None)
-                return tf.minimum(self.r, self.beta * tf.abs(w) ** self.exp)
 
             if self.cond_placeholder is None:
-                log_w = tf.log(tf.maximum(self.eps, w_abs / (w_abs_mean * self.gamma)))
-                if self.r > 0:
-                    log_w = tf.minimum(self.r, self.beta * log_w)
+                if self.method == "simplified":
+                    log_w = tf.minimum(self.r, self.beta * tf.abs(w) ** self.exp)
+                else:
+                    log_w = tf.log(tf.maximum(self.eps, w_abs / (w_abs_mean * self.gamma)))
+                    if self.r > 0:
+                        log_w = tf.minimum(self.r, self.beta * log_w)
                 self.masks.append(tf.maximum(self.alpha / self.beta * log_w, log_w))
                 return w * self.masks[self.cursor]
 
