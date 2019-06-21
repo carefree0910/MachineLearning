@@ -652,7 +652,7 @@ class Pruner:
     @property
     def params(self):
         return {
-            "eps": self.eps, "alpha": self.alpha, "beta": self.beta, "gamma": self.gamma,
+            "eps": self.eps, "exp": self.exp, "alpha": self.alpha, "beta": self.beta, "gamma": self.gamma,
             "max_ratio": self.r, "method": self.method
         }
 
