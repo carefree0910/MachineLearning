@@ -51,22 +51,31 @@ def download_data():
 def main():
     base_params = {
         "data_info": {},
-        "model_param_settings": {}
+        "model_param_settings": {},
+        "model_structure_settings": {}
     }
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
     if GPU_ID is not None:
         os.environ["CUDA_VISIBLE_DEVICES"] = GPU_ID
     base_params["model_param_settings"]["sess_config"] = config
-    for idx in IDS:
-        numerical_idx = np.load("_Data/idx/{}.npy".format(idx))
-        local_params = copy.deepcopy(base_params)
-        local_params["name"] = str(idx)
-        local_params["data_info"]["numerical_idx"] = numerical_idx
-        DistAdvanced(**local_params).empirical_search(cv_rate=0.1, test_rate=0.1).k_random(
-            K_RANDOM, cv_rate=0.1, test_rate=0.1)
+    for idx in [554]:
+        for exp in [-1, 0, 0.5, 1, 1.5, 2, 3, 4]:
+            numerical_idx = np.load("_Data/idx/{}.npy".format(idx))
+            local_params = copy.deepcopy(base_params)
+            local_params["name"] = str(idx)
+            local_params["data_info"]["numerical_idx"] = numerical_idx
+            local_params["model_param_settings"]["metric"] = "acc"
+            if exp < 0:
+                local_params["model_structure_settings"]["use_pruner"] = False
+                local_params["model_structure_settings"]["use_dndf_pruner"] = False
+                local_params["model_structure_settings"]["use_wide_network"] = False
+            else:
+                pruner_params = local_params["model_structure_settings"]["pruner_params"] = {}
+                if exp > 0:
+                    pruner_params["prune_method"], pruner_params["exp"] = "simplified", exp
+            DistAdvanced(**local_params).k_random(K_RANDOM, cv_rate=0.1, test_rate=0.1)
 
 
 if __name__ == '__main__':
-    download_data()
     main()
