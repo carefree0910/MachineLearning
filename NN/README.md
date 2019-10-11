@@ -35,8 +35,8 @@ from NN.NN import *
 from Util.Util import DataUtil
 
 x, y = DataUtil.get_dataset("mnist", "../../_Data/mnist.txt", quantized=True, one_hot=True)
-                                              # Get tiny mnist dataset
-x = x.reshape(len(x), 1, 28, 28)              # Reshape x to 4d array
+                                               # Get tiny mnist dataset
+x = x.reshape(len(x), 1, 28, 28)               # Reshape x to 4d array
 
 nn = NNDist()
 
