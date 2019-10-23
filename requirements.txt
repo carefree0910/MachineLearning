@@ -8,7 +8,7 @@ scikit-learn
 Cython == 0.27.1
 
 # Util\Bases.py: 10
-Pillow == 4.1.1
+Pillow == 6.2.0
 
 # Util\Util.py: 5
 imageio == 2.2.0
