@@ -254,7 +254,7 @@ class ClassifierBase(ModelBase):
     @staticmethod
     def _multi_clf(x, clfs, task, kwargs, stack=np.vstack, target="single"):
         if target != "parallel":
-            return np.array([clf.predict(x) for clf in clfs], dtype=np.float32).T
+            return np.array([clf.predict(x) for clf in clfs]).T
         n_cores = kwargs.get("n_cores", 2)
         n_cores = multiprocessing.cpu_count() if n_cores <= 0 else n_cores
         if n_cores == 1:
