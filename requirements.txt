@@ -150,7 +150,7 @@ scipy == 0.19.1
 # h_RNN\Mnist.py: 9
 # h_RNN\RNN.py: 9,11
 # h_RNN\SpRNN.py: 9
-tensorflow_gpu == 1.4.0
+tensorflow_gpu == 1.15.4
 
 # NN\PyTorch\Auto\Layers.py: 1,2
 # NN\PyTorch\Optimizers.py: 1
