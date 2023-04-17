@@ -160,7 +160,7 @@ tensorflow_gpu == 1.4.0
 # Util\Bases.py: 21,22
 # e_SVM\LinearSVM.py: 18,19
 # e_SVM\SVM.py: 16,17
-torch == 0.2.1+a4fc05a
+torch == 1.13.1
 
 # Util\Timing.py: 2
 wrapt == 1.10.10
